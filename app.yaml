@@ -1,0 +1,29 @@
+application: terrain3dprint
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /docs
+  static_dir: docs
+- url: /tmp
+  static_dir: tmp
+- url: /.*
+  script: TouchTerrain-app.app
+- url: /oauth2callback
+  script: oauth2client.appengine.application
+
+
+libraries:
+- name: jinja2
+  version: "2.6"
+- name: webapp2
+  version: "2.5.2"
+- name: pycrypto
+  version: "2.6"
+- name: PIL
+  version: latest
+- name: numpy
+  version: "1.6.1" 
+  #version: latest

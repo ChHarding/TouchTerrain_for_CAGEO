@@ -1,0 +1,40 @@
+Notes:
+Version 0.10 (June 20, 2016)
+- switched SRTM to GMTED2010, added ETOPO1
+- added standalone version (TouchTerrain_standalone.py), parameters are fed via JSON file
+
+Version 0.09 (Jan. 20, 2016)
+- DEMs will now switch at once when selected,  no need to press another push button
+- SRTM DEMS will no longer use -32768 m for water
+
+Version 0.08 Dec. 16, 2015
+- added switch between NED (10m) and STRM (90m) DEM
+
+Version 0.07 Dec. 08, 2015:
+- added (set to true) zoom control in index.html, initMap() 
+- added UI selection of file type: obj, STL (binary/ascii) 
+
+Version 0.06 (Nov. 23, 2015):
+- gimped read-only
+- added pre-flight page (warning: dodgy global used for request)
+- added old file delete
+
+Version 0.051 (Nov. 16, 2015):
+- changed vertex indexing from a vertext class wide attribute to a grid attribute. I think the vertex wide (shared) version was at fault for some issues when two users (=> server instances) processed grids.
+
+Version 0.05 (Nov. 12, 2015):
+- added approximate real world DEM resolution based on 3D print resolution and tile size/numbers
+- added link to docs/readme and changed handlers in app.yaml file. Important: order matters /docs needed to be before /.* !
+
+Version 0.04 (Oct.30, 2015):
+- moved to Linux server
+- numpy 1.10 gave _ctypes missing error, using numpy 1.9.3 instead
+- hack: changed MAX_RESPONSE_SIZE in google/appengine/tools/devappserver2/constants.py from
+  32 Mb to 256 Mb. 
+
+Version 0.03 (Oct.20, 2015):
+- got export to work, will create a in-memory zip file with a obj per tile and a info txt
+- browser still just waits until zip file is created, then downloads it
+- size seems to be limited to 32 Mb (not sure where this is set)
+- can be deployed on appspot, but there it will time out (code 500) after 30 secs
+- appspot only supports numpy 1.6 which does not have a pad() function, needs to be hand-written (TODO)
