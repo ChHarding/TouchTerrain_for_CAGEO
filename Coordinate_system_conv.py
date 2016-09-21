@@ -1,5 +1,5 @@
 """
-Coordinate_system_conv  - sime utility functions for coordinate system conversion
+Coordinate_system_conv  - some utility functions for coordinate system conversion
 """
 
 
