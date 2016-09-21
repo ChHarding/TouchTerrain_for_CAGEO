@@ -1,7 +1,23 @@
 """
 TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Engine)
 """
-# CH 09/2016
+
+'''
+@author:     Chris Harding
+@license:    GPL
+@contact:    charding@iastate.edu
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'''
 
 
 import sys
@@ -572,53 +588,3 @@ if __name__ == "__main__":
     print "done"
 
     
-#----------------------- leftovers --------------------------------------------
-    
-    """ Testing how I would clip raster with a polygon
-    # clip polygon - must be inside region
-    pcoords =[[-108.2429962,44.6819000], # around sheep mtn
-              [-108.1620026,44.6605988],
-              [-108.0690002,44.6141014],
-              [-108.0090027,44.5353012],
-              [-108.1090012,44.5494003],
-              [-108.2170029,44.6186981]
-             ]
-    
-    
-    poly = ee.Geometry.Polygon(pcoords, False, None)  #  not geodesic, no proj, but doesn't set geodesic to False!
-    poly._geodesic = False # total hack
-    print poly.getInfo() # dict
-    
-    print poly.bounds().getInfo() # dict (with geodesic=True, this doesn't work (cause of GCS?)
-    bb = poly.bounds().coordinates().getInfo() # bounds seems to be 5 points (1 and last a repeats), actually a list of polygons
-    print bb[0][0], bb[0][2] # opposite corners
-    pass
-    
-    """
-    
-   
-
-
-"""
-## using utm module to convert to m
-import utm
-center_in_utm = utm.from_latlon(center[1],center[0]) # [x,y,zone_number,zone_letter]
-utm_zone = center_in_utm[2]
-utm_zone_letter = center_in_utm[3]
-print "center at", utm_zone
-
-# convert lat/lon to utm coords
-region_order = ["NW", "NE", "SE", "SW"]
-for n,r in enumerate(region): print n,r, region[n][0], region[n][1]
-region_as_utm = [utm.from_latlon(lat,lon)[:3] for lon,lat in region]
-for n,c in enumerate(region_as_utm): print n,region_order[n], "lon=%.3f lat=%.3f  x=%.0f y=%.0f UTM%d" % (region[n][0], region[n][1], c[0], c[1], c[2])
-
-# do we span 2 different UTM zones? (look at NW [0]  vs NE [1] )
-if region_as_utm[0][2] != region_as_utm[2][2]: print "warning: region is across two UTM zones:", region_as_utm[0][2], region_as_utm[1][2]
-
-# get width in meters
-print "width in meters (N border):",  region_as_utm[1][0] - region_as_utm[0][0]  # NE - NW
-print "width in meters (S border):",  region_as_utm[2][0] - region_as_utm[3][0]  # SE - SW
-print "height in meters (E border):", region_as_utm[1][1] - region_as_utm[2][1]  # NE - SE
-print "height in meters (W border):", region_as_utm[0][1] - region_as_utm[3][1]  # NW - SW
-"""
