@@ -1,5 +1,24 @@
-# grid_tesselate.py
-# create triangles from a top and bottom numpy 2D array, including walls
+"""
+grid_tesselate.py - create triangles from a top and bottom numpy 2D array, including walls
+                    and stores them as STL or obj file
+"""
+
+'''
+@author:     Chris Harding
+@license:    GPL
+@contact:    charding@iastate.edu
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'''
 
 # CH: Jan. 22, 16: putting the vert index behind a comment makes some programs crash 
 #                  when loading the obj file, so I removed those.
@@ -7,7 +26,8 @@
 #  a vertex class attribute as this seem to index not found fail eventually when
 #  multiple grids are processed together.
 
-# CH July 2015
+# STL just sets the Normals to 0,0,0, leaving their calculation to whatever 
+#       reads the STL file for 3D printing. 
 
 import numpy as np
 import copy   # to copy objects
@@ -27,12 +47,9 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
-
-
-
+#  couple of helper classes
 class vertex(object): 
-    
-    #vert_idx = OrderedDict() # class attribute, needs to be set to empty be grid.__init__()
+    """ a vertex class - has an OrderedDict() class(!) attribute for vertex IDs (see grid.__init__)"""
     
     def __init__(self, x,y,z, vertex_idx_from_grid):
         self.coords = (x,y,z)
@@ -46,12 +63,10 @@ class vertex(object):
             #print self.coords, len(self.vert_idx) # DEBUG
             pass
  
-        
     def get_id(self):
         '''return Id for my coords'''
         i = self.vert_idx[self.coords] # TODO: wrap in exeption in case index is not found
         return i
-
     
     def get(self):
         "returns [x,y,z] list of vertex"
@@ -92,8 +107,6 @@ class quad(object):
             rs = rs + "v" + str(n) + ": " + str(v) + "  "
         return rs    
         
-
-
 class cell(object):
     "a cell with a top and bottom quad, constructor: uses refs and does NOT copy"
     def __init__(self, topquad, bottomquad, borders):    
@@ -109,7 +122,7 @@ class cell(object):
 
    
 
-
+# grid class
 class grid(object):
     " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a dict for now"
     
@@ -132,7 +145,7 @@ class grid(object):
         # [41  42 43]]        
         # i.e. height (y) is encoded in the first (0) dimension, width in the second (1),   
         # the 'edge" padded version for a top left tile might be this, the right and bottom fringe 
-        # are part of the adjecent tiles, which must be used in the interpolation to result in no-seam edges
+        # are part of the adjacent tiles, which must be used in the interpolation to result in no-seam edges
         #      [[11, 11, 12, 13, 14],
                #[11, 11, 12, 13, 14],
                #[Nan,Nan,22, 23, 24],
@@ -149,7 +162,6 @@ class grid(object):
         # cell size (x and y delta) in mm        
         csz_mm = tile_info["pixel_mm"]
         
-        
         have_nan = np.isnan(np.sum(top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-numpy
         #print "have_nan", have_nan
 
@@ -158,12 +170,9 @@ class grid(object):
         scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
         top *= scz * tile_info["z_scale"] # apply z-scale
         top += tile_info["base_thickness_mm"] # add base thickness
-        
-        # test: make top flat  top.fill(5.0)        
+          
         print "elev: %.2f - %.2f (mm)," % (np.nanmin(top), np.nanmax(top)),
-
       
-        #print ptop
         # max index in x and y for "inner" raster
         xmaxidx = top.shape[1]-2 
         ymaxidx = top.shape[0]-2
@@ -176,7 +185,7 @@ class grid(object):
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
             offsetx = -tile_width  * tile_info["tile_no_x"]-1 + tile_info["full_raster_width"] / 2.0# tile_no starts with 1!
             offsety = -tile_height * tile_info["tile_no_y"]-1 + tile_info["full_raster_height"] / 2.0
-        else: # local centered for printing
+        else: # local centered, for printing each tile centered
             offsetx = tile_width / 2.0
             offsety = tile_height / 2.0             
         #print offsetx, offsety
@@ -243,7 +252,8 @@ class grid(object):
                 else:
                     # interpolate each corner with possible NaNs, using mean()
                     # Note: if we have 1 or more NaNs, we get a warning warnings.warn("Mean of empty slice", RuntimeWarning)
-                    # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
+                    # but if the result of ANY corner is NaN (b/c it used 4 NaNs), 
+                    # skip this cell entirely by setting it to None instead a cell object
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error') 
                         try:
@@ -262,8 +272,10 @@ class grid(object):
                 #NWelev = NEelev = SEelev = SWelev = ptop[j,i] # DEBUG, set all corners to center elev
                 #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
                 
-                
-                ## make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system used in 3D graphics
+                #
+                # make top and bottom quads and wall. Note that here we flip x and y coordinate axis 
+                # to the system used in 3D graphics 
+                #
                 
                 # make top quad (x,y,z)    vi is the vertex index dict of the grids
                 NEt = vertex(E, N, NWelev, self.vi)  # yes, NEt gets the z of NWelev, has to do with coordinate system change 
@@ -298,7 +310,6 @@ class grid(object):
                 c = cell(topq, botq, borders)
                 #print c
   
-                
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
                 #c.ix = i-1
@@ -378,7 +389,7 @@ class grid(object):
         "returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)"
         # Example: list of 2 triangles
         #[
-        # [ 1.0,  1.0,  1.0, # vertex1 xyz
+        # [ 1.0,  1.0,  1.0, # vertex1 xyz   
         #  -1.0,  1.0, -1.0, # vertex2 xyz
         #  -1.0, -1.0,  1.0] # vertex3 xyz
         # [ 1.0,  1.0,  1.0,
@@ -408,7 +419,7 @@ class grid(object):
                     triangles.append(t0)
                     triangles.append(t1)
                     
-        #for t in triangles: print t
+        #for t in triangles: print t # DEBUG
         
         buf = None
         if ascii:
@@ -454,7 +465,7 @@ class grid(object):
           for iy in range(0, ncells_y):
             cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
             
-            if cell != None:  # None means cell is undefined
+            if cell != None:  # None means cell is undefined, skip it
                 quads = [cell.topquad, cell.bottomquad] # list of quads for this cell, top and bottom for sure
                 for k in cell.borders.keys(): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
@@ -471,7 +482,7 @@ class grid(object):
         
         
          
-# MAIN    
+# MAIN    - only used for testing and debugging
 if __name__ == "__main__":
     
     nn = np.nan
@@ -526,6 +537,7 @@ if __name__ == "__main__":
     #print bottom
     
     """
+    # plot raster
     import matplotlib.pyplot as plt
     #plt.ion()
     fig = plt.figure(figsize=(7,10))
