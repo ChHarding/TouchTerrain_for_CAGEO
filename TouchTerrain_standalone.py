@@ -46,8 +46,8 @@ import sys;sys.path.append(r"C:\Program Files (x86)\Google\google_appengine")
 #
 # python TouchTerrain_standalone.py my.json
 #
-# This will authenticate with Google EE, request the specifie raster, covert it
-# into one or more 3D model files (tiles) and 
+# This will authenticate with Google EE, request the specific raster, covert it
+# into one or more 3D model files (tiles) and store it/them as a zipped folder.
 
 # Default parameters:
 # The JSON file overwrites values for the following keys, which are used as
