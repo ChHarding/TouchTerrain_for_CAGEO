@@ -26,7 +26,7 @@ it cannot be run right away with just those files!
 https://developers.google.com/earth-engine/python_install describes the setup of 
 the Earth Engine Python API, including the required oauth authentication to the Earth Engine. 
 This will create a credentials file on your system and a private key (.pem) file that are 
-needed by config.py. You will also need to have install all required third party modules, 
+needed by config.py. You will also need to install all required third party modules, 
 such as numpy and pillow.
 
 
