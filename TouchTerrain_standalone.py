@@ -34,7 +34,7 @@ Alternative to running the TouchTerrain web server.
 # Although this standalone version doesn't actually run a sever, it still
 # needs access to some of the google apps modules. Set this to point to your
 # google_appengine folder:
-#import sys;sys.path.append(r"C:\Program Files (x86)\Google\google_appengine") 
+import sys
 
 # Get a google dev account, set up a google earth engine project.
 # Modify the settings in config.py. Put your public key file (.pem) into this folder.
