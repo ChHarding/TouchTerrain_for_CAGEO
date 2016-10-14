@@ -159,11 +159,11 @@ stubs.FakeFile.__init__ = fake__init__ # overwrite __init__ with fake that doesn
 # I store the entire request as a global and write it back later. TODO: find a better way!
 class preflight(webapp2.RequestHandler):
     def __init__(self, request, response):
-	    global GLOBAL_request
 	    # Set self.request, self.response and self.app.
 	    self.initialize(request, response)
-	    GLOBAL_request = request #  dodgy way of storing request data for later use in ExportToFile()
-	    #print GLOBAL_request
+        app = webapp2.get_app()
+        app.registry['preflightrequest'] = self.request
+
 
     def post(self):
 	#print self.request.POST # all args
@@ -187,10 +187,9 @@ class preflight(webapp2.RequestHandler):
 # cannot be created by the devserver.
 class ExportToFile(webapp2.RequestHandler):
     def __init__(self, request, response):
-		global GLOBAL_request
-		#print GLOBAL_request
 		self.initialize(request, response)
-		self.request = GLOBAL_request  # dodgy way to get the same query string as given to preflight
+        app = webapp2.get_app()
+		self.request = app.registry['preflightrequest']
 
     def post(self): # make tiles in zip file and write
 	#print self.request.arguments() # should be the same as given to preflight
