@@ -54,7 +54,7 @@ import time
 logging.Formatter.converter = time.gmtime # set to gmt as GAE uses that,
 
 GLOBAL_request = None # HACK for duplicating request
-tmp_folder = "tmp"  # dir to store zip files on the dev server
+tmp_folder = "/var/www/html/touchterrain/tmp"  # dir to store zip files on the dev server
 
 # functions for computing hillshades in EE (from EE examples)
 # currently, I only use the precomputed hs
@@ -163,7 +163,7 @@ class preflight(webapp2.RequestHandler):
         self.initialize(request, response)
         app = webapp2.get_app()
         app.registry['preflightrequest'] = self.request
-
+        print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
 
     def post(self):
 	#print self.request.POST # all args
@@ -189,7 +189,7 @@ class ExportToFile(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
         app = webapp2.get_app()
-        self.request = app.registry['preflightrequest']
+        self.request = app.registry.get('preflightrequest')
 
     def post(self): # make tiles in zip file and write
 	#print self.request.arguments() # should be the same as given to preflight
