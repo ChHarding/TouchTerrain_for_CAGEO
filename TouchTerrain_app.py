@@ -249,6 +249,6 @@ app = webapp2.WSGIApplication([('/', MainPage), # index.html
                               ('/preflight', preflight)],
                               debug=True)
 
-    from paste import httpserver
-    print "running local httpserver ,",
-    httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
+from paste import httpserver
+print "running local httpserver ,",
+httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
