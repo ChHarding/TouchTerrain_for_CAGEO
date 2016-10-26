@@ -42,6 +42,10 @@ if USE_GOOGLE_APPENGINE_LAUNCHER == False:
 
     import sys, glob
     # location of google_appengine\lib on your system
+    # location of google_appengine\lib on your system
+    GA_lib = r"/usr/local/bin/google_appengine/lib"
+    for d in glob.glob(GA_lib + os.sep + "*"):
+        sys.path.append(d) # append each folder to the sys.path, which is searched on import
 
 import sys
 sys.path.insert(0, '/usr/local/bin/google_appengine')
