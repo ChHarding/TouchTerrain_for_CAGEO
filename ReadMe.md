@@ -9,25 +9,22 @@
 Version 0.10 of the TouchTerrain project, primarily a set of python source code files
 for Python 2.7:
 
-TouchTerrain-app.py: a server module (service) to be run as part of a Google App Engine server. 
-    The server creates a webpage, through which the user inputs the area selection and print parameters.
+- TouchTerrain-app.py: a server module (service) to be run as part of a Google App Engine server. The server creates a webpage, through which the user inputs the area selection and print parameters.
     
-index.html: HTML template for the main webpage, includes Javascript
+- index.html: HTML template for the main webpage, includes Javascript
     
-TouchTerrain_standalone.py: A stand-alone version in which the user input is given 
+- TouchTerrain_standalone.py: A stand-alone version in which the user input is given 
     in a JSON file, rather then via a web page.
     
-TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the 
-    Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
+- TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
     
-grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in
-    the desired file format (STL or OBJ)
+- grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in the desired file format (STL or OBJ)
     
-Coordinate_system_conv.py, InMemoryZip.py: utility functions  
+- Coordinate_system_conv.py, InMemoryZip.py: utility functions  
 
-config.py: used for oauth credentials for the Google dev (Earth Engine) account 
+- config.py: used for oauth credentials for the Google dev (Earth Engine) account 
 
-tmp: contains an example terrain model, a zipped stl file 
+- tmp folder: contains an example terrain model, a zipped stl file 
 
 Note that running the server or the stand-alone version does require some additional setup,
 it cannot be run right away with just those files! 
