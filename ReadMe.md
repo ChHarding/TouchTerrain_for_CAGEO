@@ -1,3 +1,11 @@
+
+0.11 (Oct. 31 - Halloween edition): Includes Levi's changes/fixes/additions:
+- proper separation of server vs stand-alone:
+- stand-alone version can now be run without having to install the google app engine (GAE) modules
+- full server now runs on Apache mod_wsgi, rather than via the Google App Engine dev server. However, the GAE modules still need to be installed, as some parts are used by the server module.
+- fixed a noobish use of a Python global for duplicating request_handling data for the pre-flight page
+
+
 Version 0.10 of the TouchTerrain project, primarily a set of python source code files
 for Python 2.7:
 
@@ -28,5 +36,6 @@ the Earth Engine Python API, including the required oauth authentication to the 
 This will create a credentials file on your system and a private key (.pem) file that are 
 needed by config.py. You will also need to install all required third party modules, 
 such as numpy and pillow.
+
 
 
