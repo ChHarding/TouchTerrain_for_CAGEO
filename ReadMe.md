@@ -1,5 +1,5 @@
 0.12 (Dec. 12 - X-mas edition): 
-- can now use server tyep flags: Apache, paste or GEA_devserver
+- can now use server type flags: Apache, paste or GEA_devserver
 - added a hillshade gamma slider to change default gamma (1.0). Requires reload of page: press set new gamma button.
 - added 30m SRTM DEM as data source
 - better info on how the original raster DEM will be rescaled based on area, tile number/size, etc. 
