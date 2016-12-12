@@ -1,4 +1,4 @@
-"""TouchTerrain-app - a Module for Google App Engine"""
+"""TouchTerrain-app - a server module"""
 
 '''
 @author:     Chris Harding
@@ -17,7 +17,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-# CH 20/06/2016: added ETOPO and changed the DEM source strings, see DEM_sources from TouchTerrainEarthEngine.py
+
+# CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
+# and so requires a reload
+# CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
+# CH 06/20/2016: added ETOPO and changed the DEM source strings, see DEM_sources from TouchTerrainEarthEngine.py
 # CH 12/01/2016: MainPage() request handler now uses GET, the querie string contains the coords of the window, the DEM and the coords of the region
 # CH 12/22/2015: changes UI for switching (no need to click button) and clipped SRTM data to 0 for offshore (was -32768)
 # CH 12/16/2015: added switch between 10m (NED) and 90m (SRTM) DEM
@@ -31,26 +35,17 @@ import os
 from datetime import datetime
 import ee      # can be installed under site-packges
 
-# set to False if you want to run/debug this file.
-# this will run a httpserver locally instead of using devserver2 but will still require access to the
-# GAE modules in google_appengine\lib
-USE_GOOGLE_APPENGINE_LAUNCHER = False
-#USE_GOOGLE_APPENGINE_LAUNCHER = True # set to True if you use Google App Engine launcher (i.e. using devserver2)
+
+SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
+#SERVER_TYPE = "paste" # so I can run the server inside a debugger ...
 
 #  set sys.path to include all modules in google_appengine\lib
-if USE_GOOGLE_APPENGINE_LAUNCHER == False:
-
+if SERVER_TYPE == "GAE_devserver":
     import sys, glob
-    # location of google_appengine\lib on your system
-    # location of google_appengine\lib on your system
-    GA_lib = r"/usr/local/bin/google_appengine/lib"
+    GA_lib = r"C:\Program Files (x86)\Google\google_appengine\lib" # location of google_appengine\lib is on your system
     for d in glob.glob(GA_lib + os.sep + "*"):
         sys.path.append(d) # append each folder to the sys.path, which is searched on import
-
-import sys
-sys.path.insert(0, '/usr/local/bin/google_appengine')
-sys.path.insert(0, '/usr/local/bin/google_appengine/lib')
-sys.path.insert(0, '/var/www/html/touchterrain')
+    sys.path.append(r"C:\Program Files (x86)\Google\google_appengine") 
 
 # These modules require that the path to GAE has been set, either via above or via using the GAE laucher
 import TouchTerrainEarthEngine # my modules
@@ -62,11 +57,10 @@ import logging
 import time
 logging.Formatter.converter = time.gmtime # set to gmt as GAE uses that,
 
-GLOBAL_request = None # HACK for duplicating request
 tmp_folder = "/var/www/html/touchterrain/tmp"  # dir to store zip files on the dev server
 
 # functions for computing hillshades in EE (from EE examples)
-# currently, I only use the precomputed hs
+# Currently, I only use the precomputed hs, but they might come handy later ...
 def Radians(img):
   return img.toFloat().multiply(math.pi).divide(180)
 
@@ -88,7 +82,7 @@ def Hillshade(az, ze, slope, aspect):
 # The page for selecting the ROI and putting in printer parameters
 #
 
-# example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247
+# example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
 
@@ -103,12 +97,14 @@ class MainPage(webapp2.RequestHandler):
     trlon = self.request.get("trlon")
     bllat = self.request.get("bllat")
     bllon = self.request.get("bllon")
+    hillshade_gamma = self.request.get("hs_gamma")
 
     # default args:
     if DEM_name not in TouchTerrainEarthEngine.DEM_sources: DEM_name = 'USGS/NED' # 10m NED as default
     if map_lat == "": map_lat = "44.59982"  # Sheep Mtn, Greybull, WY
     if map_lon == "": map_lon ="-108.11695"
     if map_zoom == "": map_zoom ="11"
+    if hillshade_gamma == "": hillshade_gamma = "1.0"
 
 
     # for ETOPO1 we need to first select one of the two bands as elevation
@@ -121,7 +117,7 @@ class MainPage(webapp2.RequestHandler):
 
     hs = terrain.select('hillshade')
 
-    mapid = hs.getMapId( {'gamma':1.7}) # opacity is set in JS
+    mapid = hs.getMapId( {'gamma':float(hillshade_gamma)}) # opacity is set in JS
 
     # jinja will inline these variables and their values into the template and create index.html
     template_values = {
@@ -136,6 +132,7 @@ class MainPage(webapp2.RequestHandler):
         'trlon' : trlon,
         'bllat' : bllat,
         'bllon' : bllon,
+        "hsgamma": hillshade_gamma,
     }
 
     # this creates a index.html "file" with mapid, token, etc. inlined
@@ -144,24 +141,24 @@ class MainPage(webapp2.RequestHandler):
 
     # delete files in tmp that are >24 hrs old is done by a cron shell script rather then by the dev server
 
-# fake fake file init - this allows me to instantiate a FakeFile object with write-only checks disabled.
-# Note that I still can't use any other OS functions on files, e.g. get their time or delete them!
-# To delete old files, I use a chron job.
-from google.appengine.tools.devappserver2.python import stubs
-def fake__init__(self, filename, mode='r', bufsize=-1, **kwargs):
-	    """Initializer. See file built-in documentation."""
-
-	    '''# CH: disabled checks
-	    if mode not in FakeFile.ALLOWED_MODES:
-	      raise IOError(errno.EROFS, 'Read-only file system', filename)
-
-	    if not FakeFile.is_file_accessible(filename):
-	      raise IOError(errno.EACCES, 'file not accessible', filename)
-	    '''
-	    pass # debug
-	    super(stubs.FakeFile, self).__init__(filename, mode, bufsize, **kwargs)
-
-stubs.FakeFile.__init__ = fake__init__ # overwrite __init__ with fake that doesn't disable writing like the official version
+if SERVER_TYPE == "GAE_devserver":    
+    # fake fake file init - this allows me to instantiate a FakeFile object with write-only checks disabled.
+    # Note that I still can't use any other OS functions on files, e.g. get their time or delete them!
+    # To delete old files, I use a chron job.
+    from google.appengine.tools.devappserver2.python import stubs
+    def fake__init__(self, filename, mode='r', bufsize=-1, **kwargs):
+		"""Initializer. See file built-in documentation."""
+    
+		'''# CH: disabled checks
+		if mode not in FakeFile.ALLOWED_MODES:
+		  raise IOError(errno.EROFS, 'Read-only file system', filename)
+    
+		if not FakeFile.is_file_accessible(filename):
+		  raise IOError(errno.EACCES, 'file not accessible', filename)
+		'''
+		super(stubs.FakeFile, self).__init__(filename, mode, bufsize, **kwargs)
+    
+    stubs.FakeFile.__init__ = fake__init__ # now overwrite __init__ with my version that doesn't disable writing like the official version
 
 # preflight page: showing some notes on how there's no used feedback until processing is done
 # as I don't know how to carry over the args I get here to the export page handler's post() method,
@@ -219,7 +216,7 @@ class ExportToFile(webapp2.RequestHandler):
 	    self.response.out.write("%s = %s <br>" % (k, str(args[k])))
 	    logging.info("%s = %s" % (k, str(args[k])))
 
-	# name of file is ms since 2000
+	# name of file is seconds since 2000
 	myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
 
         # create zip and write to tmp
@@ -227,9 +224,12 @@ class ExportToFile(webapp2.RequestHandler):
 	fname = myname + ".zip" # create filename for zipped
 	logging.info("About to write: " + tmp_folder + os.sep + fname)
 	fname = tmp_folder + os.sep + fname # put in tmp folder
-	ff = stubs.FakeFile(fname, "wb+") # make a Fakefile instance with write restriction disabled
-	ff.write(str_buf)
-	ff.close()
+	if SERVER_TYPE == "GAE_devserver":
+	    f = stubs.FakeFile(fname, "wb+") # make a fake Fakefile instance (with devserver's write restriction disabled)
+	else:
+	    f = open(fname, "wb+") # write to folder
+	f.write(str_buf)
+	f.close()
 	logging.info("finished writing %s" % (myname))
 
 	#str_buf = TouchTerrain.get_zipped_tiles(**args)
@@ -249,6 +249,22 @@ app = webapp2.WSGIApplication([('/', MainPage), # index.html
                               ('/preflight', preflight)],
                               debug=True)
 
-from paste import httpserver
-print "running local httpserver ,",
-httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
+if SERVER_TYPE == "GAE_devserver":
+    # Running this as a Google App Engine module via its development app server (cloud.google.com/appengine/docs/python/download)
+    # I assume that you have the python App Engine installed in something like google_appengine and that
+    # file, the other python files, the app,yaml file, tmp and doc folders are all in a folder (say touchterrain) that's inside google_appengine.
+    # At the beginning of the file you've added path to sys.path so it finds the GAE modules needed.
+    # the google_appengine folder should comtain dev_appserver.py, open a terminal, go into google_appengine and run:
+    # python dev_appserver.py --host myserver.whatever.edu touchterrain
+    # Alternatively, you can use the GAE app launcher
+    pass
+
+
+if SERVER_TYPE == "paste":
+   # You only need the following if you want to run your app directly (instead of the launcher/devserver),
+   # so you can debug it directly (see http://webapp-improved.appspot.com/tutorials/quickstart.nogae.html for more)
+   # You will need to install the Paste module and hack the path to google appengine modules (see above)    
+    from paste import httpserver 
+    print "running local httpserver ,", 
+    httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
+print "done"
