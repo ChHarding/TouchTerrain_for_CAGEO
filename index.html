@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <!--
 Terrain 3D print
-Chris Harding, Dec. 2015
+version: Chris Harding, Nov.21 2016
 -->
 <html>
   <head>
-    <title>TouchTerrain - Earth Engine (beta) </title>
+    <title>TouchTerrain </title>
     <script type="text/javascript"
       src="https://maps.google.com/maps/api/js?sensor=false"></script>
     <script type="text/javascript">
     
      
       /**
-      * This page will be called from a Python script in App Engine that uses
+      * This page will be called from a Python script that uses
       * Jinja templates to pass information from the script to the web page.
       * Here we get the mapid and token for the map tiles that were generated
       * by Earth Engine using the Python script
@@ -21,20 +21,22 @@ Chris Harding, Dec. 2015
       var MAPID = "{{ mapid }}"; // {{ stuff }} 
       var TOKEN = "{{ token }}";
       var DEM_name = "{{ DEM_name }}"; // name of DEM layer 
-      var map_lat = Number("{{ map_lat }}");  // center of map convert s
+      var hsgamma = "{{ hsgamma }}"; // hillshade gamma value
+      var map_lat = Number("{{ map_lat }}");  // center of map 
       var map_lon = Number("{{ map_lon }}");
       var map_zoom = Number("{{ map_zoom }}"); // zoom level
       var trlat = "{{ trlat }}"; // bounding box top right corner
       var trlon = "{{ trlon }}";
       var bllat = "{{ bllat }}"; // bottom left corner
       var bllon = "{{ bllon }}"; 
+      
          
 
       // globals
       var map;
       var eemap;
       var rectangle = new google.maps.Rectangle({
-	      //bounds: initial_bounds, // bounds will be set later either as map center or from jinga args is they are not ""
+	      //bounds: initial_bounds, // bounds will be set later either as map center or from jinga args 
 	      editable: true,
 	      draggable: true,
 	      strokeColor: '#FF0000',
@@ -42,9 +44,10 @@ Chris Harding, Dec. 2015
 	      strokeWeight: 2,
 	      fillColor: '#FF0000',
 	      fillOpacity: 0.01,
-	      geodesic: true
-      
         });
+	
+      var div_lines_x = []; // internal division lines for tile boundaries
+      var div_lines_y = [];
 
       // Function to return an arc-degree distance in meters at a given latitude
       // as an array (along_east, along_north)
@@ -52,13 +55,13 @@ Chris Harding, Dec. 2015
       // should conform to WGS84
       function arcDegr_in_meter(latitude_in_degr){   
     	lat = (2.0 * Math.PI)/360.0 * latitude_in_degr; // convert lat to rads
-    	m1 = 111132.954;		// latitude calculation term 1
+    	m1 = 111132.954;	// latitude calculation term 1
     	m2 = -559.822;		// latitude calculation term 2
-    	m3 = 1.175;			// latitude calculation term 3
+    	m3 = 1.175;		// latitude calculation term 3
     	m4 = -0.0023;		// latitude calculation term 4
     	p1 = 111412.84;		// longitude calculation term 1
-    	p2 = -93.5;			// longitude calculation term 2
-    	p3 = 0.118;			// longitude calculation term 3
+    	p2 = -93.5;		// longitude calculation term 2
+    	p3 = 0.118;		// longitude calculation term 3
 
     	// Calculate the length of a degree of latitude and longitude in meters
     	latlen =  m1 + (m2 * Math.cos(2 * lat)) + (m3 * Math.cos(4 * lat)) + (m4 * Math.cos(6 * lat));
@@ -119,8 +122,9 @@ Chris Harding, Dec. 2015
 	    document.getElementById('bllon2').value=bllon;
 	    
 	    setApproxDEMResolution_meters();
-	    
+	    calcTileHeight();
 
+	    create_divison_lines();
       }
       
       
@@ -155,6 +159,17 @@ Chris Harding, Dec. 2015
       function SetDEM_name(){
 	    document.getElementById('DEM_name').value = DEM_name // global var
 	    document.getElementById('DEM_name2').value = DEM_name
+	    
+	    res = "-999"
+	    switch(DEM_name){
+	      case "USGS/NED": res = "10m"; break;
+	      case "USGS/SRTMGL1_003": res = "30m"; break;
+	      case "USGS/GMTED2010": res = "90m"; break;
+	      case "NOAA/NGDC/ETOPO1": res = "1000m"; break;
+	    }
+	    
+	    // set resolution of DEM source
+	    document.getElementById('source_resolution').innerHTML = res
       }
    
       /**
@@ -197,9 +212,6 @@ Chris Harding, Dec. 2015
         map.overlayMapTypes.push(eemap);
         //map.setTilt(45);
 	
-		
-	
-
 	if (trlat != "" && trlon != "" && bllat != "" && bllon != ""){ // make bounds from jinga args
 	    var tr = new google.maps.LatLng(Number(bllat),Number(trlon));  
 	    var bl = new google.maps.LatLng(Number(trlat), Number(bllon));
@@ -210,7 +222,7 @@ Chris Harding, Dec. 2015
 	    rectangle.setBounds(initial_bounds) 
 	}
         else {
-	    rectangle.setBounds(make_center_box()); // args are "", set to center of currently shown map
+	    rectangle.setBounds(make_center_box()); // if args are "", set to center of currently shown map
         }
         
 	rectangle.setMap(map);
@@ -218,6 +230,8 @@ Chris Harding, Dec. 2015
 	
         // Add an event listener on the rectangle.
         rectangle.addListener('bounds_changed', update_corners_form);
+        rectangle.addListener('dragstart', remove_divison_lines);
+        rectangle.addListener('dragend', create_divison_lines);
 	
 	// Add event for when map becomes idle again after zoom or pan, saves map center and zoom in element
 	map.addListener("idle", saveMapSettings);
@@ -227,19 +241,84 @@ Chris Harding, Dec. 2015
         document.getElementById('options_tile_width').addEventListener("click", setApproxDEMResolution_meters);
 	document.getElementById('options_numTiles_x').addEventListener("click", setApproxDEMResolution_meters);
 	
-	SetDEM_name();  // sets id DEM_name to whatever was inlined by jinja
-
-
+	
+	// add callbacks to make/change division lines when number of tiles change
+	document.getElementById('options_numTiles_x').addEventListener("click", create_divison_lines);
+	document.getElementById('options_numTiles_y').addEventListener("click", create_divison_lines);
+	
+	SetDEM_name();  // sets DEM_name to whatever was inlined by jinja
+	updateGamma(hsgamma); // set hillshade gamma value to what was inlined by jinj
+        calcTileHeight();
       } // end init
 
+      function remove_divison_lines(){
+	for (i = 0; i < div_lines_x.length; i++) {	    
+	  div_lines_x[i].setMap(null) // remove from map
+        }
+	div_lines_x = [];  
+
+	for (i = 0; i < div_lines_y.length; i++) {	    
+	  div_lines_y[i].setMap(null) // remove from map
+        }
+	div_lines_y = [];  
+      }
+
+	
+      function create_divison_lines(event) {
+
+	remove_divison_lines(); // also re-sets array to []
+
+	bounds = rectangle.getBounds(); // bounds of red box
+	ne = bounds.getNorthEast();
+	sw = bounds.getSouthWest();
+	span = rectangle.getBounds().toSpan() // height/width of box
+		
+	num_lines = document.getElementById('options_numTiles_x').value -1; //requested number of lines
+        if(num_lines > 0){
+
+		width = span.lng() / (num_lines + 1) // width of a tile
+		for (i = 0; i < num_lines; i++) {	    
+			x = sw.lng() + (i+1) * width; // x-coord (lng) of  line
+			line_coords = [{lat: ne.lat(), lng: x },
+				       {lat: sw.lat(), lng: x }];
+			div_lines_x[i] = new google.maps.Polyline({ path: line_coords, 
+								    geodesic: false, strokeColor: '#FF0000', 
+								    strokeOpacity: 1.0, strokeWeight: 1 }); 
+			div_lines_x[i].setMap(map);
+		}
+	}
+	num_lines = document.getElementById('options_numTiles_y').value -1; 
+        if(num_lines > 0){
+                height = span.lat() / (num_lines + 1) // height of a tile
+                for (i = 0; i < num_lines; i++) {           
+                        y = sw.lat() + (i+1) * height; // y coord (lat) of line
+                        line_coords = [{lat: y, lng: sw.lng()},
+                                       {lat: y, lng: ne.lng()}];
+                        div_lines_y[i] = new google.maps.Polyline({ path: line_coords, 
+                                                                    geodesic: false, strokeColor: '#FF0000', 
+                                                                    strokeOpacity: 1.0, strokeWeight: 1 }); 
+                        div_lines_y[i].setMap(map);
+                }
+        }
+
+      }
+
+      
       function updateOpacity(val) {
            op = 1.0 - val / 100.0 // opacity
-	   eemap.setOpacity(op);
-	   
+	   eemap.setOpacity(op)
 	   document.getElementById('hillshade_opacity').value=val;
 	   document.getElementById('hillshade_opacity_slider').value=val; 
-      
       }
+      
+      //Update gamma in both places
+      function updateGamma(val) {
+	   document.getElementById('hs_gamma').value=val;  // id in reload form  (hidden)
+	   document.getElementById('hs_gamma2').value=val; // gui text field
+	   document.getElementById('hs_slider').value=val; // gui slider
+	   
+      }
+      
       
       function ExportToFile(){
            res = document.getElementById('options_print_resolution').value;
@@ -259,6 +338,33 @@ Chris Harding, Dec. 2015
 	    document.getElementById('map_zoom').value = map.getZoom()
       } 
           
+      function submit_for_reload(){
+	    var f = document.forms["reloadform"]
+	    f.submit()
+      }
+      
+      
+      // calc tile height from given cm width and red box ratio
+      // not that ratio has to be calculated from the meters, not degrees!
+      function calcTileHeight(){
+          tw = document.getElementById('options_tile_width').value;
+	  bounds = rectangle.getBounds(); // bounds of red box
+	  n = bounds.getNorthEast().lat()
+	  s = bounds.getSouthWest().lat()  
+	  center_lat = (n + s ) / 2.0
+	  degr_in_m  = arcDegr_in_meter(center_lat) 
+	  span = rectangle.getBounds().toSpan(); 
+	  hm = span.lat() * degr_in_m[0] // height in meters at center lat
+	  wm = span.lng() * degr_in_m[1] // width 
+
+	  hw_in_meter_ratio = hm / wm; // height/width of box
+	  th = tw * hw_in_meter_ratio;
+	  
+	  //console.log(tw, span.lat(),  span.lng(), center_lat, hm, wm, hw_in_meter_ratio, );
+	  tile_height_rounded  = parseInt(th * 10) / 10;
+	  document.getElementById('tile_height').innerHTML = tile_height_rounded + "&nbsp cm";
+	  
+      }
       // main 
       window.onload = initMap;
 
@@ -266,54 +372,68 @@ Chris Harding, Dec. 2015
   </head>
   <body>
     
-   <div id="content" style="width:1110px; padding-left: 5px; float:left; border: 1px solid black; ">
+  <div id="title" style="clear:both;text-align:left;font-size:x-large;" >
+    TouchTerrain: Easily Create 3D-Printable Terrain Models  &nbsp  &nbsp  &nbsp  &nbsp  &nbsp
+    <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+      Click here for Help</a>
+  </div>  
+  
+   <div id="content" style="width:1115px; padding-left: 0px; float:left; border: 0px solid black; ">
  
-    <div id ="left" style="background-color:#FFFFF;width:600px;float:left;margin-right: 2px; margin-top: 4px">
-        <div id="map" style="background-color:#FFF; position:relative; ;width:600px;height:600px"></div>
+    <div id ="left" style="background-color:#FFFFF;width:600px;float:left;margin-right: 0px; margin-left: 0px; margin-top: 0px">
+        <div id="map" style="background-color:#FFFF; position:relative; ;width:600px;height:600px"></div>
     </div>
 
-    <div id ="right" style="background-color:#FFF;width:505px; float:left; margin-left: 3px ">
-      
-      <h3 style="margin-left: 0px; margin-top: 3px">TouchTerrain :<br>
-      Create 3-D printable terrain tiles</h3>
+    <div id ="right" style="background-color:#FFFF;width:505px; float:left; margin-left: 10px ">
+    <br>  
+     
 
       
-      <form action="/" method="get">
-        <select title="Switch to different Digital Elevation data source"
-	           id="DEM_name" name="DEM_name" onchange="this.form.submit()">
+      <form action="/" method="get" id="reloadform">
+      
+        <b>Elevation Data source:</b> 
+        <select title="Switch to different Digital Elevation data source" id="DEM_name" name="DEM_name" onchange="submit_for_reload()">
 	      <option value="USGS/NED"selected>USGS/NED (10m resolution, US only)</option>
-	      <option value="USGS/GMTED2010">GMTED2010 (30m resolution in most parts, worldwide)</option>
+	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide)</option>
+	      <option value="USGS/GMTED2010">GMTED2010 (90m resolution, worldwider)</option>
 	      <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000m resolution, worldwide, incl. bathymetry!)</option>
-	       <!--<option value="AU/GA/AUSTRALIA_5M_DEM"> AUSTRALIA_5M_DEM (5m resolution, Down-under only)</option>  # not yet supported in EE--!>
-
         </select>
 	
+	<input type="hidden" name="hs_gamma" id="hs_gamma" value="NULL">
         <input type="hidden" name="map_lat" id="map_lat" value="NULL">
 	<input type="hidden" name="map_lon" id="map_lon" value="NULL">
 	<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
 	<input type="hidden" id="trlat" name="trlat" value="NULL" > 
-        <input type="hidden" id="trlon" name="trlon"  value="NULL" > 
+        <input type="hidden" id="trlon" name="trlon" value="NULL" > 
         <input type="hidden" id="bllat" name="bllat" value="NULL" > 
-        <input type="hidden" id="bllon" name="bllon"  value="NULL" > 
-  
+        <input type="hidden" id="bllon" name="bllon" value="NULL" > 
       </form>
       <br>    
 
-      <b>Hillshade transparency (%):</b> 
-      <br> 
+      <b>Hillshade layer:</b> <br> 
+      Transparency(%):  
       <input type="range" id="hillshade_opacity_slider" min="0" max="100" value="0" step="5" oninput="updateOpacity(this.value);">
       <input type="text" id="hillshade_opacity"  
-					  maxlength="3" size="2" value="0"
+					  maxlength="4" size="3" value="0"
 					  onkeydown="if (event.keyCode == 13) { updateOpacity(this.value); }"
 			           > (set to 100% to hide) 
  
-      <br><br>  
+      <br>
+      Gamma:
+      <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05" oninput="updateGamma(this.value);">
+      <input type="text" id="hs_gamma2"  maxlength="4" size="3" value="0"    
+					  onkeydown="if (event.keyCode == 13) { updateGamma(this.value); }">
+      <input type="button" title="reloads with new gamma value" value="Set New Gamma Value" 
+              onclick="submit_for_reload();"> 
+      <br> <br> 
 		 	  
       		  	  
-      <div id="recenter-box-button">
-         <b>Area Selection Box:</b> <input type="button" title="Forces the box to re-center in current map view" 
-	 onclick="center_rectangle()" value="Re-center Box">
-      </div>
+      <b>Area Selection Box:</b> 
+	 <input id="recenter-box-button" type="button" 
+	 title="re-centers the red Area Selection box insides the currently viewed map" 
+	 onclick="center_rectangle()" 
+         value="Re-center box in current view">
+      <br>
       
   
       
@@ -322,7 +442,7 @@ Chris Harding, Dec. 2015
           <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
         
          <!-- Put the box corner coords here so they get transmitted with get -->
-         <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" readonly> N
+         <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" readonly> N 
          <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" readonly> E (Top right corner)<br>
       
          <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" readonly> N
@@ -332,7 +452,7 @@ Chris Harding, Dec. 2015
       <div id='options_container'>	
          <b> 3D Printer Options: </b><br>
 	 <select title="Width of each tile in cm, tile height will be calculated based on number of tiles in x and y"
-	           id="options_tile_width"  name="tilewidth">
+	           id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight()">
 	      <option value="5">5 cm</option>
 	      <option value="6">6 cm</option>
 	      <option value="7">7 cm</option>
@@ -340,7 +460,7 @@ Chris Harding, Dec. 2015
 	      <option value="9">9 cm</option>
 	      <option value="10">10 cm</option>
 	      <option value="12">12 cm</option>
-         </select> Tile width <br>
+         </select> Tile width, <b id="tile_height"></b> height<br>
 
 	 <select title="The smallest distance your print head can move horizontally. Smaller numbers result in more details and longer print times" 
 	         id="options_print_resolution" name="printres">
@@ -360,11 +480,7 @@ Chris Harding, Dec. 2015
 	      <option value="1.0">1.0 mm</option>
 	      <option value="1.25">1.25 mm</option>
 	      <option value="1.5">1.5 mm</option>
-	  </select> Resolution for 3D Print (~= 
-	  <!-- Approximate DEM resolution given box and tile parameters -->
-	  <input type="text" id="DEMresolution" title="To be printed at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution" 
-	         name="DEMresolution" maxlength="4" size="4" value="NULL" readonly>m in east-west direction)
-	  <br>
+	  </select> Resolution for 3D Print <br>
 
 	   <select title="The number of tiles in x direction"
 	           id="options_numTiles_x" name="ntilesx" >
@@ -390,6 +506,12 @@ Chris Harding, Dec. 2015
 	      <option value="8">8</option>
 	  </select> Tiles to print (X by Y)<br>
 	  
+	  <!-- Approximate DEM resolution given box and tile parameters -->
+          Re-scaling <b id="source_resolution"></b> resolution to about  
+	  <input type="text" id="DEMresolution" 
+                 title="To print each tile at the given width  at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution." 
+	         name="DEMresolution" maxlength="4" size="4" value="NULL" readonly>m
+	  <br>
       	  <!--
 	  Tile size: <input type="text" id="tile_size_x_mm" maxlength="3" size="3" value="10.0" readonly> by
 	             <input type="text" id="tile_size_y_mm" maxlength="3" size="3" value="10.0" readonly>
@@ -430,10 +552,13 @@ Chris Harding, Dec. 2015
 	      <option value="1.25">x 1.25</option>
 	      <option value="1.5">x 1.5</option>
 	      <option value="2">x 2</option>
+	      <option value="3">x 3</option>
+	      <option value="4">x 4</option>
 	      <option value="5">x 5</option>
 	      <option value="10">x 10</option>
+	      <option value="15">x 15</option>
 	      <option value="20">x 20</option>
-	  </select> Vertical Scale Factor (Z-scale)<br>	
+	  </select> Vertical Exaggeration (Z-scale)<br>	
   
           <select title="The format of the 3D model file(s) to be exported"
 	          id="options_fileformat"  name="fileformat">
@@ -455,17 +580,22 @@ Chris Harding, Dec. 2015
 	
       
       <br>
-       Visit Iowa State's 
-       <a href="http://www.public.iastate.edu/~franek/gfl/gfl.html" target="_blank">GeoFabLab.</a>
-       to learn more about using 3D printing for geoscience education.
-      <!--
-      style="clear:both;text-align:left;font-size:x-small;"
-      -->
-      <br><br> 
-      <div id="footer" >Version 0.10, Jun. 20, 2016  
+      <h4>
+      Developed by Chris Harding and Franek Hasiuk, <a href="http://www.public.iastate.edu/~franek/gfl/gfl.html" target="_blank">GeoFabLab.</a>
+      <br>Dept. of Geological and Atmospheric Sciences, Iowa State University </h4>
+      
+      <br>
+  
+
+      <br><br>
+      <div id="footer" style="clear:both;text-align:left;font-size:x-small;" >Version 0.12, Nov.18, 2016
          <a href="/docs/readme.txt" target="_blank">What's new in this version?</a>
       </div>
     </div>
    </div> 
   </body>
 </html>
+
+
+
+<!-- <option value="AU/GA/AUSTRALIA_5M_DEM"> AUSTRALIA_5M_DEM (5m resolution, Down-under only)</option>  --!>
