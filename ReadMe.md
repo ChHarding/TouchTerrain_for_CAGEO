@@ -1,3 +1,10 @@
+0.12 (Dec. 12 - X-mas edition): 
+- can now use server tyep flags: Apache, paste or GEA_devserver
+- added a hillshade gamma slider to change default gamma (1.0). Requires reload of page: press set new gamma button.
+- added 30m SRTM DEM as data source
+- better info on how the original raster DEM will be rescaled based on area, tile number/size, etc. 
+- tile height (in cm) is now automatically calculated from tile width and aspect ratio of red box (using meters for box sides).
+- general layout changes, incl. a link to help page.
 
 0.11 (Oct. 31 - Halloween edition): Includes Levi's changes/fixes/additions:
 - proper separation of server vs stand-alone:
