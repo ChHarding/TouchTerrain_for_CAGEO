@@ -1,6 +1,19 @@
 TouchTerrain - 3D-printing of Digital Elevation Data
 =====================================================
 
+
+Version 0.12 (Dec. 12, 2016)
+- added auto calc of tile height (using meter based aspect ration)
+- added better shwoing of raster rescaling
+- added drawing of tile boundaries
+- changed web layout a bit
+- hillshade gamma values can now be changed (will reload as gamma is set on server side)
+- added SRTM 30 m ("worldwide" but not very far north) and clarified that GMTED is 90 m (but worldwid-er_
+
+Version 0.11 (Nov. 8, 2016)
+- Levi added Apache server support
+- Levi fixed noob global var for preflight request 
+
 Version 0.10 (June 20, 2016)
 - switched SRTM to GMTED2010, added ETOPO1
 
@@ -45,4 +58,4 @@ Version 0.04 (Oct. 30, 2015):
 Developer Contact: Chris Harding, Iowa State University, charding@iastate.edu
 Website: http://www.public.iastate.edu/~franek/gfl/gfl.html
 Disclaimer: The website and the 3D model files it creates are provided as a public service without any guarantees or warranty. 
-            Use of the the website and any 3D model file downloaded from it is permitted for non-commercial use only and at the user’s risk. 
+            Use of the the website and any 3D model file downloaded from it is permitted for non-commercial use only and at the user's risk. 
