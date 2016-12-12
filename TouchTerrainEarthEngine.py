@@ -6,7 +6,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 @author:     Chris Harding
 @license:    GPL
 @contact:    charding@iastate.edu
-
+  Test line that does not hurt
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
