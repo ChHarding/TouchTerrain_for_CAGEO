@@ -6,7 +6,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 @author:     Chris Harding
 @license:    GPL
 @contact:    charding@iastate.edu
-  Test line that does not hurt
+
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -19,6 +19,8 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+# changes:
+# CH Dec.6, 16: Extended exception catching around getInfo() based on an error I got with ETOPO. 
 
 import sys
 import os
@@ -53,7 +55,7 @@ logging.Formatter.converter = time.gmtime
 USE_LOG = True # 
     
 #  List of DEM sources  Earth engine offers
-DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""",
+DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003""",
                """AU/GA/AUSTRALIA_5M_DEM"""]
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
@@ -174,13 +176,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # Get a download URL for DEM from Earth Engine
     ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)  
-    image1 = ee.Image(DEM_name) 
-    info = image1.getInfo()
-    print "Google Earth Engine raster:", info["id"],
+    image1 = ee.Image(DEM_name)
+    
     try:
+        info = image1.getInfo() # this can go wrong, but we don't really need the info as long as we get the actual data
+        print "Google Earth Engine raster:", info["id"],
         print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
-    except:
-        print
+    except e:
+        print e
+        logging.error("something went wrong with the image info:" + str(e))
+        
     request = image1.getDownloadUrl({
         #'scale':90, # cell size
         'scale': cell_size, # cell size in meters
@@ -208,13 +213,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # download zipfile from url
         #
         try: 
-            web_sock = urllib2.urlopen(request, timeout=1) # 20 sec timeout
+            web_sock = urllib2.urlopen(request, timeout=20) # 20 sec timeout
         except socket.timeout, e:
             raise logging.error("Timeout error %r" % e)        
         except urllib2.HTTPError, e:
             logging.error('HTTPError = ' + str(e.code)) 
             if e.code == 429:  # 429: quota reached
-                time.sleep(random.randint(1,5)) # wait for a couple of secs
+                time.sleep(random.randint(1,10)) # wait for a couple of secs
         except urllib2.URLError, e:
             logging.error('URLError = ' + str(e.reason))
         except httplib.HTTPException, e:
@@ -225,7 +230,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         
         # at any exception wait for a couple of secs
         if web_sock == None:
-            time.sleep(random.randint(1,5)) 
+            time.sleep(random.randint(1,10)) 
        
     # read the zipped folder into memory    
     buf = web_sock.read()
@@ -303,26 +308,28 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     if zscale != 1.0:
         npim *= zscale
         print "elev min/max after x%.2f z-scaling: %.2f to %.2f" % (zscale, numpy.nanmin(npim), numpy.nanmax(npim))
-    """
-    # debug: plot dem and show histo
+    
+    # plot dem 
     import matplotlib.pyplot as plt
     plt.ion()
     fig = plt.figure(figsize=(7,10))
     imgplot = plt.imshow(npim, aspect=u"equal", interpolation=u"none")
-    cmap_name = 'nipy_spectral' # gist_earth or terrain or nipy_spectral
+    cmap_name = 'gist_earth' # gist_earth or terrain or nipy_spectral
     imgplot.set_cmap(cmap_name) 
     #a = fig.add_axes()
     plt.title(DEM_name + " " + str(center))
     plt.colorbar(orientation="horizontal")
+    fig.canvas.draw()
+    plot_buf = fig.canvas.tostring_rgb()
     
+    """
+    # histogram with colored bars
     rng = (npim.flatten().min(), npim.flatten().max())
     numcols = imgplot.cmap.N
     cmap = imgplot.cmap(numpy.arange(numcols)) # will only have 256 colors
     mult = 1/4.0
     numbins = numcols * mult
     bns = numpy.linspace(rng[0], rng[1], num=numbins) # => i/4 when setting colors!
-    plt.tight_layout()
-    
     fig = plt.figure(figsize=(8,4))
     n,bins,patches = plt.hist(npim.flatten(),bins=bns, lw=0)
     maxy=max(n)
