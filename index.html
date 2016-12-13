@@ -162,10 +162,10 @@ version: Chris Harding, Nov.21 2016
 	    
 	    res = "-999"
 	    switch(DEM_name){
-	      case "USGS/NED": res = "10m"; break;
-	      case "USGS/SRTMGL1_003": res = "30m"; break;
-	      case "USGS/GMTED2010": res = "90m"; break;
-	      case "NOAA/NGDC/ETOPO1": res = "1000m"; break;
+	      case "USGS/NED": res = "10 m"; break;
+	      case "USGS/SRTMGL1_003": res = "30 m"; break;
+	      case "USGS/GMTED2010": res = "90 m"; break;
+	      case "NOAA/NGDC/ETOPO1": res = "1000 m"; break;
 	    }
 	    
 	    // set resolution of DEM source
@@ -393,10 +393,10 @@ version: Chris Harding, Nov.21 2016
       
         <b>Elevation Data source:</b> 
         <select title="Switch to different Digital Elevation data source" id="DEM_name" name="DEM_name" onchange="submit_for_reload()">
-	      <option value="USGS/NED"selected>USGS/NED (10m resolution, US only)</option>
-	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide)</option>
-	      <option value="USGS/GMTED2010">GMTED2010 (90m resolution, worldwider)</option>
-	      <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000m resolution, worldwide, incl. bathymetry!)</option>
+	      <option value="USGS/NED"selected>USGS/NED (10 m resolution, US only)</option>
+	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide)</option>
+	      <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwider)</option>
+	      <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000 m resolution, worldwide, incl. bathymetry!)</option>
         </select>
 	
 	<input type="hidden" name="hs_gamma" id="hs_gamma" value="NULL">
@@ -588,7 +588,7 @@ version: Chris Harding, Nov.21 2016
   
 
       <br><br>
-      <div id="footer" style="clear:both;text-align:left;font-size:x-small;" >Version 0.12, Nov.18, 2016
+      <div id="footer" style="clear:both;text-align:left;font-size:x-small;" >Version 0.12, Dec.12, 2016
          <a href="/docs/readme.txt" target="_blank">What's new in this version?</a>
       </div>
     </div>
