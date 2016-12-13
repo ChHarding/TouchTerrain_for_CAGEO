@@ -182,7 +182,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         info = image1.getInfo() # this can go wrong, but we don't really need the info as long as we get the actual data
         print "Google Earth Engine raster:", info["id"],
         print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
-    except e:
+    except Exception, e:
         print e
         logging.error("something went wrong with the image info:" + str(e))
         
@@ -309,6 +309,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         npim *= zscale
         print "elev min/max after x%.2f z-scaling: %.2f to %.2f" % (zscale, numpy.nanmin(npim), numpy.nanmax(npim))
     
+    """  
     # plot dem 
     import matplotlib.pyplot as plt
     plt.ion()
@@ -322,7 +323,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     fig.canvas.draw()
     plot_buf = fig.canvas.tostring_rgb()
     
-    """
     # histogram with colored bars
     rng = (npim.flatten().min(), npim.flatten().max())
     numcols = imgplot.cmap.N
