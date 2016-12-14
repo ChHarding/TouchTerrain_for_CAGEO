@@ -1,14 +1,14 @@
 TouchTerrain - 3D-printing of Digital Elevation Data
 =====================================================
 
-
-Version 0.12 (Dec. 12, 2016)
-- added auto calc of tile height (using meter based aspect ration)
-- added better shwoing of raster rescaling
+Version 0.12 (Dec. 13, 2016)
+- added auto calc of tile height (using meter based aspect ratio)
+- added better showing of raster rescaling
 - added drawing of tile boundaries
 - changed web layout a bit
-- hillshade gamma values can now be changed (will reload as gamma is set on server side)
-- added SRTM 30 m ("worldwide" but not very far north) and clarified that GMTED is 90 m (but worldwid-er_
+- added Help (Google doc)
+- hillshade gamma values can now be changed (will reload page as gamma is set on server side)
+- added SRTM 30 m ("worldwide" but not very far north) and clarified that GMTED is 90 m (but worldwid-er)
 
 Version 0.11 (Nov. 8, 2016)
 - Levi added Apache server support
