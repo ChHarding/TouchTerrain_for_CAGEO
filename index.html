@@ -45,7 +45,7 @@ version: Chris Harding, Nov.21 2016
 	      fillColor: '#FF0000',
 	      fillOpacity: 0.01,
         });
-	
+	    
       var div_lines_x = []; // internal division lines for tile boundaries
       var div_lines_y = [];
 
@@ -249,6 +249,10 @@ version: Chris Harding, Nov.21 2016
 	SetDEM_name();  // sets DEM_name to whatever was inlined by jinja
 	updateGamma(hsgamma); // set hillshade gamma value to what was inlined by jinj
         calcTileHeight();
+	
+        // set initial transparency to 40%
+	updateOpacity(40);
+	
       } // end init
 
       function remove_divison_lines(){
@@ -303,12 +307,12 @@ version: Chris Harding, Nov.21 2016
 
       }
 
-      
-      function updateOpacity(val) {
-           op = 1.0 - val / 100.0 // opacity
+      // set opacity of hillshade as inverse of transparency given
+      function updateOpacity(transparency_pct) {
+           op = 1.0 - transparency_pct / 100.0 // opacity
 	   eemap.setOpacity(op)
-	   document.getElementById('hillshade_opacity').value=val;
-	   document.getElementById('hillshade_opacity_slider').value=val; 
+	   document.getElementById('hillshade_opacity').value=transparency_pct;
+	   document.getElementById('hillshade_opacity_slider').value=transparency_pct; 
       }
       
       //Update gamma in both places
@@ -412,9 +416,9 @@ version: Chris Harding, Nov.21 2016
 
       <b>Hillshade layer:</b> <br> 
       Transparency(%):  
-      <input type="range" id="hillshade_opacity_slider" min="0" max="100" value="0" step="5" oninput="updateOpacity(this.value);">
+      <input type="range" id="hillshade_opacity_slider" min="0" max="100" value="" step="5" oninput="updateOpacity(this.value);">
       <input type="text" id="hillshade_opacity"  
-					  maxlength="4" size="3" value="0"
+					  maxlength="4" size="3" value=""
 					  onkeydown="if (event.keyCode == 13) { updateOpacity(this.value); }"
 			           > (set to 100% to hide) 
  
@@ -460,7 +464,7 @@ version: Chris Harding, Nov.21 2016
 	      <option value="9">9 cm</option>
 	      <option value="10">10 cm</option>
 	      <option value="12">12 cm</option>
-         </select> Tile width, <b id="tile_height"></b> height<br>
+         </select> Tile width, <b id="tile_height"></b> Tile height<br>
 
 	 <select title="The smallest distance your print head can move horizontally. Smaller numbers result in more details and longer print times" 
 	         id="options_print_resolution" name="printres">
@@ -510,7 +514,7 @@ version: Chris Harding, Nov.21 2016
           Re-scaling <b id="source_resolution"></b> resolution to about  
 	  <input type="text" id="DEMresolution" 
                  title="To print each tile at the given width  at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution." 
-	         name="DEMresolution" maxlength="4" size="4" value="NULL" readonly>m
+	         name="DEMresolution" maxlength="4" size="5" value="NULL" readonly>m
 	  <br>
       	  <!--
 	  Tile size: <input type="text" id="tile_size_x_mm" maxlength="3" size="3" value="10.0" readonly> by
