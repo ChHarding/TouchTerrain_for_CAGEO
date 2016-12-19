@@ -251,7 +251,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     assert tifl != [], "zip from ee didn't contain a tif: " +  str(nl)   
     
     if DEM_name == """NOAA/NGDC/ETOPO1""":  # will have bedrock and ice_surface tifs
-         tif = [f for f in tifl if "bedrock" in f][0]   
+         tif = [f for f in tifl if "ice_surface" in f][0]   
     else:
         tif = tifl[0]
     

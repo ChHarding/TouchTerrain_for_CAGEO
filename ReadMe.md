@@ -1,4 +1,7 @@
 0.12 (Dec. 12 - X-mas edition): 
+- Transparency defaults to 40%
+- results page has link to viewstl.com to preview downloaded files
+- ETOPO elevation is for ice, not bedrock
 - can now use server type flags: Apache, paste or GEA_devserver
 - added a hillshade gamma slider to change default gamma (1.0). Requires reload of page: press set new gamma button.
 - added 30m SRTM DEM as data source
