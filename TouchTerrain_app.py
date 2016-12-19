@@ -183,6 +183,7 @@ class preflight(webapp2.RequestHandler):
 	self.response.out.write("Once your 3D model is created, you will get a new page (Processing finished) for downloading them in a zip file.<br><br>")
 	self.response.out.write('<form action="/export" method="POST" enctype="multipart/form-data">')
 	self.response.out.write('<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">') # for user comment
+	#self.response.out.write('<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
 	self.response.out.write('<input type="submit" value="Start"> </form>')
 	self.response.out.write('</body></html>')
 
@@ -238,10 +239,12 @@ class ExportToFile(webapp2.RequestHandler):
 	#self.response.write(str_buf)
 
 	self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (myname))
-	self.response.out.write('<input type="submit" value="Download zip File (will be deleted in 24 hrs)" title=""> </form>')
+	self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
 	#self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
 	#self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
 	self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
+	self.response.out.write(
+	"""<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
 
 # the pages that can be requested from the browser and the handler that will respond (get or post method)
 app = webapp2.WSGIApplication([('/', MainPage), # index.html
