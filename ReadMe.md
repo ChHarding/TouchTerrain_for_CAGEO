@@ -1,3 +1,5 @@
+version 0.12 is now live at: touchterrain.geol.iastate.edu 
+
 0.12 (Dec. 12 - X-mas edition): 
 - Transparency defaults to 40%
 - results page has link to viewstl.com to preview downloaded files
