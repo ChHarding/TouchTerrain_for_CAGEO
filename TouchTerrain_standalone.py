@@ -29,15 +29,7 @@ Alternative to running the TouchTerrain web server.
 # How to run the standalone version:
 #
 
-# Install google app_engine and put this folder into it (google_appengine\this_folder)
-#
-# Although this standalone version doesn't actually run a sever, it still
-# needs access to some of the google apps modules. Set this to point to your
-# google_appengine folder:
-import sys
 
-# Get a google dev account, set up a google earth engine project.
-# Modify the settings in config.py. Put your public key file (.pem) into this folder.
 
 # Make a copy of example_config.json, modify the parameters and save it with a new
 # name (e.g. my.json). The JSON file format follows the args dict shown below.
@@ -54,6 +46,7 @@ import sys
 # args for get_zipped_tiles() and save them inside a zipped folder.
 # Print each tile on a 3D printer (they are already scaled!)
 
+import sys
 import time
 import json
 
@@ -80,14 +73,12 @@ with open('example_config.json', 'w+') as fp:
     json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
 print "Wrote example_config.json with default value, use it as a template but make sure to rename it!"
 
-
-
-import config # this needs to be set up for your dev account and needs a .pem file
+# initialize ee - will fail if authentication with a google account has not been set up
 import ee
+ee.Initialize()
 
 import TouchTerrainEarthEngine as TouchTerrain
 from InMemoryZip import InMemoryZip
-
 
 
 if len(sys.argv) > 1:  # sys.argv are the CLI args
