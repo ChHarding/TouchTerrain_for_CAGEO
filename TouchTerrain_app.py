@@ -17,7 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-
+# CH 01/18/2017: 
 # CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
 # and so requires a reload
 # CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
@@ -33,7 +33,7 @@ import math
 import os
 #import threading
 from datetime import datetime
-import ee      # can be installed under site-packges
+import ee  
 
 
 SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
@@ -47,9 +47,12 @@ if SERVER_TYPE == "GAE_devserver":
         sys.path.append(d) # append each folder to the sys.path, which is searched on import
     sys.path.append(r"C:\Program Files (x86)\Google\google_appengine") 
 
-# These modules require that the path to GAE has been set, either via above or via using the GAE laucher
+
+import config  # config.py must be in this folder
+import ee
 import TouchTerrainEarthEngine # my modules
-import config  # config.py must be in this folder, use GAE modules
+
+# These modules require that the path to GAE has been set via the above path append or via using the GAE laucher
 import webapp2
 import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
@@ -86,7 +89,7 @@ def Hillshade(az, ze, slope, aspect):
 class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
 
-    ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+    ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
     #print self.request.GET # all args
 
     DEM_name = self.request.get("DEM_name")
@@ -105,7 +108,6 @@ class MainPage(webapp2.RequestHandler):
     if map_lon == "": map_lon ="-108.11695"
     if map_zoom == "": map_zoom ="11"
     if hillshade_gamma == "": hillshade_gamma = "1.0"
-
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if DEM_name == """NOAA/NGDC/ETOPO1""":
@@ -139,8 +141,9 @@ class MainPage(webapp2.RequestHandler):
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
 
-    # delete files in tmp that are >24 hrs old is done by a cron shell script rather then by the dev server
+    # delete files in tmp that are >24 hrs old is now done by a cron shell script rather then by the dev server
 
+# GAE_devserver is not really tested as of Jan. 2017 ...
 if SERVER_TYPE == "GAE_devserver":    
     # fake fake file init - this allows me to instantiate a FakeFile object with write-only checks disabled.
     # Note that I still can't use any other OS functions on files, e.g. get their time or delete them!
