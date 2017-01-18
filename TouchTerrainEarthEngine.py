@@ -20,12 +20,13 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 '''
 
 # changes:
+# CH Jan.18, 17: ee init is now done before this is imported, so we can have a
+#                config.py/.pem file based server version and a google auth based stand alone version
 # CH Dec.6, 16: Extended exception catching around getInfo() based on an error I got with ETOPO. 
 
 import sys
 import os
 
-import config
 import ee
 
 import datetime
@@ -175,7 +176,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     
 
     # Get a download URL for DEM from Earth Engine
-    ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)  
+    #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)  
     image1 = ee.Image(DEM_name)
     
     try:
