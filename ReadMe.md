@@ -1,5 +1,7 @@
 version 0.12 is now live at: touchterrain.geol.iastate.edu 
 
+Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through congif.py (server still uses config.py)
+
 0.12 (Dec. 12 - X-mas edition): 
 - Transparency defaults to 40%
 - results page has link to viewstl.com to preview downloaded files
