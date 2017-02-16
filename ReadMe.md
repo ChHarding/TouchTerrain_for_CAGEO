@@ -1,8 +1,8 @@
 
 Feb. 16: separated standalone and server version into subfolders:
-	common: .py files (modules) used by both versions
-	standalone: main for standalone, install-howto, etc.
-	server: server main (touchterrain_app.py) and server setup files
+- common: .py files (modules) used by both versions
+- standalone: main for standalone, install-howto, etc.. Works
+- server: server main (touchterrain_app.py) and server setup files. 
 
 version 0.12 is now live at: touchterrain.geol.iastate.edu 
 
