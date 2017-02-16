@@ -71,14 +71,27 @@ args = {
 # write an example json file, in case it gets deleted ...
 with open('example_config.json', 'w+') as fp:
     json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
-print "Wrote example_config.json with default value, use it as a template but make sure to rename it!"
+print "Wrote example_config.json with default values, use it as a template but make sure to rename it!"
 
-# initialize ee - will fail if authentication with a google account has not been set up
+# initialize ee - will fail if authentication with a google earth engine account has not been set up
 import ee
 ee.Initialize()
 
-import TouchTerrainEarthEngine as TouchTerrain
-from InMemoryZip import InMemoryZip
+
+
+# ValueError: Attempted relative import in non-package
+#from ..common import TouchTerrainEarthEngine as TouchTerrain
+#from ..common import InMemoryZip 
+
+# find the grand parent folder and add to sys.path
+from os.path import abspath, dirname
+import sys
+top = abspath(__file__)
+package_folder = dirname(dirname(top))
+sys.path.append(package_folder)
+from common import TouchTerrainEarthEngine as TouchTerrain
+from common import InMemoryZip 
+
 
 
 if len(sys.argv) > 1:  # sys.argv are the CLI args

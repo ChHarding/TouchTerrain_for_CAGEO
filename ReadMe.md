@@ -1,6 +1,12 @@
+
+Feb. 16: separated standalone and server version into subfolders:
+	common: .py files (modules) used by both versions
+	standalone: main for standalone, install-howto, etc.
+	server: server main (touchterrain_app.py) and server setup files
+
 version 0.12 is now live at: touchterrain.geol.iastate.edu 
 
-Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through congif.py (server still uses config.py)
+Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
 
 0.12 (Dec. 12 - X-mas edition): 
 - Transparency defaults to 40%
