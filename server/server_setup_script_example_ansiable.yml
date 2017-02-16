@@ -1,0 +1,174 @@
+
+- name: Configure touchterrain.geol.iastate.edu
+  hosts: touchterrain*.geol.iastate.edu
+  user: root
+  connection: smart
+
+  vars_files:
+    - ../vars/ISU/globals.yml
+    - ../vars/directories.yml
+
+  vars_prompt:
+    name: "touchterrain_host"
+    prompt: 'Please enter apache vhost hostname'
+    default: 'touchterrain-dev.geol.iastate.edu'
+    private: no
+
+  vars:
+    touchterrain_dir: '/var/www/html/touchterrain/server'
+    touchterrain_user: 'touchterrain'
+    touchterrain_group: 'touchterrain'
+
+    apache_enable_vhosts: true
+    apache_vhosts_enabled:
+      - "{{touchterrain_host}}.80"
+    apache_vhosts:
+      - ServerName: "{{touchterrain_host}}"
+        Port: "80"
+        ServerAdmin: root@localhost
+        WSGIDaemonProcess: "touchterrain user={{touchterrain_user}} group={{touchterrain_group}} threads=1"
+        WSGIScriptAlias: "/ {{touchterrain_dir}}/touchterrain.wsgi"
+        DocumentRoot: "{{touchterrain_dir}}"
+        ErrorLog: "/var/log/httpd/{{touchterrain_host}}-error.log"
+        DirectoryIndex: 'index.html'
+        Alias:
+          - "/tmp  {{touchterrain_dir}}/tmp"
+          - "/docs  {{touchterrain_dir}}/docs"
+        Directory:
+        - path: "{{touchterrain_dir}}/tmp"
+          Options: '-Indexes'
+          Require:
+            - scope: all
+              value: granted
+        - path: "{{touchterrain_dir}}/docs"
+          Options: '-Indexes'
+          Require:
+            - scope: all
+              value: granted
+        - path: "{{touchterrain_dir}}"
+          Options: -Indexes
+          WSGIProcessGroup: touchterrain
+          WSGIApplicationGroup: "%{GLOBAL}"
+    configure_firewalld: true
+    firewalld_default_zone: public
+    firewalld_rules:
+      - zone: "{{firewalld_default_zone}}"
+        service: http
+        state: enabled
+        permanent: yes
+
+
+  pre_tasks:
+    - name: Create group of user to run wsgi process
+      group:
+        name: "{{touchterrain_group}}"
+        state: present
+    - name: Create user to run wsgi process
+      user:
+        name: "{{touchterrain_user}}"
+        comment: "TouchTerrain"
+        group: "{{touchterrain_group}}"
+
+
+  roles:
+    - apache
+    - firewall
+
+  tasks:
+    - name: Install a few packages
+      yum:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - python
+        - numpy
+        - python-pillow
+        - python-pip
+        - git
+        - mod_wsgi
+    - name: Download Google App Engine SDK
+      get_url:
+        url: https://storage.googleapis.com/appengine-sdks/featured/google_appengine_1.9.40.zip
+        dest: /root/google_appengine.zip
+    - name: Unzip Google App Engine SDK
+      shell: unzip -o /root/google_appengine.zip -d /usr/local/bin
+    - name: Install GEE requirements with PIP
+      pip:
+        name: "{{ item }}"
+      with_items:
+        - pyCrypto
+        - google-api-python-client
+        - pyOpenSSL
+        - earthengine-api
+        - webapp2
+        - WebOb
+        - Paste #might not this if apache handles wsgi for us instead
+        - vectors 
+    - name: Create application directory
+      file:
+        path: "{{touchterrain_dir}}"
+        owner: "{{touchterrain_user}}"
+        group: "{{touchterrain_group}}"
+        mode: u=r,g=r,o=r
+        state: directory
+        recurse: yes
+        setype: httpd_sys_content_t
+    - name: Create key directory
+      file:
+        path: /var/www/tt_key
+        owner: root
+        group: root
+        mode: u=rx,g=rx,o=rx
+        state: directory
+        recurse: yes
+        setype: httpd_sys_content_t
+    - name: Pulling the git repo
+      git:
+        repo: https://github.com/baberlevi/TouchTerrain_for_CAGEO.git
+        dest: "{{touchterrain_dir}}"
+        force: yes
+        version: feature/serviceacct_update
+    - name: Update the conf to use correct EE_ACCOUNT
+      lineinfile: dest="{{touchterrain_dir}}/config.py" regexp=^EE_ACCOUNT line="EE_ACCOUNT = 'earthengine@touchterrain.iam.gserviceaccount.com'"
+    - name: Update the conf to use correct private key path
+      lineinfile: dest="{{touchterrain_dir}}/config.py" regexp=^EE_PRIVATE_KEY_FILE line="EE_PRIVATE_KEY_FILE = '/var/www/tt_key/privatekey.pem'"
+    - name: Copy the earth engine key to the server
+      copy:
+        src: ../files/touchterrain/privatekey.pem
+        dest: /var/www/tt_key/privatekey.pem
+    - name: Set permissions on /var/www/html/touchterrain
+      file:
+        path: "{{touchterrain_dir}}"
+        owner: "{{touchterrain_user}}"
+        group: "{{touchterrain_group}}"
+        mode: u=rx,g=r,o=rx
+        state: directory
+        recurse: yes
+        setype: httpd_sys_content_t
+    - name: Set directory permissions under /var/www/html
+      command: /usr/bin/find /var/www/html -type d -exec /usr/bin/chmod u+rx {} \;
+    - name: Set permissions for touchterrain /tmp
+      file:
+        path: "{{touchterrain_dir}}/tmp"
+        mode: u+rwx,o+rx
+        state: directory
+        recurse: yes
+        setype: httpd_sys_rw_content_t
+    - name: Set permissions for TouchTerrain_app
+      file:
+        path: "{{touchterrain_dir}}/TouchTerrain_app.py"
+        setype: httpd_sys_script_exec_t
+    - name: Create ACL to allow Chris to look at apache logs
+      acl:
+        name: /var/log/httpd
+        entity: touchterrain-dev
+        etype: group
+        permissions: "rx"
+        recursive: yes
+        default: yes
+        state: present
+    - name: Restart httpd
+      service:
+        name: httpd
+        enabled: yes
+        state: restarted
