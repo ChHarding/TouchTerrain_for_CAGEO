@@ -16,8 +16,6 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
-
-# CH 01/18/2017: 
 # CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
 # and so requires a reload
 # CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
@@ -50,7 +48,19 @@ if SERVER_TYPE == "GAE_devserver":
 
 import config  # config.py must be in this folder
 import ee
-import TouchTerrainEarthEngine # my modules
+
+
+# find the grand parent folder and add to sys.path
+from os.path import abspath, dirname
+import sys
+top = abspath(__file__)
+this_folder = dirname(top)
+package_folder = dirname(this_folder)
+sys.path.append(package_folder)
+tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files 
+
+from common import TouchTerrainEarthEngine 
+from common import InMemoryZip 
 
 # These modules require that the path to GAE has been set via the above path append or via using the GAE laucher
 import webapp2
@@ -60,7 +70,6 @@ import logging
 import time
 logging.Formatter.converter = time.gmtime # set to gmt as GAE uses that,
 
-tmp_folder = "/var/www/html/touchterrain/tmp"  # dir to store zip files on the dev server
 
 # functions for computing hillshades in EE (from EE examples)
 # Currently, I only use the precomputed hs, but they might come handy later ...
@@ -165,7 +174,7 @@ if SERVER_TYPE == "GAE_devserver":
 
 # preflight page: showing some notes on how there's no used feedback until processing is done
 # as I don't know how to carry over the args I get here to the export page handler's post() method,
-# I store the entire request as a global and write it back later. TODO: find a better way!
+# I store the entire request in the registry and write it back later. 
 class preflight(webapp2.RequestHandler):
     def __init__(self, request, response):
     	# Set self.request, self.response and self.app.
