@@ -1,58 +1,123 @@
+TouchTerrain
+============
 
-Feb. 16: separated standalone and server version into subfolders:
-- common: .py files (modules) used by both versions
-- standalone: main for standalone, install-howto, etc.. Works
-- server: server main (touchterrain_app.py) and server setup files. 
+TouchTerrain converts digital elevation models drawn from Google Earth Engine,
+or user provided files, into models suitable for 3D printing. It comes as both a
+standalone program as well as a server which creates 3D model files and makes
+them available for download.
 
-version 0.12 is now live at: touchterrain.geol.iastate.edu 
-
-Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
-
-0.12 (Dec. 12 - X-mas edition): 
-- Transparency defaults to 40%
-- results page has link to viewstl.com to preview downloaded files
-- ETOPO elevation is for ice, not bedrock
-- can now use server type flags: Apache, paste or GEA_devserver
-- added a hillshade gamma slider to change default gamma (1.0). Requires reload of page: press set new gamma button.
-- added 30m SRTM DEM as data source
-- better info on how the original raster DEM will be rescaled based on area, tile number/size, etc. 
-- tile height (in cm) is now automatically calculated from tile width and aspect ratio of red box (using meters for box sides).
-- general layout changes, incl. a link to help page.
-
-0.11 (Oct. 31 - Halloween edition): Includes Levi's changes/fixes/additions:
-- proper separation of server vs stand-alone:
-- stand-alone version can now be run without having to install the google app engine (GAE) modules
-- full server now runs on Apache mod_wsgi, rather than via the Google App Engine dev server. However, the GAE modules still need to be installed, as some parts are used by the server module.
-- fixed a noobish use of a Python global for duplicating request_handling data for the pre-flight page
-
-
-Version 0.10 of the TouchTerrain project, primarily a set of python source code files
-for Python 2.7:
-
-- TouchTerrain-app.py: a server module (service) to be run as part of a Google App Engine server. The server creates a webpage, through which the user inputs the area selection and print parameters.
-    
-- index.html: HTML template for the main webpage, includes Javascript
-    
-- TouchTerrain_standalone.py: A stand-alone version in which the user input is given 
-    in a JSON file, rather then via a web page.
-    
-- TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
-    
-- grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in the desired file format (STL or OBJ)
-    
-- Coordinate_system_conv.py, InMemoryZip.py: utility functions  
-
-- config.py: used for oauth credentials for the Google dev (Earth Engine) account 
-
-- tmp folder: contains an example terrain model, a zipped stl file 
-
-Note that running the server or the stand-alone version does require some additional setup,
-it cannot be run right away with just those files! 
-https://developers.google.com/earth-engine/python_install describes the setup of 
-the Earth Engine Python API, including the required oauth authentication to the Earth Engine. 
-This will create a credentials file on your system and a private key (.pem) file that are 
-needed by config.py. You will also need to install all required third party modules, 
-such as numpy and pillow.
+TouchTerrain is developed by Chris Harding and Franek Hasiuk, of Iowa State
+University's [GeoFabLab](http://www.public.iastate.edu/~franek/gfl/gfl.html).
 
 
 
+Getting Started
+===============
+
+You will need to install Google Earth Engine for Python 2. The directions on
+GEE's [site](https://developers.google.com/earth-engine/python_install) are a
+good place to start, but additional information is provided in this repository
+in the file `standalone/TouchTerrain_standalone_installation.pdf`.
+
+If you do not already have an account with Google Earth Engine, you will need to
+apply for one from Google. This process is typically painless. Once a request is
+submitted Google usually approves it within about a day.
+
+Various Python modules must be installed, as detailed in
+`standalone/TouchTerrain_standalone_installation.pdf`.
+
+Once Earth Engine is installed you can run either
+`standalone/TouchTerrain_standalone.py`
+or
+`server/TouchTerrain_app.py`
+from within their respective directories.
+
+
+
+Standalone
+==========
+
+`TouchTerrain_standalone.py` draws information from Google Earth Engine to
+create a 3D model suitable for 3D printing. This model, possibly consisting of
+several files, is saved in a ZIP along with an info file describing the
+properties used to produce it.
+
+`TouchTerrain_standalone.py` reads in a JSON configuration file such as the one
+at `standalone/example_config.json`. The file has the following format
+
+    {
+      "DEM_name":      "USGS/NED",          
+      "basethick":     1, 
+      "bllat":         44.50185267, 
+      "bllon":         -108.254279, 
+      "fileformat":    "STLb", 
+      "ntilesx":       1, 
+      "ntilesy":       1, 
+      "printres":      0.5, 
+      "tile_centered": true, 
+      "tilewidth":     80, 
+      "trlat":         44.6974170, 
+      "trlon":         -107.97962, 
+      "zip_file_name": "terrain", 
+      "zscale":        1.0
+    }
+
+The syntax of this file is as follows:
+
+ * `DEM_name`:      ????
+
+ * `basethick`:     A layer of material this thick will be added below the 
+                    entire model. This is particularly important for models 
+                    with long, deep valleys, which can cause the model to break 
+                    if the base is not thick enough.
+
+ * `bllat`:         Bottom-left latitude
+
+ * `bllon`:         Bottom-left longitude
+
+ * `fileformat`:    ????
+
+ * `ntilesx`:       Divide the x axis evenly among this many tiles. This is
+                    useful if the area being printed would be too large to fit
+                    in the printer's bed.
+
+ * `ntilesy`:       See `ntilesx`, above.
+
+ * `printres`:      ????
+
+ * `tile_centered`: ????
+
+ * `tilewidth`:     ????
+
+ * `trlat`:         Top-right latitude
+
+ * `trlon`:         Top-right longitude
+
+ * `zip_file_name`: Prefix of output filename. The end is the datetime of the
+                    file's creation.
+
+ * `zscale`:        Vertical exaggeration versus horizontal units.
+
+
+
+Server
+======
+
+Running `TouchTerrain_app.py` starts a server module (service) to be run as part
+of a Google App Engine server. The server creates a webpage, through which the
+user inputs the area selection and print parameters.
+
+The server requires that the file `config.py` be edited to appropriate values.
+The server also requires oauth authentication to run with Earth Engine. You will
+need to obtain a private key (`.pem`) file and edit `config.py` to point to it.
+
+The server presents users with `index.html`, which can be styled to suit your
+needs, provided the various input dialogs and JavaScript remain.
+
+
+
+Common
+======
+
+The `common` directory contains files used by both the standalone and server
+apps.

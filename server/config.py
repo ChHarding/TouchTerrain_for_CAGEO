@@ -18,7 +18,7 @@ EE_ACCOUNT = 'your-service-account-id@developer.gserviceaccount.com'
 # Email format (.pem suffix).  To convert a private key from the RSA format
 # (.p12 suffix) to .pem, run the openssl command like this:
 # openssl pkcs12 -in downloaded-privatekey.p12 -nodes -nocerts > privatekey.pem
-EE_PRIVATE_KEY_FILE = 'privatekey.pem'
+EE_PRIVATE_KEY_FILE = 'private_key.pem'
 
 # DEBUG_MODE will be True if running in a local development environment.
 DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
