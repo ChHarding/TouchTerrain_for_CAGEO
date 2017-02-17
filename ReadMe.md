@@ -64,39 +64,39 @@ at `standalone/example_config.json`. The file has the following format
 
 The syntax of this file is as follows:
 
- * `DEM_name':      ????
+ * `DEM_name`:      ????
 
- * `basethick':     A layer of material this thick will be added below the 
+ * `basethick`:     A layer of material this thick will be added below the 
                     entire model. This is particularly important for models 
                     with long, deep valleys, which can cause the model to break 
                     if the base is not thick enough.
 
- * `bllat':         Bottom-left latitude
+ * `bllat`:         Bottom-left latitude
 
- * `bllon':         Bottom-left longitude
+ * `bllon`:         Bottom-left longitude
 
- * `fileformat':    ????
+ * `fileformat`:    ????
 
- * `ntilesx':       Divide the x axis evenly among this many tiles. This is
+ * `ntilesx`:       Divide the x axis evenly among this many tiles. This is
                     useful if the area being printed would be too large to fit
                     in the printer's bed.
 
- * `ntilesy':       See `ntilesx`, above.
+ * `ntilesy`:       See `ntilesx`, above.
 
- * `printres':      ????
+ * `printres`:      ????
 
- * `tile_centered': ????
+ * `tile_centered`: ????
 
- * `tilewidth':     ????
+ * `tilewidth`:     ????
 
- * `trlat':         Top-right latitude
+ * `trlat`:         Top-right latitude
 
- * `trlon':         Top-right longitude
+ * `trlon`:         Top-right longitude
 
- * `zip_file_name': Prefix of output filename. The end is the datetime of the
+ * `zip_file_name`: Prefix of output filename. The end is the datetime of the
                     file's creation.
 
- * `zscale':        Vertical exaggeration versus horizontal units.
+ * `zscale`:        Vertical exaggeration versus horizontal units.
 
 
 
