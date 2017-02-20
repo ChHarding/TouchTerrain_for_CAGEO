@@ -9,7 +9,7 @@ them available for download.
 TouchTerrain is developed by Chris Harding and Franek Hasiuk, of Iowa State
 University's [GeoFabLab](http://www.public.iastate.edu/~franek/gfl/gfl.html).
 
-
+To see the server version in action, go to touchterrain.geol.iastate.edu 
 
 Getting Started
 ===============
@@ -64,12 +64,12 @@ at `standalone/example_config.json`. The file has the following format
 
 The syntax of this file is as follows:
 
- * `DEM_name`:      
+ * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) 
    * USGS/NED: 10 m, continental USA only
    * USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
    * USGS/GMTED2010: 90 m, truly worldwide
    * NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
-   * AU/GA/AUSTRALIA_5M_DEM (Australia only, 5 m)  - comingg soon
+   * [AU/GA/AUSTRALIA_5M_DEM (5 m, Australia only)  - coming soon]
 
  * `basethick`:     A layer of material this thick will be added below the 
                     entire model. This is particularly important for models 
@@ -77,36 +77,43 @@ The syntax of this file is as follows:
                     if the base is not thick enough. A base thickness of at least twice the
                     filament thickness is recommended.
 
- * `bllat`:         Bottom-left latitude
-
+ * `bllat`:         Bottom-left latitude of area to be printed
  * `bllon`:         Bottom-left longitude
+ * `trlat`:         Top-right latitude
+ * `trlon`:         Top-right longitude
 
- * `fileformat`:    
-   - obj: wavefront obj (ascii)
-   - STLa: ascii STL 
-   - STLb: binary STL
+ * `fileformat`: file format for 3D model file    
+   - obj: wavefront obj (ascii)  (no normals, no texture coordinates yets ...)
+   - STLa: ascii STL (with normalized normals)
+   - STLb: binary STL (with normalized normals)
 
  * `ntilesx`:       Divide the x axis evenly among this many tiles. This is
                     useful if the area being printed would be too large to fit
                     in the printer's bed.
-
  * `ntilesy`:       See `ntilesx`, above.
+ 
+ * `tilewidth`:     The width of a tile in mm, tile height will be calculated from the aspect ratio of your area.
 
- * `printres`:      ????
-
- * `tile_centered`: ????
-
- * `tilewidth`:     ????
-
- * `trlat`:         Top-right latitude
-
- * `trlon`:         Top-right longitude
+ * `printres`:      A realistic resolution for your printer along the buildplate, typically around the 
+                    thickness of the filament. This and the tile width determines the resampled resolution of the DEM 
+                    raster that is the basis of the mesh. E.g. if you want your tile to be 100 mm wide and your printres 
+                    is set to 0.25 mm, the DEM raster will be re-sampled from its original resolution to 
+                    the equivalent of 400 cells.
+                    If the tile is 4000 m wide in reality, each cell would cover 10 m, about the resolution of NED.
+                    It is probably pointless to ask for a resolution below the origonal DEM by lowering printres
+                    to less than 0.25 in this case.
+                  
+ * `tile_centered`: 
+   * True:  each tile is centered around 0/0
+   * False: all tiles are offset so the all "fit together" when the all are loaded into a 3D viewer, such as Meshlab
 
  * `zip_file_name`: Prefix of output filename. The end is the datetime of the
                     file's creation.
 
  * `zscale`:        Vertical exaggeration versus horizontal units.
 
+
+A note on distances: Google Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile with in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calulator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area. Once you know the width of your tile divide it by the number of cells along x (400 in the example above) to get an idea of the re-sampled real-world resolution. The server Help file (https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into this interplay of these parameters in the section: Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution
 
 
 Server
