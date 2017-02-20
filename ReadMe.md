@@ -64,18 +64,27 @@ at `standalone/example_config.json`. The file has the following format
 
 The syntax of this file is as follows:
 
- * `DEM_name`:      ????
+ * `DEM_name`:      
+                    ** USGS/NED: 10 m, continental USA only
+                    ** USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
+                    ** USGS/GMTED2010: 90 m, truly worldwide
+                    ** NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
+                    ** AU/GA/AUSTRALIA_5M_DEM (Australia only, 5 m)  - comingg soon
 
  * `basethick`:     A layer of material this thick will be added below the 
                     entire model. This is particularly important for models 
-                    with long, deep valleys, which can cause the model to break 
-                    if the base is not thick enough.
+                    with long, deep valleys, which can cause the model shine through 
+                    if the base is not thick enough. A base thickness of at least twice the
+                    filament thickness is recommended.
 
  * `bllat`:         Bottom-left latitude
 
  * `bllon`:         Bottom-left longitude
 
- * `fileformat`:    ????
+ * `fileformat`:    
+                    - obj: wavefront obj (ascii)
+                    - STLa: ascii STL 
+                    - STLb: binary STL
 
  * `ntilesx`:       Divide the x axis evenly among this many tiles. This is
                     useful if the area being printed would be too large to fit
