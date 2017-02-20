@@ -73,7 +73,7 @@ The syntax of this file is as follows:
 
  * `basethick`:     A layer of material this thick will be added below the 
                     entire model. This is particularly important for models 
-                    with long, deep valleys, which can cause the model shine through 
+                    with long, deep valleys, which can cause the model to shine through or 
                     if the base is not thick enough. A base thickness of at least twice the
                     filament thickness is recommended.
 
