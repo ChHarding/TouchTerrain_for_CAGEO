@@ -15,7 +15,7 @@
     private: no
 
   vars:
-    touchterrain_dir: '/var/www/html/touchterrain/server'
+    touchterrain_dir: '/var/www/html/touchterrain'
     touchterrain_user: 'touchterrain'
     touchterrain_group: 'touchterrain'
 
@@ -27,15 +27,15 @@
         Port: "80"
         ServerAdmin: root@localhost
         WSGIDaemonProcess: "touchterrain user={{touchterrain_user}} group={{touchterrain_group}} threads=1"
-        WSGIScriptAlias: "/ {{touchterrain_dir}}/touchterrain.wsgi"
+        WSGIScriptAlias: "/ {{touchterrain_dir}}/server/touchterrain.wsgi"
         DocumentRoot: "{{touchterrain_dir}}"
         ErrorLog: "/var/log/httpd/{{touchterrain_host}}-error.log"
         DirectoryIndex: 'index.html'
         Alias:
-          - "/tmp  {{touchterrain_dir}}/tmp"
+          - "/tmp  {{touchterrain_dir}}/server/tmp"
           - "/docs  {{touchterrain_dir}}/docs"
         Directory:
-        - path: "{{touchterrain_dir}}/tmp"
+        - path: "{{touchterrain_dir}}/server/tmp"
           Options: '-Indexes'
           Require:
             - scope: all
@@ -103,7 +103,7 @@
         - webapp2
         - WebOb
         - Paste #might not this if apache handles wsgi for us instead
-        - vectors 
+        - vectors
     - name: Create application directory
       file:
         path: "{{touchterrain_dir}}"
@@ -124,14 +124,14 @@
         setype: httpd_sys_content_t
     - name: Pulling the git repo
       git:
-        repo: https://github.com/baberlevi/TouchTerrain_for_CAGEO.git
+        repo: https://github.com/ChHarding/TouchTerrain_for_CAGEO.git
         dest: "{{touchterrain_dir}}"
         force: yes
-        version: feature/serviceacct_update
+        version: v1.0
     - name: Update the conf to use correct EE_ACCOUNT
-      lineinfile: dest="{{touchterrain_dir}}/config.py" regexp=^EE_ACCOUNT line="EE_ACCOUNT = 'earthengine@touchterrain.iam.gserviceaccount.com'"
+      lineinfile: dest="{{touchterrain_dir}}/server/config.py" regexp=^EE_ACCOUNT line="EE_ACCOUNT = 'earthengine@touchterrain.iam.gserviceaccount.com'"
     - name: Update the conf to use correct private key path
-      lineinfile: dest="{{touchterrain_dir}}/config.py" regexp=^EE_PRIVATE_KEY_FILE line="EE_PRIVATE_KEY_FILE = '/var/www/tt_key/privatekey.pem'"
+      lineinfile: dest="{{touchterrain_dir}}/server/config.py" regexp=^EE_PRIVATE_KEY_FILE line="EE_PRIVATE_KEY_FILE = '/var/www/tt_key/privatekey.pem'"
     - name: Copy the earth engine key to the server
       copy:
         src: ../files/touchterrain/privatekey.pem
@@ -149,14 +149,14 @@
       command: /usr/bin/find /var/www/html -type d -exec /usr/bin/chmod u+rx {} \;
     - name: Set permissions for touchterrain /tmp
       file:
-        path: "{{touchterrain_dir}}/tmp"
+        path: "{{touchterrain_dir}}/server/tmp"
         mode: u+rwx,o+rx
         state: directory
         recurse: yes
         setype: httpd_sys_rw_content_t
     - name: Set permissions for TouchTerrain_app
       file:
-        path: "{{touchterrain_dir}}/TouchTerrain_app.py"
+        path: "{{touchterrain_dir}}/server/TouchTerrain_app.py"
         setype: httpd_sys_script_exec_t
     - name: Create ACL to allow Chris to look at apache logs
       acl:
@@ -165,7 +165,6 @@
         etype: group
         permissions: "rx"
         recursive: yes
-        default: yes
         state: present
     - name: Restart httpd
       service:
