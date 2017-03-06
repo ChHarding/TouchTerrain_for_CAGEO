@@ -1,4 +1,7 @@
-
+Mar. 6: index.html
+- added boilerplate code for google analytics. Change UA-XXXXXX to your tracking id if you want to use it
+- added contact info and github URL
+ 
 Feb. 16: separated standalone and server version into subfolders:
 - common: .py files (modules) used by both versions
 - standalone: main for standalone, install-howto, etc.. Works
