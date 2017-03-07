@@ -131,6 +131,7 @@ need to obtain a private key (`.pem`) file and edit `config.py` to point to it.
 The server presents users with `index.html`, which can be styled to suit your
 needs, provided the various input dialogs and JavaScript remain.
 
+index.html contain the standard Google Analytics tracking boilerplate code at the top. By default it has a bogus tracking id ('UA-XXXXXXXX'), so tracking doesn't work. If you want to activate it, you need to set up your own Google Analytics (https://www.google.com/analytics/web/#home) and use your own UA- tracking code instead.
 
 
 Common
