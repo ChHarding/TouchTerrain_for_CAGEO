@@ -277,12 +277,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #npim = numpy.asarray(PILimg, dtype=numpy.int16) # force the type to int16
         npim = numpy.asarray(PILimg, dtype=numpy.int16).astype(numpy.float32) # force to 32-bit float
         min_elev = npim.min(); max_elev = npim.max()
-        if DEM_name == """USGS/GMTED2010""":
-            npim = npim.clip(0) #set negative values to 0, GMTED2010 uses -32768 for offshore 
     else:
         npim = numpy.asarray(PILimg).astype(numpy.float32) # make a numpy array from PIL image # TODO(?): use float32? 64?
     #print npim, npim.shape, npim.dtype
     print "full raster (height,width): ", npim.shape, npim.dtype  
+    
+     # for all sources that have no bathymetry, set negative values to 0
+    if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
+        npim = npim.clip(0.0) #set negative values to 0, 
+        print "set negative elevation values to 0"
     
     # get horizontal map scale (1:x) so we know how to scale the elevation later
     print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
