@@ -1,3 +1,5 @@
+Apr. 4: added check to convert water cells outside the defines DEM area to 0. Does not affect onshore cells with <0 elevation (e.g. holland)
+
 Mar. 6: index.html
 - added boilerplate code for google analytics. Change UA-XXXXXX to your tracking id if you want to use it
 - added contact info and github URL
@@ -10,6 +12,8 @@ Feb. 16: separated standalone and server version into subfolders:
 version 0.12 is now live at: touchterrain.geol.iastate.edu 
 
 Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
+
+April 3:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM). That 
 
 0.12 (Dec. 12 - X-mas edition): 
 - Transparency defaults to 40%
