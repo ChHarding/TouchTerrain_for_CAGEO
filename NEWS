@@ -1,3 +1,4 @@
+Apr. 18, 2017: added more options to the pulldown lists for tile size and z-scale
 Apr. 4: added check to convert water cells outside the defines DEM area to 0. Does not affect onshore cells with <0 elevation (e.g. holland)
 
 Mar. 6: index.html
