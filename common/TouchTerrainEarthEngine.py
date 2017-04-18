@@ -276,13 +276,17 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         PILimg.mode = "I"  # with this hack, getdata(), etc. works!  
         #npim = numpy.asarray(PILimg, dtype=numpy.int16) # force the type to int16
         npim = numpy.asarray(PILimg, dtype=numpy.int16).astype(numpy.float32) # force to 32-bit float
-        min_elev = npim.min(); max_elev = npim.max()
-        if DEM_name == """USGS/GMTED2010""":
-            npim = npim.clip(0) #set negative values to 0, GMTED2010 uses -32768 for offshore 
     else:
         npim = numpy.asarray(PILimg).astype(numpy.float32) # make a numpy array from PIL image # TODO(?): use float32? 64?
     #print npim, npim.shape, npim.dtype
     print "full raster (height,width): ", npim.shape, npim.dtype  
+    
+     # for all onshore-only sources, set water cells (undefined elesation) to 0
+    if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
+        if npim.min() < -16384:  # I'm using -16384 because that's lower that any real elevation, so
+                                 # is reasonable to assume that such cells are in fact just flagged as undefined
+            npim = numpy.where(npim <  -16384, 0, npim) # set to 0 where < -16384
+            print "set some undefined elevation values to 0"
     
     # get horizontal map scale (1:x) so we know how to scale the elevation later
     print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
