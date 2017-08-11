@@ -59,6 +59,7 @@ at `standalone/example_config.json`. The file has the following format
       "trlon":         -107.97962, 
       "zip_file_name": "terrain", 
       "zscale":        1.0
+      "CPU_cores_to_use" : 0
     }
 
 The syntax of this file is as follows:
@@ -110,6 +111,8 @@ The syntax of this file is as follows:
                     file's creation.
 
  * `zscale`:        Vertical exaggeration versus horizontal units.
+ 
+ * `CPU_cores_to_use`: Number of CPU cores (processes) to use. 0 means: use all available cores
 
 
 A note on distances: Google Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calulator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area. Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. The server Help file (https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution
