@@ -1,4 +1,5 @@
 {
+"CPU_cores_to_use": 0, 
 "DEM_name": "USGS/NED", 
 "basethick": 1, 
 "bllat": 44.50185267072875, 
@@ -11,6 +12,6 @@
 "tilewidth": 80, 
 "trlat": 44.69741706507476, 
 "trlon": -107.97962089843747, 
-"zip_file_name": "terrain", 
-"zscale": 1.0
+"zip_file_name": "terrain,", 
+"zscale": 2.0
 }

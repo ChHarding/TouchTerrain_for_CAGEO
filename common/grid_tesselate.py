@@ -16,7 +16,7 @@ import warnings # for muting warnings about nan in e.g. nanmean()
 import struct # for making binary STL
 from collections import OrderedDict # for vertex indices dict
 import sys
-import threading # just for getting the threadname for printing % to stderr
+import multiprocessing
 
 # template for ascii STL file
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
@@ -181,8 +181,9 @@ class grid(object):
         top += tile_info["base_thickness_mm"] # add base thickness
         
         # test: make top flat  top.fill(5.0)        
-        print "elev: %.2f - %.2f (mm)," % (np.nanmin(top), np.nanmax(top)),
-
+        
+        tile_info["max_elev"] = np.nanmax(top) 
+        tile_info["min_elev"] = np.nanmin(top)
       
         #print ptop
         # max index in x and y for "inner" raster
@@ -193,7 +194,10 @@ class grid(object):
         # offset so that 0/0 is the center of this tile (local) or so that 0/0 i the upper left corner of all tiles (global) 
         tile_width = (xmaxidx * tile_info["pixel_mm"])
         tile_height = (ymaxidx * tile_info["pixel_mm"])
-        print "model width, height (mm): %.2f x %.2f" % (tile_width, tile_height)
+        #print "model width, height (mm): %.2f x %.2f" % (tile_width, tile_height)
+        tile_info["tile_width"] = tile_width
+        tile_info["tile_height"] = tile_height
+        
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
             offsetx = -tile_width  * tile_info["tile_no_x"]-1 + tile_info["full_raster_width"] / 2.0# tile_no starts with 1!
             offsety = -tile_height * tile_info["tile_no_y"]-1 + tile_info["full_raster_height"] / 2.0
@@ -205,19 +209,16 @@ class grid(object):
         # store cells in an array, init to None (could also be a list ...)        
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)   
         
-        # report progress in % (stderr only), with threadname
-        thread_name = threading.currentThread().getName() 
-        #thread_name = ""
-        print >> sys.stderr, "tile ",
+        # report progress in % 
         percent = 10
         pc_step = int(ymaxidx/percent) + 1 
         progress = 0
-        print >> sys.stderr, tile_info["tile_no_x"], tile_info["tile_no_y"], thread_name       
+        print >> sys.stderr, multiprocessing.current_process()
         
         for j in range(1, ymaxidx+1):    # y dimension for looping within the +1 padded raster
             if j % pc_step == 0: 
                 progress += percent
-                print >> sys.stderr, progress, "%", thread_name 
+                print >> sys.stderr, progress, "%", multiprocessing.current_process()
                 
             for i in range(1, xmaxidx+1):# x dim. 
                 #print "y=",j," x=",i, " elev=",top[j,i]
@@ -332,8 +333,8 @@ class grid(object):
                 
         #print self.cells
         #print vertex.vert_idx
-        print >> sys.stderr, tile_info["tile_no_x"], tile_info["tile_no_y"], "done!", thread_name
         
+        print >> sys.stderr, "100%", multiprocessing.current_process()
         
     def __str__(self):
         return "TODO: implement __str__() for grid class"
@@ -566,8 +567,8 @@ if __name__ == "__main__":
     tile_info_dict = { 
         "scale"  : 10000, # horizontal scale number, defines the size of the model (= 3D map): 1000 => 1m (real) = 1000m in model
         "pixel_mm" : 10, # lateral (x/y) size of a pixel in mm    
-        "max_elev" : top.max(), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
-        "min_elev" : top.min(),
+        "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
+        "min_elev" : np.nanmin(top),
         "z_scale" :  1.0,     # z (vertical) scale (elevation exageration) factor, float
         "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,

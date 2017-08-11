@@ -20,6 +20,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 '''
 
 # changes:
+# CH Aug. 7, 17: changed tile processing to use all available cores
 # CH Jan.18, 17: ee init is now done before this is imported, so we can have a
 #                config.py/.pem file based server version and a google auth based stand alone version
 # CH Dec.6, 16: Extended exception catching around getInfo() based on an error I got with ETOPO. 
@@ -50,6 +51,34 @@ import time
 import random
 logging.Formatter.converter = time.gmtime 
 
+#
+# Multiprocessing
+#
+import multiprocessing
+
+# utility function to unwrap each tile from a tile into info and DEM data, called via map()
+def process_tile(tile):
+    ti = tile_info = tile[0] # this is a individual tile!
+    tile_elev_raster = tile[1]
+    g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat s
+    del tile_elev_raster
+
+    # convert 3D model to a (in-memory) file (buffer)
+    fileformat = tile_info["fileformat"]  
+    if  fileformat == "obj":
+        b = g.make_OBJfile_buffer()
+        # TODO: add a header for obj
+    elif fileformat == "STLa":
+        b = g.make_STLfile_buffer(ascii=True)
+    elif fileformat == "STLb":
+        b = g.make_STLfile_buffer(ascii=False)
+    fsize = len(b) / float(1024*1024)
+    tile_info["file_size"] = fsize
+    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", multiprocessing.current_process()
+    return (tile_info, b) # return info and buffer
+
+
+
 
 # this is my own log file, has nothing to to with the official server logging module!
 #USE_LOG = False # prints to stdout instead of a log file  
@@ -61,9 +90,10 @@ DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100, 
-                         basethick=4, zscale=1.0, fileformat="obj", tile_centered=False):
+                         basethick=4, zscale=1.0, fileformat="obj", 
+                         tile_centered=False, CPU_cores_to_use=0):
     """ 
-    returns a string buffer to in-memory zip file containing 3D model files tiles + a info file
+    returns sa string buffer to in-memory zip file containing 3D model files tiles + a info file and the total size in Mb
     
     args:
     DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources 
@@ -78,6 +108,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                                           "STLa" = ascii STL 
                                           "STLb" = binary STL
     tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
+    CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste)
     """
     # Sanity checks:
     assert DEM_name in DEM_sources, "Error: DEM must be on of " + str(DEM_sources)
@@ -367,6 +398,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         "tile_no_y": -1, # current(!) tile number along y
         "full_raster_width": -1,
         "full_raster_height": -1,
+        "fileformat": fileformat,
         #"magnet_hole_mm": (8, 3.0) # hole for holding magnet diameter and height, height has to be a bit more than base thickness!
     }    
     
@@ -399,11 +431,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     """
     
     # within the padded full raster, grab tiles - but each with a 1 cell fringe!
+    tile_list = [] # list of tiles to be processed vi multiprocessing.map()
     for tx in range(num_tiles[0]):
         for ty in range(num_tiles[1]):
-            tile_info["tile_no_x"] = tx+1
-            tile_info["tile_no_y"] = ty+1
-            print "\ntile", tx+1,"/", ty+1, "of", num_tiles[0], "/", num_tiles[1]
             
             # extract current tile from full raster
             start_x = tx * cells_per_tile_x 
@@ -413,12 +443,77 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # as STL will use float32 anyway, I cast it here to float32 instead of float (=64 bit)
             tile_elev_raster = npim[start_y:end_y, start_x:end_x].astype(numpy.float32) #  [y,x]
             
+            # multiprocessor.map() needs a list 
+            
+            tile_info["tile_no_x"] = tx + 1 
+            tile_info["tile_no_y"] = ty + 1
+            my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
+            tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
+            tile_list.append(tile)
+     
+    # delete large DEM array to save memory
+    del npim
+    
+    if CPU_cores_to_use == 0: CPU_cores_to_use = None  # multiprocessing uses processes=None to use all cores
+    pool = multiprocessing.Pool(processes=CPU_cores_to_use, maxtasksperchild=1) # default use all CPU cores
+       
+    # Convert each tile in list into a grid object and write it into a in-memory buffer in [1]. Also returns updated tile info in [0]
+    processed_list = pool.map(process_tile, tile_list)
+            
+    # tile size is the same foe all tiles
+    tile_info = processed_list[0][0]
+    print "tile size %.2f x %.2f mm\n" % ( tile_info["tile_width"], tile_info["tile_height"])
+    
+    # concat all buffers into a zip file
+    total_size = 0
+    for p in processed_list:
+            tile_info = p[0] # per-tile info
+            tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip  
+            buf= p[1]
+            imz.append(tn, buf) 
+            total_size += tile_info["file_size"]
+            
+            print "tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm", ", file size: %.2f" % tile_info["file_size"], "Mb"
+            
+            # print size and elev range
             
             """
-               
-            # CH: as it turns out, having anything but a flat bottom is bad for printing, but I'll leave the code
-            # for setting a relief into the bottom raster here for now ...
-                
+            # write file to disk
+            fname = "tmp" + os.sep + tile_info["folder_name"] + "_%d-%d.obj" % (tx+1,ty+1)
+            f = open(fname, 'wb+')
+            f.write(b)
+            f.close()        
+            print "wrote tile into", fname
+            """
+    print "\ntotal size for all tiles %.2f Mb" % total_size
+    print "\nfinished:", datetime.datetime.now().time().isoformat()
+    logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
+    
+    # put logfile into zip 
+    if USE_LOG:
+        sys.stdout = regular_stdout 
+        logstr = mystdout.getvalue()
+        lines = logstr.splitlines()
+        logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
+        imz.append(tile_info["folder_name"] + "_log.txt", logstr)
+    print "done"
+    
+    # return string buffer
+    return  imz.get_string_buffer(), total_size
+    
+# MAIN - I left this in, in case I need to run it outside the server
+if __name__ == "__main__":
+    
+    # Grand Canyon, Franek -109.947664, 37.173425  -> -109.905481, 37.151472
+    imz = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=2, ntilesy=2)
+    imz.writetofile("DEM_test.zip")
+    print "done"
+
+
+
+# CH: as it turns out, having anything but a flat bottom is bad for printing, but I'll leave the code
+# for setting a relief into the bottom raster here for now ...                
+"""
             #
             # make bottom image
             #
@@ -545,58 +640,3 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     #tile_elev_raster[n-1,n] = numpy.nan
             
             """
-            
-            #
-            # Make a 3D model from top and bottom
-            #
-            #g = grid(tile_elev_raster, bottom_elev, tile_info)
-            g = grid(tile_elev_raster, None, tile_info) # Bottom = 0
-            
-            # convert 3D model to a (in-memory) file (buffer)
-            if  fileformat == "obj":
-                b = g.make_OBJfile_buffer()
-                # TODO: add a header for obj
-            elif fileformat == "STLa":
-                b = g.make_STLfile_buffer(ascii=True)
-            elif fileformat == "STLb":
-                b = g.make_STLfile_buffer(ascii=False)
-            print "size:", len(b) / float(1024*1024), "Mb"
-            
-            # append buffer to in-memory zip
-            tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file insize zip
-            imz.append(tn, b) 
-            
-            """
-            # write tile to disk
-            fname = "tmp" + os.sep + tile_info["folder_name"] + "_%d-%d.obj" % (tx+1,ty+1)
-            f = open(fname, 'wb+')
-            f.write(b)
-            f.close()        
-            print "wrote tile into", fname
-            """
-            
-    
-    print "\nfinished:", datetime.datetime.now().time().isoformat()
-    logging.info("process finished: " + datetime.datetime.now().time().isoformat())
-    
-    # put logfile into zip 
-    if USE_LOG:
-        sys.stdout = regular_stdout 
-        logstr = mystdout.getvalue()
-        lines = logstr.splitlines()
-        logstr = u"\r\n".join(lines) #otherwise notpad doesn't do linebreaks (vim does)
-        imz.append(tile_info["folder_name"] + "_log.txt", logstr)
-    print "done"
-    
-    # return string buffer
-    return imz.get_string_buffer()
-    
-# MAIN - I left this in, in case I need to run it outside the server
-if __name__ == "__main__":
-    
-    # Grand Canyon, Franek -109.947664, 37.173425  -> -109.905481, 37.151472
-    imz = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=2, ntilesy=2)
-    imz.writetofile("DEM_test.zip")
-    print "done"
-
-    

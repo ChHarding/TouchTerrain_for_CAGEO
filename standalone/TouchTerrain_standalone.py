@@ -67,7 +67,8 @@ args = {
 "zscale": 1.0,    # elevation (vertical) scaling
 "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
 "tile_centered": True, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-"zip_file_name": "terrain"   # base name of zipfile, a timestamp and .zip will be added
+"zip_file_name": "terrain,",   # base name of zipfile, a timestamp and .zip will be added
+"CPU_cores_to_use" : 0,  # 0 means all cores
 }
 
 # write an example json file, in case it gets deleted ...
@@ -119,7 +120,7 @@ else:
 fname = args["zip_file_name"] + "_" + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + ".zip"
 del args["zip_file_name"] # otherwise get_zipped_tiles complains about this argument
 
-str_buf = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
+str_buf, totalsize = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
 with open(fname, 'wb+') as fp:
     fp.write(str_buf)
-    print "finished writing %s" % (fname)
+    print "finished writing %s, total size %.2f Mb" % (fname, totalsize)

@@ -35,7 +35,9 @@ import ee
 
 
 SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
-#SERVER_TYPE = "paste" # so I can run the server inside a debugger ...
+#SERVER_TYPE = "paste" # so I can run the server inside a debugger, need to run with single core!
+
+NUM_CORES = 0 # 0 means: use all cores
 
 #  set sys.path to include all modules in google_appengine\lib
 if SERVER_TYPE == "GAE_devserver":
@@ -229,11 +231,16 @@ class ExportToFile(webapp2.RequestHandler):
 	    self.response.out.write("%s = %s <br>" % (k, str(args[k])))
 	    logging.info("%s = %s" % (k, str(args[k])))
 
+	args["CPU_cores_to_use"] = NUM_CORES
+	
 	# name of file is seconds since 2000
 	myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
 
         # create zip and write to tmp
-	str_buf = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+	str_buf, total_unzipped_size = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+	
+	self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
+	
 	fname = myname + ".zip" # create filename for zipped
 	logging.info("About to write: " + tmp_folder + os.sep + fname)
 	fname = tmp_folder + os.sep + fname # put in tmp folder
