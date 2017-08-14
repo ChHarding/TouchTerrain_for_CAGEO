@@ -1,4 +1,6 @@
+Aug. 14, 2017: added a show URL button to the Area UI. This will load the app (w/o changing the area!) and show the full URL in the browser. This is useful to capture the area for others to use.
 Aug. 11, 2017: added multi-core processing. By default server and standalone will use all available cores. If this doesn;t work, CPU_cores_to_use can be set to 1 to go back to single-processor mode
+
 Apr. 18, 2017: added more options to the pulldown lists for tile size and z-scale
 Apr. 4: added check to convert water cells outside the defines DEM area to 0. Does not affect onshore cells with <0 elevation (e.g. holland)
 
