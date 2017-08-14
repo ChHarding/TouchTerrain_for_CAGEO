@@ -14,7 +14,7 @@ Terrain 3D print Touchterrain project
       })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
       ga('create', 
-              'UA-XXXXXXXX', // put your own tracking ID here https://www.google.com/analytics/web/#home/
+'UA-93016136-1',
               'auto');
       ga('send', 'pageview');
     </script>
@@ -33,17 +33,17 @@ Terrain 3D print Touchterrain project
       * by Earth Engine using the Python script
       */
       // gets values inlined from python calling the jinja template
-      var MAPID = "{{ mapid }}"; // {{ stuff }} 
-      var TOKEN = "{{ token }}";
-      var DEM_name = "{{ DEM_name }}"; // name of DEM layer 
-      var hsgamma = "{{ hsgamma }}"; // hillshade gamma value
-      var map_lat = Number("{{ map_lat }}");  // center of map 
-      var map_lon = Number("{{ map_lon }}");
-      var map_zoom = Number("{{ map_zoom }}"); // zoom level
-      var trlat = "{{ trlat }}"; // bounding box top right corner
-      var trlon = "{{ trlon }}";
-      var bllat = "{{ bllat }}"; // bottom left corner
-      var bllon = "{{ bllon }}"; 
+      var MAPID = "8f434dfec4474aec0f5bf0af1a96e4ed"; //  
+      var TOKEN = "e3678d5aaa97ebe32d965682631284aa";
+      var DEM_name = "USGS/GMTED2010"; // name of DEM layer 
+      var hsgamma = "1.0"; // hillshade gamma value
+      var map_lat = Number("53.21365166938331");  // center of map 
+      var map_lon = Number("8.319588696289099");
+      var map_zoom = Number("4"); // zoom level
+      var trlat = "51.19211961313159"; // bounding box top right corner
+      var trlon = "19.481698071289202";
+      var bllat = "42.63570641666041"; // bottom left corner
+      var bllon = "-3.633536303710798"; 
       
          
 
@@ -413,8 +413,8 @@ Terrain 3D print Touchterrain project
         <b>Elevation Data source:</b> 
         <select title="Switch to different Digital Elevation data source" id="DEM_name" name="DEM_name" onchange="submit_for_reload()">
 	      <option value="USGS/NED"selected>USGS/NED (10 m resolution, US only)</option>
-	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide)</option>
-	      <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwider)</option>
+	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide-ish)</option>
+	      <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwid)</option>
 	      <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000 m resolution, worldwide, incl. bathymetry!)</option>
         </select>
 	
@@ -452,9 +452,11 @@ Terrain 3D print Touchterrain project
 	 title="re-centers the red Area Selection box insides the currently viewed map" 
 	 onclick="center_rectangle()" 
          value="Re-center box in current view">
+	 <input id="show-URL" type="button" 
+	 title="will show a URL fo the current area that you can copy/paste. Useful to jump directly to the area." 
+	 onclick="submit_for_reload()" value="Show URL for area">
       <br>
       
-  
       
       <form action="/preflight" method="post">
           <!-- value set in JS  onclick()  needs DEM_name2 so it can be given to export-->      
@@ -486,7 +488,7 @@ Terrain 3D print Touchterrain project
 	      <option value="20">20 cm</option>
          </select> Tile width, <b id="tile_height"></b> Tile height<br>
 
-	 <select title="The smallest distance your print head can move horizontally. Smaller numbers result in more details and longer print times" 
+	 <select title="Distance your print head will move horizontally. Smaller numbers result in more details and longer print times" 
 	         id="options_print_resolution" name="printres">
 	      <option value="0.05" >0.05 mm</option>	 
 	      <option value="0.1" >0.1 mm</option>
@@ -622,7 +624,3 @@ Terrain 3D print Touchterrain project
    </div> 
   </body>
 </html>
-
-
-
-<!-- <option value="AU/GA/AUSTRALIA_5M_DEM"> AUSTRALIA_5M_DEM (5m resolution, Down-under only)</option>  --!>
