@@ -4,7 +4,7 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain</title>
+    <title>TouchTerrain - get files for 3D printing terrain (v1.09)</title>
     
     <!-- if you use google analytics, make sure to use your own Tracking ID! -->
     <script>
@@ -33,17 +33,17 @@ Terrain 3D print Touchterrain project
       * by Earth Engine using the Python script
       */
       // gets values inlined from python calling the jinja template
-      var MAPID = "8f434dfec4474aec0f5bf0af1a96e4ed"; //  
-      var TOKEN = "e3678d5aaa97ebe32d965682631284aa";
-      var DEM_name = "USGS/GMTED2010"; // name of DEM layer 
+      var MAPID = "8f07dcb368065ec8f4a4b096a938ac58"; //  
+      var TOKEN = "13132a9a7f3891f974274e688ba2993f";
+      var DEM_name = "USGS/NED"; // name of DEM layer 
       var hsgamma = "1.0"; // hillshade gamma value
-      var map_lat = Number("53.21365166938331");  // center of map 
-      var map_lon = Number("8.319588696289099");
-      var map_zoom = Number("4"); // zoom level
-      var trlat = "51.19211961313159"; // bounding box top right corner
-      var trlon = "19.481698071289202";
-      var bllat = "42.63570641666041"; // bottom left corner
-      var bllon = "-3.633536303710798"; 
+      var map_lat = Number("44.59982");  // center of map 
+      var map_lon = Number("-108.11695");
+      var map_zoom = Number("11"); // zoom level
+      var trlat = ""; // bounding box top right corner
+      var trlon = "";
+      var bllat = ""; // bottom left corner
+      var bllon = ""; 
       
          
 
@@ -413,8 +413,8 @@ Terrain 3D print Touchterrain project
         <b>Elevation Data source:</b> 
         <select title="Switch to different Digital Elevation data source" id="DEM_name" name="DEM_name" onchange="submit_for_reload()">
 	      <option value="USGS/NED"selected>USGS/NED (10 m resolution, US only)</option>
-	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide-ish)</option>
-	      <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwid)</option>
+	      <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide)</option>
+	      <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwider)</option>
 	      <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000 m resolution, worldwide, incl. bathymetry!)</option>
         </select>
 	
@@ -452,11 +452,14 @@ Terrain 3D print Touchterrain project
 	 title="re-centers the red Area Selection box insides the currently viewed map" 
 	 onclick="center_rectangle()" 
          value="Re-center box in current view">
+	 
 	 <input id="show-URL" type="button" 
-	 title="will show a URL fo the current area that you can copy/paste. Useful to jump directly to the area." 
-	 onclick="submit_for_reload()" value="Show URL for area">
+	 title="will show a URL for the current area that you can copy/paste and email. Useful to jump directly to the area." 
+	 onclick="submit_for_reload()" 
+	 value="Show URL for area">
       <br>
       
+  
       
       <form action="/preflight" method="post">
           <!-- value set in JS  onclick()  needs DEM_name2 so it can be given to export-->      
@@ -488,7 +491,7 @@ Terrain 3D print Touchterrain project
 	      <option value="20">20 cm</option>
          </select> Tile width, <b id="tile_height"></b> Tile height<br>
 
-	 <select title="Distance your print head will move horizontally. Smaller numbers result in more details and longer print times" 
+	 <select title="The smallest distance your print head can move horizontally. Smaller numbers result in more details and longer print times" 
 	         id="options_print_resolution" name="printres">
 	      <option value="0.05" >0.05 mm</option>	 
 	      <option value="0.1" >0.1 mm</option>
@@ -617,10 +620,16 @@ Terrain 3D print Touchterrain project
       <br>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com">Send Email</a>
       <br>Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
       </h4>
-      
+      <a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank"> 
+           TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a> 
+           (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
 
 
     </div>
    </div> 
   </body>
 </html>
+
+
+
+<!-- <option value="AU/GA/AUSTRALIA_5M_DEM"> AUSTRALIA_5M_DEM (5m resolution, Down-under only)</option>  --!>
