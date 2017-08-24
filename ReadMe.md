@@ -10,6 +10,9 @@ University's [GeoFabLab](http://www.public.iastate.edu/~franek/gfl/gfl.html).
 
 To see the server version in action, go to [touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu) 
 
+For more in-depth information read our paper in Computers & Geosciences:
+TouchTerrain: A simple web-tool for creating 3D-printable topographic models, Volume 109, December 2017, Pages 25-31, https://doi.org/10.1016/j.cageo.2017.07.005
+
 Getting Started
 ===============
 
