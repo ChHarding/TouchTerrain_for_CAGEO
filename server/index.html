@@ -33,17 +33,18 @@ Terrain 3D print Touchterrain project
       * by Earth Engine using the Python script
       */
       // gets values inlined from python calling the jinja template
-      var MAPID = "8f07dcb368065ec8f4a4b096a938ac58"; //  
-      var TOKEN = "13132a9a7f3891f974274e688ba2993f";
-      var DEM_name = "USGS/NED"; // name of DEM layer 
-      var hsgamma = "1.0"; // hillshade gamma value
-      var map_lat = Number("44.59982");  // center of map 
-      var map_lon = Number("-108.11695");
-      var map_zoom = Number("11"); // zoom level
-      var trlat = ""; // bounding box top right corner
-      var trlon = "";
-      var bllat = ""; // bottom left corner
-      var bllon = ""; 
+      var MAPID = "{{ mapid }}"; // {{ stuff }} 
+      var TOKEN = "{{ token }}";
+      var DEM_name = "{{ DEM_name }}"; // name of DEM layer 
+      var hsgamma = "{{ hsgamma }}"; // hillshade gamma value
+      var map_lat = Number("{{ map_lat }}");  // center of map 
+      var map_lon = Number("{{ map_lon }}");
+      var map_zoom = Number("{{ map_zoom }}"); // zoom level
+      var trlat = "{{ trlat }}"; // bounding box top right corner
+      var trlon = "{{ trlon }}";
+      var bllat = "{{ bllat }}"; // bottom left corner
+      var bllon = "{{ bllon }}"; 
+
       
          
 
