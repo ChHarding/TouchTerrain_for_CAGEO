@@ -241,16 +241,16 @@ class ExportToFile(webapp2.RequestHandler):
 	
 	self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
 	
-	fname = myname + ".zip" # create filename for zipped
-	logging.info("About to write: " + tmp_folder + os.sep + fname)
-	fname = tmp_folder + os.sep + fname # put in tmp folder
+	fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
+	
 	if SERVER_TYPE == "GAE_devserver":
 	    f = stubs.FakeFile(fname, "wb+") # make a fake Fakefile instance (with devserver's write restriction disabled)
 	else:
 	    f = open(fname, "wb+") # write to folder
 	f.write(str_buf)
 	f.close()
-	logging.info("finished writing %s" % (myname))
+	
+	logging.error("finished writing %s.zip" % (myname))
 
 	#str_buf = TouchTerrain.get_zipped_tiles(**args)
 	#str_buf = TouchTerrain.get_zipped_tiles("USGS/NED", ntilesx=2, ntilesy=2, **args)
@@ -282,11 +282,8 @@ if SERVER_TYPE == "GAE_devserver":
     pass
 
 
-if SERVER_TYPE == "paste":
-   # You only need the following if you want to run your app directly (instead of the launcher/devserver),
-   # so you can debug it directly (see http://webapp-improved.appspot.com/tutorials/quickstart.nogae.html for more)
-   # You will need to install the Paste module and hack the path to google appengine modules (see above)    
+if SERVER_TYPE == "paste": 
     from paste import httpserver 
     print "running local httpserver ,", 
     httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
-print "done"
+print "end of TouchTerrain_app.py"
