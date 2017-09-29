@@ -213,7 +213,7 @@ class grid(object):
         percent = 10
         pc_step = int(ymaxidx/percent) + 1 
         progress = 0
-        print >> sys.stderr, multiprocessing.current_process()
+        print >> sys.stderr, "started processing", multiprocessing.current_process()
         
         for j in range(1, ymaxidx+1):    # y dimension for looping within the +1 padded raster
             if j % pc_step == 0: 
