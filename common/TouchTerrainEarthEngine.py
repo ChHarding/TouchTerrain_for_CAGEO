@@ -28,7 +28,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 import sys
 import os
 
-import ee
+import ee  # Google Earth Engine
 
 import datetime
 from StringIO import StringIO
@@ -60,7 +60,7 @@ import multiprocessing
 def process_tile(tile):
     ti = tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
-    g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat s
+    g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat 
     del tile_elev_raster
 
     # convert 3D model to a (in-memory) file (buffer)
@@ -201,14 +201,28 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     cell_size = cell_size_meters_lat # will later be used to calc the scale of the model
     print "requesting", cell_size, "m resolution "
     
-    # show layer in slippy map
-    #ee.mapclient.centerMap(center[0], center[1], 11) 
-
-    
 
     # Get a download URL for DEM from Earth Engine
-    #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)  
-    image1 = ee.Image(DEM_name)
+    
+    # CH: re-init should not be needed, but maybe it fixed the 404 bug
+    import config
+    try:
+        ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
+    except Exception, e:
+        print e
+        logging.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
+    
+    got_eeImage = False
+    
+    while not got_eeImage:
+        try:   
+            image1 = ee.Image(DEM_name)
+        except Exception, e:
+            print e
+            logging.error("ee.Image(DEM_name) failed: " + str(e))
+            time.sleep(random.randint(1,10)) 
+        else:
+            break
     
     try:
         info = image1.getInfo() # this can go wrong, but we don't really need the info as long as we get the actual data
@@ -229,7 +243,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         'format': 'tiff'
         #'format': 'jpeg'
     })
-    logging.info("request: " + request)
+    logging.error("request: " + request)
 
     #ee.mapclient.addToMap(image1, {'min': 0, 'max': 4000})
     #PALETTE = ['000000', 'ff0000','ffff00', 'ffffff']
@@ -465,11 +479,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     print "tile size %.2f x %.2f mm\n" % ( tile_info["tile_width"], tile_info["tile_height"])
     
     # concat all buffers into a zip file
+    logging.error("start of creating zip file")
     total_size = 0
     for p in processed_list:
             tile_info = p[0] # per-tile info
             tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip  
             buf= p[1]
+            logging.error("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
             imz.append(tn, buf) 
             total_size += tile_info["file_size"]
             
@@ -485,9 +501,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             f.close()        
             print "wrote tile into", fname
             """
-    print "\ntotal size for all tiles %.2f Mb" % total_size
-    print "\nfinished:", datetime.datetime.now().time().isoformat()
-    logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
+    print "total size for all tiles %.2f Mb" % total_size
+    print "zip finished:", datetime.datetime.now().time().isoformat()
+   
     
     # put logfile into zip 
     if USE_LOG:
@@ -496,7 +512,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         lines = logstr.splitlines()
         logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
         imz.append(tile_info["folder_name"] + "_log.txt", logstr)
-    print "done"
+    
+    logging.error("processing finished: " + datetime.datetime.now().time().isoformat())
     
     # return string buffer
     return  imz.get_string_buffer(), total_size
