@@ -108,7 +108,7 @@ The syntax of this file is as follows:
                     is set to 0.25 mm, the DEM raster will be re-sampled from its original resolution to 
                     the equivalent of 400 cells.
                     If the tile is 4000 m wide in reality, each cell would cover 10 m, about the resolution of NED.
-                    It is probably pointless to ask for a resolution below the origonal DEM by lowering printres
+                    It is probably pointless to ask for a resolution below the original DEM by lowering printres
                     to less than 0.25 in this case.
                   
  * `tile_centered`: 
