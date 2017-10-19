@@ -45,7 +45,13 @@ several files (tiles), is saved in a ZIP along with an info file describing the
 properties used to produce it.
 
 `TouchTerrain_standalone.py` reads in a JSON configuration file such as the one
-at `standalone/example_config.json`. The file has the following format
+at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type
+
+`python TouchTerrain_standalone.py example_config.json`
+
+(Note: you will have to install an bunch of modules and get a Google Earth Engine license for this to actually work. See the TouchTerrain_standalone_installation.pdf for more on that)
+
+The JSON config file has the following format
 
     {
       "DEM_name":      "USGS/NED",          
@@ -72,8 +78,7 @@ The syntax of this file is as follows:
    * USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
    * USGS/GMTED2010: 90 m, truly worldwide
    * NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
-   * [AU/GA/AUSTRALIA_5M_DEM (5 m, Australia only)  - coming soon]
-
+ 
  * `basethick`:     A layer of material this thick will be added below the 
                     entire model. This is particularly important for models 
                     with long, deep valleys, which can cause the model to shine through or 
@@ -115,8 +120,7 @@ The syntax of this file is as follows:
 
  * `zscale`:        Vertical exaggeration versus horizontal units.
  
- * `CPU_cores_to_use`: Number of CPU cores (processes) to use. 0 means: use all available cores
-
+ * `CPU_cores_to_use`: Number of CPU cores (processes) to use. 0 means: use all available cores, null does not use multiprocessing, which is useful when running the code in a Debugger.
 
 A note on distances: Google Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calulator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area. Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. The server Help file (https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution
 
