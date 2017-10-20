@@ -20,6 +20,8 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 '''
 
 # changes:
+# CH Oct.20, 17: added option to not use multiprocessing at all (with None)
+# CH Sep.28, 17: fixed(?) 404 EE bug
 # CH Aug. 7, 17: changed tile processing to use all available cores
 # CH Jan.18, 17: ee init is now done before this is imported, so we can have a
 #                config.py/.pem file based server version and a google auth based stand alone version
@@ -51,12 +53,9 @@ import time
 import random
 logging.Formatter.converter = time.gmtime 
 
-#
-# Multiprocessing
-#
-import multiprocessing
 
-# utility function to unwrap each tile from a tile into info and DEM data, called via map()
+# utility function to unwrap each tile from a tile into info and DEM data
+# if multicore processing is used, this is called via multiprocessing.map()
 def process_tile(tile):
     ti = tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
@@ -74,7 +73,7 @@ def process_tile(tile):
         b = g.make_STLfile_buffer(ascii=False)
     fsize = len(b) / float(1024*1024)
     tile_info["file_size"] = fsize
-    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", multiprocessing.current_process()
+    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb "
     return (tile_info, b) # return info and buffer
 
 
@@ -229,8 +228,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print "Google Earth Engine raster:", info["id"],
         print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
     except Exception, e:
-        print e
-        logging.error("something went wrong with the image info:" + str(e))
+        #print e
+        logging.warning("something went wrong with the image info:" + str(e))
         
     request = image1.getDownloadUrl({
         #'scale':90, # cell size
@@ -468,13 +467,22 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # delete large DEM array to save memory
     del npim
     
-    if CPU_cores_to_use == 0: CPU_cores_to_use = None  # multiprocessing uses processes=None to use all cores
-    pool = multiprocessing.Pool(processes=CPU_cores_to_use, maxtasksperchild=1) # default use all CPU cores
+    if CPU_cores_to_use == 1:  # just work on the list sequentially, don't use multi-core processing
+        processed_list = []
+        print "Using single core mode"
+        # Convert each tile into a list: [0]: updated tile info, [1]: grid object  
+        for t in tile_list:
+            pt = process_tile(t)
+            processed_list.append(pt) # append to list of processed tiles
+    else:  # use multi-core processing
+        import multiprocessing
+        print "Using multi core mode"
+        pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
        
-    # Convert each tile in list into a grid object and write it into a in-memory buffer in [1]. Also returns updated tile info in [0]
-    processed_list = pool.map(process_tile, tile_list)
+        # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
+        processed_list = pool.map(process_tile, tile_list)
             
-    # tile size is the same foe all tiles
+    # tile size is the same for all tiles
     tile_info = processed_list[0][0]
     print "tile size %.2f x %.2f mm\n" % ( tile_info["tile_width"], tile_info["tile_height"])
     
