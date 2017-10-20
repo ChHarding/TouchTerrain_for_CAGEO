@@ -35,10 +35,16 @@ import ee
 
 
 SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
-#SERVER_TYPE = "paste" # so I can run the server inside a debugger, need to run with single core!
+#SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
 
-NUM_CORES = 0 # 0 means: use all cores
+if SERVER_TYPE == "paste":
+    NUM_CORES = 1
+else:
+    NUM_CORES = 0 # 0 means: use all cores
 
+# until we figure out the route thing, use only 1 core
+NUM_CORES = 1    
+    
 #  set sys.path to include all modules in google_appengine\lib
 if SERVER_TYPE == "GAE_devserver":
     import sys, glob
@@ -64,8 +70,18 @@ tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files
 from common import TouchTerrainEarthEngine 
 from common import InMemoryZip 
 
-# These modules require that the path to GAE has been set via the above path append or via using the GAE laucher
+
 import webapp2
+
+# global request var, see if that fixes the route problem ...
+global_request = "init global request"
+
+# alternative to global using threding.local()
+import threading
+thread_global = threading.local()
+thread_global.request = "init thread_global request"
+
+
 import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
 import logging
@@ -74,7 +90,7 @@ logging.Formatter.converter = time.gmtime # set to gmt as GAE uses that,
 
 
 # functions for computing hillshades in EE (from EE examples)
-# Currently, I only use the precomputed hs, but they might come handy later ...
+# Currently, I only use the precomputed hs, but they might come in handy later ...
 def Radians(img):
   return img.toFloat().multiply(math.pi).divide(180)
 
@@ -183,7 +199,11 @@ class preflight(webapp2.RequestHandler):
         self.initialize(request, response)
         app = webapp2.get_app()
         app.registry['preflightrequest'] = self.request
-        print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
+        print "CH: preflight app.registry is", app.registry 
+	print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
+	
+	thread_global.request = self.request
+	print "CH: thread_global.request is", thread_global.request
 
     def post(self):
 	#print self.request.POST # all args
@@ -203,14 +223,17 @@ class preflight(webapp2.RequestHandler):
 
 # Page that creates the 3D models (tiles) in a in-memory zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file. The args are the same as in the
-# main page (via preflight by using the global) The write to tmp dir is only possible
-# b/c I disable the write-only checks temporarily. This folder must already exist as it
-# cannot be created by the devserver.
+# main page (via preflight by using app.registry.get('preflightrequest'))  
 class ExportToFile(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
         app = webapp2.get_app()
-        self.request = app.registry.get('preflightrequest')
+	print "CH: ExportToFile app.registry is:",  app.registry
+	if app.registry == {}:
+	    self.request = thread_global.request
+	    print "CH***: ExportToFile: using thread_global.request hack: ", thread_global.request
+	else:
+	    self.request = app.registry.get('preflightrequest')
 
     def post(self): # make tiles in zip file and write
 	#print self.request.arguments() # should be the same as given to preflight
@@ -233,7 +256,7 @@ class ExportToFile(webapp2.RequestHandler):
 
 	args["CPU_cores_to_use"] = NUM_CORES
 	
-	# name of file is seconds since 2000
+	# name of file is time since 2000 in 0.01 seconds
 	myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
 
         # create zip and write to tmp
