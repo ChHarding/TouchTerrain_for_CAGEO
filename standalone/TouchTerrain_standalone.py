@@ -43,6 +43,7 @@ import json
 #
 # Gets a geotiff either from Google Earth Engine or locally, coverts it
 # into one or more 3D model files (tiles) and stores it/them in a zipped folder.
+# pyramid.tif can be used to test this, use a z-scale of 0.5
 
 # Default parameters:
 # The JSON file overwrites values for the following keys, which are used as

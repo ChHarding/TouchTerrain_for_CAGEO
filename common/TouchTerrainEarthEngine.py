@@ -1,5 +1,5 @@
 """
-TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Engine)
+TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Engine or from local file)
 """
 
 '''
@@ -20,8 +20,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 '''
 
 # changes:
-# CH Oct.20, 17: added option to not use multiprocessing at all (with None)
-# CH Sep.28, 17: fixed(?) 404 EE bug
+# CH Oct.10, 17: added option to use a local geotiff
 # CH Aug. 7, 17: changed tile processing to use all available cores
 # CH Jan.18, 17: ee init is now done before this is imported, so we can have a
 #                config.py/.pem file based server version and a google auth based stand alone version
@@ -30,7 +29,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 import sys
 import os
 
-import ee  # Google Earth Engine
+
 
 import datetime
 from StringIO import StringIO
@@ -38,7 +37,7 @@ import urllib2
 import socket
 import io
 import zipfile
-import math
+
 import httplib
 
 from grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
@@ -46,24 +45,36 @@ from InMemoryZip import InMemoryZip  # in-memory zip file
 from Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image 
+import gdal # for reading writing geotiffs
 
 import logging
 import time
 import random
+import os.path
 logging.Formatter.converter = time.gmtime 
 
 
-# utility function to unwrap each tile from a tile into info and DEM data
+# utility function to unwrap each tile from a tile list into its info and numpy array/
 # if multicore processing is used, this is called via multiprocessing.map()
 def process_tile(tile):
-    ti = tile_info = tile[0] # this is a individual tile!
+    tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
     g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat 
+    printres = tile_info["pixel_mm"]
+    
+    # zigzag processing for Alex
+    #printres = tile_info["pixel_mm"]
+    #num_cells_per_zig, zig_dist_mm, zig_undershoot_mm = 50, 0.15, 0.05
+    #print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig, 
+    #            num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)    
+    #g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
+    
     del tile_elev_raster
 
     # convert 3D model to a (in-memory) file (buffer)
-    fileformat = tile_info["fileformat"]  
+    fileformat = tile_info["fileformat"] 
+   
     if  fileformat == "obj":
         b = g.make_OBJfile_buffer()
         # TODO: add a header for obj
@@ -71,46 +82,68 @@ def process_tile(tile):
         b = g.make_STLfile_buffer(ascii=True)
     elif fileformat == "STLb":
         b = g.make_STLfile_buffer(ascii=False)
+
     fsize = len(b) / float(1024*1024)
     tile_info["file_size"] = fsize
-    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb "
+    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb " #, multiprocessing.current_process()
     return (tile_info, b) # return info and buffer
 
 
-
+# from http://scipy-cookbook.readthedocs.io/items/Rebinning.html
+def resamplesDEM(a, factor ):
+    ''' resample the DEM raster a by a factor
+        a: 2D numpy array
+        factor: down(!) sample factor, 2.0 will reduce the number of cells in x and y to 50%
+    '''
+    cursh = a.shape
+    newshape = ( int(cursh[0]) / float(factor), int(cursh[1] / float(factor)) )
+    slices = [ slice(0,old, float(old)/new) for old,new in zip(a.shape,newshape) ]
+    coordinates = numpy.mgrid[slices]
+    indices = coordinates.astype('i')   #choose the biggest smaller integer index
+    a = a[tuple(indices)] 
+    a = a / float(factor) # scale in z as well
+    return a
 
 # this is my own log file, has nothing to to with the official server logging module!
 #USE_LOG = False # prints to stdout instead of a log file  
 USE_LOG = True # 
     
 #  List of DEM sources  Earth engine offers
-DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003""",
-               """AU/GA/AUSTRALIA_5M_DEM"""]
+DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003"""]
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
+                         importedDEM=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100, 
-                         basethick=4, zscale=1.0, fileformat="obj", 
+                         basethick=2, zscale=1.0, fileformat="STLb", 
                          tile_centered=False, CPU_cores_to_use=0):
     """ 
-    returns sa string buffer to in-memory zip file containing 3D model files tiles + a info file and the total size in Mb
+    returns:
+        - a string buffer to a in-memory zip file (folder) with 3D model files tiles + a info file 
+        - the total size in Mb
     
     args:
-    DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources 
-    trlat, trlon: lat/lon of top right corner
-    bllat, bllon: lat/lon of bottom left corner
-    printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
-    ntilesx, ntilesy: number of tiles in x and y
-    tilewidth: width of each tile in mm (<- !!!!!), tile height is calculated
-    basethick: thickness (in mm) of printed base
-    zscale: elevation (vertical scaling)
-    fileformat: format of 3D model files: "obj"  = wavefront obj (ascii)
-                                          "STLa" = ascii STL 
-                                          "STLb" = binary STL
-    tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
-    CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste)
+    - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources 
+    - trlat, trlon: lat/lon of top right corner
+    - bllat, bllon: lat/lon of bottom left corner
+    - importedDEM: None (means get DEM from GEE) or local file name with DEM to be used instead 
+    - printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
+    - ntilesx, ntilesy: number of tiles in x and y
+    - tilewidth: width of each tile in mm (<- !!!!!), tile height is calculated automatically
+    - basethick: thickness (in mm) of printed base
+    - zscale: elevation (vertical scaling)
+    - fileformat: format of 3D model files: "obj"  = wavefront obj (ascii)
+                                            "STLa" = ascii STL 
+                                            "STLb" = binary STL
+    - tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
+    - CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste) TODO: change to True/False
     """
-    # Sanity checks:
-    assert DEM_name in DEM_sources, "Error: DEM must be on of " + str(DEM_sources)
+    # Sanity checks:   TODO: should do this for all args as there might be a typo in the JSON parameter file
+    if importedDEM == None:
+        assert DEM_name in DEM_sources, "Error: DEM must be on of " + str(DEM_sources)
+    else:
+        assert os.path.exists(importedDEM), "Error: local DEM file " + importedDEM + " does not exist"
+    
+    assert fileformat in ("obj", "STLa", "STLb"), "Error: unknown 3D geometry file format:"  + fileformat
     
     # redirect to logfile written inside the zip file 
     if USE_LOG:
@@ -118,222 +151,285 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         regular_stdout = sys.stdout 
         mystdout = StringIO()
         sys.stdout = mystdout
-    
-    region = [[bllon, trlat],#WN  NW
-              [trlon, trlat],#EN  NE
-              [trlon, bllat],#ES  SE
-              [bllon, bllat]]#WS  SW    
-      
-    # get center of region as lon/lat, needed for conversion to meters
-    center = [(region[0][0] + region[1][0])/2.0, (region[0][1] + region[2][1])/2.0] 
-    
-    # Make a more descriptive name for the selected DEM from it's official (ee) name and the center
-    # if there's a / (e.g. NOAA/NGDC/ETOPO1), just get the last, ETOPO1
-    DEM_title = DEM_name
-    if '/' in DEM_name:
-        DEM_title = DEM_title.split('/')[-1]
-    DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
-    
-    print "Log for creating 3D model tile(s) for ", DEM_title
-    # print args to log
-    args = locals() # dict of local variables
-    for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", 
-                 "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat"):
-        print k, "=", args[k]    
-    print "process started:", datetime.datetime.now().time().isoformat()
-    logging.info("process started: " + datetime.datetime.now().time().isoformat())
         
-    print "Region (lat/lon):\n  ", trlat, trlon, "(top right)\n  ", bllat, bllon, "(bottom left)"    
     
-    # get UTM zone of center to project into
-    utm,h = LatLon_to_UTM(center)
-    utm_zone_str = "UTM %d%s" % (utm,h)
-    epsg = UTM_zone_to_EPSG_code(utm, h)
-    epsg_str = "EPSG:%d" % (epsg)    
-    print "center at", center, " UTM",utm, h, ", ", epsg_str
+    # number of tiles in EW (x,long) and NS (y,lat), must be ints
+    num_tiles = [int(ntilesx), int(ntilesy)] 
     
-    #get extent in meters (depending on lat of center)
-    #print "center (lon/lat) at", center
-    (latitude_in_m, longitude_in_m) = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
-    region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
-    region_ratio_for_degrees =  region_size_in_degrees[1] / float(region_size_in_degrees[0])
-    region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
-                             region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
-    region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
-   
-    print "lon/lat size in degrees:",region_size_in_degrees
-    print "x/y size in meters:", region_size_in_meters
-    
-    # tiling
-    num_tiles = [int(ntilesx), int(ntilesy)] # number of tiles in EW (x,long) and NS (y,lat), must be ints
-    
-    # horizonal resolution of 3D printer
-    #print3D_resolution = 0.25 # in mm 
-    #print3D_resolution = 0.35
+    # horizontal size of "cells" on the 3D printed model (realistically the size of the extruder)
     print3D_resolution = printres
     
-    #
-    # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
-    #print3D_width_per_tile = 100 # EW
-    print3D_width_per_tile = tilewidth
-    print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
-    
-    # width/height of full 3D model (all tiles together)
-    print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW 
-    print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS 
-    
-    # number of samples needed to cover ALL tiles
-    num_samples_lat = print3D_width_total_mm  / float(print3D_resolution) # width
-    num_samples_lon = print3D_height_total_mm / float(print3D_resolution) # height
-    print print3D_resolution,"mm print resolution => requested num samples (width x height):", num_samples_lat, "x",  num_samples_lon
-    
-    # get cell size (in meters) for request from ee # both should be the same
-    cell_size_meters_lat = region_size_in_meters[0] / num_samples_lat # width
-    cell_size_meters_lon = region_size_in_meters[1] / num_samples_lon # height
-    
-   
-    
-    #print  cell_size_meters_lon, "(lon) m,", cell_size_meters_lat, "(lat) m on", DEM_name, "from earth engine"
-    # Note: the resolution of the ee raster does not quite match the requested raster at this cell size;
-    # it's not bad, req: 1200 x 2235.85 i.e. 19.48 m cells => 1286 x 2282 which is good enough for me.
-    # With this, the actually printed cell size is not exactly the print resolution but it's only ~5% off ...
-    cell_size = cell_size_meters_lat # will later be used to calc the scale of the model
-    print "requesting", cell_size, "m resolution "
-    
-
-    # Get a download URL for DEM from Earth Engine
-    
-    # CH: re-init should not be needed, but maybe it fixed the 404 bug
-    import config
-    try:
-        ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
-    except Exception, e:
-        print e
-        logging.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
-    
-    got_eeImage = False
-    
-    while not got_eeImage:
-        try:   
-            image1 = ee.Image(DEM_name)
+    # use Google Earth Engine to get DEM
+    if importedDEM == None: 
+        
+        import ee  # Google Earth Engine
+        
+        region = [[bllon, trlat],#WN  NW
+                  [trlon, trlat],#EN  NE
+                  [trlon, bllat],#ES  SE
+                  [bllon, bllat]]#WS  SW    
+          
+        # get center of region as lon/lat, needed for conversion to meters
+        center = [(region[0][0] + region[1][0])/2.0, (region[0][1] + region[2][1])/2.0] 
+        
+        # Make a more descriptive name for the selected DEM from it's official (ee) name and the center
+        # if there's a / (e.g. NOAA/NGDC/ETOPO1), just get the last, ETOPO1
+        DEM_title = DEM_name
+        if '/' in DEM_name:
+            DEM_title = DEM_title.split('/')[-1]
+        DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
+        
+        print "Log for creating 3D model tile(s) for ", DEM_title
+        # print args to log
+        args = locals() # dict of local variables
+        for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", 
+                     "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat"):
+            print k, "=", args[k]    
+        print "process started:", datetime.datetime.now().time().isoformat()
+        logging.info("process started: " + datetime.datetime.now().time().isoformat())
+            
+        print "Region (lat/lon):\n  ", trlat, trlon, "(top right)\n  ", bllat, bllon, "(bottom left)"    
+        
+        # get UTM zone of center to project into
+        utm,h = LatLon_to_UTM(center)
+        utm_zone_str = "UTM %d%s" % (utm,h)
+        epsg = UTM_zone_to_EPSG_code(utm, h)
+        epsg_str = "EPSG:%d" % (epsg)    
+        print "center at", center, " UTM",utm, h, ", ", epsg_str
+        
+        #get extent in meters (depending on lat of center)
+        #print "center (lon/lat) at", center
+        (latitude_in_m, longitude_in_m) = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
+        region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
+        region_ratio_for_degrees =  region_size_in_degrees[1] / float(region_size_in_degrees[0])
+        region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
+                                 region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
+        region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
+       
+        print "lon/lat size in degrees:",region_size_in_degrees
+        print "x/y size in meters:", region_size_in_meters
+        
+        
+        # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
+        print3D_width_per_tile = tilewidth # EW
+        print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+        
+        # width/height of full 3D model (all tiles together)
+        print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW 
+        print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS 
+        
+        # number of samples needed to cover ALL tiles
+        num_samples_lat = print3D_width_total_mm  / float(print3D_resolution) # width
+        num_samples_lon = print3D_height_total_mm / float(print3D_resolution) # height
+        print print3D_resolution,"mm print resolution => requested num samples (width x height):", num_samples_lat, "x",  num_samples_lon
+        
+        # get cell size (in meters) for request from ee # both should be the same
+        cell_size_meters_lat = region_size_in_meters[0] / num_samples_lat # width
+        cell_size_meters_lon = region_size_in_meters[1] / num_samples_lon # height
+        
+        #print  cell_size_meters_lon, "(lon) m,", cell_size_meters_lat, "(lat) m on", DEM_name, "from earth engine"
+        # Note: the resolution of the ee raster does not quite match the requested raster at this cell size;
+        # it's not bad, req: 1200 x 2235.85 i.e. 19.48 m cells => 1286 x 2282 which is good enough for me.
+        # With this, the actually printed cell size is not exactly the print resolution but it's only ~5% off ...
+        cell_size = cell_size_meters_lat # will later be used to calc the scale of the model
+        print "requesting", cell_size, "m resolution "
+        
+        
+        #
+        # Get a download URL for DEM from Earth Engine
+        #
+        
+        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while
+        import config
+        try:
+            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
         except Exception, e:
             print e
-            logging.error("ee.Image(DEM_name) failed: " + str(e))
-            time.sleep(random.randint(1,10)) 
+            logging.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
+        
+        # TODO: this can probably go, the exception was prb always cause by ee not staying inited 
+        got_eeImage = False
+        while not got_eeImage:
+            try:   
+                image1 = ee.Image(DEM_name)
+            except Exception, e:
+                print e
+                logging.error("ee.Image(DEM_name) failed: " + str(e))
+                time.sleep(random.randint(1,10)) 
+            else:
+                break
+        
+        try:
+            info = image1.getInfo() # this can go wrong for some sources, but we don't really need the info as long as we get the actual data
+            print "Google Earth Engine raster:", info["id"],
+            print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
+        except Exception, e:
+            print e
+            logging.warning("something went wrong with the image info:" + str(e))
+            
+        # make the request dict
+        request = image1.getDownloadUrl({
+            #'scale':90, # cell size
+            'scale': cell_size, # cell size in meters
+            #'crs': 'EPSG:4326',
+            'crs': epsg_str, # projections
+            #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]',
+            'region': str(region), 
+            #'format': 'png',
+            'format': 'tiff'
+            #'format': 'jpeg'
+        })
+        logging.info("request URL is: " + request)
+    
+
+        
+        # This should retry until the request was successfull
+        web_sock = None
+        to = 2
+        while web_sock == None:
+            #
+            # download zipfile from url
+            #
+            try: 
+                web_sock = urllib2.urlopen(request, timeout=20) # 20 sec timeout
+            except socket.timeout, e:
+                raise logging.error("Timeout error %r" % e)        
+            except urllib2.HTTPError, e:
+                logging.error('HTTPError = ' + str(e.code)) 
+                if e.code == 429:  # 429: quota reached
+                    time.sleep(random.randint(1,10)) # wait for a couple of secs
+            except urllib2.URLError, e:
+                logging.error('URLError = ' + str(e.reason))
+            except httplib.HTTPException, e:
+                logging.error('HTTPException')
+            except Exception:
+                import traceback
+                logging.error('generic exception: ' + traceback.format_exc())    
+            
+            # at any exception wait for a couple of secs
+            if web_sock == None:
+                time.sleep(random.randint(1,10)) 
+           
+        # read the zipped folder into memory    
+        buf = web_sock.read()
+        GEEZippedGeotiff = io.BytesIO(buf)
+        GEEZippedGeotiff.flush() # not sure if this is needed ...
+        #print GEEZippedGeotiff
+        
+        # pretend we've got a .zip folder (it's just in memory instead of on disk) and read the tif inside
+        zipdir = zipfile.ZipFile(GEEZippedGeotiff)
+    
+        # Debug: unzip both files into a folder
+        #zipdir.extractall(zipfile.namelist()[1][:-3])
+        
+        # get the entry for the tif file from the zip (there's usually also world file in the zip folder)
+        nl = zipdir.namelist()
+        tifl = [f for f in nl if f[-4:] == ".tif"]
+        assert tifl != [], "zip from ee didn't contain a tif: " +  str(nl)   
+        
+        # ETOPO will have bedrock and ice_surface tifs
+        if DEM_name == """NOAA/NGDC/ETOPO1""":  
+             tif = [f for f in tifl if "ice_surface" in f][0]   # get whichever is the ice_surface
         else:
-            break
-    
-    try:
-        info = image1.getInfo() # this can go wrong, but we don't really need the info as long as we get the actual data
-        print "Google Earth Engine raster:", info["id"],
-        print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
-    except Exception, e:
-        #print e
-        logging.warning("something went wrong with the image info:" + str(e))
+            tif = tifl[0] # there's just one tif in that list
         
-    request = image1.getDownloadUrl({
-        #'scale':90, # cell size
-        'scale': cell_size, # cell size in meters
-        #'crs': 'EPSG:4326',
-        'crs': epsg_str, # projections
-        #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]',
-        'region': str(region), 
-        #'format': 'png',
-        'format': 'tiff'
-        #'format': 'jpeg'
-    })
-    logging.error("request: " + request)
-
-    #ee.mapclient.addToMap(image1, {'min': 0, 'max': 4000})
-    #PALETTE = ['000000', 'ff0000','ffff00', 'ffffff']
-    #ee.mapclient.addToMap(image1, {'min':0, 'max':3000, 'gamma': 1.5})
-    #                               'palette': PALETTE
-    #                               })
-    
-    # CH: not sure about this loop
-    web_sock = None
-    to = 2
-    while web_sock == None:
-        #
-        # download zipfile from url
-        #
-        try: 
-            web_sock = urllib2.urlopen(request, timeout=20) # 20 sec timeout
-        except socket.timeout, e:
-            raise logging.error("Timeout error %r" % e)        
-        except urllib2.HTTPError, e:
-            logging.error('HTTPError = ' + str(e.code)) 
-            if e.code == 429:  # 429: quota reached
-                time.sleep(random.randint(1,10)) # wait for a couple of secs
-        except urllib2.URLError, e:
-            logging.error('URLError = ' + str(e.reason))
-        except httplib.HTTPException, e:
-            logging.error('HTTPException')
-        except Exception:
-            import traceback
-            logging.error('generic exception: ' + traceback.format_exc())    
+        # Debug: print out the data from the world file
+        #worldfile = zipdir.read(zipfile.namelist()[0]) # world file as textfile 
+        #raster_info = [float(l) for l in worldfile.splitlines()]  # https://en.wikipedia.org/wiki/World_file
         
-        # at any exception wait for a couple of secs
-        if web_sock == None:
-            time.sleep(random.randint(1,10)) 
-       
-    # read the zipped folder into memory    
-    buf = web_sock.read()
-    memfile = io.BytesIO(buf)
-    memfile.flush() # not sure if this is needed ...
-    #print memfile
+        str_data = zipdir.read(tif)
+        print "d/l geotiff size:", len(str_data) / 1048576.0, "Mb"
+        imgdata = io.BytesIO(str_data) # PIL doesn't want to read the raw string from unzip
+        GEEZippedGeotiff.close()
+        
+        # delete zipped file 
+        del zipdir, str_data
+        
+        # open tif with PIL
+        PILimg = Image.open(imgdata) 
+        print PILimg
+        #PILimg.save("DEM.tif") # DEBUG: save dem as local file TODO: put that also into the zip folder the user gets?
+        
+        # PIL cannot deal with mode I;16s i.e. 16 bit signed integers, and throws ValueError: unrecognized mode http://stackoverflow.com/questions/7247371/python-and-16-bit-tiff
+        if PILimg.mode == "I;16S": # HACK for integer DEMs (GMTED2010/SRTM and ETOPO1)
+            PILimg.mode = "I"  # with this hack, getdata(), etc. works!  
+            npim = numpy.asarray(PILimg, dtype=numpy.int16).astype(numpy.float32) # force to 32-bit float
+        else:
+            npim = numpy.asarray(PILimg).astype(numpy.float32) # make a numpy array from PIL image # TODO(?): use float32? 64?
+        #print npim, npim.shape, npim.dtype
+        print "full raster (height,width): ", npim.shape, npim.dtype  
+        
+         # for all onshore-only sources, set water cells (undefined elesation) to 0
+        if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
+            if npim.min() < -16384:  # I'm using -16384 because that's lower that any real elevation/depth, so
+                                     # is reasonable to assume that such cells are in fact just flagged as undefined
+                npim = numpy.where(npim <  -16384, 0, npim) # set to 0 where < -16384
+                print "set some undefined elevation values to 0"
     
-    # pretend we've got a .zip folder (it's just in memory instead disk) and read the tif inside
-    zipdir = zipfile.ZipFile(memfile)
+        print "full raster (height,width): ", npim.shape, npim.dtype 
+        #end of getting DEM via GEE
+    
+    #
+    # DEM comes from a local raster file (geotiff, etc.)
+    #
+    else:  
+        
+        filename = os.path.basename(importedDEM)
+        print "Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n"
+        
+        
+        print "started:", datetime.datetime.now().time().isoformat()
+        
+        dem = gdal.Open(importedDEM)
+        band = dem.GetRasterBand(1)    
+        npim = band.ReadAsArray()        
 
-     
-    # Debug: unzip both files into a folder
-    #zipdir.extractall(zipfile.namelist()[1][:-3])
-    
-    # get the tif file from the zip
-    nl = zipdir.namelist()
-    tifl = [f for f in nl if f[-4:] == ".tif"]
-    assert tifl != [], "zip from ee didn't contain a tif: " +  str(nl)   
-    
-    if DEM_name == """NOAA/NGDC/ETOPO1""":  # will have bedrock and ice_surface tifs
-         tif = [f for f in tifl if "ice_surface" in f][0]   
-    else:
-        tif = tifl[0]
-    
+            
+        # I use PROJCS[ to get a projection name, e.g. PROJCS["NAD_1983_UTM_Zone_10N",GEOGCS[....
+        # I'm grabbing the text between the first and second double-quote.
+        utm_zone_str = dem.GetProjection()
+        i = utm_zone_str.find('"')+1
+        utm_zone_str = utm_zone_str[i:]
+        i = utm_zone_str.find('"')
+        utm_zone_str = utm_zone_str[:i]
+        epsg_str = "N/A"  
+        
+        print "projection:", utm_zone_str
+        
+        # grab the cell size in x (width)
+        tf = dem.GetGeoTransform()  #In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
+        cell_size = tf[1]
+        print "real-world cell size:", cell_size
+        
+        print "z-scale:", zscale
+        print "basethickness:", basethick
+        print "fileformat:", fileformat
+        print "tile_centered:", tile_centered
+   
+        print3D_width_total_mm =  tilewidth * num_tiles[0]
+        
+        # given the physical width and the  number of raster cells, what would be the 3D resolution?
+        initial_print3D_resolution = print3D_width_total_mm / float(npim.shape[0])
+        
+        # factor to resample initial DEM raster in order to get the user requested print3D_resolution 
+        print "requested printres is", print3D_resolution, "mm"
 
-    #worldfile = zipdir.read(zipfile.namelist()[0]) # world file as textfile 
-    #raster_info = [float(l) for l in worldfile.splitlines()]  # https://en.wikipedia.org/wiki/World_file
-    str_data = zipdir.read(tif)
-    print "d/l geotiff size:", len(str_data) / 1048576.0, "Mb"
-    imgdata = io.BytesIO(str_data) # PIL doesn't want to read the raw string from unzip
-    memfile.close()
-    
-    # delete zipped file (worth it?)
-    del zipdir, str_data
-    
-    # open tif with PIL
-    PILimg = Image.open(imgdata) # I;16s
-    print PILimg
-    
-    # PIL cannot deal with mode I;16s i.e. 16 bit signed integers, and throws ValueError: unrecognized mode http://stackoverflow.com/questions/7247371/python-and-16-bit-tiff
-    if PILimg.mode == "I;16S": # HACK for integer DEMs (GMTED2010/SRTM and ETOPO1)
-        PILimg.mode = "I"  # with this hack, getdata(), etc. works!  
-        #npim = numpy.asarray(PILimg, dtype=numpy.int16) # force the type to int16
-        npim = numpy.asarray(PILimg, dtype=numpy.int16).astype(numpy.float32) # force to 32-bit float
-    else:
-        npim = numpy.asarray(PILimg).astype(numpy.float32) # make a numpy array from PIL image # TODO(?): use float32? 64?
-    #print npim, npim.shape, npim.dtype
-    print "full raster (height,width): ", npim.shape, npim.dtype  
-    
-     # for all onshore-only sources, set water cells (undefined elesation) to 0
-    if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
-        if npim.min() < -16384:  # I'm using -16384 because that's lower that any real elevation, so
-                                 # is reasonable to assume that such cells are in fact just flagged as undefined
-            npim = numpy.where(npim <  -16384, 0, npim) # set to 0 where < -16384
-            print "set some undefined elevation values to 0"
+        scale_factor = print3D_resolution / float(initial_print3D_resolution)
+        if scale_factor < 1.0: print "Warning: you are re-sampling below the original resolution. This is pointless. Use a larger printres value to avoid this."
+   
+        # re-sample DEM
+        print "re-sampeling", filename, "from", npim.shape, 
+        npim =  resamplesDEM(npim, scale_factor)    
+        print "to", npim.shape
+        
+        DEM_title = filename[:filename.rfind('.')]
     
     # get horizontal map scale (1:x) so we know how to scale the elevation later
     print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
+    
+    if importedDEM != None:
+        print3D_scale_number * scale_factor
+    
     print "map scale is 1 :", print3D_scale_number # EW scale
     #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
     print3D_resolution_adjusted = print3D_width_total_mm / float(npim.shape[1]) # adjusted print resolution
@@ -348,8 +444,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
         print " -> cropped to (y,x):",npim.shape
     
-       
-    
     # min/max elev (all tiles)
     print "elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)) # use nanmin() so we can use (NaN) undefs 
     
@@ -359,7 +453,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print "elev min/max after x%.2f z-scaling: %.2f to %.2f" % (zscale, numpy.nanmin(npim), numpy.nanmax(npim))
     
     """  
-    # plot dem 
+    # plot dem    
     import matplotlib.pyplot as plt
     plt.ion()
     fig = plt.figure(figsize=(7,10))
@@ -391,15 +485,20 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     plt.show()
     """
   
-    
+    #
     # create tile info dict
-    DEM_name = DEM_name.replace("/","-") # replace / as it could be paret of a filename
+    #
+    if importedDEM == None:
+        DEM_name = DEM_name.replace("/","-") # replace / with - to be safe
+    else:
+        DEM_name = filename
+
     tile_info = { 
         "DEMname": DEM_name, # name of raster requested from earth eng.
         "crs" : epsg_str, # EPSG name for UTM zone
         "UTMzone" : utm_zone_str, # UTM zone eg  UTM13N
         "scale"  : print3D_scale_number, # horizontal scale number, defines the size of the model (= 3D map): eg 1000 means 1m in model = 1000m in reality
-        "pixel_mm" : print3D_resolution_adjusted, # lateral (x/y) size of a pixel in mm
+        "pixel_mm" : print3D_resolution_adjusted, # lateral (x/y) size of a 3D printed "pixel" in mm
         "max_elev" : numpy.nanmax(npim), # tilewide minimum/maximum elevation (in meter)
         "min_elev" : numpy.nanmin(npim),
         "z_scale" :  zscale,     # z (vertical) scale (elevation exageration) factor
@@ -412,39 +511,32 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         "full_raster_width": -1,
         "full_raster_height": -1,
         "fileformat": fileformat,
-        #"magnet_hole_mm": (8, 3.0) # hole for holding magnet diameter and height, height has to be a bit more than base thickness!
+        
     }    
     
     #
     # Make tiles (subsets) of the full raster and generate 3D grid model   
     #
     
-    # num_tiles[0], num_tiles[1]: x, y !
+    # num_tiles[0], num_tiles[1]: x, y ! 
     cells_per_tile_x = npim.shape[1] / num_tiles[0] # tile size in pixels
     cells_per_tile_y = npim.shape[0] / num_tiles[1]
     print "Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y
     
     
     # pad full raster by one at the fringes
-    npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan # won't work on GAE's 1.6.1!
+    npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan 
 
     
     # store size of full raster
     tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
     #print tile_info
     
-    imz = InMemoryZip() # in-memory zip file, will be filled with tiles and returned for download
+    imz = InMemoryZip() # in-memory zip file, will be filled with tiles, etc. and returned for download
     
-    """
-    # Read in logo file (must be 8 bit)
-    logo = Image.open("logo_8bit_gfl5.png")
-    if logo.getbands()[0] != "L": print "warning: logo image band 1 is not L, taking band 1 ... let's hope that works"
-    bands = logo.split() # splits into bands, even if there's only 1
-    logo = bands[0] # should ensure that logo is a single band image of mode L
-    """
     
     # within the padded full raster, grab tiles - but each with a 1 cell fringe!
-    tile_list = [] # list of tiles to be processed vi multiprocessing.map()
+    tile_list = [] # list of tiles to be processed via multiprocessing.map()
     for tx in range(num_tiles[0]):
         for ty in range(num_tiles[1]):
             
@@ -456,8 +548,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # as STL will use float32 anyway, I cast it here to float32 instead of float (=64 bit)
             tile_elev_raster = npim[start_y:end_y, start_x:end_x].astype(numpy.float32) #  [y,x]
             
-            # multiprocessor.map() needs a list 
-            
+            # add to tile_list
             tile_info["tile_no_x"] = tx + 1 
             tile_info["tile_no_y"] = ty + 1
             my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
@@ -469,51 +560,48 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     
     if CPU_cores_to_use == 1:  # just work on the list sequentially, don't use multi-core processing
         processed_list = []
-        print "Using single core mode"
         # Convert each tile into a list: [0]: updated tile info, [1]: grid object  
         for t in tile_list:
             pt = process_tile(t)
             processed_list.append(pt) # append to list of processed tiles
     else:  # use multi-core processing
         import multiprocessing
-        print "Using multi core mode"
         pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
-       
+          
         # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
-        processed_list = pool.map(process_tile, tile_list)
-            
+        processed_list = pool.map(process_tile, tile_list)  
+           
     # tile size is the same for all tiles
     tile_info = processed_list[0][0]
     print "tile size %.2f x %.2f mm\n" % ( tile_info["tile_width"], tile_info["tile_height"])
     
-    # concat all buffers into a zip file
-    logging.error("start of creating zip file")
+    # concat all processed tiles into a zip file
+    logging.info("start of creating zip file")
     total_size = 0
     for p in processed_list:
             tile_info = p[0] # per-tile info
             tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip  
             buf= p[1]
-            logging.error("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
+            logging.info("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
             imz.append(tn, buf) 
             total_size += tile_info["file_size"]
             
+            # print size and elev range
             print "tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm", ", file size: %.2f" % tile_info["file_size"], "Mb"
             
-            # print size and elev range
-            
             """
-            # write file to disk
+            # DEBUG: write file to disk
             fname = "tmp" + os.sep + tile_info["folder_name"] + "_%d-%d.obj" % (tx+1,ty+1)
             f = open(fname, 'wb+')
             f.write(b)
             f.close()        
             print "wrote tile into", fname
             """
-    print "total size for all tiles %.2f Mb" % total_size
-    print "zip finished:", datetime.datetime.now().time().isoformat()
-   
+    print "\ntotal size for all tiles %.2f Mb" % total_size
+    print "\nzip finished:", datetime.datetime.now().time().isoformat()
+
     
-    # put logfile into zip 
+    # put logfile into zip folder
     if USE_LOG:
         sys.stdout = regular_stdout 
         logstr = mystdout.getvalue()
@@ -521,18 +609,39 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
         imz.append(tile_info["folder_name"] + "_log.txt", logstr)
     
-    logging.error("processing finished: " + datetime.datetime.now().time().isoformat())
+    # Also add the zipped geotiff we got from GEE
+    if importedDEM == None:
+        GEEZippedGeotiff
+        imz.append("DEM.zip", GEEZippedGeotiff)
     
-    # return string buffer
+    logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
+    
+    # return string buffer of zip folder and its size in bytes
     return  imz.get_string_buffer(), total_size
-    
-# MAIN - I left this in, in case I need to run it outside the server
+#
+# MAIN
+#
 if __name__ == "__main__":
     
     # Grand Canyon, Franek -109.947664, 37.173425  -> -109.905481, 37.151472
-    imz = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=2, ntilesy=2)
-    imz.writetofile("DEM_test.zip")
+    #r = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=1, ntilesy=1,printres=1.0, 
+    #                     tilewidth=120, basethick=2, zscale=1.0)
+    
+    # test for importing dm raster files
+    #fname = "Oso_after_5m_cropped.tif"
+    fname = "pyramid.tif" # pyramid with height values 0-255
+    r = get_zipped_tiles(importedDEM=fname,  ntilesx=1, ntilesy=1,
+                         printres=1, 
+                         tilewidth=120, basethick=2, zscale= 0.5, 
+                         CPU_cores_to_use=0)
+    zip_string = r[0] # r[0] is a zip folder as string, r[1] is the size of the file
+    with open("pyramid.zip", "w+") as f:
+        f.write(zip_string)
     print "done"
+
+
+
+
 
 
 
