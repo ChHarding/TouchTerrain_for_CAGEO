@@ -53,23 +53,24 @@ at `standalone/example_config.json`. To run it in a python shell, go into the st
 
 The JSON config file has the following format
 
-    {
-      "DEM_name":      "USGS/NED",          
-      "basethick":     1, 
-      "bllat":         44.50185267, 
-      "bllon":         -108.254279, 
-      "fileformat":    "STLb", 
-      "ntilesx":       1, 
-      "ntilesy":       1, 
-      "printres":      0.5, 
-      "tile_centered": true, 
-      "tilewidth":     80, 
-      "trlat":         44.6974170, 
-      "trlon":         -107.97962, 
-      "zip_file_name": "terrain", 
-      "zscale":        1.0
-      "CPU_cores_to_use" : 0
-    }
+{
+"DEM_name": "USGS/NED", 
+"basethick": 1, 
+"bllat": 44.50185267072875, 
+"bllon": -108.25427910156247, 
+"fileformat": "STLb", 
+"ntilesx": 1, 
+"ntilesy": 1, 
+"printres": 0.5, 
+"tile_centered": true, 
+"tilewidth": 80, 
+"trlat": 44.69741706507476, 
+"trlon": -107.97962089843747, 
+"zip_file_name": "terrain,", 
+"zscale": 2.0,
+"CPU_cores_to_use": 0,
+"importedDEM": null
+}
 
 The syntax of this file is as follows:
 
@@ -121,6 +122,8 @@ The syntax of this file is as follows:
  * `zscale`:        Vertical exaggeration versus horizontal units.
  
  * `CPU_cores_to_use`: Number of CPU cores (processes) to use. 0 means: use all available cores, null does not use multiprocessing, which is useful when running the code in a Debugger.
+ 
+ * `importedDEM`: default: null . With the default, the DEM is fetched from Google Earth Engine as detailed above. If it is set to a filename, such as `pyramid.tif`, this files is used as DEM. In this case DEM_name, bllat, bllon, trlat and trlon are ignored, but all other parameters are still used. You can test this with pyramid.tif (in standalone folder) which has an elevsation range from 0 to 255, so probably will need a z-scale of 0.5 on a with of 100 mm.
 
 A note on distances: Google Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calulator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area. Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. The server Help file (https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution
 
