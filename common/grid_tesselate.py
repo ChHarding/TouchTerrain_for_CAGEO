@@ -1,13 +1,29 @@
 # grid_tesselate.py
 # create triangles from a top and bottom numpy 2D array, including walls
 
+'''
+@author:     Chris Harding
+@license:    GPL
+@contact:    charding@iastate.edu
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'''
+
 # CH: Feb. 2017: added calculations for normals in stl files
 # CH: Jan. 22, 16: putting the vert index behind a comment makes some programs crash 
 #                  when loading the obj file, so I removed those.
 # FIX: (CH, Nov.16,15): make the vertex index a per grid attribute rather than
 #  a vertex class attribute as this seem to index not found fail eventually when
 #  multiple grids are processed together.
-
 # CH July 2015
 
 import numpy as np
@@ -28,6 +44,7 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
+# https://pypi.python.org/pypi/vectors/
 from vectors import Vector, Point
 
 # function to calculate the normal for a triangle
@@ -50,27 +67,22 @@ def get_normal(tri):
     return normal
     
     
-    
-
-class vertex(object): 
-    
-    #vert_idx = OrderedDict() # class attribute, needs to be set to empty by grid.__init__()
-    
+class vertex(object):     
     def __init__(self, x,y,z, vertex_idx_from_grid):
-        self.coords = (x,y,z)
+        self.coords = [x,y,z] # needs to be a list for zigzag to be able to change coords
         self.vert_idx = vertex_idx_from_grid #
         
         # if key does not yet exist ...
-        if not self.vert_idx.has_key(self.coords):
+        if not self.vert_idx.has_key(tuple(self.coords)): # can't hash lists
             # hash with 3D coords with a running number as Id
-            self.vert_idx[self.coords] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
+            self.vert_idx[tuple(self.coords)] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
         else: # this vertex already has an Id
             #print self.coords, len(self.vert_idx) # DEBUG
             pass
         
     def get_id(self):
         '''return Id for my coords'''
-        i = self.vert_idx[self.coords] # TODO: wrap in exeption in case index is not found
+        i = self.vert_idx[tuple(self.coords)]  
         return i
 
     
@@ -80,6 +92,10 @@ class vertex(object):
     
     def __str__(self):
         return "%.2f %.2f %.2f " % (self.coords[0], self.coords[1], self.coords[2])
+    
+    def __getitem__(self, index):
+        return self.coords[index]
+
 
 class quad(object):
     " 4 vertices in counter clockwise order"
@@ -112,8 +128,7 @@ class quad(object):
         for n,v in enumerate(self.vertlist):
             rs = rs + "v" + str(n) + ": " + str(v) + "  "
         return rs    
-        
-
+    
 
 class cell(object):
     "a cell with a top and bottom quad, constructor: uses refs and does NOT copy"
@@ -128,11 +143,9 @@ class cell(object):
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
 
-   
-
 
 class grid(object):
-    " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a dict for now"
+    " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a simple dict"
     
     def __init__(self, top, bottom, tile_info):
         "top: top elevation raster, must hang over by 1 row/column on each side (be already padded)\
@@ -145,6 +158,7 @@ class grid(object):
         #print top.shape, bottom.shape
         tp = top.dtype # dtype('float32')
         if not str(tp).startswith("float"): print "Warning: expecting float raster!"
+        
         # Important: in 2D numpy arrays, x and y are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
         #[[11  12 13]       top[0,1] => 12
@@ -170,7 +184,6 @@ class grid(object):
         # cell size (x and y delta) in mm        
         csz_mm = tile_info["pixel_mm"]
         
-        
         have_nan = np.isnan(np.sum(top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-numpy
         #print "have_nan", have_nan
 
@@ -180,12 +193,9 @@ class grid(object):
         top *= scz * tile_info["z_scale"] # apply z-scale
         top += tile_info["base_thickness_mm"] # add base thickness
         
-        # test: make top flat  top.fill(5.0)        
-        
         tile_info["max_elev"] = np.nanmax(top) 
         tile_info["min_elev"] = np.nanmin(top)
       
-        #print ptop
         # max index in x and y for "inner" raster
         xmaxidx = top.shape[1]-2 
         ymaxidx = top.shape[0]-2
@@ -206,7 +216,7 @@ class grid(object):
             offsety = tile_height / 2.0             
         #print offsetx, offsety
         
-        # store cells in an array, init to None (could also be a list ...)        
+        # store cells in an array, init to None      
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)   
         
         # report progress in % 
@@ -264,7 +274,7 @@ class grid(object):
                     SWelev = (top[j+0,i+0] + top[j+1,i+0] + top[j+1,i-1] + top[j+0,i-1]) / 4.0 
                 else:
                     # interpolate each corner with possible NaNs, using mean()
-                    # Note: if we have 1 or more NaNs, we get a warning warnings.warn("Mean of empty slice", RuntimeWarning)
+                    # Note: if we have 1 or more NaNs, we get a warning: warnings.warn("Mean of empty slice", RuntimeWarning)
                     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error') 
@@ -335,6 +345,169 @@ class grid(object):
         #print vertex.vert_idx
         
         print >> sys.stderr, "100%", multiprocessing.current_process()
+        
+        
+    def create_zigzag_borders(self, num_cells_per_zig = 10, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
+        """ post process the border quads so that it follows a zig-zag pattern """
+ 
+        # number of cells in x and y     grid is cells[y,x]
+        ncells_x = self.cells.shape[1] 
+        ncells_y = self.cells.shape[0]  
+        
+        ncpz = num_cells_per_zig
+        
+        # north and south border
+        ncells = ncells_x
+  
+        # figure out how many full and partial zigs we need
+        num_full_zigs = ncells // ncpz
+        num_leftover_cells = ncells % ncpz
+        
+        offset = -abs(zig_undershoot_mm) # in mm
+        
+        # very first full zig
+        rise_first_full = 1 / float(ncpz-1)
+         
+        # full width zig, after the very first
+        rise_full = (1 + abs(offset)) / float(ncpz-1)
+            
+        # partial zig, made from leftovers
+        rise_partial = (1 + abs(offset)) / float(num_leftover_cells-1)
+        
+        
+        #print ncells, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial             
+        
+        # As I have to do 4 passes, I'm wrapping the calculation of the zig "height" into a local function
+        def getzigvalue(ci, zig_dist_mm, ncells, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial): 
+            c_in_zig = ci % ncpz
+            #print ncpz, ci, c_in_zig 
+            
+            # very first zig has to start at 0, not offset
+            if ci <= c_in_zig:  
+                
+                yl = rise_first_full * c_in_zig + 0
+                if c_in_zig < ncpz-1:
+                    yr = rise_first_full * (c_in_zig+1)
+                else:
+                    yr = offset # done with first zig, go to offset
+            
+            # subsequent zigs, full or partial   
+            else:               
+                
+                # full or partial zig
+                if ncells - ci > num_leftover_cells:
+        
+                    # full cell, go to offset
+                    yl = rise_full * c_in_zig + offset 
+                    if c_in_zig < ncpz-1:
+                        yr = rise_full * (c_in_zig+1) + offset 
+                    else:
+                        yr = offset        
+                else:
+                    # partial cell
+                    yl = rise_partial * c_in_zig + offset 
+                    if c_in_zig < ncpz-1:
+                        yr = rise_partial * (c_in_zig+1) + offset 
+                    else:
+                        yr = offset 
+            
+            # very last cell must set yr as 0
+            if ci == ncells-1: 
+                yr = 0  
+
+            #print ci, c_in_zig, yl, yr
+            return yl * zig_dist_mm, yr * zig_dist_mm
+       
+        # North border
+        for ci in range(0, ncells_x):    
+            yl,yr = getzigvalue(ci,zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)
+            
+            # get vertex lists for the 2 quads for the north cell
+            nrthcell = self.cells[0,ci]
+            topverts = nrthcell.topquad.vl  
+            botverts = nrthcell.bottomquad.vl
+            
+            # note that the vertex order in top or bottom quads are different b/v top has normals up, bottom has normals down
+            
+            # order: NEb, NWb, SWb, SEb
+            botverts[0].coords[1] += yl  # move y coord up a bit
+            botverts[1].coords[1] += yr             
+            
+            # order: NEt, SEt, SWt, NWt
+            topverts[0].coords[1] += yl   
+            topverts[3].coords[1] += yr             
+            
+        # South border
+        for ci in range(0, ncells_x):    
+            yl,yr = getzigvalue(ci,zig_dist_mm,  ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
+            
+            
+            # get vertex lists for the 2 quads for the south cell
+            sthcell = self.cells[-1,ci]
+            topverts = sthcell.topquad.vl  
+            botverts = sthcell.bottomquad.vl
+            
+            #print ci
+            #for v in topverts: print "%.2f" % v[0],  
+            #print            
+            
+            # order: NEb, NWb, SWb, SEb
+            botverts[2].coords[1] -= yr  # WTH???? why yr?
+            botverts[3].coords[1] -= yl             
+            
+            # order: NEt, SEt, SWt, NWt
+            topverts[1].coords[1] -= yl   
+            topverts[2].coords[1] -= yr                                
+            
+            
+        # West border
+        for ci in range(0, ncells_y):    
+            yl,yr = getzigvalue(ci, zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
+            
+        
+            wcell = self.cells[ci,0]
+            topverts = wcell.topquad.vl  
+            botverts = wcell.bottomquad.vl
+
+            
+            # WTH? why east here?
+            
+            # order: NEb, NWb, SWb, SEb
+            botverts[0].coords[0] -= yl  
+            botverts[3].coords[0] -= yr             
+            
+            # order: NEt, SEt, SWt, NWt
+            topverts[0].coords[0] -= yl   
+            topverts[1].coords[0] -= yr              
+        
+        # East border
+        for ci in range(0, ncells_y):    
+            yl,yr = getzigvalue(ci, zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
+            
+        
+            wcell = self.cells[ci,-1]
+            topverts = wcell.topquad.vl  
+            botverts = wcell.bottomquad.vl
+
+            
+            # WTH? why west here?
+            
+            # order: NEb, NWb, SWb, SEb
+            botverts[1].coords[0] += yl  
+            botverts[2].coords[0] += yr             
+            
+            # order: NEt, SEt, SWt, NWt
+            topverts[3].coords[0] += yl   
+            topverts[2].coords[0] += yr              
+      
+        
+        '''    
+        # left and right border    
+        for iy in range(0, ncells_y):
+            cell = self.cells[iy,ix]        
+        '''    
+        print    
+        
         
     def __str__(self):
         return "TODO: implement __str__() for grid class"
@@ -494,10 +667,8 @@ class grid(object):
         
         
          
-# MAIN    
+# MAIN  (left this in so I can test stuff ...)   
 if __name__ == "__main__":
-    
-    
     nn = np.nan
     """
     top = np.array([[11,12,13,14],
