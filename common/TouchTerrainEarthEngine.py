@@ -47,7 +47,6 @@ from Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
 from PIL import Image 
-import gdal # for reading writing geotiffs
 
 import logging
 import time
@@ -380,7 +379,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
         print "started:", datetime.datetime.now().time().isoformat()
-
+        
+        import gdal # for reading writing geotiffs
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
         npim = band.ReadAsArray()
