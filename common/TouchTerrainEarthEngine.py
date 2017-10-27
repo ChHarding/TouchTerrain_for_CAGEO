@@ -20,6 +20,7 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
 '''
 
 # changes:
+# CH Oct.26, 17: give user the zipped geotiff from GEE 
 # CH Oct.10, 17: added option to use a local geotiff
 # CH Aug. 7, 17: changed tile processing to use all available cores
 # CH Jan.18, 17: ee init is now done before this is imported, so we can have a
