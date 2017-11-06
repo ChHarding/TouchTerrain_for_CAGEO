@@ -49,7 +49,7 @@ at `standalone/example_config.json`. To run it in a python shell, go into the st
 
 `python TouchTerrain_standalone.py example_config.json`
 
-(Note: you will have to install an bunch of modules and get a Google Earth Engine license for this to actually work. See the TouchTerrain_standalone_installation.pdf for more on that)
+Note: you will have to install an bunch of modules this to actually work. You can use a local DEM file via the `importedDEM` parameter but if you want to use the Google Earth Engine curated DEMs, you need to get a Google Earth Engine license (free). See the TouchTerrain_standalone_installation.pdf for more on that.
 
 The JSON config file has the following format
 
