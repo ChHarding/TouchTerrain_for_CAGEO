@@ -16,6 +16,7 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
+# CH 
 # CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
 # and so requires a reload
 # CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
@@ -24,8 +25,7 @@
 # CH 12/22/2015: changes UI for switching (no need to click button) and clipped SRTM data to 0 for offshore (was -32768)
 # CH 12/16/2015: added switch between 10m (NED) and 90m (SRTM) DEM
 # CH 12/01/2015: created a way to remotely disable the write restrictions on the devserver via a fake __init__
-# CH 11/23/2015: went back to no-threading as it didn't seem to work in the devserver
-#    added a pre-flight page to warn the user of no feedback. Had to fake the request part via a global var (eeewwww!))
+# CH 11/23/2015: added a pre-flight page to warn the user of no feedback. Had to fake the request part via a global var (eeewwww!))
 
 import math
 import os
@@ -38,12 +38,10 @@ SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
 #SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
 
 if SERVER_TYPE == "paste":
-    NUM_CORES = 1
+    NUM_CORES = 1 # 1 means don't use multi-core at all
 else:
     NUM_CORES = 0 # 0 means: use all cores
-
-# until we figure out the route thing, use only 1 core
-NUM_CORES = 1    
+ 
     
 #  set sys.path to include all modules in google_appengine\lib
 if SERVER_TYPE == "GAE_devserver":
