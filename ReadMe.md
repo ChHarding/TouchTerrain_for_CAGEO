@@ -133,16 +133,11 @@ A note on distances: Google Earth Engine requires that the requested area is giv
 Server
 ======
 
-Running `TouchTerrain_app.py` starts a server module (service) to be run as part
-of a Google App Engine server. The server creates a webpage, through which the
-user inputs the area selection and print parameters.
+Running `TouchTerrain_app.py` starts a server module (service) which will be run inside Apache. Modify the ansiable script to set up the server. The server creates a webpage, through which theuser inputs the area selection and print parameters.
 
-The server requires that the file `config.py` be edited to appropriate values.
-The server also requires oauth authentication to run with Earth Engine. You will
-need to obtain a private key (`.pem`) file and edit `config.py` to point to it.
+The server requires that the file `config.py` be edited to appropriate values.The server also requires oauth authentication to run with Earth Engine. You will need to obtain a private key (`.pem`) file and edit `config.py` to point to it.
 
-The server presents users with `index.html`, which can be styled to suit your
-needs, provided the various input dialogs and JavaScript remain.
+The server presents users with `index.html`, which can be styled to suit your needs, provided the various input dialogs and JavaScript remain.
 
 index.html contain the standard Google Analytics tracking boilerplate code at the top. By default it has a bogus tracking id ('UA-XXXXXXXX'), so tracking doesn't work. If you want to activate it, you need to set up your own Google Analytics (https://www.google.com/analytics/web/#home) and use your own UA- tracking code instead.
 
