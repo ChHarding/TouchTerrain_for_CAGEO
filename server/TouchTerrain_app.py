@@ -16,7 +16,7 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
-# CH 
+# CH 11/30/2017: added all print parameters to URL 
 # CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
 # and so requires a reload
 # CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
@@ -29,9 +29,7 @@
 
 import math
 import os
-#import threading
 from datetime import datetime
-import ee  
 
 
 SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
@@ -41,19 +39,10 @@ if SERVER_TYPE == "paste":
     NUM_CORES = 1 # 1 means don't use multi-core at all
 else:
     NUM_CORES = 0 # 0 means: use all cores
- 
-    
-#  set sys.path to include all modules in google_appengine\lib
-if SERVER_TYPE == "GAE_devserver":
-    import sys, glob
-    GA_lib = r"C:\Program Files (x86)\Google\google_appengine\lib" # location of google_appengine\lib is on your system
-    for d in glob.glob(GA_lib + os.sep + "*"):
-        sys.path.append(d) # append each folder to the sys.path, which is searched on import
-    sys.path.append(r"C:\Program Files (x86)\Google\google_appengine") 
 
-
-import config  # config.py must be in this folder
 import ee
+import config  # config.py must be in this folder
+
 
 
 # find the grand parent folder and add to sys.path
@@ -70,16 +59,6 @@ from common import InMemoryZip
 
 
 import webapp2
-
-# global request var, see if that fixes the route problem ...
-global_request = "init global request"
-
-# alternative to global using threding.local()
-import threading
-thread_global = threading.local()
-thread_global.request = "init thread_global request"
-
-
 import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
 import logging
@@ -115,7 +94,8 @@ class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
 
     ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
-    #print self.request.GET # all args
+    #logging.info(str(self.request.GET)) # all args
+    #print self.request.GET
 
     DEM_name = self.request.get("DEM_name")
     map_lat = self.request.get("map_lat")
@@ -126,13 +106,27 @@ class MainPage(webapp2.RequestHandler):
     bllat = self.request.get("bllat")
     bllon = self.request.get("bllon")
     hillshade_gamma = self.request.get("hs_gamma")
+    printres =  self.request.get("printres") 
+    ntilesx, ntilesy = self.request.get("ntilesx"), self.request.get("ntilesy")
+    tilewidth = self.request.get("tilewidth")
+    basethick = self.request.get("basethick")
+    zscale = self.request.get("zscale")
+    fileformat = self.request.get("fileformat")
 
-    # default args:
+    # default args, are only used the very first time, after that the URL will have the values encoded
+    # these must be strings and match the SELECT values!
     if DEM_name not in TouchTerrainEarthEngine.DEM_sources: DEM_name = 'USGS/NED' # 10m NED as default
     if map_lat == "": map_lat = "44.59982"  # Sheep Mtn, Greybull, WY
     if map_lon == "": map_lon ="-108.11695"
     if map_zoom == "": map_zoom ="11"
     if hillshade_gamma == "": hillshade_gamma = "1.0"
+    if printres == "": printres = "0.5"
+    if ntilesx == "": ntilesx = "1"
+    if ntilesy == "": ntilesy = "1"
+    if tilewidth == "": tilewidth = "80"
+    if basethick == "": basethick = "2"
+    if zscale == "": zscale = "1.0"
+    if fileformat not in ["obj", "STLa", "STLb"]: fileformat = "STLb"  
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if DEM_name == """NOAA/NGDC/ETOPO1""":
@@ -143,7 +137,6 @@ class MainPage(webapp2.RequestHandler):
 	terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
 
     hs = terrain.select('hillshade')
-
     mapid = hs.getMapId( {'gamma':float(hillshade_gamma)}) # opacity is set in JS
 
     # jinja will inline these variables and their values into the template and create index.html
@@ -151,14 +144,27 @@ class MainPage(webapp2.RequestHandler):
         'mapid': mapid['mapid'],
         'token': mapid['token'],
         'DEM_name': DEM_name,
-        'map_lat': map_lat,
+        
+         # defines map location
+        'map_lat': map_lat,   
         'map_lon': map_lon,
         'map_zoom': map_zoom,
-        'map_zoom': map_zoom,
-        'trlat' : trlat,
+        
+         # defines area box
+        'trlat' : trlat,  
         'trlon' : trlon,
         'bllat' : bllat,
         'bllon' : bllon,
+        
+        # 3D print parameters
+        "printres": printres,
+        "ntilesx" : ntilesx,
+        "ntilesy" : ntilesy,
+        "tilewidth" : tilewidth,
+        "basethick" : basethick,
+        "zscale" : zscale,
+        "fileformat" : fileformat,
+        
         "hsgamma": hillshade_gamma,
     }
 
@@ -166,29 +172,8 @@ class MainPage(webapp2.RequestHandler):
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
 
-    # delete files in tmp that are >24 hrs old is now done by a cron shell script rather then by the dev server
-
-# GAE_devserver is not really tested as of Jan. 2017 ...
-if SERVER_TYPE == "GAE_devserver":    
-    # fake fake file init - this allows me to instantiate a FakeFile object with write-only checks disabled.
-    # Note that I still can't use any other OS functions on files, e.g. get their time or delete them!
-    # To delete old files, I use a chron job.
-    from google.appengine.tools.devappserver2.python import stubs
-    def fake__init__(self, filename, mode='r', bufsize=-1, **kwargs):
-		"""Initializer. See file built-in documentation."""
-    
-		'''# CH: disabled checks
-		if mode not in FakeFile.ALLOWED_MODES:
-		  raise IOError(errno.EROFS, 'Read-only file system', filename)
-    
-		if not FakeFile.is_file_accessible(filename):
-		  raise IOError(errno.EACCES, 'file not accessible', filename)
-		'''
-		super(stubs.FakeFile, self).__init__(filename, mode, bufsize, **kwargs)
-    
-    stubs.FakeFile.__init__ = fake__init__ # now overwrite __init__ with my version that doesn't disable writing like the official version
-
-# preflight page: showing some notes on how there's no used feedback until processing is done
+ 
+# preflight page: showing some notes on how there's no % feedback until processing is done
 # as I don't know how to carry over the args I get here to the export page handler's post() method,
 # I store the entire request in the registry and write it back later. 
 class preflight(webapp2.RequestHandler):
@@ -197,11 +182,8 @@ class preflight(webapp2.RequestHandler):
         self.initialize(request, response)
         app = webapp2.get_app()
         app.registry['preflightrequest'] = self.request
-        print "CH: preflight app.registry is", app.registry 
-	print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
-	
-	thread_global.request = self.request
-	print "CH: thread_global.request is", thread_global.request
+        #print "CH: preflight app.registry is", app.registry 
+	#print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired reques
 
     def post(self):
 	#print self.request.POST # all args
@@ -226,12 +208,7 @@ class ExportToFile(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
         app = webapp2.get_app()
-	print "CH: ExportToFile app.registry is:",  app.registry
-	if app.registry == {}:
-	    self.request = thread_global.request
-	    print "CH***: ExportToFile: using thread_global.request hack: ", thread_global.request
-	else:
-	    self.request = app.registry.get('preflightrequest')
+	self.request = app.registry.get('preflightrequest')
 
     def post(self): # make tiles in zip file and write
 	#print self.request.arguments() # should be the same as given to preflight
@@ -247,7 +224,6 @@ class ExportToFile(webapp2.RequestHandler):
 	    v = self.request.get(k) # key = name of arg
 	    args[k] = v # value
 	    if k not in ["DEM_name", "fileformat"]: args[k] = float(args[k]) # floatify non-string args
-	    if k[:4] == "tile": args[k] = args[k] * 10 # multiply tilewidth/height by 10 to get from cm to mm
 	    #print k, args[k]
 	    self.response.out.write("%s = %s <br>" % (k, str(args[k])))
 	    logging.info("%s = %s" % (k, str(args[k])))
@@ -263,15 +239,18 @@ class ExportToFile(webapp2.RequestHandler):
 	self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
 	
 	fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
-	
-	if SERVER_TYPE == "GAE_devserver":
-	    f = stubs.FakeFile(fname, "wb+") # make a fake Fakefile instance (with devserver's write restriction disabled)
-	else:
+
+	try:
 	    f = open(fname, "wb+") # write to folder
-	f.write(str_buf)
-	f.close()
-	
-	logging.error("finished writing %s.zip" % (myname))
+	    f.write(str_buf)
+	    f.close()	    
+	except Exception, e:
+	    logging.error(e)
+	    print(e)
+	    self.response.out.write(e)
+	    return
+	    
+	logging.info("finished writing %s.zip" % (myname))
 
 	#str_buf = TouchTerrain.get_zipped_tiles(**args)
 	#str_buf = TouchTerrain.get_zipped_tiles("USGS/NED", ntilesx=2, ntilesy=2, **args)
@@ -291,16 +270,6 @@ app = webapp2.WSGIApplication([('/', MainPage), # index.html
                               ('/export', ExportToFile), # results page, generated by: <form action="/export" ....>
                               ('/preflight', preflight)],
                               debug=True)
-
-if SERVER_TYPE == "GAE_devserver":
-    # Running this as a Google App Engine module via its development app server (cloud.google.com/appengine/docs/python/download)
-    # I assume that you have the python App Engine installed in something like google_appengine and that
-    # file, the other python files, the app,yaml file, tmp and doc folders are all in a folder (say touchterrain) that's inside google_appengine.
-    # At the beginning of the file you've added path to sys.path so it finds the GAE modules needed.
-    # the google_appengine folder should comtain dev_appserver.py, open a terminal, go into google_appengine and run:
-    # python dev_appserver.py --host myserver.whatever.edu touchterrain
-    # Alternatively, you can use the GAE app launcher
-    pass
 
 
 if SERVER_TYPE == "paste": 
