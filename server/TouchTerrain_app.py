@@ -25,24 +25,28 @@
 # CH 12/22/2015: changes UI for switching (no need to click button) and clipped SRTM data to 0 for offshore (was -32768)
 # CH 12/16/2015: added switch between 10m (NED) and 90m (SRTM) DEM
 # CH 12/01/2015: created a way to remotely disable the write restrictions on the devserver via a fake __init__
-# CH 11/23/2015: added a pre-flight page to warn the user of no feedback. Had to fake the request part via a global var (eeewwww!))
+# CH 11/23/2015: went back to no-threading as it didn't seem to work in the devserver
+#    added a pre-flight page to warn the user of no feedback. Had to fake the request part via a global var (eeewwww!))
 
 import math
 import os
+#import threading
 from datetime import datetime
+import ee  
 
 
 SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
 #SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
 
 if SERVER_TYPE == "paste":
-    NUM_CORES = 1 # 1 means don't use multi-core at all
+    NUM_CORES = 1 # 1 means don't use multi-core at all 
 else:
     NUM_CORES = 0 # 0 means: use all cores
 
-import ee
-import config  # config.py must be in this folder
+    
 
+import config  # config.py must be in this folder
+import ee
 
 
 # find the grand parent folder and add to sys.path
@@ -59,11 +63,15 @@ from common import InMemoryZip
 
 
 import webapp2
+
+
+
+
 import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
 import logging
 import time
-logging.Formatter.converter = time.gmtime # set to gmt as GAE uses that,
+
 
 
 # functions for computing hillshades in EE (from EE examples)
@@ -94,8 +102,7 @@ class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
 
     ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
-    #logging.info(str(self.request.GET)) # all args
-    #print self.request.GET
+    #print self.request.GET # all args
 
     DEM_name = self.request.get("DEM_name")
     map_lat = self.request.get("map_lat")
@@ -137,15 +144,16 @@ class MainPage(webapp2.RequestHandler):
 	terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
 
     hs = terrain.select('hillshade')
+
     mapid = hs.getMapId( {'gamma':float(hillshade_gamma)}) # opacity is set in JS
 
     # jinja will inline these variables and their values into the template and create index.html
     template_values = {
         'mapid': mapid['mapid'],
         'token': mapid['token'],
-        'DEM_name': DEM_name,
-        
-         # defines map location
+	'DEM_name': DEM_name,
+
+	 # defines map location
         'map_lat': map_lat,   
         'map_lon': map_lon,
         'map_zoom': map_zoom,
@@ -172,8 +180,9 @@ class MainPage(webapp2.RequestHandler):
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
 
- 
-# preflight page: showing some notes on how there's no % feedback until processing is done
+
+
+# preflight page: showing some notes on how there's no used feedback until processing is done
 # as I don't know how to carry over the args I get here to the export page handler's post() method,
 # I store the entire request in the registry and write it back later. 
 class preflight(webapp2.RequestHandler):
@@ -182,8 +191,9 @@ class preflight(webapp2.RequestHandler):
         self.initialize(request, response)
         app = webapp2.get_app()
         app.registry['preflightrequest'] = self.request
-        #print "CH: preflight app.registry is", app.registry 
-	#print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired reques
+        print "preflight app.registry is", app.registry 
+	print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
+	
 
     def post(self):
 	#print self.request.POST # all args
@@ -239,7 +249,7 @@ class ExportToFile(webapp2.RequestHandler):
 	self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
 	
 	fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
-
+	
 	try:
 	    f = open(fname, "wb+") # write to folder
 	    f.write(str_buf)
@@ -250,12 +260,7 @@ class ExportToFile(webapp2.RequestHandler):
 	    self.response.out.write(e)
 	    return
 	    
-	logging.info("finished writing %s.zip" % (myname))
-
-	#str_buf = TouchTerrain.get_zipped_tiles(**args)
-	#str_buf = TouchTerrain.get_zipped_tiles("USGS/NED", ntilesx=2, ntilesy=2, **args)
-	#self.response.headers['Content-Type'] = 'text/zip'
-	#self.response.write(str_buf)
+	logging.info("finished writing %s.zip" % (myname))	
 
 	self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (myname))
 	self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
@@ -270,6 +275,16 @@ app = webapp2.WSGIApplication([('/', MainPage), # index.html
                               ('/export', ExportToFile), # results page, generated by: <form action="/export" ....>
                               ('/preflight', preflight)],
                               debug=True)
+
+if SERVER_TYPE == "GAE_devserver":
+    # Running this as a Google App Engine module via its development app server (cloud.google.com/appengine/docs/python/download)
+    # I assume that you have the python App Engine installed in something like google_appengine and that
+    # file, the other python files, the app,yaml file, tmp and doc folders are all in a folder (say touchterrain) that's inside google_appengine.
+    # At the beginning of the file you've added path to sys.path so it finds the GAE modules needed.
+    # the google_appengine folder should comtain dev_appserver.py, open a terminal, go into google_appengine and run:
+    # python dev_appserver.py --host myserver.whatever.edu touchterrain
+    # Alternatively, you can use the GAE app launcher
+    pass
 
 
 if SERVER_TYPE == "paste": 
