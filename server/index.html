@@ -193,26 +193,24 @@ Terrain 3D print Touchterrain project
       let fileInput = document.getElementById('kml_file');
       fileInput.addEventListener('change', function(e) {
 	  if (fileInput.files.length) { 
-	       let file = fileInput.files[0]; 
+	      let file = fileInput.files[0]; 
   
-	       if (file.type == "application/vnd.google-earth.kml+xml") {
-		      let reader = new FileReader();
-  
-		      reader.onload = function(e) {
-			  let s = reader.result; 			
-			  let bbox = processKMLFile(s);
-			  if(!!bbox){ // not null => good bounding box
- 			    rectangle.setBounds(bbox);
-			    update_corners_form();
-			    map.fitBounds(bbox); // makes the map fit around the box
-			    submit_for_reload();
-			  }
-		      }
-  
-		      reader.readAsText(file);	
-	      } else {
-		      alert("Error: must be a KML file!")
+	      let reader = new FileReader();
+
+	      reader.onload = function(e) {
+		  let s = reader.result; 			
+		  let bbox = processKMLFile(s);
+		  if(!!bbox){ // not null => good bounding box
+		    rectangle.setBounds(bbox);
+		    update_corners_form();
+		    map.fitBounds(bbox); // makes the map fit around the box
+		    submit_for_reload();
+		  } else {
+			alert("Error: invalid KML file!");
+		  }
 	      }
+	      reader.readAsText(file);
+  
 	  }
       });
 
@@ -482,11 +480,20 @@ Terrain 3D print Touchterrain project
       if (xmlfile && xmlfile.length) {  // file exists and is not empty
 
 	  // parse XML file
-	  let xmlDoc = $.parseXML( xmlfile );
-	   let $xml = $(xmlDoc);
+	  let xmlDoc = null;
+	  try {
+	  	xmlDoc = $.parseXML( xmlfile );
+	  }
+	  catch(e) {
+		console.dir(e);
+	  	return null;
+	  }	
+
+
+	  let $xml = $(xmlDoc);
 	  if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
 	      alert('Please upload a KML file');
-	       return(null);
+	       return null;
 	  } else{
 	    let coords = $xml.find("coordinates").text();
 	    //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
@@ -606,7 +613,7 @@ Terrain 3D print Touchterrain project
       <br>
       Gamma:
       <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05" 
-             oninput="updateGamma(this.value); submit_for_reload()">
+             oninput="updateGamma(this.value)" onmouseup="submit_for_reload()">
       <input type="text" id="hs_gamma2"  maxlength="4" size="3" value="0"
             onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload()}">
       <br> <br>
