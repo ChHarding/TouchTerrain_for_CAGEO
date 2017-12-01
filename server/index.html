@@ -310,7 +310,7 @@ Terrain 3D print Touchterrain project
       let bllon = b.getSouthWest().lng();
 
       let print_res_mm = document.getElementById('options_print_resolution').value;
-      let tw_mm = 10.0 * document.getElementById('options_tile_width').value; // convert cm to mm
+      let tw_mm = document.getElementById('options_tile_width').value; 
       let num_tiles_x = document.getElementById('options_numTiles_x').value;
       let num_cells_per_tile = tw_mm /  print_res_mm;
       let total_cells = num_cells_per_tile * num_tiles_x;
