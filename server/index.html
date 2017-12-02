@@ -751,9 +751,13 @@ Terrain 3D print Touchterrain project
 	    <option value="STLa"> STL ascii</option>
 	</select> File format<br><br>
 
+    <input type="button"
+	title="Puts your current settings into the URL and refreshes"
+	onclick="update_options_hidden(); submit_for_reload();"
+	value="Save options to URL">
 
     <input type="submit" value="Export"
-      title="Converts area inside the box into file(s) for 3D printing."  onchange="submit_for_reload();">
+      title="Converts area inside the box into file(s) for 3D printing."  onchange="update_options_hidden(); submit_for_reload();">
       the area inside the box to file(s) for 3D printing.
       </div>
       </form>
