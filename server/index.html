@@ -268,7 +268,7 @@ Terrain 3D print Touchterrain project
       let box  = make_center_box();
       rectangle.setBounds(box);
       update_corners_form();
-      submit_for_reload();
+      //submit_for_reload();
     }
 
     // callback to update corner lat/lon in form to current rectangle
@@ -661,7 +661,7 @@ Terrain 3D print Touchterrain project
 	    <option value="300">300 mm</option>
 	  </select> Tile width, <b id="options_tile_height"></b> Tile height<br>
     
-	  <select title="Should be the same as your extruder size but can be smaller. Smaller numbers result in more details and longer print times"
+	  <select title="Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
 	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
 	    <option value="0.05" >0.05 mm</option>
 	    <option value="0.1" >0.1 mm</option>
@@ -680,7 +680,7 @@ Terrain 3D print Touchterrain project
 	    <option value="1.0">1.0 mm</option>
 	    <option value="1.25">1.25 mm</option>
 	    <option value="1.5">1.5 mm</option>
-	</select> Resolution for 3D Print <br>
+	</select> Resolution for 3D Print (Extruder width)<br>
     
 	 <select title="The number of tiles in x direction"
 		 id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
@@ -754,11 +754,11 @@ Terrain 3D print Touchterrain project
     <input type="button"
 	title="Puts your current settings into the URL and refreshes"
 	onclick="update_options_hidden(); submit_for_reload();"
-	value="Save options to URL">
+	value="1) Save options">
 
-    <input type="submit" value="Export"
+    <input type="submit" value="2) Export"
       title="Converts area inside the box into file(s) for 3D printing."  onchange="update_options_hidden(); submit_for_reload();">
-      the area inside the box to file(s) for 3D printing.
+      to 3D printable files
       </div>
       </form>
 
