@@ -56,11 +56,11 @@ def process_tile(tile):
     printres = tile_info["pixel_mm"]
 
     # zigzag processing for Alex
-    #printres = tile_info["pixel_mm"]
-    #num_cells_per_zig, zig_dist_mm, zig_undershoot_mm = 50, 0.15, 0.05
-    #print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
-    #            num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)
-    #g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
+    printres = tile_info["pixel_mm"]
+    num_cells_per_zig, zig_dist_mm, zig_undershoot_mm = 20, 0.1, 0.02
+    print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
+                num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)
+    g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
 
     del tile_elev_raster
 

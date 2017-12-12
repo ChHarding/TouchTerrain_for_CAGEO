@@ -347,7 +347,7 @@ class grid(object):
         print >> sys.stderr, "100%", multiprocessing.current_process()
         
         
-    def create_zigzag_borders(self, num_cells_per_zig = 10, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
+    def create_zigzag_borders(self, num_cells_per_zig = 50, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
         """ post process the border quads so that it follows a zig-zag pattern """
  
         # number of cells in x and y     grid is cells[y,x]
@@ -418,7 +418,7 @@ class grid(object):
             #print ci, c_in_zig, yl, yr
             return yl * zig_dist_mm, yr * zig_dist_mm
        
-        # North border
+        # North  and south border
         for ci in range(0, ncells_x):    
             yl,yr = getzigvalue(ci,zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)
             
@@ -436,31 +436,25 @@ class grid(object):
             # order: NEt, SEt, SWt, NWt
             topverts[0].coords[1] += yl   
             topverts[3].coords[1] += yr             
-            
-        # South border
-        for ci in range(0, ncells_x):    
-            yl,yr = getzigvalue(ci,zig_dist_mm,  ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
+                 
             
             
             # get vertex lists for the 2 quads for the south cell
             sthcell = self.cells[-1,ci]
             topverts = sthcell.topquad.vl  
             botverts = sthcell.bottomquad.vl
-            
-            #print ci
-            #for v in topverts: print "%.2f" % v[0],  
-            #print            
+                      
             
             # order: NEb, NWb, SWb, SEb
-            botverts[2].coords[1] -= yr  # WTH???? why yr?
-            botverts[3].coords[1] -= yl             
+            botverts[2].coords[1] += yr  # WTH???? why yr?
+            botverts[3].coords[1] += yl             
             
             # order: NEt, SEt, SWt, NWt
-            topverts[1].coords[1] -= yl   
-            topverts[2].coords[1] -= yr                                
+            topverts[1].coords[1] += yl   
+            topverts[2].coords[1] += yr                                
             
             
-        # West border
+        # West amnd east border
         for ci in range(0, ncells_y):    
             yl,yr = getzigvalue(ci, zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
             
@@ -480,11 +474,7 @@ class grid(object):
             topverts[0].coords[0] -= yl   
             topverts[1].coords[0] -= yr              
         
-        # East border
-        for ci in range(0, ncells_y):    
-            yl,yr = getzigvalue(ci, zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
-            
-        
+            # East border
             wcell = self.cells[ci,-1]
             topverts = wcell.topquad.vl  
             botverts = wcell.bottomquad.vl
@@ -493,20 +483,19 @@ class grid(object):
             # WTH? why west here?
             
             # order: NEb, NWb, SWb, SEb
-            botverts[1].coords[0] += yl  
-            botverts[2].coords[0] += yr             
+            botverts[1].coords[0] -= yl  
+            botverts[2].coords[0] -= yr             
             
             # order: NEt, SEt, SWt, NWt
-            topverts[3].coords[0] += yl   
-            topverts[2].coords[0] += yr              
+            topverts[3].coords[0] -= yl   
+            topverts[2].coords[0] -= yr              
       
         
         '''    
         # left and right border    
         for iy in range(0, ncells_y):
             cell = self.cells[iy,ix]        
-        '''    
-        print    
+        '''     
         
         
     def __str__(self):
