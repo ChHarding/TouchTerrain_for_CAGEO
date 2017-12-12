@@ -55,7 +55,7 @@ def process_tile(tile):
     g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat
     printres = tile_info["pixel_mm"]
 
-    # zigzag processing for Alex
+    # zigzag processing to slow down the speed when printing the shell
     printres = tile_info["pixel_mm"]
     num_cells_per_zig, zig_dist_mm, zig_undershoot_mm = 20, 0.1, 0.02
     print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
