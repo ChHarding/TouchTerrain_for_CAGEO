@@ -46,6 +46,9 @@ import random
 import os.path
 logging.Formatter.converter = time.gmtime
 
+# Use zig-zag magic?
+use_zigzag_magic = False
+
 
 # utility function to unwrap each tile from a tile list into its info and numpy array/
 # if multicore processing is used, this is called via multiprocessing.map()
@@ -56,11 +59,14 @@ def process_tile(tile):
     printres = tile_info["pixel_mm"]
 
     # zigzag processing to slow down the speed when printing the shell
-    printres = tile_info["pixel_mm"]
-    num_cells_per_zig, zig_dist_mm, zig_undershoot_mm = 20, 0.1, 0.02
-    print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
-                num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)
-    g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
+    if use_zigzag_magic:
+        printres = tile_info["pixel_mm"]
+        width_of_1_zig_zag_mm = 50  
+        num_cells_per_zig = int(width_of_1_zig_zag_mm / float(tile_info["pixel_mm"]))
+        zig_dist_mm, zig_undershoot_mm = 0.1, 0.02
+        print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
+                    num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)
+        g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
 
     del tile_elev_raster
 
@@ -97,7 +103,7 @@ def resamplesDEM(a, factor ):
     return a
 
 # this is my own log file, has nothing to to with the official server logging module!
-#USE_LOG = False # prints to stdout instead of a log file
+#USE_LOG = False # prints to stdout instead into a log file
 USE_LOG = True #
 
 #  List of DEM sources  Earth engine offers

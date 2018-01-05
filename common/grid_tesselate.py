@@ -44,6 +44,7 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
+
 # https://pypi.python.org/pypi/vectors/
 from vectors import Vector, Point
 
@@ -62,23 +63,26 @@ def get_normal(tri):
     c = a.cross(b)
     #print c
     m = float(c.magnitude())
-    
-    normal = [c.x/m, c.y/m, c.z/m]
+    if m == 0:
+        normal = [0, 0, 0]
+    else:
+        normal = [c.x/m, c.y/m, c.z/m]
     return normal
-    
-    
+
 class vertex(object):     
     def __init__(self, x,y,z, vertex_idx_from_grid):
-        self.coords = [x,y,z] # needs to be a list for zigzag to be able to change coords
-        self.vert_idx = vertex_idx_from_grid #
+        self.coords = [x,y,z] # needs to be a list for zigzag magic to be able to change coords
+        self.vert_idx = vertex_idx_from_grid
         
-        # if key does not yet exist ...
-        if not self.vert_idx.has_key(tuple(self.coords)): # can't hash lists
-            # hash with 3D coords with a running number as Id
-            self.vert_idx[tuple(self.coords)] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
-        else: # this vertex already has an Id
-            #print self.coords, len(self.vert_idx) # DEBUG
-            pass
+        # for non obj file this is set to -1, and there's no need to deal with vertex indices
+        if self.vert_idx != -1:
+            # if key does not yet exist ...
+            if not self.vert_idx.has_key(tuple(self.coords)): # can't hash lists
+                # hash with 3D coords with a running number as Id
+                self.vert_idx[tuple(self.coords)] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
+            else: # this vertex already has an Id
+                #print self.coords, len(self.vert_idx) # DEBUG
+                pass
         
     def get_id(self):
         '''return Id for my coords'''
@@ -152,7 +156,10 @@ class grid(object):
          bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size\
          tile_info: dict with info about the current tile + some tile global settings"
               
-        self.vi = OrderedDict() # set class attrib to empty dict, will be filled with vertex indices
+        if tile_info["fileformat"] == 'obj':
+            self.vi = OrderedDict() # set class attrib to empty dict, will be filled with vertex indices
+        else:
+            self.vi = -1 # means: don't use vertex indices
         self.cells = None # stores the cells, for now a 2D array of cells, but could also be a list of cells (later)
         
         #print top.shape, bottom.shape
@@ -347,8 +354,10 @@ class grid(object):
         print >> sys.stderr, "100%", multiprocessing.current_process()
         
         
-    def create_zigzag_borders(self, num_cells_per_zig = 50, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
+    def create_zigzag_borders(self, num_cells_per_zig = 100, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
         """ post process the border quads so that it follows a zig-zag pattern """
+        
+        assert num_cells_per_zig > 1, "create_zigzag_borders() error: num_cells_per_zig =" + str(num_cells_per_zig)
  
         # number of cells in x and y     grid is cells[y,x]
         ncells_x = self.cells.shape[1] 
@@ -372,10 +381,12 @@ class grid(object):
         rise_full = (1 + abs(offset)) / float(ncpz-1)
             
         # partial zig, made from leftovers
-        rise_partial = (1 + abs(offset)) / float(num_leftover_cells-1)
+        rise_partial = 0 # 0 means no partials
+        if num_leftover_cells > 1:
+            rise_partial = (1 + abs(offset)) / float(num_leftover_cells-1)
         
         
-        #print ncells, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial             
+        #print ncells, ncpz, num_full_zigs, num_leftover_cells, rise_full, brief_text             
         
         # As I have to do 4 passes, I'm wrapping the calculation of the zig "height" into a local function
         def getzigvalue(ci, zig_dist_mm, ncells, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial): 
@@ -403,14 +414,13 @@ class grid(object):
                         yr = rise_full * (c_in_zig+1) + offset 
                     else:
                         yr = offset        
-                else:
-                    # partial cell
+                else: # partial
                     yl = rise_partial * c_in_zig + offset 
                     if c_in_zig < ncpz-1:
                         yr = rise_partial * (c_in_zig+1) + offset 
                     else:
                         yr = offset 
-            
+                    
             # very last cell must set yr as 0
             if ci == ncells-1: 
                 yr = 0  
@@ -454,7 +464,7 @@ class grid(object):
             topverts[2].coords[1] += yr                                
             
             
-        # West amnd east border
+        # West and east border
         for ci in range(0, ncells_y):    
             yl,yr = getzigvalue(ci, zig_dist_mm, ncells_x, ncpz, num_full_zigs, num_leftover_cells, rise_full, rise_partial)            
             
@@ -490,12 +500,6 @@ class grid(object):
             topverts[3].coords[0] -= yl   
             topverts[2].coords[0] -= yr              
       
-        
-        '''    
-        # left and right border    
-        for iy in range(0, ncells_y):
-            cell = self.cells[iy,ix]        
-        '''     
         
         
     def __str__(self):
@@ -620,10 +624,12 @@ class grid(object):
         f 3 4 1  
         """
         
+        assert self.vi != -1, "make_OBJfile_buffer: need grid with vertex indices!"
+        
         # initially, store each line in output file as string in a list
         buf_as_list = []
         buf_as_list.append("g vert")    # header for vertex indexing section
-        for i,v in enumerate(self.vi.keys()): # self.vi is a dict of vertex indices
+        for v in self.vi.keys(): # self.vi is a dict of vertex indices
             #vstr = "v %f %f %f #%d" % (v[0], v[1], v[2], i+1) # putting the vert index behind a comment makes some programs crash when loading the obj file!
             vstr = "v %f %f %f" % (v[0], v[1], v[2])
             buf_as_list.append(vstr)
