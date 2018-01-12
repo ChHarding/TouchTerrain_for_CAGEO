@@ -1,7 +1,17 @@
+Jan. 12, 2018: 
+- added code for zigzag magic (currently disabled). May help to prevent curling corners.
+- vertex indexing is now only done for obj, not for STL
 
-Dec. 05, 2017: cleaned up index.html. Added getting area box from kml file. All GUI options are now put in URL. Changed tile width/height from cm to mm. Gamma value changes now trigger refresh.
+Dec. 05, 2017: 
+- Cleaned up index.html. 
+- Added getting area box from kml file. 
+- All GUI options are now put in URL. 
+- Changed tile width/height from cm to mm. 
+- Gamma value changes now trigger refresh.
+
 Oct. 27, 2017: server: fixed Earth engine 404 bug. Standalone: added ability to read in local geotiff file (via json config file). Added link to blog. 
 Aug. 14, 2017: added a show URL button to the Area UI. This will load the app (w/o changing the area!) and show the full URL in the browser. This is useful to capture the area for others to use.
+
 Aug. 11, 2017: added multi-core processing. By default server and standalone will use all available cores. If this doesn;t work, CPU_cores_to_use can be set to 1 to go back to single-processor mode
 
 Apr. 18, 2017: added more options to the pulldown lists for tile size and z-scale
