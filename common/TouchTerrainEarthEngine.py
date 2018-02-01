@@ -29,7 +29,7 @@ from StringIO import StringIO
 import urllib2
 import socket
 import io
-import zipfile
+from zipfile import ZipFile
 
 import httplib
 
@@ -38,12 +38,14 @@ from InMemoryZip import InMemoryZip  # in-memory zip file
 from Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
-from PIL import Image 
+from PIL import Image
 
 import logging
 import time
 import random
 import os.path
+import tempfile
+
 logging.Formatter.converter = time.gmtime
 
 # Use zig-zag magic?
@@ -52,16 +54,18 @@ use_zigzag_magic = False
 
 # utility function to unwrap each tile from a tile list into its info and numpy array/
 # if multicore processing is used, this is called via multiprocessing.map()
+# use_temp_file will create a temp file and use it as buffer and return a fileobject for it
 def process_tile(tile):
     tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
     g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat
     printres = tile_info["pixel_mm"]
+    use_temp_file = tile_info["use_temp_file"]
 
     # zigzag processing to slow down the speed when printing the shell
     if use_zigzag_magic:
         printres = tile_info["pixel_mm"]
-        width_of_1_zig_zag_mm = 50  
+        width_of_1_zig_zag_mm = 50
         num_cells_per_zig = int(width_of_1_zig_zag_mm / float(tile_info["pixel_mm"]))
         zig_dist_mm, zig_undershoot_mm = 0.1, 0.02
         print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
@@ -72,19 +76,38 @@ def process_tile(tile):
 
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
+    if use_temp_file:
+        if fileformat[:3] == "STL": 
+            suffix = ".stl"
+        else: 
+            suffix = ".obj"
+        
+        # if on windows, make the temp file NOT delete itself on close, and do it manually after zipping.
+        # needed b/c otherwise temp file not readable (permissions) when writing it into the zip file (stupid windows ...)
+        delete_on_close = True
+        if os.name == 'nt': delete_on_close = False
+
+        b = tempfile.NamedTemporaryFile(suffix=suffix, delete=delete_on_close) # use this as buffer to write this tile into
+        print >> sys.stderr, "Using tempfile", b.name
+    else:
+        b = None
 
     if  fileformat == "obj":
-        b = g.make_OBJfile_buffer()
+        b = g.make_OBJfile_buffer(temp_file=b)
         # TODO: add a header for obj
     elif fileformat == "STLa":
-        b = g.make_STLfile_buffer(ascii=True)
+        b = g.make_STLfile_buffer(ascii=True, temp_file=b)
     elif fileformat == "STLb":
-        b = g.make_STLfile_buffer(ascii=False)
+        b = g.make_STLfile_buffer(ascii=False, temp_file=b)
 
-    fsize = len(b) / float(1024*1024)
+    if use_temp_file:
+        fsize = os.stat(b.name).st_size / float(1024*1024)
+    else:
+        fsize = len(b) / float(1024*1024)
+        
     tile_info["file_size"] = fsize
     print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb " #, multiprocessing.current_process()
-    return (tile_info, b) # return info and buffer
+    return (tile_info, b) # return info and buffer/temp_file
 
 
 # from http://scipy-cookbook.readthedocs.io/items/Rebinning.html
@@ -113,10 +136,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          importedDEM=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
-                         tile_centered=False, CPU_cores_to_use=0):
+                         tile_centered=False, CPU_cores_to_use=0,
+                         max_cells_for_memory_only=500*500*4, zip_file_name=None):
     """
+    CH feb 2018: will now write the zip file to disk!
+
     returns:
-        - a string buffer to a in-memory zip file (folder) with 3D model files tiles + a info file
         - the total size in Mb
 
     args:
@@ -134,7 +159,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                                             "STLb" = binary STL
     - tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
     - CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste) TODO: change to True/False
+    - max_cells_for_memory_only: if total number of cells is bigger, use temp_file instead using memory only
+    - zip_file_name: full name of zipfile containing the tiles (st/obj) and helpr files
     """
+
     # Sanity checks:   TODO: should do this for all args as there might be a typo in the JSON parameter file
     if importedDEM == None:
         assert DEM_name in DEM_sources, "Error: DEM must be on of " + str(DEM_sources)
@@ -178,11 +206,24 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
 
         print "Log for creating 3D model tile(s) for ", DEM_title
+
+
         # print args to log
         args = locals() # dict of local variables
+        dict_for_url = {} # dict with only those args that are valid for a URL query string
         for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
                      "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat"):
-            print k, "=", args[k]
+            v = args[k]
+            if k in ("basethick", "ntilesx", "ntilesx"):
+                v = int(v) # need to be ints to work with the JS UI
+            print k, "=", v
+            dict_for_url[k] = v
+
+        # print full query string:
+        
+        from urllib import urlencode  #from urllib.parse import urlencode <- python 3
+        print "\n", urlencode(dict_for_url),"\n"
+
         print "process started:", datetime.datetime.now().time().isoformat()
         logging.info("process started: " + datetime.datetime.now().time().isoformat())
 
@@ -315,7 +356,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #print GEEZippedGeotiff
 
         # pretend we've got a .zip folder (it's just in memory instead of on disk) and read the tif inside
-        zipdir = zipfile.ZipFile(GEEZippedGeotiff)
+        zipdir = ZipFile(GEEZippedGeotiff)
 
         # Debug: unzip both files into a folder
         #zipdir.extractall(zipfile.namelist()[1][:-3])
@@ -377,7 +418,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
         print "started:", datetime.datetime.now().time().isoformat()
-        
+
         import gdal # for reading writing geotiffs
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
@@ -510,7 +551,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         "full_raster_width": -1,
         "full_raster_height": -1,
         "fileformat": fileformat,
-
+        "use_temp_file": False,
     }
 
     #
@@ -531,7 +572,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
     #print tile_info
 
-    imz = InMemoryZip() # in-memory zip file, will be filled with tiles, etc. and returned for download
+    use_temp_file = False # memory only
+    if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
+        use_temp_file = True # use temp_file
+
+    use_temp_file = True # CH: test
+    tile_info["use_temp_file"] = use_temp_file # needs to be in tile_info b/c otherwise multiproc won't get it
 
 
     # within the padded full raster, grab tiles - but each with a 1 cell fringe!
@@ -577,25 +623,32 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # concat all processed tiles into a zip file
     logging.info("start of creating zip file")
     total_size = 0
+
+    # zipfile d/l by the user
+    zip_file = ZipFile(zip_file_name, "w", allowZip64=True)
+
+    # add all tiles
     for p in processed_list:
             tile_info = p[0] # per-tile info
             tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
             buf= p[1]
             logging.info("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
-            imz.append(tn, buf)
+
+            if use_temp_file:
+                zip_file.write(buf.name, tn) # buf is a named tempfile object, buf.name is the full filename
+                buf.close() # will delete temp file on posix
+                if os.name == 'nt': 
+                    os.remove(buf.name) # on windows remove closed file
+            else:
+                zip_file.writestr(tn, buf) # buf is a string
+                del buf
+
             total_size += tile_info["file_size"]
 
             # print size and elev range
             print "tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm", ", file size: %.2f" % tile_info["file_size"], "Mb"
 
-            """
-            # DEBUG: write file to disk
-            fname = "tmp" + os.sep + tile_info["folder_name"] + "_%d-%d.obj" % (tx+1,ty+1)
-            f = open(fname, 'wb+')
-            f.write(b)
-            f.close()
-            print "wrote tile into", fname
-            """
+
     print "\ntotal size for all tiles %.2f Mb" % total_size
     print "\nzip finished:", datetime.datetime.now().time().isoformat()
 
@@ -606,17 +659,19 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         logstr = mystdout.getvalue()
         lines = logstr.splitlines()
         logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
-        imz.append(tile_info["folder_name"] + "_log.txt", logstr)
+        zip_file.writestr(tile_info["folder_name"] + "_log.txt", logstr)
 
     # Also add the zipped geotiff we got from GEE
     #if importedDEM == None:
     #    GEEZippedGeotiff
-    #    imz.append("DEM.zip", GEEZippedGeotiff)
+    #    zip_file.append("DEM.zip", GEEZippedGeotiff)
 
+    zip_file.close() # flushes zip file
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
 
-    # return string buffer of zip folder and its size in bytes
-    return  imz.get_string_buffer(), total_size
+
+    # return total  size in bytes
+    return total_size
 #
 # MAIN
 #

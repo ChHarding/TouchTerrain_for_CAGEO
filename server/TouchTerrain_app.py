@@ -16,8 +16,9 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
-# CH 11/30/2017: added all print parameters to URL 
-# CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side 
+# CH 29/01/2018: for large areas (MAX_CELLS), temp files are used instead of only using memory
+# CH 11/30/2017: added all print parameters to URL
+# CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side
 # and so requires a reload
 # CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
 # CH 06/20/2016: added ETOPO and changed the DEM source strings, see DEM_sources from TouchTerrainEarthEngine.py
@@ -30,24 +31,21 @@
 
 import math
 import os
-#import threading
 from datetime import datetime
-import ee  
+import ee
 
 
-SERVER_TYPE = "Apache" # "paste" or "GAE_devserver" or "Apache"
+SERVER_TYPE = "Apache" # "paste" or "Apache"
 #SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
 
 if SERVER_TYPE == "paste":
-    NUM_CORES = 1 # 1 means don't use multi-core at all 
+    NUM_CORES = 1 # 1 means don't use multi-core at all
 else:
     NUM_CORES = 0 # 0 means: use all cores
 
-    
+MAX_CELLS =   1000 * 1000  # if the total is more than this number of cells, use tempfile instead of memory
 
 import config  # config.py must be in this folder
-import ee
-
 
 # find the grand parent folder and add to sys.path
 from os.path import abspath, dirname
@@ -56,16 +54,12 @@ top = abspath(__file__)
 this_folder = dirname(top)
 package_folder = dirname(this_folder)
 sys.path.append(package_folder)
-tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files 
+tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files
 
-from common import TouchTerrainEarthEngine 
-from common import InMemoryZip 
-
+from common import TouchTerrainEarthEngine
+# CH Jan 2018: InMemoryZip.py is no longer needed
 
 import webapp2
-
-
-
 
 import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
@@ -113,7 +107,7 @@ class MainPage(webapp2.RequestHandler):
     bllat = self.request.get("bllat")
     bllon = self.request.get("bllon")
     hillshade_gamma = self.request.get("hs_gamma")
-    printres =  self.request.get("printres") 
+    printres =  self.request.get("printres")
     ntilesx, ntilesy = self.request.get("ntilesx"), self.request.get("ntilesy")
     tilewidth = self.request.get("tilewidth")
     basethick = self.request.get("basethick")
@@ -133,15 +127,15 @@ class MainPage(webapp2.RequestHandler):
     if tilewidth == "": tilewidth = "80"
     if basethick == "": basethick = "2"
     if zscale == "": zscale = "1.0"
-    if fileformat not in ["obj", "STLa", "STLb"]: fileformat = "STLb"  
+    if fileformat not in ["obj", "STLa", "STLb"]: fileformat = "STLb"
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if DEM_name == """NOAA/NGDC/ETOPO1""":
-	img = ee.Image(DEM_name)
-	elev = img.select('bedrock') # or ice_surface
-	terrain = ee.Terrain.products(elev)
+        img = ee.Image(DEM_name)
+        elev = img.select('bedrock') # or ice_surface
+        terrain = ee.Terrain.products(elev)
     else:
-	terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
+        terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
 
     hs = terrain.select('hillshade')
 
@@ -151,19 +145,19 @@ class MainPage(webapp2.RequestHandler):
     template_values = {
         'mapid': mapid['mapid'],
         'token': mapid['token'],
-	'DEM_name': DEM_name,
+    'DEM_name': DEM_name,
 
-	 # defines map location
-        'map_lat': map_lat,   
+     # defines map location
+        'map_lat': map_lat,
         'map_lon': map_lon,
         'map_zoom': map_zoom,
-        
+
          # defines area box
-        'trlat' : trlat,  
+        'trlat' : trlat,
         'trlon' : trlon,
         'bllat' : bllat,
         'bllon' : bllon,
-        
+
         # 3D print parameters
         "printres": printres,
         "ntilesx" : ntilesx,
@@ -172,7 +166,7 @@ class MainPage(webapp2.RequestHandler):
         "basethick" : basethick,
         "zscale" : zscale,
         "fileformat" : fileformat,
-        
+
         "hsgamma": hillshade_gamma,
     }
 
@@ -184,91 +178,90 @@ class MainPage(webapp2.RequestHandler):
 
 # preflight page: showing some notes on how there's no used feedback until processing is done
 # as I don't know how to carry over the args I get here to the export page handler's post() method,
-# I store the entire request in the registry and write it back later. 
+# I store the entire request in the registry and write it back later.
 class preflight(webapp2.RequestHandler):
     def __init__(self, request, response):
-    	# Set self.request, self.response and self.app.
+        # Set self.request, self.response and self.app.
         self.initialize(request, response)
         app = webapp2.get_app()
         app.registry['preflightrequest'] = self.request
-        print "preflight app.registry is", app.registry 
-	print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
-	
+        print "preflight app.registry is", app.registry
+        print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
+
 
     def post(self):
-	#print self.request.POST # all args
-	self.response.headers['X-Content-Type-Options'] = 'nosniff'	# Prevent browsers from MIME-sniffing the content-type:
-	self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
-	self.response.out.write('<html><body>')
-	self.response.out.write("<h2>Processing started:</h2>")
-	self.response.out.write("Press the Start button to process the DEM into 3D model files.<br>")
-	self.response.out.write("Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>")
-	self.response.out.write("Pressing Start again during processing has no effect.<br>")
-	self.response.out.write("Once your 3D model is created, you will get a new page (Processing finished) for downloading them in a zip file.<br><br>")
-	self.response.out.write('<form action="/export" method="POST" enctype="multipart/form-data">')
-	self.response.out.write('<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">') # for user comment
-	#self.response.out.write('<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
-	self.response.out.write('<input type="submit" value="Start"> </form>')
-	self.response.out.write('</body></html>')
+        #print self.request.POST # all args
+        self.response.headers['X-Content-Type-Options'] = 'nosniff' # Prevent browsers from MIME-sniffing the content-type:
+        self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
+        self.response.out.write('<html><body>')
+        self.response.out.write("<h2>Processing started:</h2>")
+        self.response.out.write("Press the Start button to process the DEM into 3D model files.<br>")
+        self.response.out.write("Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>")
+        self.response.out.write("Pressing Start again during processing has no effect.<br>")
+        self.response.out.write("Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>")
+        self.response.out.write('<form action="/export" method="POST" enctype="multipart/form-data">')
+        self.response.out.write('<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">') # for user comment
+        #self.response.out.write('<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
+        self.response.out.write('<input type="submit" value="Start"> </form>')
+        self.response.out.write('</body></html>')
 
 # Page that creates the 3D models (tiles) in a in-memory zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file. The args are the same as in the
-# main page (via preflight by using app.registry.get('preflightrequest'))  
+# main page (via preflight by using app.registry.get('preflightrequest'))
 class ExportToFile(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
         app = webapp2.get_app()
-	self.request = app.registry.get('preflightrequest')
+        self.request = app.registry.get('preflightrequest')
 
     def post(self): # make tiles in zip file and write
-	#print self.request.arguments() # should be the same as given to preflight
-	self.response.headers['X-Content-Type-Options'] = 'nosniff'	# Prevent browsers from MIME-sniffing the content-type:
-	self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
-	self.response.out.write('<html><body>')
-	self.response.out.write('<h2>Processing finished:</h2>')
+        #print self.request.arguments() # should be the same as given to preflight
+        self.response.headers['X-Content-Type-Options'] = 'nosniff' # Prevent browsers from MIME-sniffing the content-type:
+        self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
+        self.response.out.write('<html><body>')
+        self.response.out.write('<h2>Processing finished:</h2>')
 
-	# debug: print/log all args and then values
-	args = {} # put arg name and value in a dict as key:value
-	for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", "ntilesx", "ntilesy", "tilewidth",
-	          "basethick", "zscale", "fileformat"):
-	    v = self.request.get(k) # key = name of arg
-	    args[k] = v # value
-	    if k not in ["DEM_name", "fileformat"]: args[k] = float(args[k]) # floatify non-string args
-	    #print k, args[k]
-	    self.response.out.write("%s = %s <br>" % (k, str(args[k])))
-	    logging.info("%s = %s" % (k, str(args[k])))
+        # debug: print/log all args and then values
+        args = {} # put arg name and value in a dict as key:value
+        for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", "ntilesx", "ntilesy", "tilewidth",
+                  "basethick", "zscale", "fileformat"):
+            v = self.request.get(k) # key = name of arg
+            args[k] = v # value
+            if k not in ["DEM_name", "fileformat"]: args[k] = float(args[k]) # floatify non-string args
+            #print k, args[k]
+            self.response.out.write("%s = %s <br>" % (k, str(args[k])))
+            logging.info("%s = %s" % (k, str(args[k])))
 
-	args["CPU_cores_to_use"] = NUM_CORES
-	
-	# name of file is time since 2000 in 0.01 seconds
-	myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
+        args["CPU_cores_to_use"] = NUM_CORES
 
-        # create zip and write to tmp
-	str_buf, total_unzipped_size = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
-	
-	self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
-	
-	fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
-	
-	try:
-	    f = open(fname, "wb+") # write to folder
-	    f.write(str_buf)
-	    f.close()	    
-	except Exception, e:
-	    logging.error(e)
-	    print(e)
-	    self.response.out.write(e)
-	    return
-	    
-	logging.info("finished writing %s.zip" % (myname))	
+        # name of zip file is time since 2000 in 0.01 seconds
+        myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
+        fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
+        args["zip_file_name"] = fname
 
-	self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (myname))
-	self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
-	#self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
-	#self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
-	self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
-	self.response.out.write(
-	"""<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
+        # if this number of cells to process is exceeded, use a temp file instead of
+        args["max_cells_for_memory_only"] = MAX_CELLS
+
+
+        try:
+            # create zip and write to tmp
+            total_unzipped_size = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+        except Exception, e:
+            logging.error(e)
+            print(e)
+            self.response.out.write(e)
+            return
+
+        logging.info("finished processing %s.zip" % (myname))
+        self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
+
+        self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (myname))
+        self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
+        #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
+        #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
+        self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
+        self.response.out.write(
+        """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
 
 # the pages that can be requested from the browser and the handler that will respond (get or post method)
 app = webapp2.WSGIApplication([('/', MainPage), # index.html
@@ -276,19 +269,8 @@ app = webapp2.WSGIApplication([('/', MainPage), # index.html
                               ('/preflight', preflight)],
                               debug=True)
 
-if SERVER_TYPE == "GAE_devserver":
-    # Running this as a Google App Engine module via its development app server (cloud.google.com/appengine/docs/python/download)
-    # I assume that you have the python App Engine installed in something like google_appengine and that
-    # file, the other python files, the app,yaml file, tmp and doc folders are all in a folder (say touchterrain) that's inside google_appengine.
-    # At the beginning of the file you've added path to sys.path so it finds the GAE modules needed.
-    # the google_appengine folder should comtain dev_appserver.py, open a terminal, go into google_appengine and run:
-    # python dev_appserver.py --host myserver.whatever.edu touchterrain
-    # Alternatively, you can use the GAE app launcher
-    pass
-
-
-if SERVER_TYPE == "paste": 
-    from paste import httpserver 
-    print "running local httpserver ,", 
+if SERVER_TYPE == "paste":
+    from paste import httpserver
+    print "running local httpserver ,",
     httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
 print "end of TouchTerrain_app.py"
