@@ -1,3 +1,8 @@
+Feb. 14, 2018: 
+- added the use of tempfiles instead of in-memory for processing large rasters 
+- config settings/constants are no in common/touchterrain_config.py
+
+
 Jan. 12, 2018: 
 - added code for zigzag magic (currently disabled). May help to prevent curling corners.
 - vertex indexing is now only done for obj, not for STL
