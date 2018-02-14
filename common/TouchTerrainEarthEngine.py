@@ -54,13 +54,15 @@ use_zigzag_magic = False
 
 # utility function to unwrap each tile from a tile list into its info and numpy array/
 # if multicore processing is used, this is called via multiprocessing.map()
-# use_temp_file will create a temp file and use it as buffer and return a fileobject for it
+# tile_info["temp_file"] may contain an opended temp file and to use as buffer
+# otherwise a string is used as buffer
+# in both cases, the buffer and it's size are returned
+# (yes, tile_info["temp_file"] also points to that buffer but it's cleaner to return a buffer in both cases ...) 
 def process_tile(tile):
     tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
     g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat
     printres = tile_info["pixel_mm"]
-    use_temp_file = tile_info["use_temp_file"]
 
     # zigzag processing to slow down the speed when printing the shell
     if use_zigzag_magic:
@@ -76,22 +78,19 @@ def process_tile(tile):
 
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
-    if use_temp_file:
+
+    if tile_info.get("temp_file") != None:  # contains None or the temp_file object(!), not just a file name.
         if fileformat[:3] == "STL": 
             suffix = ".stl"
         else: 
             suffix = ".obj"
         
-        # if on windows, make the temp file NOT delete itself on close, and do it manually after zipping.
-        # needed b/c otherwise temp file not readable (permissions) when writing it into the zip file (stupid windows ...)
-        delete_on_close = True
-        if os.name == 'nt': delete_on_close = False
-
-        b = tempfile.NamedTemporaryFile(suffix=suffix, delete=delete_on_close) # use this as buffer to write this tile into
+        b = tile_info["temp_file"]
         print >> sys.stderr, "Using tempfile", b.name
     else:
-        b = None
-
+        b = None # means: use memory
+        
+   
     if  fileformat == "obj":
         b = g.make_OBJfile_buffer(temp_file=b)
         # TODO: add a header for obj
@@ -99,8 +98,10 @@ def process_tile(tile):
         b = g.make_STLfile_buffer(ascii=True, temp_file=b)
     elif fileformat == "STLb":
         b = g.make_STLfile_buffer(ascii=False, temp_file=b)
+    else:
+        raise ValueError("invalid file format:", fileformat)
 
-    if use_temp_file:
+    if tile_info.get("temp_file") != None:
         fsize = os.stat(b.name).st_size / float(1024*1024)
     else:
         fsize = len(b) / float(1024*1024)
@@ -551,7 +552,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         "full_raster_width": -1,
         "full_raster_height": -1,
         "fileformat": fileformat,
-        "use_temp_file": False,
+        "temp_file": None,
     }
 
     #
@@ -572,14 +573,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
     #print tile_info
 
-    use_temp_file = False # memory only
-    if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
-        use_temp_file = True # use temp_file
-
-    use_temp_file = True # CH: test
-    tile_info["use_temp_file"] = use_temp_file # needs to be in tile_info b/c otherwise multiproc won't get it
-
-
     # within the padded full raster, grab tiles - but each with a 1 cell fringe!
     tile_list = [] # list of tiles to be processed via multiprocessing.map()
     for tx in range(num_tiles[0]):
@@ -597,6 +590,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             tile_info["tile_no_x"] = tx + 1
             tile_info["tile_no_y"] = ty + 1
             my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
+            
+        
+            # make empty temp file for each tile here, so it's global when used by multiprocessing    
+            if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
+                # if on windows, make the temp file NOT delete itself on close, and do it manually after zipping.
+                # needed b/c otherwise temp file is later not readable (permissions) when writing it into the zip file (stupid windows ...)
+                delete_on_close = True
+                if os.name == 'nt': delete_on_close = False       
+                my_tile_info["temp_file"] = tempfile.NamedTemporaryFile(delete=delete_on_close) # use this as buffer to write this tile into        
+            
             tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
             tile_list.append(tile)
 
@@ -631,14 +634,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     for p in processed_list:
             tile_info = p[0] # per-tile info
             tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
-            buf= p[1]
+            buf= p[1] # either a string or a tempfile object
             logging.info("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
 
-            if use_temp_file:
-                zip_file.write(buf.name, tn) # buf is a named tempfile object, buf.name is the full filename
-                buf.close() # will delete temp file on posix
+            if tile_info.get("temp_file") != None: # buf is a tempfile object
+                zip_file.write(buf.name, tn) # buf.name is the full filename
+                buf.close() # will delete temp file on posix, but not on windows, where I have to set it to not be auto-deleted
                 if os.name == 'nt': 
-                    os.remove(buf.name) # on windows remove closed file
+                    print >> sys.stderr, "Removing", buf.name
+                    os.remove(buf.name) # on windows remove closed file manually
+                    
             else:
                 zip_file.writestr(tn, buf) # buf is a string
                 del buf

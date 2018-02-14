@@ -35,29 +35,23 @@ from datetime import datetime
 import ee
 
 
-SERVER_TYPE = "Apache" # "paste" or "Apache"
-#SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
 
-if SERVER_TYPE == "paste":
-    NUM_CORES = 1 # 1 means don't use multi-core at all
-else:
-    NUM_CORES = 0 # 0 means: use all cores
 
-MAX_CELLS =   1000 * 1000  # if the total is more than this number of cells, use tempfile instead of memory
-
+# Earth Engine config
 import config  # config.py must be in this folder
 
-# find the grand parent folder and add to sys.path
-from os.path import abspath, dirname
 import sys
+
+# get modules from common
+sys.path.append('../common')
+from touchterrain_config  import * 
+import TouchTerrainEarthEngine
+# CH Jan 2018: InMemoryZip.py is no longer needed
+
+from os.path import abspath, dirname
 top = abspath(__file__)
 this_folder = dirname(top)
-package_folder = dirname(this_folder)
-sys.path.append(package_folder)
 tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files
-
-from common import TouchTerrainEarthEngine
-# CH Jan 2018: InMemoryZip.py is no longer needed
 
 import webapp2
 
