@@ -35,23 +35,22 @@ from datetime import datetime
 import ee
 
 
-
-
 # Earth Engine config
 import config  # config.py must be in this folder
 
 import sys
-
-# get modules from common
-sys.path.append('../common')
-from touchterrain_config  import * 
-import TouchTerrainEarthEngine
-# CH Jan 2018: InMemoryZip.py is no longer needed
-
 from os.path import abspath, dirname
 top = abspath(__file__)
 this_folder = dirname(top)
 tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files
+common_folder = dirname(this_folder) + os.sep + "common"
+sys.path.append(common_folder) # add common folder to sys.path
+print >> sys.stderr, "sys.path:", sys.path
+
+# get modules from common
+from touchterrain_config  import * 
+import TouchTerrainEarthEngine
+# CH Jan 2018: InMemoryZip.py is no longer needed
 
 import webapp2
 
