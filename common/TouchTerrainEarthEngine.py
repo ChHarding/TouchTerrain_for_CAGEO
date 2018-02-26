@@ -34,7 +34,6 @@ from zipfile import ZipFile
 import httplib
 
 from grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
-from InMemoryZip import InMemoryZip  # in-memory zip file
 from Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
