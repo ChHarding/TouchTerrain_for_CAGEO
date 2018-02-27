@@ -43,7 +43,6 @@ import logging
 import time
 import random
 import os.path
-import tempfile
 
 logging.Formatter.converter = time.gmtime
 
@@ -51,12 +50,15 @@ logging.Formatter.converter = time.gmtime
 use_zigzag_magic = False
 
 
+# if using multiple cores, this must be done for Windows to behave
+# has no effect on other OS
+
+
 # utility function to unwrap each tile from a tile list into its info and numpy array/
 # if multicore processing is used, this is called via multiprocessing.map()
-# tile_info["temp_file"] may contain an opended temp file and to use as buffer
-# otherwise a string is used as buffer
-# in both cases, the buffer and it's size are returned
-# (yes, tile_info["temp_file"] also points to that buffer but it's cleaner to return a buffer in both cases ...) 
+# tile_info["temp_file"] may contain file name to open and write into,
+# otherwise a string is used as buffer.
+# In both cases, the buffer and it's size are returned
 def process_tile(tile):
     tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
@@ -78,18 +80,16 @@ def process_tile(tile):
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
 
-    if tile_info.get("temp_file") != None:  # contains None or the temp_file object(!), not just a file name.
-        if fileformat[:3] == "STL": 
-            suffix = ".stl"
-        else: 
-            suffix = ".obj"
-        
-        b = tile_info["temp_file"]
-        print >> sys.stderr, "Using tempfile", b.name
+    if tile_info.get("temp_file") != None:  # contains None or a file name.
+        # open temp file for writing
+        try:
+            b = open(tile_info["temp_file"], "wb+")
+        except Exception as e:
+            print >> sys.stderr, "Error openening:",tile_info["temp_file"], e
+        print >> sys.stderr, "Using temp. file", b.name
     else:
         b = None # means: use memory
-        
-   
+
     if  fileformat == "obj":
         b = g.make_OBJfile_buffer(temp_file=b)
         # TODO: add a header for obj
@@ -99,12 +99,13 @@ def process_tile(tile):
         b = g.make_STLfile_buffer(ascii=False, temp_file=b)
     else:
         raise ValueError("invalid file format:", fileformat)
-
+    
     if tile_info.get("temp_file") != None:
         fsize = os.stat(b.name).st_size / float(1024*1024)
+        b.close()
     else:
         fsize = len(b) / float(1024*1024)
-        
+ 
     tile_info["file_size"] = fsize
     print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb " #, multiprocessing.current_process()
     return (tile_info, b) # return info and buffer/temp_file
@@ -124,6 +125,7 @@ def resamplesDEM(a, factor ):
     a = a[tuple(indices)]
     a = a / float(factor) # scale in z as well
     return a
+
 
 # this is my own log file, has nothing to to with the official server logging module!
 #USE_LOG = False # prints to stdout instead into a log file
@@ -160,7 +162,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
     - CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste) TODO: change to True/False
     - max_cells_for_memory_only: if total number of cells is bigger, use temp_file instead using memory only
-    - zip_file_name: full name of zipfile containing the tiles (st/obj) and helpr files
+    - zip_file_name: name of zipfile containing the tiles (st/obj) and helper files
     """
 
     # Sanity checks:   TODO: should do this for all args as there might be a typo in the JSON parameter file
@@ -169,7 +171,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else:
         assert os.path.exists(importedDEM), "Error: local DEM file " + importedDEM + " does not exist"
 
-    assert fileformat in ("obj", "STLa", "STLb"), "Error: unknown 3D geometry file format:"  + fileformat
+    assert fileformat in ("obj", "STLa", "STLb"), "Error: unknown 3D geometry file format:"  + fileformat + ", must be obj, STLa or STLb"
 
     # redirect to logfile written inside the zip file
     if USE_LOG:
@@ -188,7 +190,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # use Google Earth Engine to get DEM
     if importedDEM == None:
 
-        import ee  # Google Earth Engine
+        try:
+            import ee
+        except Exception as e:
+            print >> sys.stderr, "Google Earth Engine module not installed", e
 
         region = [[bllon, trlat],#WN  NW
                   [trlon, trlat],#EN  NE
@@ -220,7 +225,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             dict_for_url[k] = v
 
         # print full query string:
-        
+
         from urllib import urlencode  #from urllib.parse import urlencode <- python 3
         print "\n", urlencode(dict_for_url),"\n"
 
@@ -589,29 +594,35 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             tile_info["tile_no_x"] = tx + 1
             tile_info["tile_no_y"] = ty + 1
             my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
-            
-        
-            # make empty temp file for each tile here, so it's global when used by multiprocessing    
+
+
+            # if raster is too large, use temp files to create the tile STL/obj files
             if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
-                # if on windows, make the temp file NOT delete itself on close, and do it manually after zipping.
-                # needed b/c otherwise temp file is later not readable (permissions) when writing it into the zip file (stupid windows ...)
-                delete_on_close = True
-                if os.name == 'nt': delete_on_close = False       
-                my_tile_info["temp_file"] = tempfile.NamedTemporaryFile(delete=delete_on_close) # use this as buffer to write this tile into        
-            
+                # open a temp file in local tmp folder
+                # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
+                mytempfname = "tmp" + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
+                
+                # store temp file names (not file objects), MP will create file objects during processing
+                my_tile_info["temp_file"]  = mytempfname
             tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
             tile_list.append(tile)
 
     # delete large DEM array to save memory
     del npim
 
+    if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
+        print >> sys.stderr, "large raster", tile_info["full_raster_height"] * tile_info["full_raster_width"], "using temp file(s)"
+
+    # single processing:
     if CPU_cores_to_use == 1:  # just work on the list sequentially, don't use multi-core processing
+        print >> sys.stderr, "using single-core only"
         processed_list = []
         # Convert each tile into a list: [0]: updated tile info, [1]: grid object
         for t in tile_list:
             pt = process_tile(t)
             processed_list.append(pt) # append to list of processed tiles
     else:  # use multi-core processing
+        print >> sys.stderr, "using multi-core"
         import multiprocessing
         pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
 
@@ -626,23 +637,26 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     logging.info("start of creating zip file")
     total_size = 0
 
-    # zipfile d/l by the user
-    zip_file = ZipFile(zip_file_name, "w", allowZip64=True)
+    # zipfile for the user
+    full_zip_file_name = "tmp" + os.sep + zip_file_name + ".zip"
+    zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True)
 
     # add all tiles
     for p in processed_list:
             tile_info = p[0] # per-tile info
             tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
-            buf= p[1] # either a string or a tempfile object
+            buf= p[1] # either a string or a file object
             logging.info("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
 
-            if tile_info.get("temp_file") != None: # buf is a tempfile object
-                zip_file.write(buf.name, tn) # buf.name is the full filename
-                buf.close() # will delete temp file on posix, but not on windows, where I have to set it to not be auto-deleted
-                if os.name == 'nt': 
-                    print >> sys.stderr, "Removing", buf.name
-                    os.remove(buf.name) # on windows remove closed file manually
-                    
+            if tile_info.get("temp_file") != None: # if buf is a file object
+                fname = tile_info["temp_file"]
+                zip_file.write( fname , tn) # write temp file into zip
+                try:
+                    os.remove(fname) # on windows remove closed file manually
+                except Exception as e:
+                    print >> sys.stderr, "Error removing", fname, e
+                else:
+                    print >> sys.stderr, "Removed temp file", fname
             else:
                 zip_file.writestr(tn, buf) # buf is a string
                 del buf
@@ -674,8 +688,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
 
 
-    # return total  size in bytes
-    return total_size
+    # return total  size in bytes and location of zip file
+    return total_size, full_zip_file_name 
 #
 # MAIN
 #
