@@ -29,7 +29,6 @@ Alternative to running the TouchTerrain web server.
 import time
 import json
 
-
 #
 # How to run the standalone version:
 #
@@ -66,21 +65,23 @@ args = {
     "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
     "tile_centered": True, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
     "zip_file_name": "terrain",   # base name of zipfile, a timestamp and .zip will be added
-    "CPU_cores_to_use" : 0  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
+    "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
+    "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
 }
 
 
 # write an example json file, in case it gets deleted ...
 with open('example_config.json', 'w+') as fp:
-    json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma   
+    json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
 print 'Wrote example_config.json with default values, use it as a template but make sure to rename it!'
 
-# As I could not figure out how to do a relative import, I find the grand parent folder and add it to sys.path
+import sys, os
 from os.path import abspath, dirname
-import sys
 top = abspath(__file__)
-package_folder = dirname(dirname(top))
-sys.path.append(package_folder)
+this_folder = dirname(top)
+common_folder = dirname(this_folder) + os.sep + "common"
+sys.path.append(common_folder) # add common folder to sys.path
+
 
 # parse args
 if len(sys.argv) > 1:  # sys.argv are the CLI args
@@ -100,25 +101,27 @@ if len(sys.argv) > 1:  # sys.argv are the CLI args
             print "%s = %s" % (k, str(args[k]))
 else:
     print "no config file given, using defaults:"
-    
+
 for k in sorted(args.keys()):
     print "%s = %s" % (k, str(args[k]))
 
 # No DEM file given, use Google Earth Engine
 if args["importedDEM"] == None:
-    # initialize ee - needs a google earth engine account! See TouchTerrain_standalone_installation.pdf 
-    import ee
-    ee.Initialize()    
+    # initialize ee - needs a google earth engine account! See TouchTerrain_standalone_installation.pdf
+    try:
+        import ee
+    except Exception as e:
+        print >> sys.stderr, "Google Earth Engine module not installed", e
+    try:
+        ee.Initialize()
+    except Exception as e:
+        print >> sys.stderr, "EE init() error", e
 else:
     args["importedDEM"] = abspath(args["importedDEM"])
 
-# TODO: change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deal with file DEMs
-from common import TouchTerrainEarthEngine as TouchTerrain
+# TODO: should change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deals with file DEMs
+import TouchTerrainEarthEngine as TouchTerrain
 
-fname = args["zip_file_name"] + "_" + time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()) + ".zip"
-del args["zip_file_name"] # otherwise get_zipped_tiles complains about this argument
+totalsize, full_zip_zile_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
+print >> sys.stderr, "Created zip file", full_zip_zile_name,  "%.2f" % totalsize, "Mb"
 
-str_buf, totalsize = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
-with open(fname, 'wb+') as fp:
-    fp.write(str_buf)
-    print "finished writing %s, total size %.2f Mb" % (fname, totalsize)
