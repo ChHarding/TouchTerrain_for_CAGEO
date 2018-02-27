@@ -38,19 +38,18 @@ import ee
 # Earth Engine config
 import config  # config.py must be in this folder
 
+from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
+
+# import module form common
 import sys
 from os.path import abspath, dirname
 top = abspath(__file__)
 this_folder = dirname(top)
-tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files
+tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files and temp tile files
 common_folder = dirname(this_folder) + os.sep + "common"
 sys.path.append(common_folder) # add common folder to sys.path
-print >> sys.stderr, "sys.path:", sys.path
-
-# get modules from common
-from touchterrain_config  import * 
+#print >> sys.stderr, "sys.path:", sys.path
 import TouchTerrainEarthEngine
-# CH Jan 2018: InMemoryZip.py is no longer needed
 
 import webapp2
 
@@ -228,27 +227,26 @@ class ExportToFile(webapp2.RequestHandler):
         args["CPU_cores_to_use"] = NUM_CORES
 
         # name of zip file is time since 2000 in 0.01 seconds
-        myname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
-        fname = tmp_folder + os.sep + myname + ".zip"  # create filename for zip and put in tmp folder
+        fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
         args["zip_file_name"] = fname
 
-        # if this number of cells to process is exceeded, use a temp file instead of
+        # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
 
 
         try:
             # create zip and write to tmp
-            total_unzipped_size = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+            totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
         except Exception, e:
             logging.error(e)
             print(e)
             self.response.out.write(e)
             return
 
-        logging.info("finished processing %s.zip" % (myname))
-        self.response.out.write("total unzipped size: %.2f Mb<br>" % total_unzipped_size)
+        logging.info("finished processing " + full_zip_zile_name)
+        self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
 
-        self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (myname))
+        self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
         self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
         #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
         #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
