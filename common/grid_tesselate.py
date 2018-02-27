@@ -599,6 +599,7 @@ class grid(object):
                     t0,t1 = q.get_triangles()
                     triangles.append(t0)
                     triangles.append(t1)
+                del cell
 
         #for t in triangles: print t
 
@@ -664,6 +665,7 @@ class grid(object):
                     for f in (t0,t1): # output the 2 facets (triangles)
                         fstr = "f %d %d %d" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indedices start at 1!
                         buf_as_list.append(fstr)
+                del cell
 
         # concat list of strings to a single string
         buf = "\n".join(buf_as_list).encode("UTF-8")
@@ -751,16 +753,7 @@ if __name__ == "__main__":
         "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,
         "tile_centered" : True, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-        "folder_name": "tiletest",  # folder/zip file name for all tiles
-
-        # Future (far)
-        "top_relief_raster": None, # signed 8 bit, -127 - -1 = groove, 1 - 127 = hill, resized to entire tile
-        "top_relief_mm": 1,  # thickness of 100% (256) of the top relief image (float)
-
-        # Future (near)
-        "bottom_relief_raster": None, # usigned 8 bit, 0-255 (0 elev to max elev), resized to entire tile
-        "bottom_relief_mm": 1,  # thickness of 100% (256?) of the bottom relief image (float)
-
+        "fileformat": "STLb",  # folder/zip file name for all tiles
         "base_thickness_mm": 2, # thickness between bottom and lowest elevation, NOT including the bottom relief.
 
 
@@ -771,7 +764,7 @@ if __name__ == "__main__":
 
     #b = g.make_STLfile_buffer(ascii=True)
     b = g.make_STLfile_buffer(ascii=False)
-    f = open("STLtest_ascii.stl", 'wb');f.write(b);f.close()
+    f = open("STLtest_bin.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
