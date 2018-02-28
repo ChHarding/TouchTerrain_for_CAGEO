@@ -82,11 +82,11 @@ def process_tile(tile):
 
     if tile_info.get("temp_file") != None:  # contains None or a file name.
         # open temp file for writing
+        print >> sys.stderr, "Using temp. file", os.path.realpath(tile_info["temp_file"])
         try:
             b = open(tile_info["temp_file"], "wb+")
         except Exception as e:
             print >> sys.stderr, "Error openening:",tile_info["temp_file"], e
-        print >> sys.stderr, "Using temp. file", b.name
     else:
         b = None # means: use memory
 
@@ -139,7 +139,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
-                         max_cells_for_memory_only=500*500*4, zip_file_name=None):
+                         max_cells_for_memory_only=500*500*4, 
+			 temp_folder = "tmp",
+			 zip_file_name=None):
     """
     CH feb 2018: will now write the zip file to disk!
 
@@ -162,6 +164,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - tile_centered: True-> all tiles are centered around 0/0, False, all tiles "fit together"
     - CPU_cores_to_use: 0 means use all available cores, set to 1 to force single processor use (needed for Paste) TODO: change to True/False
     - max_cells_for_memory_only: if total number of cells is bigger, use temp_file instead using memory only
+    - temp_folder: the folder to put the temp files and the final zip file into
     - zip_file_name: name of zipfile containing the tiles (st/obj) and helper files
     """
 
@@ -600,7 +603,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
                 # open a temp file in local tmp folder
                 # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
-                mytempfname = "tmp" + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
+                mytempfname =  temp_folder + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
                 
                 # store temp file names (not file objects), MP will create file objects during processing
                 my_tile_info["temp_file"]  = mytempfname
@@ -638,7 +641,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     total_size = 0
 
     # zipfile for the user
-    full_zip_file_name = "tmp" + os.sep + zip_file_name + ".zip"
+    full_zip_file_name =  temp_folder + os.sep + zip_file_name + ".zip"
+    print >> sys.stderr, "final zip is in", os.path.abspath(full_zip_file_name)
     zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True)
 
     # add all tiles
@@ -686,7 +690,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     zip_file.close() # flushes zip file
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
-
 
     # return total  size in bytes and location of zip file
     return total_size, full_zip_file_name 
