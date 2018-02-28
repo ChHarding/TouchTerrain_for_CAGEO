@@ -14,6 +14,8 @@ if SERVER_TYPE == "paste": NUM_CORES = 1 # 1 means don't use multi-core at all
 # when to use tempfiles instead of memory to store processed tiles
 MAX_CELLS =   1000 * 1000  # if DEM has > this number of cells, use tempfile instead of memory
 
+
+TMP_FOLDER = "tmp" # folder for temp files and final zip
 #--------------------------------------------------------------------------------
 
 # Overrides
