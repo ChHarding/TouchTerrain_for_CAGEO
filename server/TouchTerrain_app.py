@@ -226,10 +226,10 @@ class ExportToFile(webapp2.RequestHandler):
 
         args["CPU_cores_to_use"] = NUM_CORES
 
-	# getcwd() returns / on Linux ????
+        # getcwd() returns / on Linux ????
         cwd = os.path.dirname(os.path.realpath(__file__))
-	args["temp_folder"] = cwd + os.sep + TMP_FOLDER
-	#print >> sys.stderr, "temp_folder is:", args["temp_folder"]
+        args["temp_folder"] = cwd + os.sep + TMP_FOLDER
+        #print >> sys.stderr, "temp_folder is:", args["temp_folder"]
 
         # name of zip file is time since 2000 in 0.01 seconds
         fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
