@@ -15,8 +15,8 @@ if SERVER_TYPE == "paste": NUM_CORES = 1 # 1 means don't use multi-core at all
 MAX_CELLS =   1000 * 1000  # if DEM has > this number of cells, use tempfile instead of memory
 
 
-TMP_FOLDER = "tmp" # folder for temp files and final zip
+TMP_FOLDER = "tmp" # local to this folder! for temp files and final zip
 #--------------------------------------------------------------------------------
 
 # Overrides
-MAX_CELLS = 0  # CH: test to force using tempfiles
+#MAX_CELLS = 0  # CH: test to force using tempfiles
