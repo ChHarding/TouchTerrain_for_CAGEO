@@ -140,8 +140,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
                          max_cells_for_memory_only=500*500*4, 
-			 temp_folder = "tmp",
-			 zip_file_name=None):
+                         temp_folder = "tmp",
+                         zip_file_name=None):
     """
     CH feb 2018: will now write the zip file to disk!
 
@@ -642,7 +642,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # zipfile for the user
     full_zip_file_name =  temp_folder + os.sep + zip_file_name + ".zip"
-    print >> sys.stderr, "final zip is in", os.path.abspath(full_zip_file_name)
+    #print >> sys.stderr, "final zip is in", os.path.abspath(full_zip_file_name)
     zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True)
 
     # add all tiles
@@ -660,7 +660,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 except Exception as e:
                     print >> sys.stderr, "Error removing", fname, e
                 else:
-                    print >> sys.stderr, "Removed temp file", fname
+                    #print >> sys.stderr, "Removed temp file", fname
+                    pass
             else:
                 zip_file.writestr(tn, buf) # buf is a string
                 del buf
