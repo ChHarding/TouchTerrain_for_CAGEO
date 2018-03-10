@@ -14,6 +14,7 @@ if SERVER_TYPE == "paste": NUM_CORES = 1 # 1 means don't use multi-core at all
 # when to use tempfiles instead of memory to store processed tiles
 MAX_CELLS =   1000 * 1000  # if DEM has > this number of cells, use tempfile instead of memory
 
+MAX_LOAD_FACTOR = 1000 # if width / printres * num tiles is > than this processing is not started
 
 TMP_FOLDER = "tmp" # local to this folder! for temp files and final zip
 #--------------------------------------------------------------------------------
