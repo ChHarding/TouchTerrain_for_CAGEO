@@ -224,6 +224,13 @@ class ExportToFile(webapp2.RequestHandler):
             self.response.out.write("%s = %s <br>" % (k, str(args[k])))
             logging.info("%s = %s" % (k, str(args[k])))
 
+        # Bail out if the raster is too large
+        dlat = abs(args["trlat"] - args["brlat"])
+        dlon = abs(args["trlon"] - args["brlon"])
+        pr = args["printres"]
+        size = (dlat * dlon) / pr
+        print >> sys.stderr("degr^2/printres = ", size)
+
         args["CPU_cores_to_use"] = NUM_CORES
 
         # getcwd() returns / on Linux ????
