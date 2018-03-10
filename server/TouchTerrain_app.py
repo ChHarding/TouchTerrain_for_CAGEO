@@ -230,9 +230,8 @@ class ExportToFile(webapp2.RequestHandler):
         ntilesy = args["ntilesy"]
         pr = args["printres"]
         pred_load = (width / float(pr)) * ntilesx * ntilesy
-        print >> sys.stderr, "predicted load ", pred_load
+        print >> sys.stderr, "predicted load ", pred_load, "of max", MAX_LOAD_FACTOR
 
-	MAX_LOAD_FACTOR = 1000
 	if pred_load >  MAX_LOAD_FACTOR:
         	self.response.out.write("<br>Your requested job is too large! Please reduce number of tiles, print width and/or print resolution")
         	self.response.out.write("<br>Current load factor is " + str(pred_load))
