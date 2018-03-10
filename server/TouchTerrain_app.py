@@ -225,11 +225,21 @@ class ExportToFile(webapp2.RequestHandler):
             logging.info("%s = %s" % (k, str(args[k])))
 
         # Bail out if the raster is too large
-        dlat = abs(args["trlat"] - args["brlat"])
-        dlon = abs(args["trlon"] - args["brlon"])
+        width = args["tilewidth"]
+        ntilesx = args["ntilesx"]
+        ntilesy = args["ntilesy"]
         pr = args["printres"]
-        size = (dlat * dlon) / pr
-        print >> sys.stderr("degr^2/printres = ", size)
+        pred_load = (width / float(pr)) * ntilesx * ntilesy
+        print >> sys.stderr, "predicted load ", pred_load
+
+	MAX_LOAD_FACTOR = 1000
+	if pred_load >  MAX_LOAD_FACTOR:
+        	self.response.out.write("<br>Your requested job is too large! Please reduce number of tiles, print width and/or print resolution")
+        	self.response.out.write("<br>Current load factor is " + str(pred_load))
+        	self.response.out.write(" but (width / printres) * number of tiles must be less than " + str(MAX_LOAD_FACTOR))
+		return
+
+
 
         args["CPU_cores_to_use"] = NUM_CORES
 
