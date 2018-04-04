@@ -1,7 +1,10 @@
+April 4, 2018:
+- server: added MAX_LOAD factor which prevents running of large jobs, that would requite too much memory.
+- standalone: added max_cells_for_memory_only for use of tempfiles instead of in-memory for processing large rasters.
+
 Feb. 14, 2018: 
 - added the use of tempfiles instead of in-memory for processing large rasters 
-- config settings/constants are no in common/touchterrain_config.py
-
+- config settings/constants are now in common/touchterrain_config.py
 
 Jan. 12, 2018: 
 - added code for zigzag magic (currently disabled). May help to prevent curling corners.
