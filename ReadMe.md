@@ -66,9 +66,10 @@ The JSON config file has the following format
 "tilewidth": 80, 
 "trlat": 44.69741706507476, 
 "trlon": -107.97962089843747, 
-"zip_file_name": "terrain,", 
-"zscale": 2.0,
-"CPU_cores_to_use": 0,
+"zip_file_name": "terrain", 
+"zscale": 1.0,
+"CPU_cores_to_use": 0, 
+"max_cells_for_memory_only": 1000000,
 "importedDEM": null
 }
 
@@ -123,6 +124,8 @@ The syntax of this file is as follows:
  
  * `CPU_cores_to_use`: Number of CPU cores (processes) to use. 0 means: use all available cores, null does not use multiprocessing, which is useful when running the code in a Debugger.
  
+ * `max_cells_for_memory_only`: if the nuymber of raster cells is bigger than this number (default: 1000 * 1000), temp files are used in the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
+ 
  * `importedDEM`: default: null . With the default, the DEM is fetched from Google Earth Engine as detailed above. If it is set to a filename, such as `pyramid.tif`, this file is used as DEM. In this case DEM_name, bllat, bllon, trlat and trlon are ignored, but all other parameters are still used. You can test this with pyramid.tif (in standalone folder) which has an elevation of 0 to 255, so probably will need a z-scale of 0.5 on a width of 100 mm.  Note that this requires gdal (https://trac.osgeo.org/gdal/wiki/GdalOgrInPython) to be installed. Any GDAL raster format (http://www.gdal.org/frmt_various.html) should be readable.
 
 A note on distances: Google Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calulator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area. Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. The server Help file (https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution
@@ -140,6 +143,11 @@ The server requires that the file `config.py` be edited to appropriate values.Th
 The server presents users with `index.html`, which can be styled to suit your needs, provided the various input dialogs and JavaScript remain.
 
 index.html contain the standard Google Analytics tracking boilerplate code at the top. By default it has a bogus tracking id ('UA-XXXXXXXX'), so tracking doesn't work. If you want to activate it, you need to set up your own Google Analytics (https://www.google.com/analytics/web/#home) and use your own UA- tracking code instead.
+
+touchterrain_config.py contains server specific config settings:
+- NUM_CORES:  0 means: use all cores, 1 means: use only 1 core (usefull for debugging)
+- MAX_CELLS: if the raster has more cells than this number, tempfiles are used instead of memory during the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
+- MAX_LOAD_FACTOR: if width / printres * num tiles is bigger than this number, processing is not started. This prevents jobs that are so big that the server runs out of memory. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_LOAD_FACTOR until this does not happen. 
 
 
 Common
