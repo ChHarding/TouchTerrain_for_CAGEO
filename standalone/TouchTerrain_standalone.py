@@ -74,7 +74,7 @@ args = {
 # write an example json file, in case it gets deleted ...
 with open('example_config.json', 'w+') as fp:
     json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
-print 'Wrote example_config.json with default values, use it as a template but make sure to rename it!'
+print 'Wrote example_config.json with default values, you can use it as a template but make sure to rename it!'
 
 import sys, os
 from os.path import abspath, dirname
@@ -89,17 +89,23 @@ if len(sys.argv) > 1:  # sys.argv are the CLI args
     json_fname = sys.argv[1]
     try:
         fp = open(json_fname, "rU")
-        json_args = json.load(fp)
-    except:
-        sys.exit("Error: config file", json_fname, "not found")
-        print "reading", json_fname
+    except Exception as e:
+        sys.exit("Error: can't find " + json_fname + ": " + str(e))
+
+    file_content = fp.read()
+    try:
+        json_args = json.loads(file_content)
+    except Exception as e:
+        sys.exit("Error: can't json parse " + json_fname + ": " + str(e))
+
+    print "reading", json_fname
 
     for k in args.keys():
         try:
             args[k] = json_args[k]    # try to find a value for k in json config file
         except:
-            #print "warning: ignored invalid option", k     # no match, no problem, just keep the default value
-            print "%s = %s" % (k, str(args[k]))
+            print "warning: ignored invalid option", k     # no match? no problem, just keep the default value
+            #print "%s = %s" % (k, str(args[k]))
 else:
     print "no config file given, using defaults:"
 
