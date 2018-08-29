@@ -16,9 +16,7 @@ TouchTerrain: A simple web-tool for creating 3D-printable topographic models, Vo
 Getting Started
 ===============
 
-You will need to install Google Earth Engine for Python 2. The directions on
-GEE's [site](https://developers.google.com/earth-engine/python_install) are a
-good place to start, but additional information is provided in this repository
+Unless you're planning to only use the stand-alone version to import a DEM from a rasterfile (see importedDEM under Standalone), you will need to install Google Earth Engine for Python 2. The directions on GEE's [site](https://developers.google.com/earth-engine/python_install) are a good place to start, but additional information is provided in this repository
 in the file `standalone/TouchTerrain_standalone_installation.pdf`.
 
 If you do not already have an account with Google Earth Engine, you will need to
@@ -53,6 +51,7 @@ Note: you will have to install an bunch of modules this to actually work. You ca
 
 The JSON config file has the following format
 
+```
 {
 "DEM_name": "USGS/NED", 
 "basethick": 1, 
@@ -72,6 +71,7 @@ The JSON config file has the following format
 "max_cells_for_memory_only": 1000000,
 "importedDEM": null
 }
+```
 
 The syntax of this file is as follows:
 
@@ -112,10 +112,11 @@ The syntax of this file is as follows:
                     If the tile is 4000 m wide in reality, each cell would cover 10 m, about the resolution of NED.
                     It is probably pointless to ask for a resolution below the original DEM by lowering printres
                     to less than 0.25 in this case.
+                    To NOT resample the DEM but instead use the original resolution of your raster, set printres to -1 
                   
  * `tile_centered`: 
    * True:  each tile is centered around 0/0
-   * False: all tiles are offset so the all "fit together" when the all are loaded into a 3D viewer, such as Meshlab
+   * False: all tiles are offset so the all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
 
  * `zip_file_name`: Prefix of output filename. The end is the datetime of the
                     file's creation.
