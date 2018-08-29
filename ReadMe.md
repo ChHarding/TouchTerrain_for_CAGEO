@@ -116,7 +116,7 @@ The syntax of this file is as follows:
                   
  * `tile_centered`: 
    * True:  each tile is centered around 0/0
-   * False: all tiles are offset so the all "fit together" when the all are loaded into a 3D viewer, such as Meshlab
+   * False: all tiles are offset so the all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
 
  * `zip_file_name`: Prefix of output filename. The end is the datetime of the
                     file's creation.
