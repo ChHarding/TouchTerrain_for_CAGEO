@@ -50,15 +50,11 @@ logging.Formatter.converter = time.gmtime
 use_zigzag_magic = False
 
 
-# if using multiple cores, this must be done for Windows to behave
-# has no effect on other OS
-
-
-# utility function to unwrap each tile from a tile list into its info and numpy array/
+# utility function to unwrap each tile from a tile list into its info and numpy array
 # if multicore processing is used, this is called via multiprocessing.map()
 # tile_info["temp_file"] may contain file name to open and write into,
 # otherwise a string is used as buffer.
-# In both cases, the buffer and it's size are returned
+# In both cases, the buffer and its size are returned
 def process_tile(tile):
     tile_info = tile[0] # this is a individual tile!
     tile_elev_raster = tile[1]
@@ -99,19 +95,23 @@ def process_tile(tile):
         b = g.make_STLfile_buffer(ascii=False, temp_file=b)
     else:
         raise ValueError("invalid file format:", fileformat)
-    
+
     if tile_info.get("temp_file") != None:
         fsize = os.stat(b.name).st_size / float(1024*1024)
         b.close()
     else:
         fsize = len(b) / float(1024*1024)
- 
+
     tile_info["file_size"] = fsize
     print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb " #, multiprocessing.current_process()
     return (tile_info, b) # return info and buffer/temp_file
 
 
 # from http://scipy-cookbook.readthedocs.io/items/Rebinning.html
+# Note that this seems to be the same as a nearest neightbor "interpolation" and will likely result in aliasing artifacts.
+# this is only used for DEM files as GEE does the resampling already
+# TODO: should try running a 3x3 gaussian kernel prior to resampling, which is supposed to lessen aliasing artifacts
+# TODO: use printres = -1 to not resample
 def resamplesDEM(a, factor ):
     ''' resample the DEM raster a by a factor
         a: 2D numpy array
@@ -139,7 +139,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
-                         max_cells_for_memory_only=500*500*4, 
+                         max_cells_for_memory_only=500*500*4,
                          temp_folder = "tmp",
                          zip_file_name=None):
     """
@@ -294,7 +294,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             print e
             logging.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
 
-        # TODO: this can probably go, the exception was prb always cause by ee not staying inited
+        # TODO: this can probably go, the exception was prb always caused by ee not staying inited
         got_eeImage = False
         while not got_eeImage:
             try:
@@ -314,12 +314,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             print e
             logging.warning("something went wrong with the image info:" + str(e))
 
+        # https://developers.google.com/earth-engine/resample
+        # projections (as will be done ingetDownload())  default to nearest neighbor, which introduces artifacts,
+        # so I set the resampling mode here to bilinear or bicubic
+        #image1 = image1.resample("bicubic") # only very small differences to bilinear
+        image1 = image1.resample("bilinear")
+
         # make the request dict
         request = image1.getDownloadUrl({
-            #'scale':90, # cell size
+            #'scale': 10, # cell size
             'scale': cell_size, # cell size in meters
             #'crs': 'EPSG:4326',
-            'crs': epsg_str, # projections
+            'crs': epsg_str, # projection
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]',
             'region': str(region),
             #'format': 'png',
@@ -366,8 +372,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # pretend we've got a .zip folder (it's just in memory instead of on disk) and read the tif inside
         zipdir = ZipFile(GEEZippedGeotiff)
 
-        # Debug: unzip both files into a folder
-        #zipdir.extractall(zipfile.namelist()[1][:-3])
+        # Debug: unzip both files into a folder so I can look at the geotiff and world file
+        #zipdir.extractall("DEM_from_GEE")
 
         # get the entry for the tif file from the zip (there's usually also world file in the zip folder)
         nl = zipdir.namelist()
@@ -376,9 +382,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # ETOPO will have bedrock and ice_surface tifs
         if DEM_name == """NOAA/NGDC/ETOPO1""":
-             tif = [f for f in tifl if "ice_surface" in f][0]   # get whichever is the ice_surface
+            tif = [f for f in tifl if "ice_surface" in f][0]   # get the DEM tif that has the ice surface
         else:
-            tif = tifl[0] # there's just one tif in that list
+            tif = tifl[0] # for non ETOPO, there's just one DEM tif in that list
 
         # Debug: print out the data from the world file
         #worldfile = zipdir.read(zipfile.namelist()[0]) # world file as textfile
@@ -465,22 +471,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         scale_factor = print3D_resolution / float(initial_print3D_resolution)
         if scale_factor < 1.0: print "Warning: you are re-sampling below the original resolution. This is pointless. Use a larger printres value to avoid this."
 
+
         # re-sample DEM
-        print "re-sampeling", filename, "from", npim.shape,
+        print "re-sampling", filename, "from", npim.shape,
         npim =  resamplesDEM(npim, scale_factor)
         print "to", npim.shape
+
 
         DEM_title = filename[:filename.rfind('.')]
 
     # get horizontal map scale (1:x) so we know how to scale the elevation later
     print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
 
-    if importedDEM != None:
-        print3D_scale_number * scale_factor
-
     print "map scale is 1 :", print3D_scale_number # EW scale
     #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
-    print3D_resolution_adjusted = print3D_width_total_mm / float(npim.shape[1]) # adjusted print resolution
+    print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[0]))  # adjusted print resolution
     #print print3D_height_total_mm / float(npim.shape[0])
     print "Actual 3D print resolution (1 cell):", print3D_resolution_adjusted, "mm"
 
@@ -590,6 +595,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             end_x = start_x + cells_per_tile_x + 1 + 1
             start_y = ty * cells_per_tile_y
             end_y = start_y + cells_per_tile_y + 1 + 1
+
             # as STL will use float32 anyway, I cast it here to float32 instead of float (=64 bit)
             tile_elev_raster = npim[start_y:end_y, start_x:end_x].astype(numpy.float32) #  [y,x]
 
@@ -604,7 +610,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # open a temp file in local tmp folder
                 # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
                 mytempfname =  temp_folder + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
-                
+
                 # store temp file names (not file objects), MP will create file objects during processing
                 my_tile_info["temp_file"]  = mytempfname
             tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
@@ -693,7 +699,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
 
     # return total  size in bytes and location of zip file
-    return total_size, full_zip_file_name 
+    return total_size, full_zip_file_name
 #
 # MAIN
 #
