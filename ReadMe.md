@@ -51,6 +51,7 @@ Note: you will have to install an bunch of modules this to actually work. You ca
 
 The JSON config file has the following format
 
+'''
 {
 "DEM_name": "USGS/NED", 
 "basethick": 1, 
@@ -70,6 +71,7 @@ The JSON config file has the following format
 "max_cells_for_memory_only": 1000000,
 "importedDEM": null
 }
+'''
 
 The syntax of this file is as follows:
 
