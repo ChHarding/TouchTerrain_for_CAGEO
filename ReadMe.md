@@ -16,9 +16,7 @@ TouchTerrain: A simple web-tool for creating 3D-printable topographic models, Vo
 Getting Started
 ===============
 
-You will need to install Google Earth Engine for Python 2. The directions on
-GEE's [site](https://developers.google.com/earth-engine/python_install) are a
-good place to start, but additional information is provided in this repository
+Unless you're planning to only use the stand-alone version to import a DEM from a rasterfile (see importedDEM under Standalone), you will need to install Google Earth Engine for Python 2. The directions on GEE's [site](https://developers.google.com/earth-engine/python_install) are a good place to start, but additional information is provided in this repository
 in the file `standalone/TouchTerrain_standalone_installation.pdf`.
 
 If you do not already have an account with Google Earth Engine, you will need to
