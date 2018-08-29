@@ -1,3 +1,8 @@
+August 29:
+- both: set resample mode for GEE to bilinear (from nearest neighbor), which was creating aliasing artifacts when projecting/resampling. Standalone resampling is still nearest neighbor.
+- standalone: printers = -1 for using the original raster file resolution
+
+
 April 4, 2018:
 - server: added MAX_LOAD factor which prevents running of large jobs, that would requite too much memory.
 - standalone: added max_cells_for_memory_only for use of tempfiles instead of in-memory for processing large rasters.
