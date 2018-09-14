@@ -56,7 +56,7 @@ use_zigzag_magic = False
 # otherwise a string is used as buffer.
 # In both cases, the buffer and its size are returned
 def process_tile(tile):
-    tile_info = tile[0] # this is a individual tile!
+    tile_info = tile[0] # this is one individual tile!
     tile_elev_raster = tile[1]
     g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat
     printres = tile_info["pixel_mm"]
@@ -305,13 +305,20 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             else:
                 break
 
-        try:
-            info = image1.getInfo() # this can go wrong for some sources, but we don't really need the info as long as we get the actual data
-            print "Google Earth Engine raster:", info["id"],
-            print info["properties"]["title"], info["properties"]["link"] # some rasters don't have those properties
+
+        info = image1.getInfo() # this can go wrong for some sources, but we don't really need the info as long as we get the actual data
+        print "Google Earth Engine raster:", info["id"],
+        try:# 
+            print info["properties"]["title"],  
         except Exception, e:
-            print e
-            logging.warning("something went wrong with the image info:" + str(e))
+            #print e
+            pass
+        try: 
+            print info["properties"]["link"],
+        except Exception, e:
+            #print e
+            pass    
+        print
 
         # https://developers.google.com/earth-engine/resample
         # projections (as will be done ingetDownload())  default to nearest neighbor, which introduces artifacts,
@@ -390,12 +397,23 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #raster_info = [float(l) for l in worldfile.splitlines()]  # https://en.wikipedia.org/wiki/World_file
 
         str_data = zipdir.read(tif)
+        
+        # write the GEE geotiff into the temp folder and add it to the zipped d/l folder later
+        GEE_dem_filename =  temp_folder + os.sep + zip_file_name + "_dem.tif"
+        with open(GEE_dem_filename, "wb+") as out:
+            out.write(str_data)
+            
         print "d/l geotiff size:", len(str_data) / 1048576.0, "Mb"
         imgdata = io.BytesIO(str_data) # PIL doesn't want to read the raw string from unzip
         GEEZippedGeotiff.close()
+        
+      
+    
 
         # delete zipped file
         del zipdir, str_data
+
+
 
         # open tif with PIL
         PILimg = Image.open(imgdata)
@@ -410,15 +428,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim = numpy.asarray(PILimg).astype(numpy.float32) # make a numpy array from PIL image # TODO(?): use float32? 64?
         #print npim, npim.shape, npim.dtype
         print "full raster (height,width): ", npim.shape, npim.dtype
+              
+        
 
-         # for all onshore-only sources, set water cells (undefined elesation) to 0
+         # for all onshore-only sources, set water cells (undefined elevation) to 0
         if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
             if npim.min() < -16384:  # I'm using -16384 because that's lower that any real elevation/depth, so
-                                     # is reasonable to assume that such cells are in fact just flagged as undefined
+                                      # it's reasonable to assume that such cells are in fact just flagged as undefined
                 npim = numpy.where(npim <  -16384, 0, npim) # set to 0 where < -16384
                 print "set some undefined elevation values to 0"
 
-        print "full raster (height,width): ", npim.shape, npim.dtype
         #end of getting DEM via GEE
 
     #
@@ -450,7 +469,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print "projection:", utm_zone_str
 
         # grab the cell size in x (width)
-        tf = dem.GetGeoTransform()  #In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
+        tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
         cell_size = tf[1]
         print "real-world cell size:", cell_size
 
@@ -475,10 +494,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             scale_factor = print3D_resolution / float(initial_print3D_resolution)
             if scale_factor < 1.0: print "Warning: you are re-sampling below the original resolution. This is pointless. Use a larger printres value to avoid this."
 
-
             # re-sample DEM
             print "re-sampling", filename, "from", npim.shape,
-            npim =  resamplesDEM(npim, scale_factor)
+            npim =  resamplesDEM(npim, scale_factor)  # uses nearest neighbor, so will likely show aliasing artifacts
             print "to", npim.shape
 
 
@@ -491,7 +509,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     print "map scale is 1 :", print3D_scale_number # EW scale
     #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
-    print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[0]))  # adjusted print resolution
+    print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[1]))  # adjusted print resolution
     #print print3D_height_total_mm / float(npim.shape[0])
     print "Actual 3D print resolution (1 cell):", print3D_resolution_adjusted, "mm"
 
@@ -499,7 +517,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     remx = npim.shape[1] % num_tiles[0]
     remy = npim.shape[0] % num_tiles[1]
     if remx > 0 or  remy > 0:
-        print "Cropping for %d (width) x %d (height) tiles, rem. is x=%d, y=%d" % (num_tiles[0], num_tiles[1], remx, remy),
+        print "Cropping for %d (width) x %d (height) tiles, removing: x=%d, y=%d" % (num_tiles[0], num_tiles[1], remx, remy),
         npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
         print " -> cropped to (y,x):",npim.shape
 
@@ -567,7 +585,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         "tile_centered" : tile_centered, # True: each tile's center is 0/0, False: global (all-tile) 0/0
         "tile_no_x": -1, # current(!) tile number along x
         "tile_no_y": -1, # current(!) tile number along y
-        "full_raster_width": -1,
+        "tile_width":   print3D_width_per_tile, # in mmm
+        "tile_height":  print3D_height_per_tile, # in mmm
+        "full_raster_width": -1, # in pixels
         "full_raster_height": -1,
         "fileformat": fileformat,
         "temp_file": None,
@@ -622,11 +642,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
             tile_list.append(tile)
 
+    #temp_folder + os.sep + zip_file_name 
+    
+    
     # delete large DEM array to save memory
     del npim
 
     if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
-        print >> sys.stderr, "large raster", tile_info["full_raster_height"] * tile_info["full_raster_width"], "using temp file(s)"
+        print >> sys.stderr, "number of pixels:", tile_info["full_raster_height"] * tile_info["full_raster_width"], ">", max_cells_for_memory_only, " => using temp file"
 
     # single processing:
     if CPU_cores_to_use == 1:  # just work on the list sequentially, don't use multi-core processing
@@ -636,7 +659,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         for t in tile_list:
             pt = process_tile(t)
             processed_list.append(pt) # append to list of processed tiles
-    else:  # use multi-core processing
+    
+    # use multi-core processing
+    else:  
         print >> sys.stderr, "using multi-core"
         import multiprocessing
         pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
@@ -646,7 +671,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # tile size is the same for all tiles
     tile_info = processed_list[0][0]
-    print "tile size %.2f x %.2f mm\n" % ( tile_info["tile_width"], tile_info["tile_height"])
+    
+ 
+    # the tile width/height was written into tileinfo during processing
+    print "%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
 
     # concat all processed tiles into a zip file
     logging.info("start of creating zip file")
@@ -683,6 +711,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # print size and elev range
             print "tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm", ", file size: %.2f" % tile_info["file_size"], "Mb"
 
+  
 
     print "\ntotal size for all tiles %.2f Mb" % total_size
     print "\nzip finished:", datetime.datetime.now().time().isoformat()
@@ -696,10 +725,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
         zip_file.writestr(tile_info["folder_name"] + "_log.txt", logstr)
 
-    # Also add the zipped geotiff we got from GEE
-    #if importedDEM == None:
-    #    GEEZippedGeotiff
-    #    zip_file.append("DEM.zip", GEEZippedGeotiff)
+    # add (full) geotiff we got from GEE to zip and remove 
+    zip_file.write(GEE_dem_filename, "DEM.tif")
+    try:
+        os.remove(GEE_dem_filename) 
+    except Exception as e:
+        print >> sys.stderr, "Error removing", GEE_dem_filename, e    
 
     zip_file.close() # flushes zip file
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
@@ -808,7 +839,7 @@ if __name__ == "__main__":
 
 
             #bimg.show()
-            bimg = bimg.transpose(Image.FLIP_LEFT_RIGHT) # text needs to be flipped, but seemsto screw up draw !
+            bimg = bimg.transpose(Image.FLIP_LEFT_RIGHT) # text needs to be flipped, but seems to screw up draw !
             #bimg.show()
 
             # Convert bimg to numpy, normalize and scale
