@@ -64,7 +64,7 @@ args = {
     "zscale": 1.0,      # elevation (vertical) scaling
     "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
     "tile_centered": True, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-    "zip_file_name": "terrain",   # base name of zipfile, a timestamp and .zip will be added
+    "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
     "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
 }
@@ -129,6 +129,6 @@ else:
 # TODO: should change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deals with file DEMs
 import TouchTerrainEarthEngine as TouchTerrain
 
-totalsize, full_zip_zile_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
-print >> sys.stderr, "Created zip file", full_zip_zile_name,  "%.2f" % totalsize, "Mb"
+totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
+print >> sys.stderr, "Created zip file", full_fip_zile_name,  "%.2f" % totalsize, "Mb"
 
