@@ -130,5 +130,5 @@ else:
 import TouchTerrainEarthEngine as TouchTerrain
 
 totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
-print >> sys.stderr, "Created zip file", full_fip_zile_name,  "%.2f" % totalsize, "Mb"
+print >> sys.stderr, "Created zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb"
 
