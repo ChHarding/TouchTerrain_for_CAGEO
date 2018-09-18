@@ -142,11 +142,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          temp_folder = "tmp",
                          zip_file_name=None):
     """
-    CH feb 2018: will now write the zip file to disk!
-
-    returns:
-        - the total size in Mb
-
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
     - trlat, trlon: lat/lon of top right corner
@@ -165,6 +160,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - max_cells_for_memory_only: if total number of cells is bigger, use temp_file instead using memory only
     - temp_folder: the folder to put the temp files and the final zip file into
     - zip_file_name: name of zipfile containing the tiles (st/obj) and helper files
+    
+    returns the total size of the zip file in Mb
+
     """
 
     # Sanity checks:   TODO: should do this for all args as there might be a typo in the JSON parameter file
@@ -227,7 +225,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             dict_for_url[k] = v
 
         # print full query string:
-
         from urllib import urlencode  #from urllib.parse import urlencode <- python 3
         print "\n", urlencode(dict_for_url),"\n"
 
@@ -478,6 +475,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print "fileformat:", fileformat
         print "tile_centered:", tile_centered
 
+
+        # tile height
+        whratio = npim.shape[0] / float(npim.shape[1])
+        tileheight = tilewidth  * whratio
+        print "tile_width:", tilewidth
+        print "tile_height:", tileheight
+        print3D_width_per_tile = tilewidth
+        print3D_height_per_tile = tileheight   
+
         print3D_width_total_mm =  tilewidth * num_tiles[0]
 
         # given the physical width and the number of raster cells, what would be the 3D resolution?
@@ -726,11 +732,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         zip_file.writestr(tile_info["folder_name"] + "_log.txt", logstr)
 
     # add (full) geotiff we got from GEE to zip and remove 
-    zip_file.write(GEE_dem_filename, "DEM.tif")
-    try:
-        os.remove(GEE_dem_filename) 
-    except Exception as e:
-        print >> sys.stderr, "Error removing", GEE_dem_filename, e    
+    if importedDEM == None:
+        zip_file.write(GEE_dem_filename, "DEM.tif")
+        print("added full geotiff as DEM.tiff")
+        try:
+            os.remove(GEE_dem_filename) 
+        except Exception as e:
+            print >> sys.stderr, "Error removing", GEE_dem_filename, e    
 
     zip_file.close() # flushes zip file
     logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
