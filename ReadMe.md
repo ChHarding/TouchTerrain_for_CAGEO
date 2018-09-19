@@ -37,10 +37,8 @@ from within their respective directories.
 Standalone
 ==========
 
-`TouchTerrain_standalone.py` draws information from Google Earth Engine to
-create a 3D model suitable for 3D printing. This model, possibly consisting of
-several files (tiles), is saved in a ZIP along with an info file describing the
-properties used to produce it.
+`TouchTerrain_standalone.py` uses DEM data from Google Earth Engine of from a local raster file (geotiff, etc.) to
+create a 3D model suitable for 3D printing. This model, possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it. The downsampled and UTM projected DEM for the area is saved as DEM.tif
 
 `TouchTerrain_standalone.py` reads in a JSON configuration file such as the one
 at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type
@@ -137,7 +135,7 @@ A note on distances: Google Earth Engine requires that the requested area is giv
 Server
 ======
 
-Running `TouchTerrain_app.py` starts a server module (service) which will be run inside Apache. Modify the ansiable script to set up the server. The server creates a webpage, through which theuser inputs the area selection and print parameters.
+Running `TouchTerrain_app.py` starts a server module (service) which will be run inside Apache. Modify the ansiable script to set up the server. The server creates a webpage, through which the user inputs the area selection and print parameters.
 
 The server requires that the file `config.py` be edited to appropriate values.The server also requires oauth authentication to run with Earth Engine. You will need to obtain a private key (`.pem`) file and edit `config.py` to point to it.
 
@@ -154,5 +152,4 @@ touchterrain_config.py contains server specific config settings:
 Common
 ======
 
-The `common` directory contains files used by both the standalone and server
-apps.
+The `common` directory contains files used by both the standalone and server apps.
