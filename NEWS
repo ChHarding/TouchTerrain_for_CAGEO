@@ -1,3 +1,7 @@
+Sept. 18:
+- fixed bug where the print resolution was wrong in some cases when multiple tiles are used
+- added the geotiff I get from Google Earth Engine to the zipped folder as DEM.tif 
+
 August 29:
 - both: set resample mode for GEE to bilinear (from nearest neighbor), which was creating aliasing artifacts when projecting/resampling. Standalone resampling is still nearest neighbor.
 - standalone: printers = -1 for using the original raster file resolution
