@@ -38,6 +38,21 @@ import ee
 # Earth Engine config
 import config  # config.py must be in this folder
 
+
+# Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
+google_maps_key = ""
+try:
+    with open("GoogleMapsKey.txt") as f:
+        google_maps_key = f.read().rstrip()
+        if google_maps_key == "Put your Google Maps key here":
+            google_maps_key = ""
+        else:
+            print "Google Maps key is:", google_maps_key
+            pass
+except:
+    pass # file did not exsist - no problem
+  
+
 from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
 
 # import module form common
@@ -137,7 +152,7 @@ class MainPage(webapp2.RequestHandler):
     template_values = {
         'mapid': mapid['mapid'],
         'token': mapid['token'],
-    'DEM_name': DEM_name,
+     'DEM_name': DEM_name,
 
      # defines map location
         'map_lat': map_lat,
@@ -160,6 +175,8 @@ class MainPage(webapp2.RequestHandler):
         "fileformat" : fileformat,
 
         "hsgamma": hillshade_gamma,
+        
+        "google_maps_key": google_maps_key,  # '' or a key, if there was a key file
     }
 
     # this creates a index.html "file" with mapid, token, etc. inlined
@@ -212,6 +229,8 @@ class ExportToFile(webapp2.RequestHandler):
         self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
         self.response.out.write('<html><body>')
         self.response.out.write('<h2>Processing finished:</h2>')
+        
+        print self.request.params 
 
         # debug: print/log all args and then values
         args = {} # put arg name and value in a dict as key:value
@@ -225,20 +244,11 @@ class ExportToFile(webapp2.RequestHandler):
             logging.info("%s = %s" % (k, str(args[k])))
 
         # Bail out if the raster is too large
-        width = args["tilewidth"]
-        ntilesx = args["ntilesx"]
-        ntilesy = args["ntilesy"]
+        dlat = abs(args["trlat"] - args["brlat"])
+        dlon = abs(args["trlon"] - args["brlon"])
         pr = args["printres"]
-        pred_load = (width / float(pr)) * ntilesx * ntilesy
-        print >> sys.stderr, "predicted load ", pred_load, "of max", MAX_LOAD_FACTOR
-
-	if pred_load >  MAX_LOAD_FACTOR:
-        	self.response.out.write("<br>Your requested job is too large! Please reduce number of tiles, print width and/or print resolution")
-        	self.response.out.write("<br>Current load factor is " + str(pred_load))
-        	self.response.out.write(" but (width / printres) * number of tiles must be less than " + str(MAX_LOAD_FACTOR))
-		return
-
-
+        size = (dlat * dlon) / pr
+        print >> sys.stderr("degr^2/printres = ", size)
 
         args["CPU_cores_to_use"] = NUM_CORES
 
