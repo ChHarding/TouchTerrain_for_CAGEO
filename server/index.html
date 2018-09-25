@@ -4,7 +4,7 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain (v1.19)</title>
+    <title>TouchTerrain - get files for 3D printing terrain (v1.18)</title>
     <meta charset="UTF-8">
     <meta name="description" content="Application for creating 3D printable terrain models">
     <meta property="og:image" content="http://public.vrac.iastate.edu/~charding/touchTerrain_logo/touchTerrain_logo.png">
@@ -28,8 +28,14 @@ Terrain 3D print Touchterrain project
     
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
-    <script type="text/javascript"
-      src="https://maps.google.com/maps/api/js?sensor=false">
+    <script type="text/javascript" async defer
+      src="https://maps.google.com/maps/api/js?key={{ google_maps_key }}">
+      <!-- key=<nothing> will give you the crappy google map background, which is still usable. 
+	   If you want a proper google maps version you need replace the above line with
+	   one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
+	   As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
+	   Put this key into a text file called GoogleMapsKey.txt in the server folder
+	   Note: if the key is wrong, you'll get a Google key error and you won't see any map.
     </script>
 
 
