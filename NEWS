@@ -1,3 +1,6 @@
+Sep. 25:
+added optional Google Maps key. If a file called GoogleMapsKey.txt in the serve folder contains a valid google maps key, it will be inlined into index.html which should result in a proper Google Map. Not having this file will result in a  Google Map that's crappy but still works. Having a invalid key will result in no map at all.
+
 Sept. 18:
 - fixed bug where the print resolution was wrong in some cases when multiple tiles are used
 - added the geotiff I get from Google Earth Engine to the zipped folder as DEM.tif 
