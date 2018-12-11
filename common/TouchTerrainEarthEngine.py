@@ -49,6 +49,46 @@ logging.Formatter.converter = time.gmtime
 # Use zig-zag magic?
 use_zigzag_magic = False
 
+# this is my own log file, has nothing to to with the official server logging module!
+#USE_LOG = False # prints to stdout instead into a log file
+USE_LOG = True #
+
+#  List of DEM sources  Earth engine offers
+DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003"""]
+
+'''
+def make_bottom_raster(width_pix, height_pix):
+    """ Make a bottom image (numpy array) to b used in the stl model
+        in:  tile width and height in pixels    
+        out: numpy raster with mm offset from bottom
+    """
+
+    canvas = Image.new("L", (width_pix, height_pix), color=0) # black 8 bit image (0-255)  
+    bg = Image.open("QR_high_redundancy.png")
+    bg = bg.transpose(Image.FLIP_LEFT_RIGHT)
+    
+    # find upper left corner in canvas so that bg is centered
+    # assume it's smaller(!) than the tile
+    # 8 bit with 255 as white pixels
+    bg_w, bg_h = bg.size
+    w_diff = width_pix - bg_w
+    h_diff = height_pix - bg_h
+    
+    offset_w = int(w_diff / 2)
+    offset_h = int(h_diff / 2)
+    
+    canvas.paste(bg, (offset_w, offset_h))
+    canvas.save("canvas.png") #DEBUG
+
+    
+    
+    # convert to milimeters, 255 ->  one layer height
+    bottom_raster = numpy.asarray(canvas).astype(numpy.float)
+    bottom_raster /= 255 # normalize
+    bottom_raster *= 0.2 # layer height
+     
+    return bottom_raster
+'''
 
 # utility function to unwrap each tile from a tile list into its info and numpy array
 # if multicore processing is used, this is called via multiprocessing.map()
@@ -58,7 +98,11 @@ use_zigzag_magic = False
 def process_tile(tile):
     tile_info = tile[0] # this is one individual tile!
     tile_elev_raster = tile[1]
-    g = grid(tile_elev_raster, None, tile_info) # None means Bottom is flat
+    h,w = tile_elev_raster.shape
+    #bottom_raster = make_bottom_raster(w,h)
+    bottom_raster = None # None means Bottom is flat
+    
+    g = grid(tile_elev_raster, bottom_raster, tile_info)
     printres = tile_info["pixel_mm"]
 
     # zigzag processing to slow down the speed when printing the shell
@@ -111,27 +155,23 @@ def process_tile(tile):
 # Note that this seems to be the same as a nearest neightbor "interpolation" and will likely result in aliasing artifacts.
 # this is only used for DEM files as GEE does the resampling already
 # TODO: should try running a 3x3 gaussian kernel prior to resampling, which is supposed to lessen aliasing artifacts
-def resamplesDEM(a, factor ):
+def resampleDEM(a, factor ):
     ''' resample the DEM raster a by a factor
         a: 2D numpy array
         factor: down(!) sample factor, 2.0 will reduce the number of cells in x and y to 50%
     '''
+    
+    # get new shape of raster
     cursh = a.shape
-    newshape = ( int(cursh[0]) / float(factor), int(cursh[1] / float(factor)) )
-    slices = [ slice(0,old, float(old)/new) for old,new in zip(a.shape,newshape) ]
-    coordinates = numpy.mgrid[slices]
-    indices = coordinates.astype('i')   #choose the biggest smaller integer index
-    a = a[tuple(indices)]
-    a = a / float(factor) # scale in z as well
-    return a
+    newsh = ( int(int(cursh[0]) / float(factor)), int(cursh[1] / float(factor)) )
 
+    # Use PIL resize with bilinear interpolation to avoid aliasing artifacts
+    orig_im = Image.fromarray(a, 'F')
+    resized_im = orig_im.resize(newsh[::-1], resample=Image.BILINEAR) # x and y are swapped in numpy
+    res_array = numpy.asarray(resized_im)
 
-# this is my own log file, has nothing to to with the official server logging module!
-#USE_LOG = False # prints to stdout instead into a log file
-USE_LOG = True #
+    return res_array
 
-#  List of DEM sources  Earth engine offers
-DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003"""]
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          importedDEM=None,
@@ -452,6 +492,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
         npim = band.ReadAsArray()
+        
 
 
         # I use PROJCS[ to get a projection name, e.g. PROJCS["NAD_1983_UTM_Zone_10N",GEOGCS[....
@@ -464,6 +505,24 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         epsg_str = "N/A"
 
         print "projection:", utm_zone_str
+        
+        gdal_undef_val = band.GetNoDataValue()
+        print "undefined GDAL value:", gdal_undef_val
+        
+        # set cells with GDAL undef to numpy NaN
+        npim = numpy.where(npim == gdal_undef_val, numpy.nan, npim)
+        if numpy.isnan(numpy.sum(npim)): # see if we indeed now have NaNs
+            print "some cells are undefined and will be skipped in output file"
+        
+        # As it could happen that "undef" cells are not properly flagged,
+        # I just set anything beyond a resonable elvation to NaN as well
+        if npim.min() < -30000:
+            npim = numpy.where(npim < -30000, numpy.nan, npim) # set to NaN where < -30000
+            print "set < -30000 elevation values to NaN"        
+        if npim.min() > 30000:
+            npim = numpy.where(npim > 30000, numpy.nan, npim) # set to NaN where > 30000
+            print "set > 30000 elevation values to NaN"                
+        
 
         # grab the cell size in x (width)
         tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
@@ -502,8 +561,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # re-sample DEM
             print "re-sampling", filename, "from", npim.shape,
-            npim =  resamplesDEM(npim, scale_factor)  # uses nearest neighbor, so will likely show aliasing artifacts
+            npim =  resampleDEM(npim, scale_factor)  # bi-linear inyerpolation using PIP resize
             print "to", npim.shape
+            npim.flags.writeable = True # not sure why it's not writeable after the PIL interpolation but this fixes it
 
 
         DEM_title = filename[:filename.rfind('.')]
@@ -515,7 +575,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     print "map scale is 1 :", print3D_scale_number # EW scale
     #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
-    print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[1]))  # adjusted print resolution
+    print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[0]))  # adjusted print resolution
     #print print3D_height_total_mm / float(npim.shape[0])
     print "Actual 3D print resolution (1 cell):", print3D_resolution_adjusted, "mm"
 
