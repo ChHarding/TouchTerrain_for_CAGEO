@@ -80,7 +80,7 @@ The syntax of this file is as follows:
  * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) 
    * USGS/NED: 10 m, continental USA only
    * USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
-   * USGS/GMTED2010: 90 m, truly worldwide
+   * USGS/GMTED2010: ~230 m, truly worldwide
    * NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
  
  * `basethick`:  default: 1  (in mm) 
