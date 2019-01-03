@@ -37,16 +37,15 @@ from within their respective directories.
 Standalone
 ==========
 
-`TouchTerrain_standalone.py` uses DEM data (geotiff file)from Google Earth Engine (GEE) or from a local raster file (geotiff, etc.) to create a 3D model suitable for 3D printing. The GEE geotiff is usually downsampled and UTM projected. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it and the GEE geotiff. __NEW: It's now possible to download only the GEE geotiff file. IN addition to downsampling, the original source resolution can be now be used.
+`TouchTerrain_standalone.py` uses DEM data (geotiff file) from Google Earth Engine (GEE) or from a local raster file to create a 3D model suitable for 3D printing. The GEE geotiff is usually downsampled and UTM projected. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it and the GEE geotiff. __NEW: It's now possible to download only the GEE geotiff file. IN addition to downsampling, the original source resolution can be now be used.__
 
-`TouchTerrain_standalone.py` reads in a JSON configuration file such as the one
-at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type
+`TouchTerrain_standalone.py` reads in a JSON configuration file such as the one at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type:
 
 `python TouchTerrain_standalone.py example_config.json`
 
 Note: you will have to install an bunch of modules this to actually work. You can use a local DEM file via the `importedDEM` parameter but if you want to use the Google Earth Engine curated DEMs, you need to get a Google Earth Engine license (free). See the TouchTerrain_standalone_installation.pdf for more on that.
 
-The JSON config file has the following format
+The JSON config file has the following format (showing defauls for options):
 
 ```
 {
