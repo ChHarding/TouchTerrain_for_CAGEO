@@ -37,8 +37,7 @@ from within their respective directories.
 Standalone
 ==========
 
-`TouchTerrain_standalone.py` uses DEM data from Google Earth Engine of from a local raster file (geotiff, etc.) to
-create a 3D model suitable for 3D printing. This model, possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it. The downsampled and UTM projected DEM for the area is saved as DEM.tif
+`TouchTerrain_standalone.py` uses DEM data (geotiff file)from Google Earth Engine (GEE) or from a local raster file (geotiff, etc.) to create a 3D model suitable for 3D printing. The GEE geotiff is usually downsampled and UTM projected. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it and the GEE geotiff. __NEW: It's now possible to download only the GEE geotiff file. IN addition to downsampling, the original source resolution can be now be used.
 
 `TouchTerrain_standalone.py` reads in a JSON configuration file such as the one
 at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type
