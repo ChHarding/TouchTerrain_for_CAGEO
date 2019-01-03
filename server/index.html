@@ -4,7 +4,7 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain (v1.20)</title>
+    <title>TouchTerrain - get files for 3D printing terrain (v1.23)</title>
     <meta charset="UTF-8">
     <meta name="description" content="Application for creating 3D printable terrain models">
     <meta property="og:image" content="http://public.vrac.iastate.edu/~charding/touchTerrain_logo/touchTerrain_logo.png">
@@ -21,7 +21,7 @@ Terrain 3D print Touchterrain project
       })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
       ga('create', 
-          'UA-93016136-1',  // replace this tracking id
+          'UA-93016136-1',  // replace this with your own tracking id
           'auto');
       ga('send', 'pageview');
     </script>
@@ -82,11 +82,8 @@ Terrain 3D print Touchterrain project
     let manual = "{{ manual }}";
     manual = manual.replace(/&quot;/g, "\"");
 
-    
-    
-    
+   
     // run this once the browser is ready
-    //$(document).ready(function(){ 
     window.onload = function () {
        
       /*
@@ -573,7 +570,7 @@ Terrain 3D print Touchterrain project
   <div id="title" style="clear:both;text-align:left;font-size:x-large;" >
     TouchTerrain: Easily Create 3D-Printable Terrain Models  &nbsp  &nbsp  &nbsp  &nbsp  &nbsp
     <a href="https://touchterrain.blogspot.com/" target="_blank">
-      See what's New! Get Help!</a>
+    See what's New in version 2.0! Get Help!</a>
   </div>
 	  
 
@@ -686,6 +683,7 @@ Terrain 3D print Touchterrain project
 	  <select title="Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
 	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
 	    <option value="-1">source resolution</option>
+	    <option value="0.2">0.2 mm</option>
 	    <option value="0.25">0.25 mm</option>
 	    <option value="0.3">0.3 mm</option>
 	    <option value="0.35">0.35 mm</option>
@@ -752,7 +750,7 @@ Terrain 3D print Touchterrain project
 	    <option value="4">x 4</option>
 	    <option value="4.5">x 4.5</option>
 	    <option value="5">x 5</option>
-	    <option value="2">x 2</option>
+	    <option value="7.5">x 7.5</option>
 	    <option value="10">x 10</option>
 	    <option value="15">x 15</option>
 	    <option value="20">x 20</option>
@@ -768,7 +766,7 @@ Terrain 3D print Touchterrain project
 	
 	
 	<input type="text" id="options_manual"
-	       title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true  for more info see standalone options on github"
+	       title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;unprojected&quot:true   For more info see standalone on github"
 	       name="manual" size="30" value="" > Additional (manual) settings
 	<br><br>
 
