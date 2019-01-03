@@ -4,7 +4,7 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain (v1.18)</title>
+    <title>TouchTerrain - get files for 3D printing terrain (v1.20)</title>
     <meta charset="UTF-8">
     <meta name="description" content="Application for creating 3D printable terrain models">
     <meta property="og:image" content="http://public.vrac.iastate.edu/~charding/touchTerrain_logo/touchTerrain_logo.png">
@@ -79,6 +79,8 @@ Terrain 3D print Touchterrain project
     let basethick = "{{ basethick }}";
     let zscale = "{{ zscale }}";
     let fileformat = "{{ fileformat }}";
+    let manual = "{{ manual }}";
+    manual = manual.replace(/&quot;/g, "\"");
 
     
     
@@ -316,21 +318,29 @@ Terrain 3D print Touchterrain project
       let bllon = b.getSouthWest().lng();
 
       let print_res_mm = document.getElementById('options_print_resolution').value;
-      let tw_mm = document.getElementById('options_tile_width').value; 
-      let num_tiles_x = document.getElementById('options_numTiles_x').value;
-      let num_cells_per_tile = tw_mm /  print_res_mm;
-      let total_cells = num_cells_per_tile * num_tiles_x;
-
-      let lat_of_center = (trlat + bllat) / 2.0;
-      let box_width_in_degr = Math.abs(trlon - bllon);
-      let one_degr_in_m = arcDegr_in_meter(lat_of_center)[1]; // returns meters for [lat,lon] => lon = with = [1]
-      let box_width_in_m = box_width_in_degr * one_degr_in_m;
-
-      let cell_resolution_meter = box_width_in_m / total_cells;
-      //console.log(cell_resolution_meter);
-      cell_resolution_meter = Math.round( cell_resolution_meter * 100 ) / 100; // round to 2 digits
-
-      document.getElementById('DEMresolution').value = cell_resolution_meter;
+      
+      // Negative print_res_mm means that "source resolution" is selected, in this case just set field to "same"
+      if(print_res_mm <= 0){
+	document.getElementById('DEMresolution').value = 'the same'
+      }
+      else{
+	
+	let tw_mm = document.getElementById('options_tile_width').value; 
+	let num_tiles_x = document.getElementById('options_numTiles_x').value;
+	let num_cells_per_tile = tw_mm /  print_res_mm;
+	let total_cells = num_cells_per_tile * num_tiles_x;
+  
+	let lat_of_center = (trlat + bllat) / 2.0;
+	let box_width_in_degr = Math.abs(trlon - bllon);
+	let one_degr_in_m = arcDegr_in_meter(lat_of_center)[1]; // returns meters for [lat,lon] => lon = with = [1]
+	let box_width_in_m = box_width_in_degr * one_degr_in_m;
+  
+	let cell_resolution_meter = box_width_in_m / total_cells;
+	//console.log(cell_resolution_meter);
+	cell_resolution_meter = Math.round( cell_resolution_meter * 100 ) / 100; // round to 2 digits
+  
+	document.getElementById('DEMresolution').value = cell_resolution_meter;
+      }
 
     }
 
@@ -426,9 +436,10 @@ Terrain 3D print Touchterrain project
       document.getElementById('basethick').value = document.getElementById('options_base_thickness').value;
       document.getElementById('zscale').value = document.getElementById('options_z_scale').value;
       document.getElementById('fileformat').value= document.getElementById('options_fileformat').value;
+      document.getElementById('manual').value= document.getElementById('options_manual').value;
     }
     
-    // update the print option values in the GUI from the globas vars
+    // update the print option values in the GUI from the global vars
     function init_print_options(){
       //alert("init_print_options")
       document.getElementById('options_tile_width').value = tilewidth;
@@ -438,6 +449,7 @@ Terrain 3D print Touchterrain project
       document.getElementById('options_base_thickness').value = basethick;
       document.getElementById('options_z_scale').value = zscale;
       document.getElementById('options_fileformat').value = fileformat;
+      document.getElementById('options_manual').value = manual;
     }
   
     // called on idle (after map pann/zoom), sets current lat, lon and zoom 
@@ -561,7 +573,7 @@ Terrain 3D print Touchterrain project
   <div id="title" style="clear:both;text-align:left;font-size:x-large;" >
     TouchTerrain: Easily Create 3D-Printable Terrain Models  &nbsp  &nbsp  &nbsp  &nbsp  &nbsp
     <a href="https://touchterrain.blogspot.com/" target="_blank">
-      Click here for Blog and Help</a>
+      See what's New! Get Help!</a>
   </div>
 	  
 
@@ -572,7 +584,7 @@ Terrain 3D print Touchterrain project
     </div>
 
     <div id ="right" style="background-color:#FFFF;width:505px; float:left; margin-left: 10px ">
-    <br>
+
 
 
 
@@ -583,7 +595,7 @@ Terrain 3D print Touchterrain project
 	        title="Switch to different Digital Elevation data source" >
           <option value="USGS/NED"selected>USGS/NED (10 m resolution, US only)</option>
           <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide)</option>
-          <option value="USGS/GMTED2010">GMTED2010 (90 m resolution, worldwider)</option>
+          <option value="USGS/GMTED2010">GMTED2010 (230 m resolution, worldwider)</option>
           <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000 m resolution, worldwide, incl. bathymetry!)</option>
         </select>
 
@@ -603,6 +615,8 @@ Terrain 3D print Touchterrain project
 	<input type="hidden" id="basethick" name="basethick" value="NULL" >
 	<input type="hidden" id="zscale" name="zscale" value="NULL" >
 	<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+	<input type="hidden" id="manual" name="manual" value="NULL" >
+
 
       </form>
       <br>
@@ -671,21 +685,14 @@ Terrain 3D print Touchterrain project
     
 	  <select title="Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
 	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
-
-	    <option value="0.2" >0.2 mm</option>
+	    <option value="-1">source resolution</option>
 	    <option value="0.25">0.25 mm</option>
 	    <option value="0.3">0.3 mm</option>
 	    <option value="0.35">0.35 mm</option>
-	    <option value="0.4">0.4 mm</option>
+	    <option value="0.4"selected>0.4 mm</option>
 	    <option value="0.45">0.45 mm</option>
-	    <option value="0.5" selected>0.5 mm</option>
-	    <option value="0.6">0.6 mm</option>
-	    <option value="0.7">0.7 mm</option>
-	    <option value="0.8">0.8 mm</option>
-	    <option value="0.9">0.9 mm</option>
-	    <option value="1.0">1.0 mm</option>
-	    <option value="1.25">1.25 mm</option>
-	    <option value="1.5">1.5 mm</option>
+	    <option value="0.5">0.5 mm</option>
+
 	</select> Resolution for 3D Print (Extruder width)<br>
     
 	 <select title="The number of tiles in x direction"
@@ -713,10 +720,10 @@ Terrain 3D print Touchterrain project
 	</select> Tiles to print (X by Y)<br>
     
 	<!-- Approximate DEM resolution given box and tile parameters -->
-	      Re-scaling <b id="source_resolution"></b> resolution to about
+	Re-scaling <b id="source_resolution"></b> resolution to about
 	<input type="text" id="DEMresolution"
 	       title="To print each tile at the given width  at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
-	       name="DEMresolution" maxlength="4" size="5" value="NULL" readonly>m
+	       name="DEMresolution" maxlength="4" size="6" value="NULL" readonly>m
 	<br>
 	    
     
@@ -724,6 +731,7 @@ Terrain 3D print Touchterrain project
 	<select title="The thickness in mm, the 3D model will have at the lowest elevation."
 	  id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
 	    <option value="0">0 mm</option>
+	    <option value="0.5">0.5 mm</option>
 	    <option value="1" selected >1 mm</option>
 	    <option value="2">2 mm</option>
 	    <option value="3">3 mm</option>
@@ -751,11 +759,18 @@ Terrain 3D print Touchterrain project
 	</select> Vertical Exaggeration (Z-scale)<br>
     
 	<select id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
-		title="The format of the 3D model file(s) to be exported">
+		title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
 	    <option value="obj" > Obj</option>
 	    <option value="STLb" selected> STL binary</option>
 	    <option value="STLa"> STL ascii</option>
-	</select> File format<br><br>
+	    <option value="GeoTiff"> GeoTiff</option>
+	</select> File format<br>
+	
+	
+	<input type="text" id="options_manual"
+	       title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true  for more info see standalone options on github"
+	       name="manual" size="30" value="" > Additional (manual) settings
+	<br><br>
 
     <input type="button"
 	title="Puts your current settings into the URL and refreshes"
