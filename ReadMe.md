@@ -111,7 +111,7 @@ The syntax of this file is as follows:
  * `printres`:  default: 0.5 (in mm) A realistic resolution for your printer along the buildplate, typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. E.g. if you want your tile to be 100 mm wide and your printres  is set to 0.25 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 400 cells. If the tile is 4000 m wide in reality, each cell would cover 10 m, which is already close to the original resolution of the DEM source (for NED).  It is probably pointless to ask for a resolution below the original DEM by lowering printres to less than 0.25 in this case. __New: You can now use the original (source) resolution of the DEM by setting printres to -1!__ 
                   
  * `tile_centered`:  default: false
-   * false: all tiles are offset so the all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
+   * false: all tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
    * true:  each tile is centered around 0/0
 
  * `zip_file_name`: default: "terrain" Prefix of output filename. (.zip is added)
