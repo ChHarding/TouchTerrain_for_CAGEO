@@ -67,14 +67,18 @@ args = {
     "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
     "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
+    "no_bottom": False, # omit bottom triangles?
+    #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
+    "bottom_image": None,  # 1 band greyscale image used for bottom relief
+    "ignore_leq": None, # set values <= this to NaN,
+    "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
 }
-
-
 
 # write an example json file, in case it gets deleted ...
 with open('example_config.json', 'w+') as fp:
     json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
 print 'Wrote example_config.json with default values, you can use it as a template but make sure to rename it!'
+
 
 import sys, os
 from os.path import abspath, dirname
@@ -103,8 +107,9 @@ if len(sys.argv) > 1:  # sys.argv are the CLI args
     for k in args.keys():
         try:
             args[k] = json_args[k]    # try to find a value for k in json config file
+            #print k, args[k]
         except:
-            print "warning: ignored invalid option", k     # no match? no problem, just keep the default value
+            print "info:", k, "has missing or invalid value, using defaults where possible"     # no match? no problem, just keep the default value
             #print "%s = %s" % (k, str(args[k]))
 else:
     print "no config file given, using defaults:"
