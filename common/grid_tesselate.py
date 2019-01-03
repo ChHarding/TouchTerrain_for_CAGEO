@@ -197,9 +197,13 @@ class grid(object):
 
         # convert top's elevation to mm
         top -= float(tile_info["min_elev"]) # subtract tile-wide max from top
+        #print np.nanmin(top), np.nanmax(top)
         scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
+        #print tile_info["scale"], tile_info["z_scale"], scz
         top *= scz * tile_info["z_scale"] # apply z-scale
+        #print np.nanmin(top), np.nanmax(top)
         top += tile_info["base_thickness_mm"] # add base thickness
+        #print "top min/max:", np.nanmin(top), np.nanmax(top)
 
         tile_info["max_elev"] = np.nanmax(top)
         tile_info["min_elev"] = np.nanmin(top)
@@ -209,12 +213,13 @@ class grid(object):
         ymaxidx = top.shape[0]-2
         #print range(1, xmaxidx+1), range(1, ymaxidx+1)
 
-        # offset so that 0/0 is the center of this tile (local) or so that 0/0 i the upper left corner of all tiles (global)
+        
+
+        # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the upper left corner of all tiles (global)
         tile_width = (xmaxidx * tile_info["pixel_mm"])
         tile_height = (ymaxidx * tile_info["pixel_mm"])
         #print "model width, height (mm): %.2f x %.2f" % (tile_width, tile_height)
-        tile_info["tile_width"] = tile_width
-        tile_info["tile_height"] = tile_height
+        
 
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
             offsetx = -tile_width  * tile_info["tile_no_x"]-1 + tile_info["full_raster_width"] / 2.0# tile_no starts with 1!
@@ -302,9 +307,10 @@ class grid(object):
                 #NWelev = NEelev = SEelev = SWelev = ptop[j,i] # DEBUG, set all corners to center elev
                 #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
 
-
-                ## make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system used in 3D graphics
-
+                #
+                # Make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system used in 3D graphics
+                #
+                
                 # make top quad (x,y,z)    vi is the vertex index dict of the grids
                 NEt = vertex(E, N, NWelev, self.vi)  # yes, NEt gets the z of NWelev, has to do with coordinate system change
                 NWt = vertex(W, N, NEelev, self.vi)
@@ -313,7 +319,8 @@ class grid(object):
                 topq = quad(NEt, SEt, SWt, NWt) # with this vertex order, a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
                 #print topq
 
-                ## make bottom quad (x,y,z)
+
+                # make bottom quad (x,y,z)
                 NEelev = NWelev = SEelev = SWelev = 0 # uniform bottom elevation, when bottom is None
                 if hasattr(bottom, "__len__"):# if bottom is not None, interpolate bottom elevation (NaN should never occur here!)
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
@@ -438,7 +445,7 @@ class grid(object):
             topverts = nrthcell.topquad.vl
             botverts = nrthcell.bottomquad.vl
 
-            # note that the vertex order in top or bottom quads are different b/v top has normals up, bottom has normals down
+            # note that the vertex order in top or bottom quads are different b/c top has normals up, bottom has normals down
 
             # order: NEb, NWb, SWb, SEb
             botverts[0].coords[1] += yl  # move y coord up a bit
@@ -564,8 +571,9 @@ class grid(object):
             l.append(struct.pack(BINARY_FACET, *tl))
         return l
 
-    def make_STLfile_buffer(self, ascii=False, temp_file=None):
+    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
+            if no_bottom is True, bottom triangles are omitted
             if temp_file is not None, write STL into it (instead of a buffer) and return it
         """
         # Example: list of 2 triangles
@@ -591,7 +599,12 @@ class grid(object):
             cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
 
             if cell != None:
-                quads = [cell.topquad, cell.bottomquad] # list of quads for this cell, top and bottom for sure
+                # list of quads for this cell,
+                if no_bottom == False:
+                    quads = [cell.topquad, cell.bottomquad]
+                else:
+                    quads = [cell.topquad] # no bottom quads, only top                     
+                    
                 for k in cell.borders.keys(): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                     # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
@@ -611,6 +624,8 @@ class grid(object):
             buf_as_list = self._build_binary_stl(triangles)
             buf = b"".join(buf_as_list)  # single "binary string"/buffer
 
+        #print len(buf)
+
         if temp_file ==  None: return buf
 
         # Write string into temp file and return it
@@ -618,8 +633,9 @@ class grid(object):
         return temp_file
 
 
-    def make_OBJfile_buffer(self, temp_file=None):
+    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
+           if no_bottom is True, bottom triangles are omitted
            if temp_file is not None, write OBJ into it (instead of a buffer) and return it
 
         mtllib dontcare.mtl
@@ -655,8 +671,13 @@ class grid(object):
           for iy in range(0, ncells_y):
             cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
 
-            if cell != None:  # None means cell is undefined
-                quads = [cell.topquad, cell.bottomquad] # list of quads for this cell, top and bottom for sure
+            if cell != None:
+                # list of quads for this cell,
+                if no_bottom == False:
+                    quads = [cell.topquad, cell.bottomquad]
+                else:
+                    quads = [cell.topquad] # no bottom quads, only top  
+                    
                 for k in cell.borders.keys(): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                 for q in quads:
