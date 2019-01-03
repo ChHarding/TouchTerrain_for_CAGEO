@@ -32,6 +32,8 @@
 import math
 import os
 from datetime import datetime
+import json
+
 import ee
 
 
@@ -50,7 +52,7 @@ try:
             print "Google Maps key is:", google_maps_key
             pass
 except:
-    pass # file did not exsist - no problem
+    pass # file did not exist - no problem
   
 
 from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
@@ -65,6 +67,7 @@ common_folder = dirname(this_folder) + os.sep + "common"
 sys.path.append(common_folder) # add common folder to sys.path
 #print >> sys.stderr, "sys.path:", sys.path
 import TouchTerrainEarthEngine
+from Coordinate_system_conv import * # arc to meters conversion
 
 import webapp2
 
@@ -120,6 +123,8 @@ class MainPage(webapp2.RequestHandler):
     basethick = self.request.get("basethick")
     zscale = self.request.get("zscale")
     fileformat = self.request.get("fileformat")
+    manual = self.request.get("manual")
+    manual = manual.replace('\"', '&quot;')
 
     # default args, are only used the very first time, after that the URL will have the values encoded
     # these must be strings and match the SELECT values!
@@ -134,7 +139,7 @@ class MainPage(webapp2.RequestHandler):
     if tilewidth == "": tilewidth = "80"
     if basethick == "": basethick = "2"
     if zscale == "": zscale = "1.0"
-    if fileformat not in ["obj", "STLa", "STLb"]: fileformat = "STLb"
+    if fileformat not in ["obj", "STLa", "STLb", "GeoTiff"]: fileformat = "STLb"
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if DEM_name == """NOAA/NGDC/ETOPO1""":
@@ -173,6 +178,7 @@ class MainPage(webapp2.RequestHandler):
         "basethick" : basethick,
         "zscale" : zscale,
         "fileformat" : fileformat,
+        "manual" : manual,
 
         "hsgamma": hillshade_gamma,
         
@@ -222,7 +228,8 @@ class ExportToFile(webapp2.RequestHandler):
         self.initialize(request, response)
         app = webapp2.get_app()
         self.request = app.registry.get('preflightrequest')
-
+        
+        
     def post(self): # make tiles in zip file and write
         #print self.request.arguments() # should be the same as given to preflight
         self.response.headers['X-Content-Type-Options'] = 'nosniff' # Prevent browsers from MIME-sniffing the content-type:
@@ -230,32 +237,80 @@ class ExportToFile(webapp2.RequestHandler):
         self.response.out.write('<html><body>')
         self.response.out.write('<h2>Processing finished:</h2>')
         
-        print self.request.params 
+        print self.request.params     
 
         # debug: print/log all args and then values
         args = {} # put arg name and value in a dict as key:value
         for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", "ntilesx", "ntilesy", "tilewidth",
-                  "basethick", "zscale", "fileformat"):
+                  "basethick", "zscale", "fileformat", "manual"):
             v = self.request.get(k) # key = name of arg
             args[k] = v # value
-            if k not in ["DEM_name", "fileformat"]: args[k] = float(args[k]) # floatify non-string args
-            #print k, args[k]
+            if k not in ["DEM_name", "fileformat", "manual"]: args[k] = float(args[k]) # floatify non-string args
+            print k, args[k]
+            
+        # decode any extra (manual) args and put them in args dict
+        manual = args["manual"] 
+        if manual != None:
+            JSON_str = "{ " + manual + "}" 
+            del args["manual"]
+            try:
+                extra_args = json.loads(JSON_str)
+            except Exception, e:
+                logging.error(e)
+                print e
+            else:
+                for k in extra_args:
+                    args[k] = extra_args[k] # append/overwrite
+                    # TODO: validate  
+                    
+        # log and show args in browser
+        for k in args:
             self.response.out.write("%s = %s <br>" % (k, str(args[k])))
             logging.info("%s = %s" % (k, str(args[k])))
-
-        # Bail out if the raster is too large
+        self.response.out.write("")
+        
+        #
+        # bail out if the raster would be too large
+        #
+        
+        # ???
+        from touchterrain_config import MAX_CELLS_PERMITED # If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
+        # ???        
+        
         width = args["tilewidth"]
-        ntilesx = args["ntilesx"]
-        ntilesy = args["ntilesy"]
+        bllon = args["bllon"]
+        trlon = args["trlon"]
+        bllat = args["bllat"]
+        trlat = args["trlat"]
+        dlon =  180 - abs(abs(bllon - trlon) - 180) # width in degrees
+        dlat =  180 - abs(abs(bllat - trlat) - 180) # height in degrees
+        center_lat = bllat + abs((bllat - trlat) / 2.0)
+        latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
+        
         pr = args["printres"]
-        pred_load = (width / float(pr)) * ntilesx * ntilesy
-        print >> sys.stderr, "predicted load ((width / printres) * number of tiles) is ", pred_load, ", max is", MAX_LOAD_FACTOR
-        if pred_load >  MAX_LOAD_FACTOR:
-            self.response.out.write("<br>Your requested job is too large! Please reduce number of tiles, print width and/or print resolution")
-            self.response.out.write("<br>Current load factor is " + str(pred_load))
-            self.response.out.write(" but (width / printres) * number of tiles must be less than " + str(MAX_LOAD_FACTOR))
-            return
+        if pr > 0: # print res given by user (width and height are in mm)
+            height = width * (dlat / float(dlon))
+            tot_pix = int((width / float(pr)) * (height / float(pr))) # total pixels to print
+            print >> sys.stderr, "total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED
+        else:
+            # source resolution  (estimates the total number of cells from area and arc sec resolution of source)
+            
+            # for geotiffs only, set a much higher limit b/c we don't do any processing, just d/l the GEE geotiff and zip it
+            if args["fileformat"] == "GeoTiff": MAX_CELLS_PERMITED *= 50             
+            
+            DEM_name = args["DEM_name"]
+            cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
+            cwas = float(cell_width_arcsecs[DEM_name])
+            tot_pix = int(((dlon * 3600) / cwas) *  ((dlat *3600) / cwas))
+            print >> sys.stderr, "total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED
 
+        if tot_pix >  MAX_CELLS_PERMITED:
+            self.response.out.write("<br>Your requested job is too large! Please reduce area (red box) or lower the print resolution")
+            self.response.out.write("<br>Current total number of pixels is " + str(tot_pix))
+            self.response.out.write(" but must be less than " + str(MAX_CELLS_PERMITED))
+            return       
+
+            
         args["CPU_cores_to_use"] = NUM_CORES
 
         # getcwd() returns / on Linux ????
@@ -270,25 +325,30 @@ class ExportToFile(webapp2.RequestHandler):
         # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
 
+
         try:
             # create zip and write to tmp
             totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
         except Exception, e:
             logging.error(e)
-            print(e)
-            self.response.out.write(e)
+            print e
+            self.response.out.write("Error:" + str(e))
             return
 
-        logging.info("finished processing " + full_zip_zile_name)
-        self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
-
-        self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
-        self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
-        #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
-        #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
-        self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
-        self.response.out.write(
-        """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
+        if totalsize < 0: # something went wrong, error message is in full_zip_zile_name
+            logging.error(full_zip_zile_name)
+            self.response.out.write(full_zip_zile_name)
+        else:    
+            logging.info("finished processing " + str(full_zip_zile_name))
+            self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
+    
+            self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
+            self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
+            #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
+            #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
+            self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
+            self.response.out.write(
+            """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
 
 # the pages that can be requested from the browser and the handler that will respond (get or post method)
 app = webapp2.WSGIApplication([('/', MainPage), # index.html
