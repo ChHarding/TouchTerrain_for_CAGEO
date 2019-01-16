@@ -746,7 +746,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     
         print "map scale is 1 :", print3D_scale_number # EW scale
         #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
-        print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[0]))  # adjusted print resolution
+        print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[1]))  # adjusted print resolution
         #print print3D_height_total_mm / float(npim.shape[0])
         print "Actual 3D print resolution (1 cell):", print3D_resolution_adjusted, "mm"        
         
