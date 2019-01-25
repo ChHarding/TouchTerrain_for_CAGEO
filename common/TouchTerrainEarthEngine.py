@@ -663,14 +663,32 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         
         gdal_undef_val = band.GetNoDataValue()
         print "undefined GDAL value:", gdal_undef_val
-        
+         
         # store the pre-NaN minimum value for later
         min_elev = npim.min()
         
-        # set cells with GDAL undef to numpy NaN
-        npim = numpy.where(npim == gdal_undef_val, numpy.nan, npim)
-        if numpy.isnan(numpy.sum(npim)): # see if we indeed now have NaNs
-            print "some cells are undefined and will be skipped in output file"
+        #
+        # set Cells with GDAL undef to numpy NaN
+        #
+        
+        # Problem: for -3.402823e+38 as undef value, npim == -3.402823e+38 catches 0 cells
+        # even if there are in fact undefinded cells!
+        
+        # Solution: assume that undef values are either vely large negative or very large positive values
+        if gdal_undef_val < 0: 
+            num_undefs = (npim < (gdal_undef_val+0.00001)).sum()
+            if num_undefs > 0: 
+                npim = numpy.where(npim < (gdal_undef_val+0.00001), numpy.nan, npim)
+                print num_undefs, "cells are undefined and will be skipped in output file"
+        else:
+            num_undefs = (npim > (gdal_undef_val-0.1)).sum()
+            if num_undefs > 0:
+                npim = numpy.where(npim > (gdal_undef_val-0.1), numpy.nan, npim)
+                print num_undefs, "cells are undefined and will be skipped in output file"       
+        
+        if num_undefs > 0:
+            assert numpy.isnan(numpy.sum(npim)), "error: there should have been"+int(num_undefs) + " cells set to Nan - but isnan() says we don't have any!"
+
 
         # tile height
         whratio = npim.shape[0] / float(npim.shape[1])
