@@ -16,8 +16,7 @@ TouchTerrain: A simple web-tool for creating 3D-printable topographic models, Vo
 Getting Started
 ===============
 
-Unless you're planning to only use the stand-alone version to import a DEM from a rasterfile (see importedDEM under Standalone), you will need to install Google Earth Engine for Python 2. The directions on GEE's [site](https://developers.google.com/earth-engine/python_install) are a good place to start, but additional information is provided in this repository
-in the file `standalone/TouchTerrain_standalone_installation.pdf`.
+Unless you're planning to only use the stand-alone version to only import a DEM from a rasterfile (see importedDEM under Standalone), you will need to install Google Earth Engine for Python 2. The directions on GEE's [site](https://developers.google.com/earth-engine/python_install) are a good place to start, but additional information is provided in this repository in the file `standalone/TouchTerrain_standalone_installation.pdf`.
 
 If you do not already have an account with Google Earth Engine, you will need to
 apply for one from Google. This process is typically painless. Once a request is
@@ -37,7 +36,14 @@ from within their respective directories.
 Standalone
 ==========
 
-`TouchTerrain_standalone.py` uses DEM data (geotiff file) from Google Earth Engine (GEE) or from a local raster file to create a 3D model suitable for 3D printing. The GEE geotiff is usually downsampled and UTM projected. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it and the GEE geotiff. __NEW: It's now possible to download only the GEE geotiff file. IN addition to downsampling, the original source resolution can be now be used.__
+`TouchTerrain_standalone.py` uses DEM data (geotiff file) from Google Earth Engine (GEE) or from a local raster file to create a 3D model suitable for 3D printing. The GEE geotiff is usually downsampled and UTM projected. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a ZIP along with an info file describing the properties used to produce it and the GEE geotiff. 
+
+__NEW:__ 
+- It's now possible to download only the GEE geotiff file. In addition to downsampling, the original source resolution can be now be used.
+- In addition to running `TouchTerrain_standalone.py` and giving it parameters via the JSON file, I've also provided a jupyter notebook file (TouchTerrain_standalone_jupyter_notebook.ipnb) in which you can change parameters in a python dictionary instead of in a separate JSON file. After getting a zip file, it can also unzip it and visualize the STL/OBJ files in a 3D viewer inside the browser (using the k3d package). To get started see https://jupyter.org/install, but make sure to install Anaconda for Python __2.7__, not for Python 3!
+
+-
+-
 
 `TouchTerrain_standalone.py` reads in a JSON configuration file such as the one at `standalone/example_config.json`. To run it in a python shell, go into the standalone folder and type:
 
