@@ -40,21 +40,28 @@ import numpy
 from PIL import Image
 import gdal # for reading/writing geotiffs
 
-import logging
 import time
 import random
 import os.path
 
-logging.Formatter.converter = time.gmtime
+
+# geo root loogger, will later be redirected into a logfile
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
+# utility to print to stdout and to logger.info
+def pr(*arglist):
+    s = ""
+    for a in arglist:
+        s = s + str(a) + " "
+    print s
+    logger.info(s)
+
 
 # Use zig-zag magic? 
 use_zigzag_magic = False
-
-
-# this is my own log file, has nothing to to with the official server logging module!
-USE_LOG = True #
-#USE_LOG = False # prints to stdout instead into a log file
-
 
 #  List of DEM sources  Earth engine offers and their nominal resolutions (only used for guessing the size of a geotiff ...)
 DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003"""]
@@ -114,10 +121,15 @@ def make_bottom_raster(image_file_name, shape):
 # In both cases, the buffer and its size are returned
 def process_tile(tile):
     tile_info = tile[0] # this is one individual tile!
-    tile_elev_raster = tile[1] 
+    tile_elev_raster = tile[1]
+    
+    
+    print "processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y']
+    #print numpy.round(tile_elev_raster,1)
     
     # create a bottom relief raster (values 0.0 - 1.0)
     if tile_info["bottom_image"] != None and tile_info["no_bottom"] != None:
+        logger.debug("using " + tile_info["bottom_image"] + " as relief on bottom")
         bottom_raster = make_bottom_raster(tile_info["bottom_image"], tile_elev_raster.shape)
         #print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)
         bottom_raster *= (tile_info["base_thickness_mm"] * 0.8) # max relief is 80% of base thickness to still have a bit of "roof" 
@@ -145,7 +157,7 @@ def process_tile(tile):
 
     if tile_info.get("temp_file") != None:  # contains None or a file name.
         # open temp file for writing
-        print >> sys.stderr, "Using temp. file", os.path.realpath(tile_info["temp_file"])
+        print >> sys.stderr, "Writing tile into temp. file", os.path.realpath(tile_info["temp_file"])
         try:
             b = open(tile_info["temp_file"], "wb+")
         except Exception as e:
@@ -246,7 +258,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          no_bottom=False,
                          bottom_image=None,
                          ignore_leq=None,
-                         unprojected=False):
+                         unprojected=False,
+                         only=None):
     """
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
@@ -271,11 +284,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - bottom_image: 1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)
     - ignore_leq: ignore elevation values <= this value, good for removing offshore data 
     - unprojected: don't apply UTM projectin, can only work when exporting a Geotiff as the mesh export needs x/y in meters
+    - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed 
     
     returns the total size of the zip file in Mb
 
     """
-
     # Sanity checks:   TODO: use better exit on error instead of throwing an assert exception
     assert fileformat in ("obj", "STLa", "STLb", "GeoTiff"), "Error: unknown 3D geometry file format:"  + fileformat + ", must be obj, STLa, STLb (or GeoTiff when using local raster)"
     
@@ -290,30 +303,35 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(base_thick) + ") must be > 0.5 mm when using a bottom relief image"
-   
-    
-    # redirect to logfile written inside the zip file
-    if USE_LOG:
-        # redirect stdout to mystdout
-        regular_stdout = sys.stdout
-        mystdout = StringIO()
-        sys.stdout = mystdout
+
+
+    # set up log file
+    log_file_name = temp_folder + os.sep + zip_file_name + ".log"
+    log_file_handler = logging.FileHandler(log_file_name, mode='w+')
+    formatter = logging.Formatter("%(message)s")
+    log_file_handler.setFormatter(formatter)
+    logger.addHandler(log_file_handler)     
 
     # number of tiles in EW (x,long) and NS (y,lat), must be ints
     num_tiles = [int(ntilesx), int(ntilesy)]
+    
+    if only != None:
+        assert only[0] > 0 and only[0] <= num_tiles[0], "Error: x index of only tile out of range"
+        assert only[1] > 0 and only[1] <= num_tiles[1], "Error: y index of only tile out of range"
+    
 
     # horizontal size of "cells" on the 3D printed model (realistically the size of the extruder)
-    print3D_resolution = printres
+    print3D_resolution = printres  
+
 
     #
     # A) use Google Earth Engine to get DEM
     #
     if importedDEM == None:
-
         try:
             import ee
         except Exception as e:
-            print >> sys.stderr, "Google Earth Engine module (ee) not installed", e
+            print >> sys.stderr, "Earth Engine module (ee) not installed", e
 
         region = [[bllon, trlat],#WS  NW
                   [trlon, trlat],#EN  NE
@@ -330,8 +348,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             DEM_title = DEM_title.split('/')[-1]
         DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
 
-        print "Log for creating 3D model tile(s) for ", DEM_title
-
+        pr("Log for creating 3D model tile(s) for ", DEM_title, "\n")
 
         # print args to log
         args = locals() # dict of local variables
@@ -342,18 +359,24 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             v = args[k]
             if k in ("basethick", "ntilesx", "ntilesx"):
                 v = int(v) # need to be ints to work with the JS UI
-            print k, "=", v
+            pr(k, "=", v)
             dict_for_url[k] = v
 
+        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only"):
+            if args.get(k) != None: # may not exists ...
+                v = args[k]
+                pr(k, "=", v)            
+                dict_for_url[k] = v
+        
+        
         # print full query string: 
         # TODO: would not actually work as a URL b/c it misses the google map data!
         #from urllib import urlencode  #from urllib.parse import urlencode <- python 3
         #print "\n", urlencode(dict_for_url),"\n"
 
-        print "\nprocess started:", datetime.datetime.now().time().isoformat()
-        logging.info("process started: " + datetime.datetime.now().time().isoformat())
+        pr("\nprocess started: " + datetime.datetime.now().time().isoformat())
 
-        print "\nRegion (lat/lon):\n  ", trlat, trlon, "(top right)\n  ", bllat, bllon, "(bottom left)"
+        pr("\nRegion (lat/lon):\n  ", trlat, trlon, "(top right)\n  ", bllat, bllon, "(bottom left)")
         
         
         #
@@ -364,37 +387,39 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3995
                 epsg_str = "EPSG:%d" % (epsg)
-                print "Too far north for UTM - using Arctic Polar Stereographic projection (EPSG 3995)"
+                pr("Too far north for UTM - using Arctic Polar Stereographic projection (EPSG 3995)")
                 
             elif trlat < -55: # too far south for UTM, use Arctic Polar Stereographic
                 utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3031
                 epsg_str = "EPSG:%d" % (epsg)
-                print "Too far south for UTM - using Antarctic Polar Stereographic projection (EPSG 3031)"               
+                pr("Too far south for UTM - using Antarctic Polar Stereographic projection (EPSG 3031)")               
             else:       
                 # get UTM zone of center to project into
                 utm,h = LatLon_to_UTM(center)
                 utm_zone_str = "UTM %d%s" % (utm,h)
                 epsg = UTM_zone_to_EPSG_code(utm, h)
                 epsg_str = "EPSG:%d" % (epsg)
-                print "center at", center, " UTM",utm, h, ", ", epsg_str
+                pr("center at", center, " UTM",utm, h, ", ", epsg_str)
         else:
             epsg_str = "unprojected"
             utm_zone_str = "unprojected"
             
-        #get extent in meters (depending on lat of center)
-        #print "center (lon/lat) at", center
+        # Although pretty good, this is still an approximation and the cell resolution to be
+        # requested is therefore also not quite exact, so we need to adjust after the EE raster is downloaded, 
         (latitude_in_m, longitude_in_m) = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
         region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
+        pr("lon/lat size in degrees:",region_size_in_degrees)        
         region_ratio_for_degrees =  region_size_in_degrees[1] / float(region_size_in_degrees[0])
+        
+        #
+        # figure out an (approximate) cell size to request from GEE
+        # Once we got the GEE raster, we can redo the print res and tile height (for a given tile width) properly
+        # 
         region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
                                  region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
         region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
-
-        print "lon/lat size in degrees:",region_size_in_degrees
-        print "x/y size in meters:", region_size_in_meters
-
-
+   
         # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
         print3D_width_per_tile = tilewidth # EW
         print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
@@ -403,38 +428,43 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
         print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
 
-        # if we got a real resolution, figure out cell size in m to request from GGE
         if print3D_resolution > 0:
+            
+            # Get a cell size for EE
+            
             # number of samples needed to cover ALL tiles
             num_samples_lat = print3D_width_total_mm  / float(print3D_resolution) # width
             num_samples_lon = print3D_height_total_mm / float(print3D_resolution) # height
-            print print3D_resolution,"mm print resolution => requested num samples (width x height):", num_samples_lat, "x",  num_samples_lon
+            #pr(print3D_resolution,"mm print resolution => requested num samples (width x height):", num_samples_lat, "x",  num_samples_lon)
     
             # get cell size (in meters) for request from ee # both should be the same
             cell_size_meters_lat = region_size_in_meters[0] / num_samples_lat # width
             cell_size_meters_lon = region_size_in_meters[1] / num_samples_lon # height
     
-            #print  cell_size_meters_lon, "(lon) m,", cell_size_meters_lat, "(lat) m on", DEM_name, "from earth engine"
+            
             # Note: the resolution of the ee raster does not quite match the requested raster at this cell size;
             # it's not bad, req: 1200 x 2235.85 i.e. 19.48 m cells => 1286 x 2282 which is good enough for me.
-            # With this, the actually printed cell size is not exactly the print resolution but it's only ~5% off ...
-            cell_size = cell_size_meters_lat # will later be used to calc the scale of the model
-            print "requesting", cell_size, "m resolution "
+            # This also affects the total tile width in mm, which I'll also adjust later
+            cell_size_m = cell_size_meters_lat # will later be used to calc the scale of the model
+            print "requesting", cell_size_m, "m resolution from EarthEngine"
         else:
             # print3D_resolution  <= 0 means: get whatever GEEs default is. 
-            cell_size = 0  
+            cell_size_m = 0  
 
         #
         # Get a download URL for DEM from Earth Engine
         #
 
         # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while
-        import config
+        
+        
+        #import config
         try:
-            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
+            ee.Initialize()
+            #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file - obsolete?
         except Exception, e:
             print e
-            logging.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
+            logger.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
 
         # TODO: this can probably go, the exception was prb always caused by ee not staying inited
         got_eeImage = False
@@ -443,28 +473,27 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 image1 = ee.Image(DEM_name)
             except Exception, e:
                 print e
-                logging.error("ee.Image(DEM_name) failed: " + str(e))
+                logger.error("ee.Image(DEM_name) failed: " + str(e))
                 time.sleep(random.randint(1,10))
             else:
                 break
 
-
         info = image1.getInfo() # this can go wrong for some sources, but we don't really need the info as long as we get the actual data
-        print "Google Earth Engine raster:", info["id"],
+        
+        pr("Earth Engine raster:", info["id"])
         try:# 
-            print info["properties"]["title"],  
+            pr(" " + info["properties"]["title"])  
         except Exception, e:
             #print e
             pass
         try: 
-            print info["properties"]["link"],
+            pr(" " + info["properties"]["link"])
         except Exception, e:
             #print e
             pass    
-        print
 
         # https://developers.google.com/earth-engine/resample
-        # projections (as will be done ingetDownload())  default to nearest neighbor, which introduces artifacts,
+        # projections (as will be done in getDownload()) defaults to nearest neighbor, which introduces artifacts,
         # so I set the resampling mode here to bilinear or bicubic
         #image1 = image1.resample("bicubic") # only very small differences to bilinear
         image1 = image1.resample("bilinear")
@@ -472,7 +501,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # make the request dict
         request_dict = {
             #'scale': 10, # cell size
-            'scale': cell_size, # cell size in meters
+            'scale': cell_size_m, # cell size in meters
             #'crs': 'EPSG:4326',
             'crs': epsg_str, # projection
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]',
@@ -483,15 +512,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         }
         
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
-        if cell_size <= 0: del request_dict["scale"]
+        if cell_size_m <= 0: del request_dict["scale"]
         
         # don't apply UTM projection, can only worrk for Geotiff export
         if unprojected == True: del request_dict["crs"]
         
         request = image1.getDownloadUrl(request_dict)
-        logging.info("request URL is: " + request)
-
-
+        logger.debug("request URL is: " + request)
 
         # This should retry until the request was successfull
         web_sock = None
@@ -503,18 +530,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             try:
                 web_sock = urllib2.urlopen(request, timeout=20) # 20 sec timeout
             except socket.timeout, e:
-                raise logging.error("Timeout error %r" % e)
+                raise logger.error("Timeout error %r" % e)
             except urllib2.HTTPError, e:
-                logging.error('HTTPError = ' + str(e.code))
+                logger.error('HTTPError = ' + str(e.code))
                 if e.code == 429:  # 429: quota reached
                     time.sleep(random.randint(1,10)) # wait for a couple of secs
             except urllib2.URLError, e:
-                logging.error('URLError = ' + str(e.reason))
+                logger.error('URLError = ' + str(e.reason))
             except httplib.HTTPException, e:
-                logging.error('HTTPException')
+                logger.error('HTTPException')
             except Exception:
                 import traceback
-                logging.error('generic exception: ' + traceback.format_exc())
+                logger.error('generic exception: ' + traceback.format_exc())
 
             # at any exception wait for a couple of secs
             if web_sock == None:
@@ -559,14 +586,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         band = dem.GetRasterBand(1)
         gdal_undef_val = band.GetNoDataValue()  
         gt = dem.GetGeoTransform()
-        GEE_cell_size =  (gt[1], gt[5])
+        GEE_cell_size_m =  (gt[1], gt[5])
         
         # if we requested the true resolution of the source, use the cellsize of the gdal/GEE geotiff
-        if cell_size <= 0: cell_size = gt[1]        
-
-        print "GEE geotiff size:", len(str_data) / 1048576.0, "Mb, cell size (x/y):", cell_size, "m"  
+        if cell_size_m <= 0: 
+            cell_size_m = gt[1]   
         
-
+        pr(" geotiff size:", len(str_data) / 1048576.0, "Mb")
+        pr(" cell size", cell_size_m, "m, upper left corner (x/y): ", gt[0], gt[3])  
+        
         if fileformat == "GeoTiff": # for Geotiff output, we don't need to make a numpy array, etc, just close the GDAL dem so we can move it into the zip later
             dem = None #  Python GDAL's way of closing/freeing the raster 
             del band    
@@ -576,14 +604,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             
             # typically, GEE serves does not use proper undefined values in the geotiffs it serves, but just in case ...
             if gdal_undef_val != None: 
-                print "undefined GDAL value:", gdal_undef_val  
+                logger.debug("undefined GDAL value used by GEE geotiff: ", +star(gdal_undef_val))  
      
           
             # delete zip file and buffer from memory
             GEEZippedGeotiff.close()
             del zipdir, str_data
      
-
             # cast to 32 bit floats as STL can only write in 32 bit precision anyway
             npim = band.ReadAsArray().astype(numpy.float32) 
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
@@ -593,15 +620,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # clip values?
             if ignore_leq != None:
                 npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
-                print "ignoring elevations <= ", ignore_leq, " (were set to NaN)"
-                
-                # bug? numpy.nanmin(npim) is 3e-45 which seem to be NaNs value (?)
-                if numpy.isnan(numpy.sum(npim)): # see if we indeed now have NaNs                
-                    #print "elev. min/max:", numpy.nanmin(npim), numpy.nanmax(npim)
-                    pass
-                # so I'm setting it to ignore_leq ..., no idea if NaNs could also be large positive????
-                min_elev = ignore_leq
-             
+                pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")             
             
             # sanity check: for all onshore-only sources, set very large values 
             # (which must actually mean NoData) as NaN so they get omitted.
@@ -610,20 +629,43 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
                 if min_elev < -16384:                                           
                     npim = numpy.where(npim <  -16384, numpy.nan, npim)  
-                    print "omitting cells with elevation < -16384"
+                    pr("omitting cells with elevation < -16384")
                 if numpy.nanmax(npim) > 16384:                                           
                     npim = numpy.where(npim >  16384, numpy.nan, npim)  
-                    print "omitting cells with elevation > 16384"               
+                    pr("omitting cells with elevation > 16384")               
 
-            print "full (untiled) raster (height,width): ", npim.shape, npim.dtype,
+            pr("full (untiled) raster (height,width): ", npim.shape, npim.dtype)
             #print "elev. min/max:", min_elev, numpy.nanmax(npim)
             
-            # if source resolution was requested, use the geotiffs cellsize to get get horizontal map scale (1:x) so we know how to scale the elevation later
-            if printres <= 0:
-                print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)        
-                print "using DEM source resolution: ",
-            print "cell size:", cell_size, "m"
-                  
+            #
+            # based on the full raster's shape and given the model width, recalc the model height
+            #
+            region_ratio =  npim.shape[0] / float(npim.shape[1])
+       
+            # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
+            print3D_width_per_tile = tilewidth # EW
+            print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+    
+            # width/height of full 3D model (all tiles together)
+            print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
+            print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS            
+
+            #
+            # (re) calculate print res needed to make that width/height from the given raster
+            #
+            adjusted_print3D_resolution = print3D_width_total_mm / float(npim.shape[1])
+                        
+            
+            if printres > 0: # did NOT use source resolution
+                pr("cell size:", cell_size_m, "m ")
+                pr("adjusted print res from the requested", print3D_resolution, "mm to", adjusted_print3D_resolution, "mm to ensure correct model dimensions")
+                print3D_resolution = adjusted_print3D_resolution   
+            else:
+                print3D_resolution = adjusted_print3D_resolution 
+                pr("cell size:", cell_size_m, "m (<- native source resolution)")
+                pr("print res for native source resolution is", print3D_resolution, "mm")
+
+            pr("total model size in mm:", print3D_width_total_mm, "x", print3D_height_total_mm)          
     # end of getting DEM data via GEE
 
 
@@ -633,14 +675,23 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else:
 
         filename = os.path.basename(importedDEM)
-        print "Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n"
+        pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n")
 
 
-        print "started:", datetime.datetime.now().time().isoformat()
+        pr("started:", datetime.datetime.now().time().isoformat())
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
-        npim = band.ReadAsArray()
+        npim = band.ReadAsArray().astype(numpy.float32)  
         
+        # get the GDAL cell size in x (width), assumes cells are square!
+        tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
+        pw,ph = abs(tf[1]), abs(tf[5])
+        if pw != ph: 
+            logger.warning("Warning: raster cells are not square (" + str(pw) + "x" + str(ph) + ") , using" + str(pw))
+        cell_size_m = pw   
+        pr("source raster upper left corner (x/y): ",tf[0], tf[3])
+        pr("source raster cells size", cell_size_m, "m ", npim.shape)
+
 
         # I use PROJCS[ to get a projection name, e.g. PROJCS["NAD_1983_UTM_Zone_10N",GEOGCS[....
         # I'm grabbing the text between the first and second double-quote.
@@ -651,92 +702,88 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         utm_zone_str = utm_zone_str[:i]
         epsg_str = "N/A"
 
-        print "projection:", utm_zone_str
-        
-        print "z-scale:", zscale
-        print "basethickness:", basethick
-        print "fileformat:", fileformat
-        print "tile_centered:", tile_centered
-        print "no_bottom:", no_bottom
-        print "ignore_leq:", ignore_leq
+        pr( "projection:", utm_zone_str)
         
         
-        gdal_undef_val = band.GetNoDataValue()
-        print "undefined GDAL value:", gdal_undef_val
-         
-        # store the pre-NaN minimum value for later
-        min_elev = npim.min()
+        pr( "z-scale:", zscale)
+        pr( "basethickness:", basethick)
+        pr( "fileformat:", fileformat)
+        pr( "tile_centered:", tile_centered)
+        pr( "no_bottom:", no_bottom)
+        pr( "ignore_leq:", ignore_leq)
         
         #
         # set Cells with GDAL undef to numpy NaN
         #
         
-        # Problem: for -3.402823e+38 as undef value, npim == -3.402823e+38 catches 0 cells
-        # even if there are in fact undefinded cells!
-        
-        # Solution: assume that undef values are either vely large negative or very large positive values
-        if gdal_undef_val < 0: 
-            num_undefs = (npim < (gdal_undef_val+0.00001)).sum()
-            if num_undefs > 0: 
-                npim = numpy.where(npim < (gdal_undef_val+0.00001), numpy.nan, npim)
-                print num_undefs, "cells are undefined and will be skipped in output file"
-        else:
-            num_undefs = (npim > (gdal_undef_val-0.1)).sum()
-            if num_undefs > 0:
-                npim = numpy.where(npim > (gdal_undef_val-0.1), numpy.nan, npim)
-                print num_undefs, "cells are undefined and will be skipped in output file"       
-        
-        if num_undefs > 0:
-            assert numpy.isnan(numpy.sum(npim)), "error: there should have been"+int(num_undefs) + " cells set to Nan - but isnan() says we don't have any!"
+        gdal_undef_val = band.GetNoDataValue()
+        pr("undefined GDAL value:", gdal_undef_val)
+             
+        # Instead of == use numpy.isclose to flag undef cells as True
+        if gdal_undef_val != None:  # None means the raster is not a geotiff
+            undef_cells = numpy.isclose(npim, gdal_undef_val) # bool
+            npim = numpy.where(undef_cells, numpy.nan, npim)                   
 
+        # clip values?
+        if ignore_leq != None:
+            npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
+            pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
 
+       
         # tile height
         whratio = npim.shape[0] / float(npim.shape[1])
         tileheight = tilewidth  * whratio
-        print "tile_width:", tilewidth
-        print "tile_height:", tileheight
+        pr("tile_width:", tilewidth)
+        pr("tile_height:", tileheight)
         print3D_width_per_tile = tilewidth
         print3D_height_per_tile = tileheight   
+        print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
+        real_world_total_width_m = npim.shape[1] * cell_size_m
+        pr("source raster width", real_world_total_width_m, "m,", "cell size:", cell_size_m, "m, elev. min/max is", numpy.nanmin(npim), numpy.nanmax(npim), "m")
 
-        print3D_width_total_mm =  tilewidth * num_tiles[0]
+        # What would be the 3D print resolution using the original/unresampled source resolution?
+        source_print3D_resolution =  (tilewidth*ntilesx) / float(npim.shape[1])
+        pr("source raster 3D print resolution would be", source_print3D_resolution, "mm")
 
-        # get the GDAL cell size in x (width), assumes cells are square!
-        tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
-        assert tf[1] != tf[5], "Error: raster cells are not square!"
-        cell_size = tf[1]
-        print "source raster real-world cell size:", cell_size, "m"
-
-        # given the total physical width and the number of raster cells, what would be the 3D resolution?
-        initial_print3D_resolution = print3D_width_total_mm / float(npim.shape[0])
-        print "print resolution for this source raster cell size would be", initial_print3D_resolution, "mm, min/max is", numpy.nanmin(npim), numpy.nanmax(npim), "m"
-
-        # if printres is negative, don't resample, use whatever resolution would be with the given raster
-        if print3D_resolution <= 0:
-                print "no resampling, using source resolution of ", initial_print3D_resolution, "mm"
-                if initial_print3D_resolution < 0.2 and fileformat != "GeoTiff":
-                    print "Warning: this print resolution of", initial_print3D_resolution, "mm is pretty fine for a typical nozzle size of 0.4 mm. You might want to use a printres that's just a bit smaller than your nozzle size ..." 
-        else:
-            # factor to resample initial DEM raster in order to get the user requested print3D_resolution
-            print "requested printres is", print3D_resolution, "mm"
-
-            scale_factor = print3D_resolution / float(initial_print3D_resolution)
+        # Resample raster to get requested printres?
+        if printres <= 0: # use of source resolution was requested          
+                pr("no resampling, using source resolution of ", source_print3D_resolution, "mm for a total model width of", print3D_width_total_mm, "mm")
+                if source_print3D_resolution < 0.2 and fileformat != "GeoTiff":
+                    pr("Warning: this print resolution of", source_print3D_resolution, "mm is pretty small for a typical nozzle size of 0.4 mm. You might want to use a printres that's just a bit smaller than your nozzle size ...")
+                print3D_resolution = source_print3D_resolution
+                
+        else: # yes, resample 
+            scale_factor = print3D_resolution / float(source_print3D_resolution)
             if scale_factor < 1.0: 
-                print "Warning: you are trying to re-sample finer than the original resolution. This is pointless. Use a larger printres value or smaller/less tiles to avoid this."
-                print "No resampling was done, instead using source resolution of ", initial_print3D_resolution, "mm"
+                pr("Warning: will re-sample to a resolution finer than the original source raster. Consider instead a value for printres >", source_print3D_resolution)
                 
-            else: # re-sample DEM using PIL
-                print "re-sampling", filename, "by factor", scale_factor,"from", npim.shape,
-                npim =  resampleDEM(npim, scale_factor)   
-                print "to", npim.shape
-                
-                cell_size *= scale_factor
-                print "re-sampled cell size is", cell_size, "m"
-                print "re-sampled elevation min/max:", numpy.nanmin(npim), numpy.nanmax(npim)
-                
-                npim.flags.writeable = True # not sure why it's not writeable after the PIL interpolation but this fixes it
-        
+            # re-sample DEM using PIL
+            pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m to")
+            npim =  resampleDEM(npim, scale_factor)
+            
+            
+            #
+            # based on the full raster's shape and given the model width, recalc the model height
+            # and the adjusted printres that will give that width from the resampled raster
+            #
+            region_ratio =  npim.shape[0] / float(npim.shape[1])
+            print3D_width_per_tile = tilewidth # EW
+            print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+            print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
+            print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS            
+            adjusted_print3D_resolution = print3D_width_total_mm / float(npim.shape[1])
+            
+            cell_size_m *= scale_factor
+            pr(" ",npim.shape[::-1], adjusted_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
+            npim.flags.writeable = True # not sure why it's not writeable after the PIL interpolation but this fixes it            
+            
+            if adjusted_print3D_resolution != print3D_resolution:
+                pr("after resampling, requested print res was adjusted from", print3D_resolution, "to", adjusted_print3D_resolution, "to ensure correct model dimensions")
+                print3D_resolution = adjusted_print3D_resolution
+            else: 
+                pr("print res is", print3D_resolution, "mm")
+             
         DEM_title = filename[:filename.rfind('.')]
-
         # end local raster file
 
 
@@ -758,26 +805,31 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         else:
             DEM_name = filename
 
-    
-        # get horizontal map scale (1:x) so we know how to scale the elevation later
-        print3D_scale_number =  (npim.shape[1] * cell_size) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
-    
-        print "map scale is 1 :", print3D_scale_number # EW scale
-        #print (npim.shape[0] * cell_size) / (print3D_height_total_mm / 1000.0) # NS scale
-        print3D_resolution_adjusted = (print3D_width_total_mm / float(npim.shape[1]))  # adjusted print resolution
-        #print print3D_height_total_mm / float(npim.shape[0])
-        print "Actual 3D print resolution (1 cell):", print3D_resolution_adjusted, "mm"        
-        
         # Adjust raster to nice multiples of tiles. If needed, crop raster from right and bottom
         remx = npim.shape[1] % num_tiles[0]
         remy = npim.shape[0] % num_tiles[1]
         if remx > 0 or  remy > 0:
-            print "Cropping for %d (width) x %d (height) tiles, removing: x=%d, y=%d" % (num_tiles[0], num_tiles[1], remx, remy),
+            pr("Cropping for nice fit of %d (width) x %d (height) tiles, removing: %d columns, %d rows" % (num_tiles[0], num_tiles[1], remx, remy))
+            old_shape = npim.shape
             npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
-            print " -> cropped to (y,x):",npim.shape
-    
+            pr(" cropped", old_shape[::-1], "to", npim.shape[::-1]   )     
+            
+            # adjust tile width and height to reflect the smaller, cropped raster
+            ratio = old_shape[0] / float(npim.shape[0]), old_shape[1] / float(npim.shape[1])
+            pr(" cropping changed physical size from", print3D_width_per_tile, "mm x", print3D_height_per_tile, "mm") 
+            print3D_width_per_tile = print3D_width_per_tile / ratio[1]
+            print3D_height_per_tile = print3D_height_per_tile / ratio[0]
+            pr(" to", print3D_width_per_tile, "mm x", print3D_height_per_tile, "mm")
+            print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]            
+            
+        # get horizontal map scale (1:x) so we know how to scale the elevation later
+        print3D_scale_number =  (npim.shape[1] * cell_size_m) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
+        
+        pr("map scale is 1 :", print3D_scale_number) # EW scale
+        #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
+         
         # min/max elev (all tiles)
-        print "elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)) # use nanmin() so we can use (NaN) undefs
+        print("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim))) # use nanmin() so we can use (NaN) undefs
     
         # apply z-scaling
         if zscale != 1.0:
@@ -824,7 +876,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "crs" : epsg_str, # EPSG name for UTM zone
             "UTMzone" : utm_zone_str, # UTM zone eg  UTM13N
             "scale"  : print3D_scale_number, # horizontal scale number, defines the size of the model (= 3D map): eg 1000 means 1m in model = 1000m in reality
-            "pixel_mm" : print3D_resolution_adjusted, # lateral (x/y) size of a 3D printed "pixel" in mm
+            "pixel_mm" : print3D_resolution, # lateral (x/y) size of a 3D printed "pixel" in mm
             "max_elev" : numpy.nanmax(npim), # tilewide minimum/maximum elevation (in meter)
             "min_elev" : numpy.nanmin(npim),
             "z_scale" :  zscale,     # z (vertical) scale (elevation exageration) factor
@@ -842,6 +894,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "temp_file": None,
             "no_bottom": no_bottom,
             "bottom_image": bottom_image,
+            "ntilesy": ntilesy, # number of tiles in y
+            "only": only # if nont None, process only this tile e.g. [1,2]
         }        
         
         #
@@ -851,21 +905,29 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # num_tiles[0], num_tiles[1]: x, y !
         cells_per_tile_x = npim.shape[1] / num_tiles[0] # tile size in pixels
         cells_per_tile_y = npim.shape[0] / num_tiles[1]
-        print "Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y
+        pr("Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y)
     
     
         # pad full raster by one at the fringes
+        #print npim, npim.shape
         npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan
-    
+        #print npim.astype(int)
     
         # store size of full raster
         tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
         #print tile_info
-    
+        
+        # Warn that we're only processing one tile
+        process_only = tile_info["only"]      
+        if process_only != None:
+            pr("Only processing tile:", process_only)
+            CPU_cores_to_use = 1 # set to SP
+            
         # within the padded full raster, grab tiles - but each with a 1 cell fringe!
         tile_list = [] # list of tiles to be processed via multiprocessing.map()
         for tx in range(num_tiles[0]):
             for ty in range(num_tiles[1]):
+                #print tx,ty
     
                 # extract current tile from full raster
                 start_x = tx * cells_per_tile_x
@@ -874,6 +936,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 end_y = start_y + cells_per_tile_y + 1 + 1
     
                 tile_elev_raster = npim[start_y:end_y, start_x:end_x] #  [y,x]
+                #print tile_elev_raster.astype(int)
+                
+                # Jan 2019: for some reason, changing one tile's raster in process_tile also changes parts of another
+                # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
+                tile_elev_raster.flags.writeable = False       
     
                 # add to tile_list
                 tile_info["tile_no_x"] = tx + 1
@@ -889,45 +956,63 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     
                     # store temp file names (not file objects), MP will create file objects during processing
                     my_tile_info["temp_file"]  = mytempfname
-                tile = [my_tile_info, tile_elev_raster]   # leave it to process_tile() to unwrap the info and data parts
-                tile_list.append(tile)
-    
+                tile = (my_tile_info, tile_elev_raster)   # leave it to process_tile() to unwrap the info and data parts
+                
+                # if we only process one tile ...
+                if process_only == None: # no only was given
+                    tile_list.append(tile)
+                else:
+                    if process_only[0] == tile_info['tile_no_x'] and process_only[1] == tile_info['tile_no_y']:
+                        tile_list.append(tile) # got the only tile
+                    else:
+                        print "process only is:", process_only, ", skipping tile", tile_info['tile_no_x'], tile_info['tile_no_y'] 
+        
         if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
-            print >> sys.stderr, "number of pixels:", tile_info["full_raster_height"] * tile_info["full_raster_width"], ">", max_cells_for_memory_only, " => using temp file"
+            logger.debug("tempfile or memory? number of pixels:" + str(tile_info["full_raster_height"] * tile_info["full_raster_width"]) + ">" + str(max_cells_for_memory_only) + " => using temp file")
     
-        # single processing:
-        if CPU_cores_to_use == 1:  # just work on the list sequentially, don't use multi-core processing
-            print >> sys.stderr, "using single-core only"
+
+                   
+    
+        # single processing: just work on the list sequentially, don't use multi-core processing
+        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:  # only one tile or SP specifically requested
+            pr("using single-core only")
             processed_list = []
             # Convert each tile into a list: [0]: updated tile info, [1]: grid object
-            for t in tile_list:
+            for i,t in enumerate(tile_list):
+                #print "processing", i, numpy.round(t[1], 1), t[0]
                 pt = process_tile(t)
                 processed_list.append(pt) # append to list of processed tiles
         
         # use multi-core processing
         else:  
-            print >> sys.stderr, "using multi-core"
+            pr("using multi-core (no logging info available while processing)  ...")
             import multiprocessing
             pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
     
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
             processed_list = pool.map(process_tile, tile_list)
+
+            pr("... multi-core processing done, logging resumed")
+            pool.close()
+            pool.terminate()
     
         # tile size is the same for all tiles
         tile_info = processed_list[0][0]
         
-     
         # the tile width/height was written into tileinfo during processing
-        print "%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
+        _ = "\n%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
+        pr(_)
     
+        # delete tile list, as the elevation arrays are no longer needed
+        del tile_list
 
         # concat all processed tiles into a zip file
-        logging.info("start of putting tiles into zip file")
+        #print "start of putting tiles into zip file")
         for p in processed_list:
                 tile_info = p[0] # per-tile info
                 tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
                 buf= p[1] # either a string or a file object
-                logging.info("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
+                logger.debug("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
     
                 if tile_info.get("temp_file") != None: # if buf is a file object
                     fname = tile_info["temp_file"]
@@ -935,7 +1020,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     try:
                         os.remove(fname) # on windows remove closed file manually
                     except Exception as e:
-                        print >> sys.stderr, "Error removing", fname, e
+                        logger.error("Error removing" + str(fname) + " " + str(e))
                     else:
                         #print >> sys.stderr, "Removed temp file", fname
                         pass
@@ -946,9 +1031,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 total_size += tile_info["file_size"]
     
                 # print size and elev range
-                print "tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm", ", file size: %.2f" % tile_info["file_size"], "Mb"
-    
-        print "\ntotal size for all tiles %.2f Mb" % total_size
+                pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
+                   ", file size:", round(tile_info["file_size"]), "Mb")
+                
+        pr("\ntotal size for all tiles:", round(total_size), "Mb")
+
 
         
         # delete all the GDAL geotiff stuff
@@ -958,33 +1045,38 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
          
     # end of: if fileformat != "GeoTiff"
     
-    print "\nzip finished:", datetime.datetime.now().time().isoformat()
+    print "zip finished:", datetime.datetime.now().time().isoformat()
 
-    # add (full) geotiff we got from GEE to zip and remove it
+    # add (full) geotiff we got from EE to zip 
     if importedDEM == None:
         total_size += os.path.getsize(GEE_dem_filename) / 1048576.0
-        
-       
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
-        logging.info("added full geotiff as " + DEM_title + ".tif")
+        pr("added full geotiff as " + DEM_title + ".tif")
         
+
+    pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
+    
+    # add logfile to zip
+    log_file_handler.flush()
+    log_file_handler.close()    
+    logger.removeHandler(log_file_handler)
+    zip_file.write(log_file_name, zip_file_name +"_logfile.txt")
+    zip_file.close() # flushes zip file
+    
+    # remove geotiff d/led from EE
+    if importedDEM == None:
         try:
             os.remove(GEE_dem_filename) 
-        except Exception as e:
-            print >> sys.stderr, "Error removing", GEE_dem_filename, e    
-
-    # put logfile into zip folder
-    if USE_LOG:
-        sys.stdout = regular_stdout
-        logstr = mystdout.getvalue()
-        lines = logstr.splitlines()
-        logstr = u"\r\n".join(lines) # otherwise Windows Notepad doesn't do linebreaks (vim does)
-        zip_file.writestr(DEM_title + "_log.txt", logstr)    
-    
-    zip_file.close() # flushes zip file
-        
-    logging.info("processing finished: " + datetime.datetime.now().time().isoformat())
-
+        except Exception as e:   
+             print >> sys.stderr, "Error removing " + str(GEE_dem_filename) + " " + str(e)
+             
+             
+    # remove logfile
+    try:    
+        os.remove(log_file_name) 
+    except Exception as e:   
+         print >> sys.stderr, "Error removing logfile " + str(log_file_name) + " " + str(e)     
+             
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
 #
@@ -998,13 +1090,20 @@ if __name__ == "__main__":
 
     # test for importing dem raster files
     #fname = "Oso_after_5m_cropped.tif"
-    fname = "pyramid.tif" # pyramid with height values 0-255
-    r = get_zipped_tiles(importedDEM=fname,  ntilesx=1, ntilesy=1,
-                         printres=1,
-                         tilewidth=120, basethick=2, zscale= 0.5,
-                         CPU_cores_to_use=0)
-    zip_string = r[0] # r[0] is a zip folder as string, r[1] is the size of the file
-    with open("pyramid.zip", "w+") as f:
+    fname = "pyramid_wide.tif" # pyramid with height values 0-255
+    r = get_zipped_tiles(importedDEM=fname,  
+                         ntilesx=1, ntilesy=1,
+                         printres=0.5,
+                         tilewidth=100, 
+                         basethick=0.5, 
+                         zscale=0.5,
+                         CPU_cores_to_use=1,
+                         tile_centered=False,
+                         fileformat="STLb",
+                         max_cells_for_memory_only=0,
+                         zip_file_name="pyramid")
+    zip_string = r[1] # r[1] is a zip folder as string, r[0] is the size of the file in Mb
+    with open(fname+".zip", "w+") as f:
         f.write(zip_string)
     print "done"
 
