@@ -70,6 +70,13 @@ def get_normal(tri):
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
 
+def dist(v1,v2):
+    ''' distance between 2 vertices'''
+    p1 = Point.from_list(v1.get())
+    p2 = Point.from_list(v2.get())
+    v = Vector.from_points(p1, p2)
+    return v.magnitude()
+
 class vertex(object):
     def __init__(self, x,y,z, vertex_idx_from_grid):
         self.coords = [x,y,z] # needs to be a list for zigzag magic to be able to change coords
@@ -103,10 +110,39 @@ class vertex(object):
 
 
 class quad(object):
-    " 4 vertices in counter clockwise order"
+    """return list of 2 triangles (counterclockwise) per quad
+       wall quads will NOT subdivide their quad into subquads if they are too skinny
+       as this would require to re-index the entire mesh
+    """    
+    # class attribute, use quad.too_skinny_ratio
+    too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
 
     def __init__(self, v0, v1, v2, v3):
         self.vl = [v0, v1, v2, v3]
+        self.subdivide_by = None # if not None, we need to subdivide the quad into that many subquads
+        
+    def check_if_too_skinny(self, direction):
+        '''if a border quad is too skinny it will to be subdivided into multiple quads'''
+        #print direction, [str(v) for v in self.vl]
+        
+        # order of verts will be different for N,S vs E,W walls!
+        if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
+            horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
+            max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
+            min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
+            vert_dist = max_elev - min_elev # z diff of v0 and v1
+        else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
+            horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
+            max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
+            min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
+            vert_dist = max_elev - min_elev # z diff of v0 and v1            
+        if vert_dist == 0: return # walls can be 0 height
+        
+        ratio = horz_dist / float (vert_dist)
+        #print ratio, quad.too_skinny_ratio, quad.too_skinny_ratio / ratio
+        if ratio < quad.too_skinny_ratio:
+            sb = int(quad.too_skinny_ratio / ratio)
+            self.subdivide_by = sb
 
     def get_triangles(self):
         "return list of 2 triangles (counterclockwise)"
@@ -114,7 +150,7 @@ class quad(object):
         t0 = (v0, v1, v2)  # verts of first triangle
         t1 = (v0, v2, v3)  # verts of second triangle
         return (t0,t1)
-
+    
     def get_triangles_with_indexed_verts(self):
         "return list of 2 triangles (counterclockwise) as vertex indices"
 
@@ -127,10 +163,101 @@ class quad(object):
         t0 = (vertidx[0], vertidx[1], vertidx[2])  # verts of first triangle
         t1 = (vertidx[0], vertidx[2], vertidx[3])  # verts of second triangle
         return (t0,t1)
+    
+    ''' 
+    # splits skinny triangles
+    def get_triangles(self, direction=None):
+        """return list of 2 triangles (counterclockwise) per quad
+           wall quads will subdivide their quad into subquads if they are too skinny
+        """
+        v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
+        
+        # do we need to subdivide?
+        if self.subdivide_by == None: # no, either not a wall or a chunky wall
+            t0 = (v0, v1, v2)  # verts of first triangle
+            t1 = (v0, v2, v3)  # verts of second triangle
+            return (t0,t1)
+        
+        else:
+            # subdivde into sub quads and return their triangles
+
+            # order of verts will be different for N,S vs E,W walls!
+            if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
+                horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
+                max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
+                min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
+                vert_dist = max_elev - min_elev # z diff of v0 and v1
+            else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
+                horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
+                max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
+                min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
+                vert_dist = max_elev - min_elev # z diff of v0 and v1            
+
+
+         
+            tri_list = []
+            
+            # for finding the height of the sub quads I don't care about the different vert order
+            z_list =[v[2] for v in self.vl]
+            z_top = max(z_list) # z height of the top (take min() b/c one might be higher)
+            z_bot = min(z_list) # z height at bottom 
+            z_dist = z_top - z_bot # distance to be 
+            
+            #self.subdivide_by = 3 # DEBUG
+            
+            qheight = z_dist / float(self.subdivide_by) # height (elevation dist) of each quad
+            height_list = [ z_top - qheight * i for i in range(self.subdivide_by+1) ] # list of h
+            
+            # make new subquads and return a list of their triangles
+            vl_copy = copy.deepcopy(self.vl) # must make a deep copy, otherwise changing the subquads affect the current quad
+            tl = [] # triangle list
+            
+            bottom_height_list = height_list[1:]
+            for n,_ in enumerate(bottom_height_list):
+                v0_,v1_,v2_,v3_ = vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3] # unroll copy             
+                #print n,v0_,v1_,v2_,v3_
+
+                # as order of verts will be different for N,S vs E,W walls we need 2 different cases
+                if direction in ("N", "S"):
+                    top_inds = (1,2)
+                    bot_inds = (0,3)
+                else:
+                    top_inds = (0,1)
+                    bot_inds = (2,3)                    
+                
+                
+                # top verts
+                if n > 0: # don't change top z for topmost sub quad
+                    h = height_list[n]
+                    v= vl_copy[top_inds[0]] # first vertex of subquad
+                    v.coords[2] = h         # set its z value
+                    v= vl_copy[top_inds[1]]
+                    v.coords[2] = h
+
+                # bottom verts
+                if n < len(bottom_height_list): # don't change bottom z for bottommost sub quad
+                    h = height_list[n+1]
+                    v = vl_copy[bot_inds[0]] 
+                    v.coords[2] = h          
+                    v = vl_copy[bot_inds[1]] 
+                    v.coords[2] = h
+                
+                # make a sub quad
+                sq = copy.deepcopy(quad(vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3])) # each subquad needs to be its own copy
+                #print n, sq,
+                
+                t0,t1 = sq.get_triangles()
+                tl.append(t0)
+                tl.append(t1)
+    
+            return tl
+    '''  
+
+
 
     def __str__(self):
         rs ="  "
-        for n,v in enumerate(self.vertlist):
+        for n,v in enumerate(self.vl):
             rs = rs + "v" + str(n) + ": " + str(v) + "  "
         return rs
 
@@ -195,15 +322,27 @@ class grid(object):
         have_nan = np.isnan(np.sum(top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-numpy
         #print "have_nan", have_nan
 
-        # convert top's elevation to mm
+        # Jan 2019: no idea why but somtimes changing top also changes the elevation
+        # array of another tile in the tile list
+        # for now I make a copy of the incoming top (calling it ro_top)
+        ro_top = top
+        top = ro_top.copy() # writeable 
+        
+        #
+        # convert top's elevation from real word elevation (m) to model height (mm)
+        #
+        #print top.astype(int)
         top -= float(tile_info["min_elev"]) # subtract tile-wide max from top
         #print np.nanmin(top), np.nanmax(top)
+        #print top.astype(int)
         scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
         #print tile_info["scale"], tile_info["z_scale"], scz
         top *= scz * tile_info["z_scale"] # apply z-scale
+        #print top.astype(int)
         #print np.nanmin(top), np.nanmax(top)
         top += tile_info["base_thickness_mm"] # add base thickness
         #print "top min/max:", np.nanmin(top), np.nanmax(top)
+        #print top.astype(int)
 
         tile_info["max_elev"] = np.nanmax(top)
         tile_info["min_elev"] = np.nanmin(top)
@@ -213,24 +352,20 @@ class grid(object):
         ymaxidx = top.shape[0]-2
         #print range(1, xmaxidx+1), range(1, ymaxidx+1)
 
+        # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the lower left corner of all tiles (global)
         
-
-        # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the upper left corner of all tiles (global)
-        tile_width = (xmaxidx * tile_info["pixel_mm"])
-        tile_height = (ymaxidx * tile_info["pixel_mm"])
-        #print "model width, height (mm): %.2f x %.2f" % (tile_width, tile_height)
-        
-
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
-            offsetx = -tile_width  * tile_info["tile_no_x"]-1 + tile_info["full_raster_width"] / 2.0# tile_no starts with 1!
-            offsety = -tile_height * tile_info["tile_no_y"]-1 + tile_info["full_raster_height"] / 2.0
+            offsetx = -tile_info["tile_width"]  * (tile_info["tile_no_x"]-1)  # tile_no starts with 1!
+            offsety = -tile_info["tile_height"] * (tile_info["tile_no_y"]-1)  + tile_info["tile_height"] * tile_info["ntilesy"]
         else: # local centered for printing
-            offsetx = tile_width / 2.0
-            offsety = tile_height / 2.0
+            offsetx = tile_info["tile_width"] / 2.0
+            offsety = tile_info["tile_height"] / 2.0
         #print offsetx, offsety
-
+        #offsetx = offsety = 0 # DEBUG
+        
         # store cells in an array, init to None
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)
+
 
         # report progress in %
         percent = 10
@@ -570,7 +705,82 @@ class grid(object):
             tl.append(0) # append attribute byte 0
             l.append(struct.pack(BINARY_FACET, *tl))
         return l
+    ''' 
+    # splits skinny triangles
+    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
+        """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
+            if no_bottom is True, bottom triangles are omitted
+            if temp_file is not None, write STL into it (instead of a buffer) and return it
+        """
+        # Example: list of 2 triangles
+        #[
+        # [ 1.0,  1.0,  1.0, # vertex1 xyz
+        #  -1.0,  1.0, -1.0, # vertex2 xyz
+        #  -1.0, -1.0,  1.0] # vertex3 xyz
+        # [ 1.0,  1.0,  1.0,
+        #  -1.0, -1.0,  1.0,
+        #   1.0, -1.0, -1.0]
+        #]
+        # Normal for each facet is set to 0,0,0
 
+        triangles = [] # list of triangles
+
+        # number of cells in x and y     grid is cells[y,x]
+        ncells_x = self.cells.shape[1]
+        ncells_y = self.cells.shape[0]
+
+        # go through all cells, get all its quads and split into triangles
+        for ix in range(0, ncells_x):
+          for iy in range(0, ncells_y):
+            cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
+
+            if cell != None:
+                #print "cell", ix, iy
+                
+                # list of top/bottom quads for this cell,
+                if no_bottom == False:
+                    quads = [cell.topquad, cell.bottomquad]
+                else:
+                    quads = [cell.topquad] # no bottom quads, only top    
+                
+                # get tris for top and bottom
+                for q in quads:
+                    tl = q.get_triangles() # triangle list
+                    triangles.append(tl[0])
+                    triangles.append(tl[1])                
+                
+                # add tris for border quads     cell.borders is a dict with S E W N as keys and a quad as value (if there's a border in that direction, False, otherwise)
+                for k in cell.borders.keys(): 
+                    border_quad = cell.borders[k]
+                    if  border_quad != False: 
+                        #print k, 
+                        # run a check if wall is too skinny, this will set an quad internal value for how much to subdivide
+                        # the subdivison will happen later when we ask for the skinny wall's triangles
+                        # we need the direction (k) b/c the order of verts is different for n/s vs e/w!
+                        border_quad.check_if_too_skinny(k)      
+                        #print border_quad, border_quad.subdivide_by
+                        tl = border_quad.get_triangles(k) # triangle list
+                        for t in tl:
+                            triangles.append(t)
+
+        #for n,t in enumerate(triangles): print n, t[0], t[1], t[2]
+
+        buf = None
+        if ascii:
+            buf_as_list = self._build_ascii_stl(triangles)
+            buf = "\n".join(buf_as_list).encode("UTF-8") # single utf8 string
+        else:
+            buf_as_list = self._build_binary_stl(triangles)
+            buf = b"".join(buf_as_list)  # single "binary string"/buffer
+
+        #print len(buf)
+
+        if temp_file ==  None: return buf
+
+        # Write string into temp file and return it
+        temp_file.write(buf)
+        return temp_file
+    '''
     def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
@@ -630,8 +840,7 @@ class grid(object):
 
         # Write string into temp file and return it
         temp_file.write(buf)
-        return temp_file
-
+        return temp_file    
 
     def make_OBJfile_buffer(self, no_bottom=False, temp_file=None):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
@@ -738,9 +947,11 @@ if __name__ == "__main__":
                      [41, 41, 42, 43, 44, 45]])
     """
     top =  np.array([
-                         [ 10, 10, 50],
-                         [ 11, 150, 10 ],
-                         [ 50, 10, 10 ],
+                         [ 1, 5, 10, 50, 20, 10, 1],
+                         [ 1, 10, 10, 50, 20, 10, 2],
+                         [ 1, 11, 150, 30, 30, 10, 5],
+                         [ 1, 23, 100, 40, 20, 10, 2 ],
+                         [ 1, 50, 10, 10, 20, 10 , 1 ],
 
                    ])
 
@@ -767,25 +978,31 @@ if __name__ == "__main__":
 
     tile_info_dict = {
         "scale"  : 10000, # horizontal scale number, defines the size of the model (= 3D map): 1000 => 1m (real) = 1000m in model
-        "pixel_mm" : 10, # lateral (x/y) size of a pixel in mm
+        "pixel_mm" : 0.5, # lateral (x/y) size of a pixel in mm
         "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
         "min_elev" : np.nanmin(top),
-        "z_scale" :  1.0,     # z (vertical) scale (elevation exageration) factor, float
+        "z_scale" :  0.1,     # z (vertical) scale (elevation exageration) factor, float
         "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,
+        "ntilesx": 1,
+        "ntilesy": 1,
         "tile_centered" : True, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-        "fileformat": "STLb",  # folder/zip file name for all tiles
-        "base_thickness_mm": 2, # thickness between bottom and lowest elevation, NOT including the bottom relief.
-
-
-
+        "fileformat": "STLa",  # folder/zip file name for all tiles
+        "base_thickness_mm": 10, # thickness between bottom and lowest elevation, NOT including the bottom relief.
+        "tile_width": 100,
     }
+
+    whratio = top.shape[0] / float(top.shape[1])
+    tile_info_dict["tile_height"] = tile_info_dict["tile_width"]  * whratio        
+    
     top = np.pad(top, (1,1), 'edge')
     g = grid(top, None, tile_info_dict)
+    
+
 
     #b = g.make_STLfile_buffer(ascii=True)
     b = g.make_STLfile_buffer(ascii=False)
-    f = open("STLtest_bin.stl", 'wb');f.write(b);f.close()
+    f = open("STLtest.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
