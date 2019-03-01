@@ -37,8 +37,8 @@ import json
 import ee
 
 
-# Earth Engine config
-import config  # config.py must be in this folder
+# Earth Engine config - not needed anymore?
+#import config  # config.py must be in this folder
 
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
@@ -105,7 +105,11 @@ def Hillshade(az, ze, slope, aspect):
 class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
 
-    ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file
+    try:
+        #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file - not needed?
+        ee.Initialize() # use .config/earthengine/credentials to authenticate
+    except Exception as e:
+        print >> sys.stderr, "EE init() error", e 
     #print self.request.GET # all args
 
     DEM_name = self.request.get("DEM_name")
@@ -142,6 +146,7 @@ class MainPage(webapp2.RequestHandler):
     if fileformat not in ["obj", "STLa", "STLb", "GeoTiff"]: fileformat = "STLb"
 
     # for ETOPO1 we need to first select one of the two bands as elevation
+
     if DEM_name == """NOAA/NGDC/ETOPO1""":
         img = ee.Image(DEM_name)
         elev = img.select('bedrock') # or ice_surface
@@ -149,6 +154,7 @@ class MainPage(webapp2.RequestHandler):
     else:
         terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
 
+    
     hs = terrain.select('hillshade')
 
     mapid = hs.getMapId( {'gamma':float(hillshade_gamma)}) # opacity is set in JS
@@ -268,13 +274,17 @@ class ExportToFile(webapp2.RequestHandler):
             self.response.out.write("%s = %s <br>" % (k, str(args[k])))
             logging.info("%s = %s" % (k, str(args[k])))
         self.response.out.write("")
+        for k in extra_args:
+            self.response.out.write("%s = %s <br>" % (k, str(args[k])))
+            logging.info("%s = %s" % (k, str(args[k])))        
+        self.response.out.write("")
         
         #
         # bail out if the raster would be too large
         #
         
         # ???
-        from touchterrain_config import MAX_CELLS_PERMITED # If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
+        from touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
         # ???        
         
         width = args["tilewidth"]
@@ -286,11 +296,18 @@ class ExportToFile(webapp2.RequestHandler):
         dlat =  180 - abs(abs(bllat - trlat) - 180) # height in degrees
         center_lat = bllat + abs((bllat - trlat) / 2.0)
         latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
-        
+        num_total_tiles = args["ntilesx"] * args["ntilesy"]
         pr = args["printres"]
+        
+        # if we have "only" set, divide load by number of tiles
+        div_by = 1
+        if extra_args.get("only") != None:
+            div_by = float(num_total_tiles)
+            
+        
         if pr > 0: # print res given by user (width and height are in mm)
             height = width * (dlat / float(dlon))
-            tot_pix = int((width / float(pr)) * (height / float(pr))) # total pixels to print
+            tot_pix = int(((width / float(pr)) * (height / float(pr))) / div_by) # total pixels to print
             print >> sys.stderr, "total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED
         else:
             # source resolution  (estimates the total number of cells from area and arc sec resolution of source)
@@ -301,7 +318,7 @@ class ExportToFile(webapp2.RequestHandler):
             DEM_name = args["DEM_name"]
             cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
             cwas = float(cell_width_arcsecs[DEM_name])
-            tot_pix = int(((dlon * 3600) / cwas) *  ((dlat *3600) / cwas))
+            tot_pix = int((((dlon * 3600) / cwas) *  ((dlat *3600) / cwas)) / div_by)
             print >> sys.stderr, "total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED
 
         if tot_pix >  MAX_CELLS_PERMITED:
@@ -336,10 +353,10 @@ class ExportToFile(webapp2.RequestHandler):
             return
 
         if totalsize < 0: # something went wrong, error message is in full_zip_zile_name
-            logging.error(full_zip_zile_name)
+            print >> sys.stderr, "Error:", full_zip_zile_name
             self.response.out.write(full_zip_zile_name)
         else:    
-            logging.info("finished processing " + str(full_zip_zile_name))
+            print >> sys.stderr, "Finished processing", full_zip_zile_name
             self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
     
             self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
