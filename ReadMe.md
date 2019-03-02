@@ -29,10 +29,9 @@ Besides Python 2.7 you need to install a few modules (see `standalone/TouchTerra
 The standalone version runs on a local machine that has Python 2.7 installed.
 
 ### Jupyter Notebook
-The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very  to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).
+The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very  to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).
 
-You can see web view version of the note book
-[here](./TouchTerrain_standalone_jupyter_notebook_web_view.html)
+You can see web view version of the note book at `standalone/TouchTerrain_standalone_jupyter_notebook_web_view.html`
 
 To get started with jupyter see https://jupyter.org/install. Make sure to install Anaconda for Python __2.7__, not for Python 3!
 
