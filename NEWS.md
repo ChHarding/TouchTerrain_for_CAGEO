@@ -1,7 +1,7 @@
 Mar.1, 2019
 
 Both versions:
-- Added "only":[x,y] manual option, if given (not None/null) will only process that tile index ([1,1] is upper left tile). This will enable users to request unreasonably large models (with too many total cells to be processed by the server) by processing only one of the tiles (thus staying under the limit). Once this is downloaded, the next single tile can be processes. These separately d/l tiles will fit together, provided the same URL (settings) where otherwise used. (Only works for meshes, not for GeoTiff-only d/l!)
+- Added "only":[x,y] manual option, if given (not None/null) will only process that tile index ([1,1] is upper left tile). This will enable users to request unreasonably large models (with too many total cells to be processed by the server) by processing only one of the tiles (thus staying under the limit). Once this is downloaded, the next single tile can be processed. These separately d/l tiles will fit together, provided the same URL (settings) where otherwise used. (Only works for meshes, not for GeoTiff-only d/l!)
 - switched to a proper logging based log file (..._logfile.txt) instead of redirecting stdout into a file
 - authentication for .pem files was removed (no config.py needed any more). Now uses ~/.config/earthengine/credentials (thanks to Jeff Swayze!)
 - EE rasters tile should now connect perfectly
