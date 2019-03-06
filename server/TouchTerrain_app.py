@@ -16,29 +16,12 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
-# CH 29/01/2018: for large areas (MAX_CELLS), temp files are used instead of only using memory
-# CH 11/30/2017: added all print parameters to URL
-# CH 11/21/2016: Added support for hillshade gamma. Unlike hs opacity, it needs to be set on server side
-# and so requires a reload
-# CH 11/16/2016: added flags for server will run: Apache, GAE_devserver, or paste
-# CH 06/20/2016: added ETOPO and changed the DEM source strings, see DEM_sources from TouchTerrainEarthEngine.py
-# CH 12/01/2016: MainPage() request handler now uses GET, the querie string contains the coords of the window, the DEM and the coords of the region
-# CH 12/22/2015: changes UI for switching (no need to click button) and clipped SRTM data to 0 for offshore (was -32768)
-# CH 12/16/2015: added switch between 10m (NED) and 90m (SRTM) DEM
-# CH 12/01/2015: created a way to remotely disable the write restrictions on the devserver via a fake __init__
-# CH 11/23/2015: went back to no-threading as it didn't seem to work in the devserver
-#    added a pre-flight page to warn the user of no feedback. Had to fake the request part via a global var (eeewwww!))
 
 import math
 import os
 from datetime import datetime
 import json
-
 import ee
-
-
-# Earth Engine config - not needed anymore?
-#import config  # config.py must be in this folder
 
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
@@ -104,12 +87,21 @@ def Hillshade(az, ze, slope, aspect):
 # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 class MainPage(webapp2.RequestHandler):
   def get(self):                             # pylint: disable=g-bad-name
-
+      
+    # try both ways of authenticating
     try:
-        #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file - not needed?
-        ee.Initialize() # use .config/earthengine/credentials to authenticate
+        ee.Initialize() # uses .config/earthengine/credentials
     except Exception as e:
-        print >> sys.stderr, "EE init() error", e 
+        print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
+ 
+        try:
+            # try authenticating with a .pem file
+            import config  # sets location of .pem file, config.py must be in this folder
+            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+        except Exception as e:
+            print >> sys.stderr, "EE init() error (with config.py and .pem file)", e      
+
+
     #print self.request.GET # all args
 
     DEM_name = self.request.get("DEM_name")

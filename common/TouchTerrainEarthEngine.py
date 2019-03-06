@@ -456,15 +456,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
 
         # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while
-        
-        
-        #import config
+        # try both ways of authenticating
         try:
-            ee.Initialize()
-            #ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) # authenticates via .pem file - obsolete?
-        except Exception, e:
-            print e
-            logger.error("ee.Initialize(config.EE_CREDENTIALS, config.EE_URL) failed: " + str(e))
+            ee.Initialize() # uses .config/earthengine/credentials
+        except Exception as e:
+            print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
+     
+            try:
+                # try authenticating with a .pem file
+                import config  # sets location of .pem file, config.py must be in this folder
+                ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+            except Exception as e:
+                print >> sys.stderr, "EE init() error (with config.py and .pem file)", e       
 
         # TODO: this can probably go, the exception was prb always caused by ee not staying inited
         got_eeImage = False

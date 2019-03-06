@@ -67,6 +67,8 @@ args = {
     "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
     "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
+    
+    # these are the args that could be given "manually" via the web UI
     "no_bottom": False, # omit bottom triangles?
     #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
     "bottom_image": None,  # 1 band greyscale image used for bottom relief
@@ -160,10 +162,20 @@ def main():
             import ee
         except Exception as e:
             print >> sys.stderr, "Google Earth Engine module not installed", e
+        
+        # try both ways of authenticating
         try:
-            ee.Initialize()
+            ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
-            print >> sys.stderr, "EE init() error", e
+            print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
+     
+            try:
+                # try authenticating with a .pem file
+                import config  # sets location of .pem file, config.py must be in this folder
+                ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+            except Exception as e:
+                print >> sys.stderr, "EE init() error (with config.py and .pem file)", e          
+            
     else:
         args["importedDEM"] = abspath(args["importedDEM"])
 
