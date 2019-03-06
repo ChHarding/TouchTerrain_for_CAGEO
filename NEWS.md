@@ -1,3 +1,7 @@
+Mar. 5.
+- added support for both .pem files or .config/earthengine/credentials for authetication
+
+
 Mar.1, 2019
 
 Both versions:
