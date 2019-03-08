@@ -297,20 +297,21 @@ class ExportToFile(webapp2.RequestHandler):
             div_by = float(num_total_tiles)
             
         
+        # for geotiffs only, set a much higher limit b/c we don't do any processing, just d/l the GEE geotiff and zip it
+        if args["fileformat"] == "GeoTiff": MAX_CELLS_PERMITED *= 100                     
+        
         if pr > 0: # print res given by user (width and height are in mm)
             height = width * (dlat / float(dlon))
-            tot_pix = int(((width / float(pr)) * (height / float(pr))) / div_by) # total pixels to print
+            pix_per_tile = (width / float(pr)) * (height / float(pr))
+            tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
             print >> sys.stderr, "total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED
         else:
-            # source resolution  (estimates the total number of cells from area and arc sec resolution of source)
-            
-            # for geotiffs only, set a much higher limit b/c we don't do any processing, just d/l the GEE geotiff and zip it
-            if args["fileformat"] == "GeoTiff": MAX_CELLS_PERMITED *= 50             
-            
+            # estimates the total number of cells from area and arc sec resolution of source
+            # this is done for the entire area, so number of cell is irrelevant
             DEM_name = args["DEM_name"]
             cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
             cwas = float(cell_width_arcsecs[DEM_name])
-            tot_pix = int((((dlon * 3600) / cwas) *  ((dlat *3600) / cwas)) / div_by)
+            tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
             print >> sys.stderr, "total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED
 
         if tot_pix >  MAX_CELLS_PERMITED:
