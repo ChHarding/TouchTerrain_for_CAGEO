@@ -92,12 +92,12 @@ The JSON config file has the following format:
     - obj: wavefront obj (ascii)  
     - STLa: ascii STL  
     - STLb: binary STL  (__preferred mesh format__)
-    - __GeoTiff__: while all formats also store the raster used for making the mesh files in the zip file as a GeoTiff, this option ONLY stores the GeoTiff. This is much, much faster and permits downloading  much larger areas without running into the server limit.  
-    Note that this will save a projected raster (unless unprojected is true) at the equivalent of the printres resolution (which can be set to the source resolution with -1) but will ignore all other settings, such as z-scale, etc.
+    - __GeoTiff__: while all formats also store the raster used for making the mesh files in the zip file as a GeoTiff, this option ONLY stores the GeoTiff. This is much, much faster and permits downloading  much larger areas without running into the server limit.    Note that this will save a projected raster (unless unprojected is true) at the equivalent of the printres resolution (which can be set to the source resolution with -1) but will ignore all other settings, such as z-scale, etc.
 
 
  * `ntilesx`:       Divide the x axis evenly among this many tiles. This is useful if the area being
- printed would be too large to fit in the printer's bed. * `ntilesy`:       See `ntilesx`, above.
+ printed would be too large to fit in the printer's bed. 
+ * `ntilesy`:       See `ntilesx`, above.
 
  * `tilewidth`:     The width of a tile in mm, tile height will be calculated from the aspect ratio
  of your area.
