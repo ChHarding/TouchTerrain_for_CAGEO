@@ -159,12 +159,12 @@ values for the tile width, number of tiles and the printres. The server version 
 width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here:
 http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area.
 
-Once youknow the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
+Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
 
 
 
-### Server folder
+## Server folder
 
 (Note: depending on the type of server we may have a dockerized version available ...)
 
@@ -183,6 +183,6 @@ touchterrain_config.py contains server specific config settings:
 - MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
 
 
-### Common folder
+## Common folder
 
 The `common` directory contains files used by both the standalone and server apps.
