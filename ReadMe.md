@@ -74,9 +74,11 @@ The JSON config file has the following format:
 }
 ```
 
- * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) * USGS/NED:
- 10 m, continental USA only * USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north *
- USGS/GMTED2010: ~230 m, truly worldwide * NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
+ * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) 
+  - USGS/NED: 10 m, continental USA only 
+  - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north 
+  - USGS/GMTED2010: ~230 m, truly worldwide 
+  - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
 
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
  model. This is particularly important for models with long, deep valleys, which can cause the model  to shine through or if the base is not thick enough. A base thickness of at least twice the
