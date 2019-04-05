@@ -353,7 +353,7 @@ class ExportToFile(webapp2.RequestHandler):
             self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
     
             self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
-            self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
+            self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 6 hrs)</form>')
             #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
             #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
             self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
