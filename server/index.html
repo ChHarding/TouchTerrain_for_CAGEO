@@ -418,8 +418,8 @@ Terrain 3D print Touchterrain project
 
     //Update gamma in both places
     function updateGamma(val) {
-      document.getElementById('hs_gamma').value=val;  // id in reload form  (hidden)
-      document.getElementById('hs_gamma2').value=val; // gui text field
+      document.getElementById('hsgamma').value=val;  // id in reload form  (hidden)
+      document.getElementById('hsgamma2').value=val; // gui text field
       document.getElementById('hs_slider').value=val; // gui slider
     }
     
@@ -597,7 +597,7 @@ Terrain 3D print Touchterrain project
         </select>
 
         <!-- hidden ids so they get put into the URL on reload -->
-	<input type="hidden" name="hs_gamma" id="hs_gamma" value="NULL">
+	<input type="hidden" name="hsgamma" id="hsgamma" value="NULL">
         <input type="hidden" name="map_lat" id="map_lat" value="NULL">
 	<input type="hidden" name="map_lon" id="map_lon" value="NULL">
 	<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
@@ -631,7 +631,7 @@ Terrain 3D print Touchterrain project
       Gamma:
       <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05" 
              oninput="updateGamma(this.value)" onmouseup="submit_for_reload()">
-      <input type="text" id="hs_gamma2"  maxlength="4" size="3" value="0"
+      <input type="text" id="hsgamma2"  maxlength="4" size="3" value="0"
             onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload()}">
       <br> <br>
 
@@ -767,7 +767,7 @@ Terrain 3D print Touchterrain project
 	
 	<input type="text" id="options_manual"
 	       title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;unprojected&quot:true  &quot;only&quot:[1,1]  For more info see standalone on github"
-	       name="manual" size="30" value="" > Additional (manual) settings
+	       name="manual" size="35" value="" > Additional (manual) settings
 	<br><br>
 
     <input type="button"

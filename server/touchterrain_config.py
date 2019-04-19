@@ -4,17 +4,17 @@
 # Defaults
 
 # type of server:
-SERVER_TYPE = "Apache" # "paste" or "Apache"
-#SERVER_TYPE = "paste" # so I can run the server inside a debugger, needs to run with single core!
+#SERVER_TYPE = "Apache" # 
+SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
 
 # multiprocessing:
 NUM_CORES = 0 # 0 means: use all cores
-if SERVER_TYPE == "paste": NUM_CORES = 1 # 1 means don't use multi-core at all
+if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at all
 
 
 # limits for ISU server (Mar. 2019)
 
-# for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 50!
+# for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 100!
 MAX_CELLS_PERMITED =   1000 * 1000 * 0.4   
 
 # if DEM has > this number of cells, use tempfile instead of memory

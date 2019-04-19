@@ -17,6 +17,7 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
+# CH: Apr. 2019: converted to Python 3
 # CH: Feb. 2018: added use of tempfile as file buffer to lower memory footprint
 # CH: Feb. 2017: added calculations for normals in stl files
 # CH: Jan. 22, 16: putting the vert index behind a comment makes some programs crash
@@ -85,7 +86,7 @@ class vertex(object):
         # for non obj file this is set to -1, and there's no need to deal with vertex indices
         if self.vert_idx != -1:
             # if key does not yet exist ...
-            if not self.vert_idx.has_key(tuple(self.coords)): # can't hash lists
+            if tuple(self.coords) not in self.vert_idx: # can't hash lists
                 # hash with 3D coords with a running number as Id
                 self.vert_idx[tuple(self.coords)] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
             else: # this vertex already has an Id
@@ -292,7 +293,7 @@ class grid(object):
 
         #print top.shape, bottom.shape
         tp = top.dtype # dtype('float32')
-        if not str(tp).startswith("float"): print "Warning: expecting float raster!"
+        if not str(tp).startswith("float"): print("Warning: expecting float raster!")
 
         # Important: in 2D numpy arrays, x and y are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
@@ -371,12 +372,12 @@ class grid(object):
         percent = 10
         pc_step = int(ymaxidx/percent) + 1
         progress = 0
-        print >> sys.stderr, "started processing", multiprocessing.current_process()
+        print("started processing", multiprocessing.current_process(), file=sys.stderr)
 
         for j in range(1, ymaxidx+1):    # y dimension for looping within the +1 padded raster
             if j % pc_step == 0:
                 progress += percent
-                print >> sys.stderr, progress, "%", multiprocessing.current_process()
+                print(progress, "%", multiprocessing.current_process(), file=sys.stderr)
 
             for i in range(1, xmaxidx+1):# x dim.
                 #print "y=",j," x=",i, " elev=",top[j,i]
@@ -432,7 +433,7 @@ class grid(object):
                             SEelev = np.nanmean( np.array([top[j+0,i+0], top[j-0,i+1], top[j+1,i+1], top[j+1,i+0]]) )
                             SWelev = np.nanmean( np.array([top[j+0,i+0], top[j+1,i+0], top[j+1,i-1], top[j+0,i-1]]) )
                         except RuntimeWarning: #  corner is surrounded by NaN eleveations - skip this cell
-                            print j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell"
+                            print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
                             #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
                             num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
                             if num_nans > 0: # yes, set cell to None and skip it ...
@@ -494,7 +495,7 @@ class grid(object):
         #print self.cells
         #print vertex.vert_idx
 
-        print >> sys.stderr, "100%", multiprocessing.current_process()
+        print("100%", multiprocessing.current_process(), file=sys.stderr)
 
 
     def create_zigzag_borders(self, num_cells_per_zig = 100, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
@@ -815,7 +816,7 @@ class grid(object):
                 else:
                     quads = [cell.topquad] # no bottom quads, only top                     
                     
-                for k in cell.borders.keys(): # plus get border quads if we have any
+                for k in list(cell.borders.keys()): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                     # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
                 for q in quads:
@@ -864,7 +865,7 @@ class grid(object):
         # initially, store each line in output file as string in a list
         buf_as_list = []
         buf_as_list.append("g vert")    # header for vertex indexing section
-        for v in self.vi.keys(): # self.vi is a dict of vertex indices
+        for v in list(self.vi.keys()): # self.vi is a dict of vertex indices
             #vstr = "v %f %f %f #%d" % (v[0], v[1], v[2], i+1) # putting the vert index behind a comment makes some programs crash when loading the obj file!
             vstr = "v %f %f %f" % (v[0], v[1], v[2])
             buf_as_list.append(vstr)
@@ -887,7 +888,7 @@ class grid(object):
                 else:
                     quads = [cell.topquad] # no bottom quads, only top  
                     
-                for k in cell.borders.keys(): # plus get border quads if we have any
+                for k in list(cell.borders.keys()): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                 for q in quads:
                     t0,t1 = q.get_triangles_with_indexed_verts()
@@ -958,7 +959,7 @@ if __name__ == "__main__":
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
-    print top
+    print(top)
     #print bottom
 
     """
@@ -1006,7 +1007,7 @@ if __name__ == "__main__":
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
-    print "done"
+    print("done")
 
 
 

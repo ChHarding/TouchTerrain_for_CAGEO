@@ -82,7 +82,7 @@ def main():
     # write an example json file, in case it gets deleted ...
     with open('example_config.json', 'w+') as fp:
         json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
-    print 'Wrote example_config.json with default values, you can use it as a template but make sure to rename it!'
+    print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
     
     
     import sys, os
@@ -107,14 +107,14 @@ def main():
         except Exception as e:
             sys.exit("Error: can't json parse " + json_fname + ": " + str(e))
     
-        print "reading", json_fname
+        print("reading", json_fname)
     
-        for k in args.keys():
+        for k in list(args.keys()):
             try:
                 args[k] = json_args[k]    # try to find a value for k in json config file
                 #print k, args[k]
             except:
-                print "info:", k, "has missing or invalid value, using defaults where possible"     # no match? no problem, just keep the default value
+                print("info:", k, "has missing or invalid value, using defaults where possible")     # no match? no problem, just keep the default value
                 #print "%s = %s" % (k, str(args[k]))
     else:
         # no JSON config file given, setting config values in code
@@ -151,9 +151,9 @@ def main():
             args[k] = overwrite_args[k]
         
     # print out current args 
-    print "\nUsing these config values:"
+    print("\nUsing these config values:")
     for k in sorted(args.keys()):
-        print "%s = %s" % (k, str(args[k]))
+        print("%s = %s" % (k, str(args[k])))
     
     # No DEM file given, use Google Earth Engine
     if args["importedDEM"] == None:
@@ -161,20 +161,20 @@ def main():
         try:
             import ee
         except Exception as e:
-            print >> sys.stderr, "Google Earth Engine module not installed", e
+            print("Google Earth Engine module not installed", e, file=sys.stderr)
         
         # try both ways of authenticating
         try:
             ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
-            print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
+            print("EE init() error (with .config/earthengine/credentials)", e, file=sys.stderr)
      
             try:
                 # try authenticating with a .pem file
                 import config  # sets location of .pem file, config.py must be in this folder
                 ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
             except Exception as e:
-                print >> sys.stderr, "EE init() error (with config.py and .pem file)", e          
+                print("EE init() error (with config.py and .pem file)", e, file=sys.stderr)          
             
     else:
         args["importedDEM"] = abspath(args["importedDEM"])
@@ -183,7 +183,7 @@ def main():
     import TouchTerrainEarthEngine as TouchTerrain
     
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
-    print "\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb"
+    print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
     if 1: # set this to 0 if you don't want the zip file tp be unzippeed
@@ -196,7 +196,7 @@ def main():
         zip_ref = zipfile.ZipFile(full_zip_file_name, 'r')
         zip_ref.extractall(folder)
         zip_ref.close()
-        print "unzipped file inside", full_zip_file_name, "into", folder
+        print("unzipped file inside", full_zip_file_name, "into", folder)
     
     '''
     import k3d

@@ -1,8 +1,6 @@
 """
 Coordinate_system_conv  - some utility functions for coordinate system conversion
 """
-
-
 # CH 6/2014
 
 import math
