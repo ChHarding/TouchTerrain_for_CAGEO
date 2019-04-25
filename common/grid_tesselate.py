@@ -46,37 +46,33 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
-
-# https://pypi.python.org/pypi/vectors/
-from vectors import Vector, Point
+#https://pypi.python.org/pypi/vectormath/
+import vectormath as vmath
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
     """in: 3 verts, out normal (nx, ny,nz) with length 1
     """
     (v0, v1, v2) = tri
-    p0 = Point.from_list(v0.get())
-    p1 = Point.from_list(v1.get())
-    p2 = Point.from_list(v2.get())
-    a = Vector.from_points(p1, p0)
-    b = Vector.from_points(p1, p2)
-    #print p0,p1, p2
-    #print a,b
+    p0 = vmath.Vector3(v0.get())
+    p1 = vmath.Vector3(v1.get())
+    p2 = vmath.Vector3(v2.get())
+    
+    a = p1 - p0
+    b = p1 - p2
     c = a.cross(b)
-    #print c
-    m = float(c.magnitude())
-    if m == 0:
-        normal = [0, 0, 0]
-    else:
-        normal = [c.x/m, c.y/m, c.z/m]
-    return normal
+    n = c.normalize()
+    
+    return list(n) # convert Vector3 to list
 
+    
 def dist(v1,v2):
     ''' distance between 2 vertices'''
-    p1 = Point.from_list(v1.get())
-    p2 = Point.from_list(v2.get())
-    v = Vector.from_points(p1, p2)
-    return v.magnitude()
+    p1 = vmath.Vector3(v1.get())
+    p2 = vmath.Vector3(v2.get()) 
+    v = p1 - p2
+    m = v.magnitude()
+    return v
 
 class vertex(object):
     def __init__(self, x,y,z, vertex_idx_from_grid):
