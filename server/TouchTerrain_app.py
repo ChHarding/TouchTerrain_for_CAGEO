@@ -36,7 +36,7 @@ try:
             print("Google Maps key is:", google_maps_key)
             pass
 except:
-    pass # file did not exist - no problem
+    pass # file does not exist - will show the ugly Google map version 
   
 
 from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
@@ -195,17 +195,45 @@ def preflight():
     app.preflight_args_dict = arg_dict
 
     # create html
-    html =  '<html><body>'
-    html += "<h2>Processing started:</h2>"
-    html += "Press the Start button to process the DEM into 3D model files.<br>"
-    html += "Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>"
-    html += "Pressing Start again during processing has no effect.<br>"
-    html += "Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>"
-    html += '<form action="/export" method="POST" enctype="multipart/form-data">'
-    html += '<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">' # for user comment
+    html =  '<html>'
+    html += """
+    <script type="text/javascript">  
+    function show_gif(){
+        // hide submit button
+        let f = document.forms["export"];
+        f.style.display='none'
+
+        // unhide gif
+        let gif = document.getElementById('gif');
+        gif.style.display = 'block';
+
+        f.submit();
+    }      
+    </script>
+    """    
+    html += '<body>'
+    html += "<h2>Processing terrain data into 3D print file(s):</h2>"
+    html += "This may take some time, please be patient! <br>"
+    #html += "Press the Start button to process the DEM into 3D model files.<br>"
+    #html += "Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>"
+    #html += "Pressing Start again during processing has no effect.<br>"
+    #html += "Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>"
+    #html += '<form action="/export" method="POST" enctype="multipart/form-data">'
+    #html += '<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">' # for user comment
     #html += '<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
-    html += '<input type="submit" value="Start"> </form>'
+    #html += '<input type="submit" value="Start"> </form>'
+    #html += '<img src="static/gears.gif" alt="gears.gif">' 
+    
+    html += """
+    <form action="/export" method="POST"  id="export" enctype="multipart/form-data">
+        Press the Start button to process the DEM into 3D model files.<br>
+        Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
+        <input type="submit" onclick="show_gif();" value="Start"> 
+    </form>
+    <img src="static/processing.gif" id="gif" alt="processing" style="display: none;">
+    """
     html += '</body></html>'
+    
     return html
     
 # Page that creates the 3D models (tiles) in a in-memory zip file, stores it in tmp with
@@ -357,7 +385,7 @@ def export():
     
         return html
     
-# I think for apache run() needs be done outside (?)
+# I think for apache, run() needs be done outside (?)
 if SERVER_TYPE == "flask_local":
     app.run(debug=False, port=8080) 
 
