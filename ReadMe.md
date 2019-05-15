@@ -9,6 +9,15 @@ For more in-depth information read our paper in Computers & Geosciences: TouchTe
 web-tool for creating 3D-printable topographic models, Volume 109, December 2017, Pages 25-31,
 https://doi.org/10.1016/j.cageo.2017.07.005
 
+# IMPORTANT
+This is the beta version of Touchterrain. It uses Python 3 and has tons of new features, improvements and bugfixes compared the old Python 2 version. The standalone version should be fine (I recomment using the jupyter notebook!) but many things in the server version are still in flux. 
+
+The python 3 version uses Flask instead of web2app, and there will likely be changes or additions ot the configuration files. We are in the process of changing the structure for a new way of deploying directly from github to the server, so in teh future files may move around. 
+
+Bottom line is: don't try to use the server version quite yet but rather wait until we've tested things ....
+
+
+
 
 ## Getting Started
 
