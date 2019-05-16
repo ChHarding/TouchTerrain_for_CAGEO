@@ -1,11 +1,6 @@
-earthengine-api==0.1.170
-google-api-python-client==1.5.3
-Paste==2.0.3
-Pillow==2.0.0
-pycrypto
-pyOpenSSL
-PyYAML==3.10
-requests==2.6.0
-vectors==1.0.0
-webapp2==2.5.2
-WebOb==1.6.1
+Jinja2==2.10.1
+Pillow==6.0.0
+ee==0.4
+Flask==1.0.2
+google_api_python_client==1.7.8
+vectormath==0.2.2
