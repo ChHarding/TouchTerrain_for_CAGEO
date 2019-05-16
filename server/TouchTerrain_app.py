@@ -109,7 +109,7 @@ def main_page():
  
         try:
             # try authenticating with a .pem file
-            import server.config  # sets location of .pem file, config.py must be in this folder
+            from server import config  # sets location of .pem file, config.py must be in this folder
             ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)      
