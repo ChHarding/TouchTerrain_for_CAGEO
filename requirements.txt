@@ -4,3 +4,4 @@ earthengine-api==0.1.175
 Flask==1.0.2
 google-api-python-client==1.7.8
 vectormath==0.2.2
+gunicorn==19.9.0
