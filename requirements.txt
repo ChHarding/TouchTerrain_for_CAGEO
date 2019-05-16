@@ -1,6 +1,6 @@
 Jinja2==2.10.1
 Pillow==6.0.0
-ee==0.4
+earthengine-api==0.1.175
 Flask==1.0.2
-google_api_python_client==1.7.8
+google-api-python-client==1.7.8
 vectormath==0.2.2
