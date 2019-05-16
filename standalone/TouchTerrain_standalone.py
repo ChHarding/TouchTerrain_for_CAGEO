@@ -87,10 +87,6 @@ def main():
     
     import sys, os
     from os.path import abspath, dirname
-    top = abspath(__file__)
-    this_folder = dirname(top)
-    common_folder = dirname(this_folder) + os.sep + "common"
-    sys.path.append(common_folder) # add common folder to sys.path
     
     
     # parse args
@@ -180,7 +176,7 @@ def main():
         args["importedDEM"] = abspath(args["importedDEM"])
 
     # TODO: should change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deals with file DEMs
-    import TouchTerrainEarthEngine as TouchTerrain
+    from common import TouchTerrainEarthEngine as TouchTerrain
     
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")

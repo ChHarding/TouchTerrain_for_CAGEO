@@ -23,7 +23,12 @@ from datetime import datetime
 import json
 import ee
 
+import common
+import server
 
+from server import app
+
+from flask import request
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
@@ -39,7 +44,7 @@ except:
     pass # file does not exist - will show the ugly Google map version 
   
 
-from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
+from server.touchterrain_config import *  # Some server settings, touchterrain_config.py must be in this folder
 
 # import module from common
 import sys
@@ -47,11 +52,9 @@ from os.path import abspath, dirname
 top = abspath(__file__)
 this_folder = dirname(top)
 tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files and temp tile files
-common_folder = dirname(this_folder) + os.sep + "common"
-sys.path.append(common_folder) # add common folder to sys.path
 
-import TouchTerrainEarthEngine
-from Coordinate_system_conv import * # arc to meters conversion
+from common import TouchTerrainEarthEngine
+from common.Coordinate_system_conv import * # arc to meters conversion
 
 #import webapp2
 
@@ -106,7 +109,7 @@ def main_page():
  
         try:
             # try authenticating with a .pem file
-            import config  # sets location of .pem file, config.py must be in this folder
+            from server import config  # sets location of .pem file, config.py must be in this folder
             ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)      
@@ -385,8 +388,4 @@ def export():
     
         return html
     
-# I think for apache, run() needs be done outside (?)
-if SERVER_TYPE == "flask_local":
-    app.run(debug=False, port=8080) 
-
 #print "end of TouchTerrain_app.py"
