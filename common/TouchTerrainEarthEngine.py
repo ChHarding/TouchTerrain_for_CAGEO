@@ -910,8 +910,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
     
         # num_tiles[0], num_tiles[1]: x, y !
-        cells_per_tile_x = npim.shape[1] / num_tiles[0] # tile size in pixels
-        cells_per_tile_y = npim.shape[0] / num_tiles[1]
+        cells_per_tile_x = int(npim.shape[1] / num_tiles[0]) # tile size in pixels
+        cells_per_tile_y = int(npim.shape[0] / num_tiles[1])
         pr("Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y)
     
     
