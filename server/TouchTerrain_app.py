@@ -360,7 +360,7 @@ def export():
             print(("Finished processing", full_zip_zile_name))
             html += "total zipped size: %.2f Mb<br>" % totalsize
 
-            html +='<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname)
+            html +='<br><form action="server/tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname)
             html +='<input type="submit" value="Download zip File " title="">   (will be deleted in 6 hrs)</form>'
             #html +='<form action="/" method="GET" enctype="multipart/form-data">'
             #html +='<input type="submit" value="Go back to selection map"> </form>'
