@@ -150,7 +150,7 @@ def main_page():
         v = v.replace('\"', '&quot;')
         qs = qs + k + "=" + v + "&"
     #print qs   
-    app.original_query_string = qs
+
     
     # overwrite args with values from request
     for key in request.args:
@@ -227,20 +227,13 @@ def export():
         #html += '<img src="static/gears.gif" alt="gears.gif">' 
 
         html += """
-        <form action="/export" method="POST"  id="export" enctype="multipart/form-data">
-            Press the Start button to process the DEM into 3D model files.<br>
             Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
             <input type="submit" onclick="show_gif();" value="Start"> 
-        </form>
         <img src="static/processing.gif" id="gif" alt="processing" style="display: none;">
         """
-        html += '</body></html>'
 
         yield html
     
-
-        
-        html = '<html><body>'
         html += '<h2>Processing finished:</h2>'
 
         #
@@ -281,9 +274,6 @@ def export():
             html += "%s = %s <br>" % (k, str(args[k]))
             logging.info("%s = %s" % (k, str(args[k])))        
         html += "<br>"
-
-        # add original query string
-        args["original_query_string"] = app.original_query_string
 
         #
         # bail out if the raster would be too large
