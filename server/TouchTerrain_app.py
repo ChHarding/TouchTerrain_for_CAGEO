@@ -227,8 +227,7 @@ def export():
         #html += '<img src="static/gears.gif" alt="gears.gif">' 
 
         html += """
-            Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
-            <input type="submit" onclick="show_gif();" value="Start"> 
+        Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
         <img src="static/processing.gif" id="gif" alt="processing" style="display: none;">
         """
 
