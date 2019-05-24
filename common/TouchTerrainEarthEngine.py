@@ -261,7 +261,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          ignore_leq=None,
                          unprojected=False,
                          only=None,
-                         original_query_string=None):
+                         original_query_string=None,
+                         **otherargs):
     """
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
