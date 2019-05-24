@@ -30,7 +30,7 @@ from server import config  # sets location of .pem file
 
 from server import app
 
-from flask import request, Response
+from flask import stream_with_context, request, Response
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
@@ -379,6 +379,6 @@ def export():
             html += """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)"""   
 
             yield html
-    return Response(preflight_generator(), mimetype='text/html')
+    return Response(stream_with_context(preflight_generator()), mimetype='text/html')
     
 #print "end of TouchTerrain_app.py"
