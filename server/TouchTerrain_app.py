@@ -189,204 +189,199 @@ def main_page():
 
 
 
-# preflight page: showing some notes on how there'll be no feedback until processing is done
-# uses preflight_args_dict to store the args for later when they are needed by export()
-@app.route("/preflight", methods=["POST"]) 
-def preflight():
-    
-    # make a copy of the current args
-    arg_dict = request.form.to_dict()
-    app.preflight_args_dict = arg_dict
-
-    # create html
-    html =  '<html>'
-    html += """
-    <script type="text/javascript">  
-    function show_gif(){
-        // hide submit button
-        let f = document.forms["export"];
-        f.style.display='none'
-
-        // unhide gif
-        let gif = document.getElementById('gif');
-        gif.style.display = 'block';
-
-        f.submit();
-    }      
-    </script>
-    """    
-    html += '<body>'
-    html += "<h2>Processing terrain data into 3D print file(s):</h2>"
-    html += "This may take some time, please be patient! <br>"
-    #html += "Press the Start button to process the DEM into 3D model files.<br>"
-    #html += "Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>"
-    #html += "Pressing Start again during processing has no effect.<br>"
-    #html += "Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>"
-    #html += '<form action="/export" method="POST" enctype="multipart/form-data">'
-    #html += '<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">' # for user comment
-    #html += '<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
-    #html += '<input type="submit" value="Start"> </form>'
-    #html += '<img src="static/gears.gif" alt="gears.gif">' 
-    
-    html += """
-    <form action="/export" method="POST"  id="export" enctype="multipart/form-data">
-        Press the Start button to process the DEM into 3D model files.<br>
-        Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
-        <input type="submit" onclick="show_gif();" value="Start"> 
-    </form>
-    <img src="static/processing.gif" id="gif" alt="processing" style="display: none;">
-    """
-    html += '</body></html>'
-    
-    return html
-    
 # Page that creates the 3D models (tiles) in a in-memory zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file. 
 # Needs to use the args from preflight 
 @app.route("/export", methods=["POST"]) 
 def export():
-        
-    html = '<html><body>'
-    html += '<h2>Processing finished:</h2>'
+
+    def preflight_generator():
+        # create html
+        html =  '<html>'
+        html += """
+        <script type="text/javascript">  
+        function show_gif(){
+            // hide submit button
+            let f = document.forms["export"];
+            f.style.display='none'
+
+            // unhide gif
+            let gif = document.getElementById('gif');
+            gif.style.display = 'block';
+
+            f.submit();
+        }      
+        </script>
+        """    
+        html += '<body>'
+        html += "<h2>Processing terrain data into 3D print file(s):</h2>"
+        html += "This may take some time, please be patient! <br>"
+        #html += "Press the Start button to process the DEM into 3D model files.<br>"
+        #html += "Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>"
+        #html += "Pressing Start again during processing has no effect.<br>"
+        #html += "Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>"
+        #html += '<form action="/export" method="POST" enctype="multipart/form-data">'
+        #html += '<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">' # for user comment
+        #html += '<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
+        #html += '<input type="submit" value="Start"> </form>'
+        #html += '<img src="static/gears.gif" alt="gears.gif">' 
+
+        html += """
+        <form action="/export" method="POST"  id="export" enctype="multipart/form-data">
+            Press the Start button to process the DEM into 3D model files.<br>
+            Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br>
+            <input type="submit" onclick="show_gif();" value="Start"> 
+        </form>
+        <img src="static/processing.gif" id="gif" alt="processing" style="display: none;">
+        """
+        html += '</body></html>'
+
+        yield html
     
-    #
-    # debug: print/log all args and their values
-    #
-    
-    # using a list here to preserve the order when printing them out to the user
-    key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", 
-              "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
-    args = {} # put arg name and value in a dict as key:value
-    for k in key_list:
-        v = app.preflight_args_dict.get(k, None) # get value from request, None => not given
-        assert v != None, "Error: no value for key " + k
-        args[k] = v # value
-        if k not in ["DEM_name", "fileformat"]: 
-            args[k] = float(args[k]) # floatify non-string args
-        print(k, args[k])
+
         
-    # decode any extra (manual) args and put them in args dict
-    #print(app.preflight_args_dict)
-    manual = app.preflight_args_dict.get("manual", None)
-    extra_args={}
-    if manual != None:
-        JSON_str = "{ " + manual + "}" 
-        try:
-            extra_args = json.loads(JSON_str)
-        except Exception as e:
-            logging.error("JSON decode Error for: " + manual + "   " + str(e))
-            print(e)
+        html = '<html><body>'
+        html += '<h2>Processing finished:</h2>'
+
+        #
+        # debug: print/log all args and their values
+        #
+
+        # using a list here to preserve the order when printing them out to the user
+        key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", 
+                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
+        args = {} # put arg name and value in a dict as key:value
+        for k in key_list:
+            v = app.preflight_args_dict.get(k, None) # get value from request, None => not given
+            assert v != None, "Error: no value for key " + k
+            args[k] = v # value
+            if k not in ["DEM_name", "fileformat"]: 
+                args[k] = float(args[k]) # floatify non-string args
+            print(k, args[k])
+
+        # decode any extra (manual) args and put them in args dict
+        #print(app.preflight_args_dict)
+        manual = app.preflight_args_dict.get("manual", None)
+        extra_args={}
+        if manual != None:
+            JSON_str = "{ " + manual + "}" 
+            try:
+                extra_args = json.loads(JSON_str)
+            except Exception as e:
+                logging.error("JSON decode Error for: " + manual + "   " + str(e))
+                print(e)
+            else:
+                for k in extra_args:
+                    args[k] = extra_args[k] # append/overwrite
+                    # TODO: validate  
+
+        # log and show args in browser
+        for k in key_list:
+            html += "%s = %s <br>" % (k, str(args[k]))
+            logging.info("%s = %s" % (k, str(args[k])))
+        html += "<br>"
+        for k in extra_args:
+            html += "%s = %s <br>" % (k, str(args[k]))
+            logging.info("%s = %s" % (k, str(args[k])))        
+        html += "<br>"
+
+        # add original query string
+        args["original_query_string"] = app.original_query_string
+
+        #
+        # bail out if the raster would be too large
+        #
+
+        # ???
+        from touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
+        # ???        
+
+        width = args["tilewidth"]
+        bllon = args["bllon"]
+        trlon = args["trlon"]
+        bllat = args["bllat"]
+        trlat = args["trlat"]
+        dlon =  180 - abs(abs(bllon - trlon) - 180) # width in degrees
+        dlat =  180 - abs(abs(bllat - trlat) - 180) # height in degrees
+        center_lat = bllat + abs((bllat - trlat) / 2.0)
+        latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
+        num_total_tiles = args["ntilesx"] * args["ntilesy"]
+        pr = args["printres"]
+
+        # if we have "only" set, divide load by number of tiles
+        div_by = 1
+        if extra_args.get("only") != None:
+            div_by = float(num_total_tiles)
+
+
+        # for geotiffs only, set a much higher limit b/c we don't do any processing, 
+        # just d/l the GEE geotiff and zip it
+        if args["fileformat"] == "GeoTiff": 
+            MAX_CELLS_PERMITED *= 100                     
+
+        # pr <= 0 means: use source 
+        if pr > 0: # print res given by user (width and height are in mm)
+            height = width * (dlat / float(dlon))
+            pix_per_tile = (width / float(pr)) * (height / float(pr))
+            tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
+            print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
         else:
-            for k in extra_args:
-                args[k] = extra_args[k] # append/overwrite
-                # TODO: validate  
-                
-    # log and show args in browser
-    for k in key_list:
-        html += "%s = %s <br>" % (k, str(args[k]))
-        logging.info("%s = %s" % (k, str(args[k])))
-    html += "<br>"
-    for k in extra_args:
-        html += "%s = %s <br>" % (k, str(args[k]))
-        logging.info("%s = %s" % (k, str(args[k])))        
-    html += "<br>"
-    
-    # add original query string
-    args["original_query_string"] = app.original_query_string
-    
-    #
-    # bail out if the raster would be too large
-    #
-    
-    # ???
-    from touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
-    # ???        
-    
-    width = args["tilewidth"]
-    bllon = args["bllon"]
-    trlon = args["trlon"]
-    bllat = args["bllat"]
-    trlat = args["trlat"]
-    dlon =  180 - abs(abs(bllon - trlon) - 180) # width in degrees
-    dlat =  180 - abs(abs(bllat - trlat) - 180) # height in degrees
-    center_lat = bllat + abs((bllat - trlat) / 2.0)
-    latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
-    num_total_tiles = args["ntilesx"] * args["ntilesy"]
-    pr = args["printres"]
-    
-    # if we have "only" set, divide load by number of tiles
-    div_by = 1
-    if extra_args.get("only") != None:
-        div_by = float(num_total_tiles)
-        
-    
-    # for geotiffs only, set a much higher limit b/c we don't do any processing, 
-    # just d/l the GEE geotiff and zip it
-    if args["fileformat"] == "GeoTiff": 
-        MAX_CELLS_PERMITED *= 100                     
-    
-    # pr <= 0 means: use source 
-    if pr > 0: # print res given by user (width and height are in mm)
-        height = width * (dlat / float(dlon))
-        pix_per_tile = (width / float(pr)) * (height / float(pr))
-        tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
-        print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
-    else:
-        # estimates the total number of cells from area and arc sec resolution of source
-        # this is done for the entire area, so number of cell is irrelevant
-        DEM_name = args["DEM_name"]
-        cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
-        cwas = float(cell_width_arcsecs[DEM_name])
-        tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
-        print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
+            # estimates the total number of cells from area and arc sec resolution of source
+            # this is done for the entire area, so number of cell is irrelevant
+            DEM_name = args["DEM_name"]
+            cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
+            cwas = float(cell_width_arcsecs[DEM_name])
+            tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
+            print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
 
-    if tot_pix >  MAX_CELLS_PERMITED:
-        html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution"
-        html += "<br>Current total number of Kilo pixels is " + str(tot_pix / 1000.0)
-        html += " but must be less than " + str(MAX_CELLS_PERMITED / 1000.0)
-        html += "<br>(Hit Back on your browser to get back to the Main page)"
-        return html      
+        if tot_pix >  MAX_CELLS_PERMITED:
+            html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution"
+            html += "<br>Current total number of Kilo pixels is " + str(tot_pix / 1000.0)
+            html += " but must be less than " + str(MAX_CELLS_PERMITED / 1000.0)
+            html += "<br>(Hit Back on your browser to get back to the Main page)"
+            yield html      
 
-        
-    args["CPU_cores_to_use"] = NUM_CORES
 
-    # getcwd() returns / on Linux ????
-    cwd = os.path.dirname(os.path.realpath(__file__))
-    args["temp_folder"] = cwd + os.sep + TMP_FOLDER
-    print("temp_folder is:", args["temp_folder"], file=sys.stderr)
+        args["CPU_cores_to_use"] = NUM_CORES
 
-    # name of zip file is time since 2000 in 0.01 seconds
-    fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
-    args["zip_file_name"] = fname
+        # getcwd() returns / on Linux ????
+        cwd = os.path.dirname(os.path.realpath(__file__))
+        args["temp_folder"] = cwd + os.sep + TMP_FOLDER
+        print("temp_folder is:", args["temp_folder"], file=sys.stderr)
 
-    # if this number of cells to process is exceeded, use a temp file instead of memory only
-    args["max_cells_for_memory_only"] = MAX_CELLS    
+        # name of zip file is time since 2000 in 0.01 seconds
+        fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
+        args["zip_file_name"] = fname
 
-    #
-    # Create zip and write to tmp
-    #
-    try:
-        totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
-    except Exception as e:
-        logging.error(e)
-        print(e, file=sys.stderr)
-        return "Error:" + str(e)
+        # if this number of cells to process is exceeded, use a temp file instead of memory only
+        args["max_cells_for_memory_only"] = MAX_CELLS    
 
-    # totalsize is negative, something went wrong, error message is in full_zip_zile_name
-    if totalsize < 0: 
-        print("Error:", full_zip_zile_name, file=sys.stderr)
-        return full_zip_zile_name
-    else:    
-        print(("Finished processing", full_zip_zile_name))
-        html += "total zipped size: %.2f Mb<br>" % totalsize
+        #
+        # Create zip and write to tmp
+        #
+        try:
+            totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+        except Exception as e:
+            logging.error(e)
+            print(e, file=sys.stderr)
+            yield "Error:" + str(e)
 
-        html +='<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname)
-        html +='<input type="submit" value="Download zip File " title="">   (will be deleted in 6 hrs)</form>'
-        #html +='<form action="/" method="GET" enctype="multipart/form-data">'
-        #html +='<input type="submit" value="Go back to selection map"> </form>'
-        html +="<br>To return to the selection map, click the back button in your browser twice"
-        html += """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)"""   
-    
-        return html
+        # totalsize is negative, something went wrong, error message is in full_zip_zile_name
+        if totalsize < 0: 
+            print("Error:", full_zip_zile_name, file=sys.stderr)
+            yield full_zip_zile_name
+        else:    
+            print(("Finished processing", full_zip_zile_name))
+            html += "total zipped size: %.2f Mb<br>" % totalsize
+
+            html +='<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname)
+            html +='<input type="submit" value="Download zip File " title="">   (will be deleted in 6 hrs)</form>'
+            #html +='<form action="/" method="GET" enctype="multipart/form-data">'
+            #html +='<input type="submit" value="Go back to selection map"> </form>'
+            html +="<br>To return to the selection map, click the back button in your browser twice"
+            html += """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)"""   
+
+            yield html
+    return Response(preflight_generator(), mimetype='text/html')
     
 #print "end of TouchTerrain_app.py"
