@@ -261,7 +261,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          ignore_leq=None,
                          unprojected=False,
                          only=None,
-                         original_query_string=None):
+                         original_query_string=None,
+                         **otherargs):
     """
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
@@ -467,7 +468,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
      
             try:
                 # try authenticating with a .pem file
-                import config  # sets location of .pem file, config.py must be in this folder
+                from server import config  # sets location of .pem file, config.py must be in this folder
                 ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
             except Exception as e:
                 print("EE init() error (with config.py and .pem file)", e, file=sys.stderr)       
