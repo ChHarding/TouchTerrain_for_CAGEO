@@ -30,7 +30,7 @@ from server import config  # sets location of .pem file
 
 from server import app
 
-from flask import request
+from flask import request, Response
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
