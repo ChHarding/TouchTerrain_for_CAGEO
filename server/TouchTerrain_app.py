@@ -250,18 +250,15 @@ def export():
         # using a list here to preserve the order when printing them out to the user
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", 
                   "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
-        args = {} # put arg name and value in a dict as key:value
+        args = request.form.to_dict() # put arg name and value in a dict as key:value
         for k in key_list:
-            v = app.preflight_args_dict.get(k, None) # get value from request, None => not given
-            assert v != None, "Error: no value for key " + k
-            args[k] = v # value
             if k not in ["DEM_name", "fileformat"]: 
                 args[k] = float(args[k]) # floatify non-string args
             print(k, args[k])
 
         # decode any extra (manual) args and put them in args dict
         #print(app.preflight_args_dict)
-        manual = app.preflight_args_dict.get("manual", None)
+        manual = args.get("manual", None)
         extra_args={}
         if manual != None:
             JSON_str = "{ " + manual + "}" 
