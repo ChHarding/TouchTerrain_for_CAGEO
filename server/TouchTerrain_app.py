@@ -26,6 +26,8 @@ import ee
 import common
 import server
 
+from server import config  # sets location of .pem file
+
 from server import app
 
 from flask import request
@@ -33,7 +35,7 @@ from flask import request
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
 try:
-    with open("GoogleMapsKey.txt") as f:
+    with open(config.GOOGLE_MAPS_KEY_FILE) as f:
         google_maps_key = f.read().rstrip()
         if google_maps_key == "Put your Google Maps key here":
             google_maps_key = ""
@@ -109,7 +111,6 @@ def main_page():
  
         try:
             # try authenticating with a .pem file
-            from server import config  # sets location of .pem file, config.py must be in this folder
             ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)      
