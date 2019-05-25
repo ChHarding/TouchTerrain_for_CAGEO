@@ -225,7 +225,6 @@ def export():
         #  print/log all args and their values
         #
 
-        # show processing parameters
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
                   "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
         args = request.form.to_dict() # put arg name and value in a dict as key:value
