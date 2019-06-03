@@ -26,11 +26,11 @@ import ee
 import common
 import server
 
-from server import config  # sets location of .pem file
 
 from server import app
 
-from flask import stream_with_context, request, Response
+from flask import Flask, stream_with_context, request, Response
+app = Flask(__name__)
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
@@ -45,24 +45,20 @@ try:
 except:
     pass # file does not exist - will show the ugly Google map version
 
+# Some server settings
+from server.touchterrain_config import *  
 
-from server.touchterrain_config import *  # Some server settings, touchterrain_config.py must be in this folder
-
-# import module from common
+# get dir to store zip files and temp tile files
 import sys
 from os.path import abspath, dirname
 top = abspath(__file__)
 this_folder = dirname(top)
-tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files and temp tile files
+tmp_folder = this_folder + os.sep + TMP_FOLDER 
 
+# import module from common
 from common import TouchTerrainEarthEngine
 from common.Coordinate_system_conv import * # arc to meters conversion
 
-#import webapp2
-
-
-from flask import Flask, request
-app = Flask(__name__)
 
 
 
@@ -108,9 +104,10 @@ def main_page():
         ee.Initialize() # uses .config/earthengine/credentials
     except Exception as e:
         print("EE init() error (with .config/earthengine/credentials)", e, ", trying .pem file", file=sys.stderr)
-
+        
         try:
             # try authenticating with a .pem file
+            from server import config  # sets location of .pem file
             ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
