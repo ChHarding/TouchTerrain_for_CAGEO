@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'Jinja2>=2.10.1',
         'Pillow>=6.0.0',
-        'earthengine-api>=0.1.175',
+        'earthengine-api>=0.1.178',
         'Flask>=1.0.2',
         'vectormath>=0.2.2',
         'oauth2client>=4.1.3',

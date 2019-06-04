@@ -28,4 +28,4 @@ DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
               os.environ['SERVER_SOFTWARE'].startswith('Dev'))
 
 # Set up the appropriate credentials based on the new oauth serviceaccount method since oauthclient 2.0
-EE_CREDENTIALS = ServiceAccountCredentials.from_p12_keyfile(EE_ACCOUNT, EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPE)
+EE_CREDENTIALS = ServiceAccountCredentials.from_p12_keyfile(EE_ACCOUNT, EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
