@@ -236,7 +236,8 @@ def export():
 
             # intify some args
             if k in ["trlat", "trlon", "bllat", "bllon", "ntilesx", "ntilesy"]:
-                args[k] = int(args[k])
+                #https://stackoverflow.com/questions/1841565/valueerror-invalid-literal-for-int-with-base-10
+                args[k] = int(float(args[k]))
 
 
         # decode any extra (manual) args and put them in args dict
