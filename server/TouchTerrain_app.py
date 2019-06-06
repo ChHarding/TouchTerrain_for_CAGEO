@@ -26,6 +26,7 @@ import ee
 import common
 import server
 
+from server import config
 
 from server import app
 
@@ -107,8 +108,10 @@ def main_page():
         
         try:
             # try authenticating with a .pem file
-            from server import config  # sets location of .pem file
-            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+            from oauth2client.service_account import ServiceAccountCredentials
+            from ee import oauth
+            credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
+            ee.Initialize(credentials, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
 
