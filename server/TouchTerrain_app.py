@@ -26,6 +26,7 @@ import ee
 import common
 import server
 
+from server import config
 
 from server import app
 
@@ -107,8 +108,10 @@ def main_page():
         
         try:
             # try authenticating with a .pem file
-            from server import config  # sets location of .pem file
-            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+            from oauth2client.service_account import ServiceAccountCredentials
+            from ee import oauth
+            credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
+            ee.Initialize(credentials, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
 
@@ -233,7 +236,8 @@ def export():
 
             # intify some args
             if k in ["trlat", "trlon", "bllat", "bllon", "ntilesx", "ntilesy"]:
-                args[k] = int(args[k])
+                #https://stackoverflow.com/questions/1841565/valueerror-invalid-literal-for-int-with-base-10
+                args[k] = int(float(args[k]))
 
 
         # decode any extra (manual) args and put them in args dict
@@ -290,6 +294,7 @@ def export():
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
         # just d/l the GEE geotiff and zip it
         if args["fileformat"] == "GeoTiff":
+            global MAX_CELLS_PERMITED
             MAX_CELLS_PERMITED *= 100
 
         # pr <= 0 means: use source
@@ -327,7 +332,7 @@ def export():
 
         try:
             os.mkdir(args["temp_folder"])
-        except Exeption as e:
+        except Exception as e:
             if not os.path.exists(args["temp_folder"]):
                 print("temp folder error:", e, file=sys.stderr)
                 logging.error(e)

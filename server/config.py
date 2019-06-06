@@ -1,8 +1,7 @@
 """config.py for ISU"""
 import os
 
-from oauth2client.service_account import ServiceAccountCredentials
-from ee import oauth
+
 #import ee
 #from oauth2client.appengine import AppAssertionCredentials
 
@@ -26,6 +25,3 @@ GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', 'GoogleMap
 # DEBUG_MODE will be True if running in a local development environment.
 DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
               os.environ['SERVER_SOFTWARE'].startswith('Dev'))
-
-# Set up the appropriate credentials based on the new oauth serviceaccount method since oauthclient 2.0
-EE_CREDENTIALS = ServiceAccountCredentials.from_p12_keyfile(EE_ACCOUNT, EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPE)
