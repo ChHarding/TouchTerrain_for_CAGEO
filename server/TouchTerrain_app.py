@@ -293,6 +293,7 @@ def export():
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
         # just d/l the GEE geotiff and zip it
         if args["fileformat"] == "GeoTiff":
+            global MAX_CELLS_PERMITED
             MAX_CELLS_PERMITED *= 100
 
         # pr <= 0 means: use source
@@ -330,7 +331,7 @@ def export():
 
         try:
             os.mkdir(args["temp_folder"])
-        except Exeption as e:
+        except Exception as e:
             if not os.path.exists(args["temp_folder"]):
                 print("temp folder error:", e, file=sys.stderr)
                 logging.error(e)
