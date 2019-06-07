@@ -46,25 +46,50 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
+# turns out vectormath is about 10 times slower than vector :(
+'''
 #https://pypi.python.org/pypi/vectormath/
 import vectormath as vmath
+
+# function to calculate the normal for a triangle
+def get_normal(tri):
+    
+    """in: 3 verts, out normal (nx, ny,nz) with length 1
+    """
+    
+    v_ar = vmath.Vector3Array([tri[0].get(), tri[1].get(), tri[2].get()])
+    
+    
+    a = v_ar[1] - v_ar[0]
+    b = v_ar[2] - v_ar[1]
+    c = a.cross(b)
+    n = c.normalize()
+    
+    return list(n) # convert Vector3 to list
+'''
+# TODO: this is still pretty slow (takes as long as the first processing step!), maybe have a nonormals setting which uses 0,0,0 ?
+from vectors import Vector, Point  #
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
     """in: 3 verts, out normal (nx, ny,nz) with length 1
     """
     (v0, v1, v2) = tri
-    p0 = vmath.Vector3(v0.get())
-    p1 = vmath.Vector3(v1.get())
-    p2 = vmath.Vector3(v2.get())
-    
-    a = p1 - p0
-    b = p1 - p2
+    p0 = Point.from_list(v0.get())
+    p1 = Point.from_list(v1.get())
+    p2 = Point.from_list(v2.get())
+    a = Vector.from_points(p1, p0)
+    b = Vector.from_points(p1, p2)
+    #print p0,p1, p2
+    #print a,b
     c = a.cross(b)
-    n = c.normalize()
-    
-    return list(n) # convert Vector3 to list
-
+    #print c
+    m = float(c.magnitude())
+    if m == 0:
+        normal = [0, 0, 0]
+    else:
+        normal = [c.x/m, c.y/m, c.z/m]
+    return normal
     
 def dist(v1,v2):
     ''' distance between 2 vertices'''
@@ -368,7 +393,7 @@ class grid(object):
         percent = 10
         pc_step = int(ymaxidx/percent) + 1
         progress = 0
-        print("started processing", multiprocessing.current_process(), file=sys.stderr)
+        print("creating internal triangle data structure for", multiprocessing.current_process(), file=sys.stderr)
 
         for j in range(1, ymaxidx+1):    # y dimension for looping within the +1 padded raster
             if j % pc_step == 0:
@@ -491,7 +516,7 @@ class grid(object):
         #print self.cells
         #print vertex.vert_idx
 
-        print("100%", multiprocessing.current_process(), file=sys.stderr)
+        print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
 
 
     def create_zigzag_borders(self, num_cells_per_zig = 100, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
@@ -652,11 +677,13 @@ class grid(object):
         BINARY_HEADER = "80sI" # up to 80 chars ( do NOT start with the word solid!) + number of faces as UINT32
         BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
         l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(facets))] #  (I)
-        for facet  in facets:
+
+        for i,facet  in enumerate(facets):
             # prepend normal (0,0,0), pad the end with a unsigned short byte ("attribute byte count")
             # I assume a 0 normal forces the sw reading this to calculate it (Meshlab seems to do this) (???)
             facet = [0,0,0]  + facet + [0]        #print facet
             l.append(struct.pack(BINARY_FACET, *facet))
+            
         return l
 
     def _build_ascii_stl_orig(self, facets):
@@ -670,12 +697,21 @@ class grid(object):
         l.append('endsolid digital_elevation_model')
         return l
 
-    def _build_ascii_stl(self, tris):
+    def _build_ascii_stl(self, tris, no_normals=False):
         "in: list of triangles, each a list of 3 verts   out: list of ascii STL strings"
         l = ['solid digital_elevation_model'] # digital_elevation_model is the name of the model
-        for t in tris:
-            n = get_normal(t)
-            tl = n
+        pc_step = int(len(tris)/10) + 1
+        progress = 0
+        print("assembling ascii stl from", len(tris), "triangles", file=sys.stderr)
+        for i,t  in enumerate(tris):
+            
+            if i % pc_step == 0: 
+                progress += 10
+                print(progress, "%", file=sys.stderr, end=", ")                
+                
+            # start with x,y,z for normal
+            tl = get_normal(t) if no_normals == False else [0,0,0]  
+            
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
                 tl.extend(coords) # extend() unpacks that list!
@@ -684,23 +720,33 @@ class grid(object):
             #print s
             l.append(s)
         l.append('endsolid digital_elevation_model')
+        print("\n", file=sys.stderr)
         return l
 
-    def _build_binary_stl(self, tris):
+    def _build_binary_stl(self, tris, no_normals=False):
         "in: list of triangles, each a list of 3 verts   out: list of binary STL strings"
         # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
         BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
         BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
         l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris))] #  (I)
-        for t  in tris:
-            n = get_normal(t)
-            tl = n
+        pc_step = int(len(tris)/10) + 1       
+        progress = 0
+        print("assembling binary stl from", len(tris), "triangles", file=sys.stderr)
+        for i,t  in enumerate(tris):
+                    
+            if i % pc_step == 0: 
+                progress += 10
+                print(progress, "%", file=sys.stderr, end=", ")                   
+            
+            # start with x,y,z for normal
+            tl = get_normal(t) if no_normals == False else [0,0,0]
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
-                tl.extend(coords) # extend() unpacks that list!
+                tl.extend(coords) # like append() but extend() unpacks that list!
                 #print tl
             tl.append(0) # append attribute byte 0
             l.append(struct.pack(BINARY_FACET, *tl))
+        print("\n", file=sys.stderr)
         return l
     ''' 
     # splits skinny triangles
@@ -778,10 +824,11 @@ class grid(object):
         temp_file.write(buf)
         return temp_file
     '''
-    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
+    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None, no_normals=False):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
             if temp_file is not None, write STL into it (instead of a buffer) and return it
+            if no_normals is True, all normals are 0,0,0, which makes this process subestantially faster
         """
         # Example: list of 2 triangles
         #[
@@ -825,24 +872,42 @@ class grid(object):
 
         buf = None
         if ascii:
-            buf_as_list = self._build_ascii_stl(triangles)
+            buf_as_list = self._build_ascii_stl(triangles, no_normals)
             buf = "\n".join(buf_as_list).encode("UTF-8") # single utf8 string
         else:
-            buf_as_list = self._build_binary_stl(triangles)
+            
+            # profiling
+            '''
+            import cProfile, pstats, io
+            from pstats import SortKey            
+            pr = cProfile.Profile()
+            pr.enable()            
+            '''         
+            
+            buf_as_list = self._build_binary_stl(triangles, no_normals)
             buf = b"".join(buf_as_list)  # single "binary string"/buffer
+            
+            '''
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+            '''
 
         #print len(buf)
-
         if temp_file ==  None: return buf
 
         # Write string into temp file and return it
         temp_file.write(buf)
         return temp_file    
 
-    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None):
+    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None, no_normals=False):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
            if no_bottom is True, bottom triangles are omitted
            if temp_file is not None, write OBJ into it (instead of a buffer) and return it
+           no_normals is not used for now
 
         mtllib dontcare.mtl
         g vert
