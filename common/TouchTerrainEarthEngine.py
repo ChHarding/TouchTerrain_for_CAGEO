@@ -170,9 +170,11 @@ def process_tile(tile):
         b = g.make_OBJfile_buffer(temp_file=b)
         # TODO: add a header for obj
     elif fileformat == "STLa":
-        b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"], temp_file=b)
+        b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"], 
+                                  no_normals=tile_info["no_normals"], temp_file=b)
     elif fileformat == "STLb":
-        b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"], temp_file=b)
+        b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"], 
+                                  no_normals=tile_info["no_normals"], temp_file=b)
     else:
         raise ValueError("invalid file format:", fileformat)
 
@@ -262,6 +264,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          unprojected=False,
                          only=None,
                          original_query_string=None,
+                         no_normals=True,
                          **otherargs):
     """
     args:
@@ -289,6 +292,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - unprojected: don't apply UTM projectin, can only work when exporting a Geotiff as the mesh export needs x/y in meters
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed 
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
+    - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
     
     returns the total size of the zip file in Mb
 
@@ -358,15 +362,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         args = locals() # dict of local variables
         dict_for_url = {} # dict with only those args that are valid for a URL query string
         for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
-                     "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat", 
-                     "no_bottom", "ignore_leq", "unprojected"):
+                     "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat"):
             v = args[k]
             if k in ("basethick", "ntilesx", "ntilesx"):
                 v = int(v) # need to be ints to work with the JS UI
             pr(k, "=", v)
             dict_for_url[k] = v
 
-        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only", "original_query_string"):
+        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only", "original_query_string", "no_normals"):
             if args.get(k) != None: # may not exist ...
                 v = args[k]
                 pr(k, "=", v)            
@@ -464,7 +467,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
-            print("EE init() error (with .config/earthengine/credentials)", e, file=sys.stderr)
+            print("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e, file=sys.stderr)
      
             try:
                 # try authenticating with a .pem file
@@ -720,6 +723,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr( "fileformat:", fileformat)
         pr( "tile_centered:", tile_centered)
         pr( "no_bottom:", no_bottom)
+        pr( "no_normals:", no_normals)
         pr( "ignore_leq:", ignore_leq)
         
         #
@@ -905,7 +909,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "no_bottom": no_bottom,
             "bottom_image": bottom_image,
             "ntilesy": ntilesy, # number of tiles in y
-            "only": only # if nont None, process only this tile e.g. [1,2]
+            "only": only, # if nont None, process only this tile e.g. [1,2]
+            "no_normals": no_normals,
         }        
         
         #
@@ -1022,7 +1027,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 tile_info = p[0] # per-tile info
                 tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
                 buf= p[1] # either a string or a file object
-                logger.debug("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
+                
     
                 if tile_info.get("temp_file") != None: # if buf is a file object
                     fname = tile_info["temp_file"]
@@ -1039,7 +1044,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     del buf
     
                 total_size += tile_info["file_size"]
-    
+                logger.debug("adding tile %d %d, total size is %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"], total_size))
+                
                 # print size and elev range
                 pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
                    ", file size:", round(tile_info["file_size"]), "Mb")
