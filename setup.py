@@ -6,7 +6,7 @@ setup(
     include_package_data=True,
     dependency_links=[
         'https://github.com/allelos/vectors/tarball/master#egg=vectors-1.0.0'
-    ]
+    ],
     install_requires=[
         'Jinja2>=2.10.1',
         'Pillow>=6.0.0',
