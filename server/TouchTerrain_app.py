@@ -104,7 +104,7 @@ def main_page():
     try:
         ee.Initialize() # uses .config/earthengine/credentials
     except Exception as e:
-        print("EE init() error (with .config/earthengine/credentials)", e, ", trying .pem file", file=sys.stderr)
+        print("EE init() error (with .config/earthengine/credentials),", e, ", trying .pem file", file=sys.stderr)
         
         try:
             # try authenticating with a .pem file
@@ -195,29 +195,13 @@ def main_page():
 def export():
 
     def preflight_generator():
-        # create html
-        html =  '<html>'
-
-        #html += """
-        #<script type="text/javascript">
-        #function show_gif(){
-            #// hide submit button
-            #let f = document.forms["export"];
-            #f.style.display='none'
-
-            #// unhide gif
-            #let gif = document.getElementById('gif');
-            #gif.style.display = 'block';
-
-            #f.submit();
-        #}
-        #</script>
-        #"""
-
-        html += '<body>'
-        html += "<h2>Processing terrain data into 3D print file(s):</h2>"
-        html += "(This may take some time, please be patient ...) <br>"
-
+        
+        # create html string
+        html = '<html>'
+        
+        # onload event will only be triggered once </body> is given
+        html +=  '''<body onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s) - please be patient!</h2>'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
@@ -225,22 +209,27 @@ def export():
         #  print/log all args and their values
         #
 
+        
+        # put all agrs we got from the browser in a  dict as key:value
+        args = request.form.to_dict() 
+
+        # list of the subset of args needed for processing 
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
                   "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
-        args = request.form.to_dict() # put arg name and value in a dict as key:value
+    
         for k in key_list:
 
-            # flotify some ags
-            if k in ["printres", "tilewidth", "basethick", "zscale"]:
+            # float-ify some ags
+            if k in ["trlat", "trlon", "bllat", "bllon","printres", "tilewidth", "basethick", "zscale"]:
                 args[k] = float(args[k])
 
-            # intify some args
-            if k in ["trlat", "trlon", "bllat", "bllon", "ntilesx", "ntilesy"]:
-                #https://stackoverflow.com/questions/1841565/valueerror-invalid-literal-for-int-with-base-10
-                args[k] = int(float(args[k]))
+            # int-ify some args
+            if k in ["ntilesx", "ntilesy"]:
+                args[k] = int(args[k])
 
 
-        # decode any extra (manual) args and put them in args dict
+        # decode any extra (manual) args and put them in the args dict as
+        # separate args as the are needed in that form for processing
         manual = args.get("manual", None)
         extra_args={}
         if manual != None:
@@ -248,14 +237,17 @@ def export():
             try:
                 extra_args = json.loads(JSON_str)
             except Exception as e:
-                logging.error("JSON decode Error for: " + manual + "   " + str(e))
+                s = "JSON decode Error for manual: " + manual + "   " + str(e)
+                logging.warning(s)
                 print(e)
+                yield "Warning: " + s + "<br>"
             else:
                 for k in extra_args:
                     args[k] = extra_args[k] # append/overwrite
                     # TODO: validate
 
         # log and show args in browser
+        html =  '<br>'
         for k in key_list:
             html += "%s = %s <br>" % (k, str(args[k]))
             logging.info("%s = %s" % (k, str(args[k])))
@@ -264,15 +256,11 @@ def export():
             html += "%s = %s <br>" % (k, str(args[k]))
             logging.info("%s = %s" % (k, str(args[k])))
         html += "<br>"
-
+        yield html
+        
         #
         # bail out if the raster would be too large
         #
-
-        # ???
-        #from server.touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment
-        # ???
-
         width = args["tilewidth"]
         bllon = args["bllon"]
         trlon = args["trlon"]
@@ -290,11 +278,15 @@ def export():
         if extra_args.get("only") != None:
             div_by = float(num_total_tiles)
 
+        # ???
+        #from server.touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment
+        # ???
+
 
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
         # just d/l the GEE geotiff and zip it
         if args["fileformat"] == "GeoTiff":
-            global MAX_CELLS_PERMITED
+            global MAX_CELLS_PERMITED # thanks Nick!
             MAX_CELLS_PERMITED *= 100
 
         # pr <= 0 means: use source
@@ -313,32 +305,29 @@ def export():
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
 
         if tot_pix >  MAX_CELLS_PERMITED:
-            html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution"
-            html += "<br>Current total number of Kilo pixels is " + str(tot_pix / 1000.0)
-            html += " but must be less than " + str(MAX_CELLS_PERMITED / 1000.0)
-            html += "<br>(Hit Back on your browser to get back to the Main page)"
+            html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
+            html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
+            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2))
+            html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ..."
+            html +=  '</body></html>'
             yield html
+            return "bailing out!"
 
 
         args["CPU_cores_to_use"] = NUM_CORES
 
-        #
-        # create temp folder if needed
-        #
 
-        # getcwd() returns / on Linux ????
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        args["temp_folder"] = cwd + os.sep + TMP_FOLDER
-
-        try:
-            os.mkdir(args["temp_folder"])
-        except Exception as e:
-            if not os.path.exists(args["temp_folder"]):
-                print("temp folder error:", e, file=sys.stderr)
-                logging.error(e)
-                yield "temp folder error:" + str(e)
-        else:
-            print("temp_folder is:", args["temp_folder"], file=sys.stderr)
+        # check if we have a valid temp folder
+        cwd = os.path.dirname(os.path.realpath(__file__)) # getcwd() returns / on Linux ????
+        args["temp_folder"] = cwd + os.sep +  TMP_FOLDER
+        print("temp_folder is set to", args["temp_folder"], file=sys.stderr)
+        if not os.path.exists(args["temp_folder"]):
+            s = "temp folder " + args["temp_folder"] + " does not exist!"
+            print(s, file=sys.stderr)
+            logging.error(s)
+            html = '</body></html>Error:' + s
+            yield html
+            return "bailing out!"# Cannot continue without proper temp folder
 
         # name of zip file is time since 2000 in 0.01 seconds
         fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
@@ -349,7 +338,7 @@ def export():
 
 
         # show snazzy animate gif - set to style="display: none to hide once
-        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">'
+        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
         yield html
 
         #
@@ -358,28 +347,53 @@ def export():
         try:
             totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
         except Exception as e:
-            logging.error(e)
-            print(e, file=sys.stderr)
-            yield "Error:" + str(e)
+            print("Error:", e, file=sys.stderr)
+            html =  '</body></html>' + "Error:," + str(e)
+            yield html   
+            return "bailing out!"
 
         # if totalsize is negative, something went wrong, error message is in full_zip_zile_name
         if totalsize < 0:
             print("Error:", full_zip_zile_name, file=sys.stderr)
-            yield full_zip_zile_name
+            html =  '</body></html>' + "Error:," + str(full_zip_zile_name)
+            yield html
+            return "bailing out!"
 
         else:
-            #print("Finished processing", full_zip_zile_name)
+            html = "total size of zip: %.2f Mb<br>" % totalsize
+            
+            zip_url = args["temp_folder"] + "/" + fname + ".zip"
 
-            html += "total zipsize: %.2f Mb<br>" % totalsize
-
-            html +='<br><form action="%s.zip" method="GET" enctype="multipart/form-data">' % (args["temp_folder"] + "/" + fname)
-            html +='<input type="submit" value="Download zip File " title="">   (will be deleted in 6 hrs)</form>'
-            html +="<br>To return to the selection map, click the back button in your browser twice"
-            html += """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)"""
-
+            html += '<br><form action="' + zip_url +' method="GET" enctype="multipart/form-data">' 
+            html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
+            html += '</form>'
+            html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
+            html += "<br>To return to the selection map, click the back button in your browser once."
+            html +=  '</body></html>'
             yield html
 
 
+    # for testing the UI sequence
+    def preflight_generator_test():
+        
+        # onload event will only be triggered once </body> is given
+        html =  '''<body onload="document.getElementById('working').style.display='none'; document.getElementById('gif').style.display='none'">\n'''
+       
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s) - please be patient!</h2> <br>'
+        yield html
+        
+        # processing animation
+        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
+        yield html
+        
+        # download button - clsing body will trigger the hiding 
+        html = '''<form action="" method="GET" enctype="multipart/form-data">
+                     <input type="submit" value="Download zip File "></form>\n'''
+        html +=  StlViewerHTML("tmp/test.stl")
+        html +=  '</body>'
+
+        yield html
+        
     return Response(stream_with_context(preflight_generator()), mimetype='text/html')
 
 #print "end of TouchTerrain_app.py"
