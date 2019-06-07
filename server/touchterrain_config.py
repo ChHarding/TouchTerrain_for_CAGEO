@@ -4,7 +4,6 @@
 # Defaults
 
 # type of server:
-#SERVER_TYPE = "Apache" # 
 SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
 
 # multiprocessing:
@@ -21,7 +20,9 @@ MAX_CELLS_PERMITED =   1000 * 1000 * 0.4
 MAX_CELLS = MAX_CELLS_PERMITED / 4  
 
 
-TMP_FOLDER = "tmp" # local to this folder! for temp files and final zip
+TMP_FOLDER = "tmp" # for temp files and final zip, local to the server folder! 
+                   # its is up to whoever sets up the server that this folder exists and is writeable
+		   # the app does check for it but does not create it if it doesn't exsist
 #--------------------------------------------------------------------------------
 
 # Overrides
