@@ -201,7 +201,7 @@ def export():
         
         # onload event will only be triggered once </body> is given
         html +=  '''<body onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s) - please be patient!</h2>'
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s)<br>Please be patient. Once the animation stops, your files will be ready for download.</h2>'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
