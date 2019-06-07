@@ -2,6 +2,9 @@ from setuptools import find_packages, setup
 
 setup(
     name='touchterrain',
+    dependency_links=[
+        'https://github.com/allelos/vectors/tarball/master#egg=package-1.0'
+    ],
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
