@@ -13,7 +13,6 @@ setup(
         'earthengine-api>=0.1.178',
         'Flask>=1.0.2',
         'vectors==99.0.0',
-        'vectormath>=0.2.2',
         'oauth2client>=4.1.3',
     ],
     extras_require={
