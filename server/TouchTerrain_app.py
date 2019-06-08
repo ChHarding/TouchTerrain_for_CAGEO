@@ -362,7 +362,7 @@ def export():
         else:
             html = "total size of zip: %.2f Mb<br>" % totalsize
             
-            zip_url = args["temp_folder"] + "/" + fname + ".zip"
+            zip_url = TMP_FOLDER + "/" + fname + ".zip"
 
             html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
             html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
