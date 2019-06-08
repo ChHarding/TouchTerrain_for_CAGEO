@@ -364,7 +364,7 @@ def export():
             
             zip_url = args["temp_folder"] + "/" + fname + ".zip"
 
-            html += '<br><form action="' + zip_url +' method="GET" enctype="multipart/form-data">' 
+            html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
             html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
             html += '</form>'
             html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
