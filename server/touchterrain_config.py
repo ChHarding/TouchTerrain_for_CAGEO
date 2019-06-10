@@ -20,9 +20,8 @@ MAX_CELLS_PERMITED =   1000 * 1000 * 0.4
 MAX_CELLS = MAX_CELLS_PERMITED / 4  
 
 
-TMP_FOLDER = "tmp" # for temp files and final zip, local to the server folder! 
-                   # its is up to whoever sets up the server that this folder exists and is writeable
-		   # the app does check for it but does not create it if it doesn't exsist
+TMP_FOLDER = "tmp" # for temp files, also for zips in standalone.
+                   # for server/flask, static is always used for the zips!
 #--------------------------------------------------------------------------------
 
 # Overrides
