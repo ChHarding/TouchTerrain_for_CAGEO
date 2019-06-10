@@ -30,7 +30,7 @@ from server import config
 
 from server import app
 
-from flask import Flask, stream_with_context, request, Response
+from flask import Flask, stream_with_context, request, Response, url_for
 app = Flask(__name__)
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
@@ -362,7 +362,17 @@ def export():
         else:
             html = "total size of zip: %.2f Mb<br>" % totalsize
             
-            zip_url = "server/" + TMP_FOLDER + "/" + fname + ".zip"
+            # move zip from temp folder to static folder so flask can serve it (. is server root!)
+            zip_file = fname + ".zip"
+            try:
+                os.rename(full_zip_zile_name, "server" + os.sep + "static" + os.sep + zip_file)
+            except Exception as e:
+                print("Error:", e, file=sys.stderr)
+                html =  '</body></html>' + "Error:," + str(e)
+                yield html   
+                return "bailing out!"       
+            
+            zip_url = url_for("static", filename=zip_file) 
 
             html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
             html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
