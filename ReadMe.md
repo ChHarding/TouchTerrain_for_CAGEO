@@ -129,7 +129,7 @@ The JSON config file has the following format:
 the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid
 printed bottom (tested in Cura 3.6)
 
-* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is siginificantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false.
+* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false.
 
 * `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print shorlines. Note that 0 may not be excatly sealevel on some DEMs, you may have to experiment with slightly larger values (e.g. 0.5)
 
