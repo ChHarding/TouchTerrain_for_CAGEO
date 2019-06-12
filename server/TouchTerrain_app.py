@@ -131,7 +131,7 @@ def main_page():
         'bllon' : "",
 
         # 3D print parameters
-        "printres": "0.5",
+        "printres": "0.4",
         "ntilesx" : "1",
         "ntilesy" : "1",
         "tilewidth" : "80",
@@ -187,6 +187,11 @@ def main_page():
     html_str = template.render(args)
     return html_str
 
+@app.route("/preview/<zip_file>")
+def preview_STL(zip_file):
+    args = request.form.to_dict()
+    zip_file = request.args.get('zip')
+    print()
 
 
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
@@ -377,7 +382,13 @@ def export():
             html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
             html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
             html += '</form>'
-            html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
+
+            if args["fileformat"] in ("STLa", "STLb"): 
+                html += '<br><form action="/preview/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
+                html += '  <input type="submit" value="Preview STL " title=""> '
+                html += '</form>'            
+            else:
+                html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
             html += "<br>To return to the selection map, click the back button in your browser once."
             html +=  '</body></html>'
             yield html
