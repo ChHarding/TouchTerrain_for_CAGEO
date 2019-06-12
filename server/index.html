@@ -651,16 +651,16 @@ Terrain 3D print Touchterrain project
           <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
 
          <!-- Put the box corner coords here so they get transmitted with get -->
-         <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" readonly> N
-         <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" readonly> E (Top right corner)<br>
+         <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
+         <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
 
-         <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" readonly> N
-         <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" readonly> E (Lower left corner) <br>
+         <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
+         <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
          <br>
 
 	<div id='options_container'>
 	  <b> 3D Printer Options: </b><br>
-	  <select title="Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
+	  <select title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
              id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight(); ">
 	    <option value="50">50 mm</option>
 	    <option value="60">60 mm</option>
@@ -681,7 +681,7 @@ Terrain 3D print Touchterrain project
 
 	  </select> Tile width, <b id="options_tile_height"></b> Tile height<br>
     
-	  <select title="Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
+	  <select title="(printres) Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
 	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
 	    <option value="-1">source resolution</option>
 	    <option value="0.2">0.2 mm</option>
@@ -694,7 +694,7 @@ Terrain 3D print Touchterrain project
 
 	</select> Resolution for 3D Print (Extruder width)<br>
     
-	 <select title="The number of tiles in x direction"
+	 <select title="(ntilesx) The number of tiles in x direction"
 		 id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
 	    <option value="1" selected >1 by</option>
 	    <option value="2" >2 by</option>
@@ -706,7 +706,7 @@ Terrain 3D print Touchterrain project
 	    <option value="8">8 by</option>
 	</select>
     
-	<select title="The number of tiles in y direction"
+	<select title="(ntilesy) The number of tiles in y direction"
 		id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
 	    <option value="1" selected >1  </option>
 	    <option value="2">2</option>
@@ -727,7 +727,7 @@ Terrain 3D print Touchterrain project
 	    
     
     
-	<select title="The thickness in mm, the 3D model will have at the lowest elevation."
+	<select title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
 	  id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
 	    <option value="0">0 mm</option>
 	    <option value="0.5">0.5 mm</option>
@@ -738,7 +738,7 @@ Terrain 3D print Touchterrain project
 	    <option value="5">5 mm</option>
 	</select> Model Base thickness<br>
     
-	<select title="The DEM's elevation is multiplied by this number"
+	<select title="(zscale) The DEM's elevation is multiplied by this number"
 	  id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
 	    <option value="0.5">x 0.5</option>
 	    <option value="1.0" selected>x 1.0 (none)</option>
@@ -768,7 +768,7 @@ Terrain 3D print Touchterrain project
 	
 	<input type="text" id="options_manual"
 	       title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;unprojected&quot:true  &quot;only&quot:[1,1]  For more info see standalone on github"
-	       name="manual" size="35" value="" > Additional (manual) settings
+	       name="manual" size="40" value="" > Additional (manual) settings
 	<br><br>
 
     <input type="button"
