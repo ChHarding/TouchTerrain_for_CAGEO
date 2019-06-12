@@ -384,11 +384,11 @@ def export():
             html += '</form>'
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="/preview/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
-                html += '  <input type="submit" value="Preview STL " title=""> '
-                html += '</form>'            
-            else:
                 html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
+                #html += '<br><form action="/preview/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
+                #html += '  <input type="submit" value="Preview STL " title=""> '
+                #html += '</form>'            
+
             html += "<br>To return to the selection map, click the back button in your browser once."
             html +=  '</body></html>'
             yield html
