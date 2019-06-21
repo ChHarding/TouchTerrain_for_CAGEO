@@ -411,17 +411,17 @@ def export():
         # Create zip and write to tmp
         #
         try:
-            totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+            totalsize, full_zip_file_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
         except Exception as e:
             print("Error:", e, file=sys.stderr)
             html =  '</body></html>' + "Error:," + str(e)
             yield html   
             return "bailing out!"
 
-        # if totalsize is negative, something went wrong, error message is in full_zip_zile_name
+        # if totalsize is negative, something went wrong, error message is in full_zip_file_name
         if totalsize < 0:
-            print("Error:", full_zip_zile_name, file=sys.stderr)
-            html =  '</body></html>' + "Error:," + str(full_zip_zile_name)
+            print("Error:", full_zip_file_name, file=sys.stderr)
+            html =  '</body></html>' + "Error:," + str(full_zip_file_name)
             yield html
             return "bailing out!"
 
@@ -431,7 +431,7 @@ def export():
             # move zip from temp folder to static folder so flask can serve it (. is server root!)
             zip_file = fname + ".zip"
             try:
-                os.rename(full_zip_zile_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
+                os.rename(full_zip_file_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
             except Exception as e:
                 print("Error:", e, file=sys.stderr)
                 html =  '</body></html>' + "Error:," + str(e)
