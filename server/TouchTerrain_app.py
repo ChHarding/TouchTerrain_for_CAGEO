@@ -232,7 +232,7 @@ def preview(my_zip_file):
                             models:
                             [
                                 {filename:"../preview/""" 
-        html += job_id + '/' + stl_files[0] + '"'
+        html += url_for("preview_file", my_zip_file=my_zip_file, filename=stl_files[0]) + '"'
         
         html += """, rotationx:-0.78, display:"flat"}, 
                             ],
@@ -442,7 +442,7 @@ def export():
 
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="/' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
+                html += '<br><form action="' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " title=""> '
                 html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
                 html += '</form>'            
