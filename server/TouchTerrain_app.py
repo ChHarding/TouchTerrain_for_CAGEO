@@ -99,7 +99,7 @@ def Hillshade(az, ze, slope, aspect):
 @app.route("/", methods=["GET"])
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
-
+    
     # try both ways of authenticating
     try:
         ee.Initialize() # uses .config/earthengine/credentials
@@ -187,12 +187,77 @@ def main_page():
     html_str = template.render(args)
     return html_str
 
-@app.route("/preview/<zip_file>")
-def preview_STL(zip_file):
-    args = request.form.to_dict()
-    zip_file = request.args.get('zip')
-    print()
+from zipfile import ZipFile
+@app.route("/<my_zip_file>", methods=["POST", "GET"])
+def preview_STL(my_zip_file):
 
+    def preview_STL_generator():
+        
+        # create html string
+        html = '<html>'
+        
+        # onload event will only be triggered once </body> is given
+        html +=  '''<body onload="document.getElementById('working').innerHTML='Preview'">\n'''
+        html += '<h4 id="working" >Preparing for preview, please be patient ...</h4>'
+        yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
+        
+        job_id = my_zip_file[:-4]
+        
+        cwd = os.path.dirname(os.path.realpath(__file__))
+        full_zip_path = cwd + os.sep + "static" + os.sep + my_zip_file
+        
+        # make a dir in preview to contain the STLs
+        preview_dir = cwd + os.sep + "static" + os.sep + "preview" + os.sep + job_id
+        try:
+            os.mkdir(preview_dir)
+        except OSError as e:
+            if e.errno != 17:  # 17 means dir already exists, so that error is OK
+                print("Error:", e, file=sys.stderr)
+                return "Error:" + str(e)     
+        
+        with ZipFile(full_zip_path, "r") as zip_ref:
+            fl = zip_ref.namelist() # list of files   
+            stl_files = []
+            for f in fl:
+                if ".STL" in f:
+                    stl_files.append(f)
+                    zip_ref.extract(f, preview_dir)
+                    
+                    
+        if len(stl_files) == 0:
+            errstr = "No STL files found in " + full_zip_path
+            print("Error:", errstr, file=sys.stderr)
+            return "Error:" + errstr      
+    
+        
+        html = """
+                <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;"></div>
+        
+                <script src="static/js/stl_viewer.min.js"></script>        
+                <script>
+                    var stl_viewer=new StlViewer
+                    (
+                        document.getElementById("stl_cont"),
+                        {
+                            models:
+                            [
+                                {filename:"../preview/""" 
+        html += job_id + '/' + stl_files[0] + '"'
+        
+        html += """, rotationx:-0.78, display:"flat"}, 
+                            ],
+                            load_three_files: "/static/js/", // Thanks Nick!
+                            
+                        }
+                    );
+                </script>
+                
+            </body>
+        </html> 
+        """
+        yield html        
+
+    return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
 
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file.
@@ -206,7 +271,8 @@ def export():
         
         # onload event will only be triggered once </body> is given
         html +=  '''<body onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s)<br>Please be patient. Once the animation stops, your files will be ready for download.</h2>'
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s)<br>'
+        html += 'Please be patient.<br> Once the animation stops, you can preview and download your file.</h2>'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
@@ -379,17 +445,18 @@ def export():
             
             zip_url = url_for("static", filename=zip_file) 
 
-            html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
-            html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">   (will be deleted in 6 hrs)'
-            html += '</form>'
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += """<br>After downloading you can preview your 3D model at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)<br>"""
-                #html += '<br><form action="/preview/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
-                #html += '  <input type="submit" value="Preview STL " title=""> '
-                #html += '</form>'            
-
-            html += "<br>To return to the selection map, click the back button in your browser once."
+                html += '<br><form action="/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
+                html += '  <input type="submit" value="Preview STL " title=""> '
+                html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
+                html += '</form>'            
+            
+            html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
+            html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">'
+            html += '</form>'            
+            
+            html += "<br>All files will be deleted in 6 hrs.<br>To return to the selection map, click the back button in your browser once."
             html +=  '</body></html>'
             yield html
 
