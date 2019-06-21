@@ -32,7 +32,7 @@ from server.config import *
 
 from server import app
 
-from flask import Flask, stream_with_context, request, Response, url_for
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory
 app = Flask(__name__)
 
 
@@ -44,6 +44,8 @@ import jinja2
 jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(config.SERVER_DIR))
 import logging
 import time
+
+from zipfile import ZipFile
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
@@ -176,9 +178,9 @@ def main_page():
     html_str = template.render(args)
     return html_str
 
-from zipfile import ZipFile
-@app.route("/<my_zip_file>", methods=["POST", "GET"])
-def preview_STL(my_zip_file):
+
+@app.route("/preview/<string:my_zip_file>")
+def preview(my_zip_file):
 
     def preview_STL_generator():
         
@@ -246,6 +248,12 @@ def preview_STL(my_zip_file):
         yield html        
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
+
+@app.route("/preview/<string:my_zip_file>/<string:filename>")
+def preview_file(my_zip_file, filename):
+    job_id = my_zip_file[:-4]
+    return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
+                               filename, as_attachment=True)
 
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file.
@@ -430,11 +438,11 @@ def export():
                 yield html   
                 return "bailing out!"       
             
-            zip_url = url_for("static", filename=zip_file) 
+            zip_url = url_for("download", filename=zip_file) 
 
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
+                html += '<br><form action="/' + url_for("preview", filename=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " title=""> '
                 html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
                 html += '</form>'            
@@ -470,5 +478,10 @@ def export():
         yield html
         
     return Response(stream_with_context(preflight_generator()), mimetype='text/html')
+
+@app.route('/download/<string:filename>')
+def download(filename):
+    return send_from_directory(DOWNLOADS_FOLDER,
+                               filename, as_attachment=True)
 
 #print "end of TouchTerrain_app.py"
