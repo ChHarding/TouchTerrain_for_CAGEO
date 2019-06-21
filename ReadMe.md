@@ -18,7 +18,7 @@ TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded 
 
 The server version offers a Google Map interface to select the area and a simple GUI to specifiy the preocessing paramaters. Some "expert" parameters are only exposed via a JSON style text field input. One the request has been processed it is again downloaded as a zip file.
 
-Besides Python 2.7 you need to install a few modules (see `standalone/TouchTerrain_standalone_installation.pdf`) using pip or conda. After this you can use the stand-alone version to process local DEM raster file (see the`importedDEM` under Standalone)
+Besides Python 3.x you need to install a few modules (see `standalone/TouchTerrain_standalone_installation.pdf`) using pip or conda. After this you can use the stand-alone version to process local DEM raster file (see the`importedDEM` under Standalone)
 
  If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://developers.google.com/earth-engine/python_install_manual) (section on _Setting Up Authentication Credentials_). In addition, you need to install the earthengine-api (ee) package and its dependencies, which is described in `standalone/TouchTerrain_standalone_installation.pdf`. There are other options to install the [Earth Engine Python API](https://developers.google.com/earth-engine/python_install), but I have no experience beyond their _Minimal Earth Engine Python API Installation_.
 
