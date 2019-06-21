@@ -223,7 +223,7 @@ def preview(my_zip_file):
         html = """
                 <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;"></div>
         
-                <script src="static/js/stl_viewer.min.js"></script>        
+                <script src="/static/js/stl_viewer.min.js"></script>        
                 <script>
                     var stl_viewer=new StlViewer
                     (
@@ -231,7 +231,7 @@ def preview(my_zip_file):
                         {
                             models:
                             [
-                                {filename:"../preview/""" 
+                                {filename:\"""" 
         html += url_for("preview_file", my_zip_file=my_zip_file, filename=stl_files[0]) + '"'
         
         html += """, rotationx:-0.78, display:"flat"}, 
