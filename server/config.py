@@ -1,27 +1,42 @@
-"""config.py for ISU"""
+from common import config
 import os
 
-
-#import ee
-#from oauth2client.appengine import AppAssertionCredentials
-
-# The URL of the Earth Engine API.
-EE_URL = os.getenv('TOUCHTERRAIN_EE_URL', 'https://earthengine.googleapis.com')
-
-# The service account email address authorized by your Google contact.
-# Set up a service account as described here:
-# https://sites.google.com/site/earthengineapidocs/creating-oauth2-service-account
-EE_ACCOUNT = os.getenv('TOUCHTERRAIN_EE_ACCOUNT', 'earthengine@touchterrain.iam.gserviceaccount.com')
-
-# The private key associated with your service account in Privacy Enhanced
-# Email format (.pem suffix).  To convert a private key from the RSA format
-# (.p12 suffix) to .pem, run the openssl command like this:
-# openssl pkcs12 -in downloaded-privatekey.p12 -nodes -nocerts > privatekey.pem
-EE_PRIVATE_KEY_FILE = os.getenv('TOUCHTERRAIN_EE_PRIVATE_KEY_FILE', 'server/privatekey.pem')
+# TouchTerrain server config settings
 
 # Location of the file containing the google maps key
-GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', 'GoogleMapsKey.txt')
+GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', os.path.join(config.SERVER_DIR, 'GoogleMapsKey.txt'))
 
 # DEBUG_MODE will be True if running in a local development environment.
 DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
               os.environ['SERVER_SOFTWARE'].startswith('Dev'))
+
+# Defaults
+
+# type of server:
+SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
+
+# multiprocessing:
+NUM_CORES = 0 # 0 means: use all cores
+if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at all
+
+
+# limits for ISU server (Mar. 2019)
+
+# for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 100!
+MAX_CELLS_PERMITED =   1001 * 1001 * 0.4  
+
+# if DEM has > this number of cells, use tempfile instead of memory
+MAX_CELLS = MAX_CELLS_PERMITED / 4  
+
+
+TMP_FOLDER = os.getenv('TOUCHTERRAIN_TMP_FOLDER', os.path.join(config.SERVER_DIR, "tmp"))
+
+DOWNLOADS_FOLDER = os.getenv('TOUCHTERRAIN_DOWNLOADS_FOLDER', os.path.join(config.SERVER_DIR, "downloads"))
+
+PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.SERVER_DIR, "previews"))
+# for temp files, also for zips in standalone.
+                   # for server/flask, static is always used for the zips!
+#--------------------------------------------------------------------------------
+
+# Overrides
+#MAX_CELLS = 0  # CH: test to force using tempfiles

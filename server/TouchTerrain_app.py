@@ -22,21 +22,33 @@ import os
 from datetime import datetime
 import json
 import ee
-
+import sys
 import common
 import server
 
-from server import config
+from common import config
+# Some server settings
+from server.config import *  
 
 from server import app
 
 from flask import Flask, stream_with_context, request, Response, url_for
 app = Flask(__name__)
 
+
+# import module from common
+from common import TouchTerrainEarthEngine
+from common.Coordinate_system_conv import * # arc to meters conversion
+
+import jinja2
+jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(config.SERVER_DIR))
+import logging
+import time
+
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
 try:
-    with open(config.GOOGLE_MAPS_KEY_FILE) as f:
+    with open(GOOGLE_MAPS_KEY_FILE) as f:
         google_maps_key = f.read().rstrip()
         if google_maps_key == "Put your Google Maps key here":
             google_maps_key = ""
@@ -45,29 +57,6 @@ try:
             pass
 except:
     pass # file does not exist - will show the ugly Google map version
-
-# Some server settings
-from server.touchterrain_config import *  
-
-# get dir to store zip files and temp tile files
-import sys
-from os.path import abspath, dirname
-top = abspath(__file__)
-this_folder = dirname(top)
-tmp_folder = this_folder + os.sep + TMP_FOLDER 
-
-# import module from common
-from common import TouchTerrainEarthEngine
-from common.Coordinate_system_conv import * # arc to meters conversion
-
-
-
-
-import jinja2
-jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
-import logging
-import time
-
 
 
 # functions for computing hillshades in EE (from EE examples)
@@ -203,11 +192,10 @@ def preview_STL(my_zip_file):
         
         job_id = my_zip_file[:-4]
         
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        full_zip_path = cwd + os.sep + "static" + os.sep + my_zip_file
+        full_zip_path = os.path.join(DOWNLOADS_FOLDER, my_zip_file)
         
         # make a dir in preview to contain the STLs
-        preview_dir = cwd + os.sep + "static" + os.sep + "preview" + os.sep + job_id
+        preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
         try:
             os.mkdir(preview_dir)
         except OSError as e:
@@ -389,8 +377,7 @@ def export():
 
 
         # check if we have a valid temp folder
-        cwd = os.path.dirname(os.path.realpath(__file__)) # getcwd() returns / on Linux ????
-        args["temp_folder"] = cwd + os.sep +  TMP_FOLDER
+        args["temp_folder"] = TMP_FOLDER
         print("temp_folder is set to", args["temp_folder"], file=sys.stderr)
         if not os.path.exists(args["temp_folder"]):
             s = "temp folder " + args["temp_folder"] + " does not exist!"
