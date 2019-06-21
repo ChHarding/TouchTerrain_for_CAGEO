@@ -442,7 +442,7 @@ def export():
 
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="/' + url_for("preview", filename=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
+                html += '<br><form action="/' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " title=""> '
                 html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
                 html += '</form>'            
