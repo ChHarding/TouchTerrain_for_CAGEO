@@ -22,21 +22,35 @@ import os
 from datetime import datetime
 import json
 import ee
-
+import sys
 import common
 import server
 
-from server import config
+from common import config
+# Some server settings
+from server.config import *  
 
 from server import app
 
-from flask import Flask, stream_with_context, request, Response, url_for
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory
 app = Flask(__name__)
+
+
+# import module from common
+from common import TouchTerrainEarthEngine
+from common.Coordinate_system_conv import * # arc to meters conversion
+
+import jinja2
+jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(config.SERVER_DIR))
+import logging
+import time
+
+from zipfile import ZipFile
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
 try:
-    with open(config.GOOGLE_MAPS_KEY_FILE) as f:
+    with open(GOOGLE_MAPS_KEY_FILE) as f:
         google_maps_key = f.read().rstrip()
         if google_maps_key == "Put your Google Maps key here":
             google_maps_key = ""
@@ -45,29 +59,6 @@ try:
             pass
 except:
     pass # file does not exist - will show the ugly Google map version
-
-# Some server settings
-from server.touchterrain_config import *  
-
-# get dir to store zip files and temp tile files
-import sys
-from os.path import abspath, dirname
-top = abspath(__file__)
-this_folder = dirname(top)
-tmp_folder = this_folder + os.sep + TMP_FOLDER 
-
-# import module from common
-from common import TouchTerrainEarthEngine
-from common.Coordinate_system_conv import * # arc to meters conversion
-
-
-
-
-import jinja2
-jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
-import logging
-import time
-
 
 
 # functions for computing hillshades in EE (from EE examples)
@@ -187,9 +178,9 @@ def main_page():
     html_str = template.render(args)
     return html_str
 
-from zipfile import ZipFile
-@app.route("/<my_zip_file>", methods=["POST", "GET"])
-def preview_STL(my_zip_file):
+
+@app.route("/preview/<string:my_zip_file>")
+def preview(my_zip_file):
 
     def preview_STL_generator():
         
@@ -203,11 +194,10 @@ def preview_STL(my_zip_file):
         
         job_id = my_zip_file[:-4]
         
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        full_zip_path = cwd + os.sep + "static" + os.sep + my_zip_file
+        full_zip_path = os.path.join(DOWNLOADS_FOLDER, my_zip_file)
         
         # make a dir in preview to contain the STLs
-        preview_dir = cwd + os.sep + "static" + os.sep + "preview" + os.sep + job_id
+        preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
         try:
             os.mkdir(preview_dir)
         except OSError as e:
@@ -233,7 +223,7 @@ def preview_STL(my_zip_file):
         html = """
                 <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;"></div>
         
-                <script src="static/js/stl_viewer.min.js"></script>        
+                <script src="/static/js/stl_viewer.min.js"></script>        
                 <script>
                     var stl_viewer=new StlViewer
                     (
@@ -241,8 +231,8 @@ def preview_STL(my_zip_file):
                         {
                             models:
                             [
-                                {filename:"../preview/""" 
-        html += job_id + '/' + stl_files[0] + '"'
+                                {filename:\"""" 
+        html += url_for("preview_file", my_zip_file=my_zip_file, filename=stl_files[0]) + '"'
         
         html += """, rotationx:-0.78, display:"flat"}, 
                             ],
@@ -258,6 +248,12 @@ def preview_STL(my_zip_file):
         yield html        
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
+
+@app.route("/preview/<string:my_zip_file>/<string:filename>")
+def preview_file(my_zip_file, filename):
+    job_id = my_zip_file[:-4]
+    return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
+                               filename, as_attachment=True)
 
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file.
@@ -389,8 +385,7 @@ def export():
 
 
         # check if we have a valid temp folder
-        cwd = os.path.dirname(os.path.realpath(__file__)) # getcwd() returns / on Linux ????
-        args["temp_folder"] = cwd + os.sep +  TMP_FOLDER
+        args["temp_folder"] = TMP_FOLDER
         print("temp_folder is set to", args["temp_folder"], file=sys.stderr)
         if not os.path.exists(args["temp_folder"]):
             s = "temp folder " + args["temp_folder"] + " does not exist!"
@@ -436,18 +431,18 @@ def export():
             # move zip from temp folder to static folder so flask can serve it (. is server root!)
             zip_file = fname + ".zip"
             try:
-                os.rename(full_zip_zile_name, "server" + os.sep + "static" + os.sep + zip_file)
+                os.rename(full_zip_zile_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
             except Exception as e:
                 print("Error:", e, file=sys.stderr)
                 html =  '</body></html>' + "Error:," + str(e)
                 yield html   
                 return "bailing out!"       
             
-            zip_url = url_for("static", filename=zip_file) 
+            zip_url = url_for("download", filename=zip_file) 
 
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="/' + zip_file +'" method="GET" enctype="multipart/form-data">' 
+                html += '<br><form action="' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " title=""> '
                 html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
                 html += '</form>'            
@@ -483,5 +478,10 @@ def export():
         yield html
         
     return Response(stream_with_context(preflight_generator()), mimetype='text/html')
+
+@app.route('/download/<string:filename>')
+def download(filename):
+    return send_from_directory(DOWNLOADS_FOLDER,
+                               filename, as_attachment=True)
 
 #print "end of TouchTerrain_app.py"

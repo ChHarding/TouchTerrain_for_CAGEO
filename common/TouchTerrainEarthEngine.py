@@ -471,7 +471,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
      
             try:
                 # try authenticating with a .pem file
-                from server import config  # sets location of .pem file, config.py must be in this folder
+                from common import config  # sets location of .pem file, config.py must be in this folder
                 from oauth2client.service_account import ServiceAccountCredentials
                 from ee import oauth
                 credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
