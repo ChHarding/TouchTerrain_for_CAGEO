@@ -423,7 +423,7 @@ def export():
             # move zip from temp folder to static folder so flask can serve it (. is server root!)
             zip_file = fname + ".zip"
             try:
-                os.rename(full_zip_zile_name, "server" + os.sep + "static" + os.sep + zip_file)
+                os.rename(full_zip_zile_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
             except Exception as e:
                 print("Error:", e, file=sys.stderr)
                 html =  '</body></html>' + "Error:," + str(e)
