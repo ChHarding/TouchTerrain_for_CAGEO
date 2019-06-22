@@ -188,7 +188,12 @@ def preview(my_zip_file):
         html = '<html>'
         
         # onload event will only be triggered once </body> is given
-        html +=  '''<body onload="document.getElementById('working').innerHTML='Preview'">\n'''
+        html +=  '''<body onload="document.getElementById('working').innerHTML='Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
+       
+        # progress bar, will be hidden after loading is complete
+        html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>'
+        
+        # Message shown during unzipping
         html += '<h4 id="working" >Preparing for preview, please be patient ...</h4>'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
         
@@ -209,7 +214,7 @@ def preview(my_zip_file):
             fl = zip_ref.namelist() # list of files   
             stl_files = []
             for f in fl:
-                if ".STL" in f:
+                if f[-4:].lower() == ".stl":
                     stl_files.append(f)
                     zip_ref.extract(f, preview_dir)
                     
@@ -218,34 +223,74 @@ def preview(my_zip_file):
             errstr = "No STL files found in " + full_zip_path
             print("Error:", errstr, file=sys.stderr)
             return "Error:" + errstr      
-    
         
-        html = """
-                <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;"></div>
+
+        # JS functions for loading bar 
+        html =  """
+           <html>
+            <script>
+                  function load_prog(load_status, load_session){
+                      let loaded = 0;
+                      let total = 0;
+                      
+                      //go over all models that are/were loaded
+                      Object.keys(load_status).forEach(function(model_id)
+                      {
+                          //need to make sure we're on the last loading session (not counting previous loaded models)
+                          if (load_status[model_id].load_session == load_session){
+                              loaded += load_status[model_id].loaded;
+                              total += load_status[model_id].total;                              
+                          }
+                      });
+                      
+                      //set total progress bar
+                      document.getElementById("pbtotal").value = loaded/total;
+                  }    
+            </script>"""
         
+        html += """
+            <body>
+                <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
+                
                 <script src="/static/js/stl_viewer.min.js"></script>        
                 <script>
-                    var stl_viewer=new StlViewer
-                    (
+                    var stl_viewer=new StlViewer(
                         document.getElementById("stl_cont"),
                         {
+                            loading_progress_callback:load_prog,
+                            //all_loaded_callback:all_loaded,
+                            all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
                             models:
-                            [
-                                {filename:\"""" 
-        html += url_for("preview_file", my_zip_file=my_zip_file, filename=stl_files[0]) + '"'
+                            ["""
         
-        html += """, rotationx:-0.78, display:"flat"}, 
-                            ],
+        # make JS object for each tile
+        for i,f in enumerate(stl_files):
+            html += '\n                            {'
+            html += 'id:' + str(i+1) + ', '
+            url = url_for("preview_file", my_zip_file=my_zip_file, filename=f)
+            html += 'filename:"' + url + '", rotationx:-0.78, display:"flat",'
+            #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
+            html += '},'
+        html += """\n                            ],
                             load_three_files: "/static/js/", // Thanks Nick!
-                            
+                            center_models:"""
+        
+        # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
+        # Downside: the trackball will rotate around lower left tile corner (which is 0/0), not the center
+        html += '"false"' if len(stl_files) > 1 else '"true"'
+        
+        html += """
                         }
                     );
                 </script>
-                
+            
             </body>
         </html> 
         """
         yield html        
+
+    #  
+
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
 
@@ -344,11 +389,6 @@ def export():
         div_by = 1
         if extra_args.get("only") != None:
             div_by = float(num_total_tiles)
-
-        # ???
-        #from server.touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment
-        # ???
-
 
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
         # just d/l the GEE geotiff and zip it
@@ -455,27 +495,6 @@ def export():
             html +=  '</body></html>'
             yield html
 
-
-    # for testing the UI sequence
-    def preflight_generator_test():
-        
-        # onload event will only be triggered once </body> is given
-        html =  '''<body onload="document.getElementById('working').style.display='none'; document.getElementById('gif').style.display='none'">\n'''
-       
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s) - please be patient!</h2> <br>'
-        yield html
-        
-        # processing animation
-        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
-        yield html
-        
-        # download button - clsing body will trigger the hiding 
-        html = '''<form action="" method="GET" enctype="multipart/form-data">
-                     <input type="submit" value="Download zip File "></form>\n'''
-        html +=  StlViewerHTML("tmp/test.stl")
-        html +=  '</body>'
-
-        yield html
         
     return Response(stream_with_context(preflight_generator()), mimetype='text/html')
 
