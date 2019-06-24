@@ -250,7 +250,7 @@ def preview(my_zip_file):
         
         html += """
             <body>
-                <div id="stl_cont" style="width:100%;height:600px;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
+                <div id="stl_cont" style="width:100%;height:80%;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
                 
                 <script src="/static/js/stl_viewer.min.js"></script>        
                 <script>
