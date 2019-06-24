@@ -268,7 +268,7 @@ def preview(my_zip_file):
             html += '\n                            {'
             html += 'id:' + str(i+1) + ', '
             url = url_for("preview_file", my_zip_file=my_zip_file, filename=f)
-            html += 'filename:"' + url + '", rotationx:-0.78, display:"flat",'
+            html += 'filename:"' + url + '", rotationx:-0.35, display:"flat",'
             #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
             html += '},'
         html += """\n                            ],
