@@ -1,3 +1,9 @@
+
+CH Note:
+
+as for my models the z and y are switched, I hacked stl_viewer.min.js so that in the the positions for its lights, z and y are also switched.  
+
+
 Stl Viewer v1.06
 ================
 
