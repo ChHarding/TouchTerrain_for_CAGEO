@@ -188,20 +188,27 @@ def preview(my_zip_file):
         html = '<html>'
         
         # onload event will only be triggered once </body> is given
-        html +=  '''<body onload="document.getElementById('working').innerHTML='Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
+        html += '''<body onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
        
         # progress bar, will be hidden after loading is complete
-        html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>'
+        html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>\n'
         
         # Message shown during unzipping
-        html += '<h4 id="working" >Preparing for preview, please be patient ...</h4>'
+        html += '\n<h4 id="working" style="display:inline; white-space:nowrap" >Preparing for preview, please be patient ...</h4>\n'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
         
-        job_id = my_zip_file[:-4]
+        # download button
+        zip_url = url_for("download", filename=my_zip_file) # URL(!) of unzipped zip file
+        html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
+        html += '  <input type="submit" value="Download zip File " title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
+        #html += '  To return to the selection map, click the back button in your browser twice.\n'
+        html += '</form>\n'  
         
+        # get path (not URL) to zip file in download folder
         full_zip_path = os.path.join(DOWNLOADS_FOLDER, my_zip_file)
         
         # make a dir in preview to contain the STLs
+        job_id = my_zip_file[:-4] # name for folder
         preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
         try:
             os.mkdir(preview_dir)
@@ -226,8 +233,7 @@ def preview(my_zip_file):
         
 
         # JS functions for loading bar 
-        html =  """
-           <html>
+        html +=  """
             <script>
                   function load_prog(load_status, load_session){
                       let loaded = 0;
@@ -249,7 +255,6 @@ def preview(my_zip_file):
             </script>"""
         
         html += """
-            <body>
                 <div id="stl_cont" style="width:100%;height:80%;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
                 
                 <script src="/static/js/stl_viewer.min.js"></script>        
@@ -287,6 +292,7 @@ def preview(my_zip_file):
             </body>
         </html> 
         """
+        print(html)
         yield html        
 
     #  
@@ -312,8 +318,8 @@ def export():
         
         # onload event will only be triggered once </body> is given
         html +=  '''<body onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s)<br>'
-        html += 'Please be patient.<br> Once the animation stops, you can preview and download your file.</h2>'
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>'
+        html += 'Once the animation stops, you can preview and download your file.</h2>'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
@@ -484,7 +490,8 @@ def export():
             if args["fileformat"] in ("STLa", "STLb"): 
                 html += '<br><form action="' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " title=""> '
-                html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models'
+                html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
+                html += 'You may not see anything for a while even after the progress bar is full!'
                 html += '</form>'            
             
             html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
