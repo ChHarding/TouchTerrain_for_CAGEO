@@ -279,7 +279,7 @@ def preview(my_zip_file):
             #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
             html += '},'
         html += """\n                            ],
-                            load_three_files: "/static/js/", // Thanks Nick!
+                            load_three_files: "/static/js/", 
                             center_models:"""
         
         # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
