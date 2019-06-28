@@ -284,7 +284,7 @@ def preview(my_zip_file):
         
         # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
         # Downside: the trackball will rotate around lower left tile corner (which is 0/0), not the center
-        html += '"false"' if len(stl_files) > 1 else '"true"'
+        html += 'false' if len(stl_files) > 1 else 'true'
         
         html += """
                         }
