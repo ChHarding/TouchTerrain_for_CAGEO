@@ -8,7 +8,7 @@ setup(
         'https://github.com/allelos/vectors/tarball/master#egg=vectors-99.0.0'
     ],
     install_requires=[
-        'Jinja2>=2.10.1',
+        #'Jinja2>=2.10.1',
         'Pillow>=6.0.0',
         'earthengine-api>=0.1.178',
         'Flask>=1.0.2',
