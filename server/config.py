@@ -34,9 +34,20 @@ TMP_FOLDER = os.getenv('TOUCHTERRAIN_TMP_FOLDER', os.path.join(config.SERVER_DIR
 DOWNLOADS_FOLDER = os.getenv('TOUCHTERRAIN_DOWNLOADS_FOLDER', os.path.join(config.SERVER_DIR, "downloads"))
 
 PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.SERVER_DIR, "previews"))
-# for temp files, also for zips in standalone.
-                   # for server/flask, static is always used for the zips!
-#--------------------------------------------------------------------------------
 
-# Overrides
-#MAX_CELLS = 0  # CH: test to force using tempfiles
+# This will be inlined in index.html to enable Google Analytics, However, this is currently set to use 
+# my tracking id, so if you use google analytics, make sure to replace it with your own Tracking ID!
+# Hint: in the template, use name|safe, the safe filter prevents turning < into &lt, etc. 
+GOOGLE_ANALYTICS_CODE = """
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 
+          'UA-93016136-1',  // replace this with your own tracking id
+          'auto');
+      ga('send', 'pageview');
+    </script>
+"""
