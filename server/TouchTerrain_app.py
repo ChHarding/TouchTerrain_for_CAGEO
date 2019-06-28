@@ -185,7 +185,7 @@ def main_page():
             return r
     
     # add any vars from server/config.py that may need to be inlined
-    args["GOOGLE_ANALYTICS_CODE"] = mygetattr(server.config, "GOOGLE_ANALYTICS_CODE")
+    args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(server.config, "GOOGLE_ANALYTICS_TRACKING_ID")
             
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
