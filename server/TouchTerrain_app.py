@@ -32,7 +32,7 @@ from server.config import *
 
 from server import app
 
-from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template
 app = Flask(__name__)
 
 
@@ -40,8 +40,6 @@ app = Flask(__name__)
 from common import TouchTerrainEarthEngine
 from common.Coordinate_system_conv import * # arc to meters conversion
 
-import jinja2
-jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(config.SERVER_DIR))
 import logging
 import time
 
@@ -142,7 +140,6 @@ def main_page():
         qs = qs + k + "=" + v + "&"
     #print qs
 
-
     # overwrite args with values from request
     for key in request.args:
         args[key] = request.args[key]
@@ -151,6 +148,8 @@ def main_page():
     # convert " to &quot; for URL
     if args.get("manual") != None:
         args["manual"] = args["manual"].replace('\"', '&quot;')
+    else:
+        args["manual"] = ""
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if args["DEM_name"] == """NOAA/NGDC/ETOPO1""":
@@ -159,7 +158,6 @@ def main_page():
         terrain = ee.Terrain.products(elev)
     else:
         terrain = ee.Algorithms.Terrain(ee.Image(args["DEM_name"]))
-
 
     hs = terrain.select('hillshade')
 
@@ -173,14 +171,30 @@ def main_page():
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
 
-    # this creates a index.html "file" with mapid, token, etc. inlined
-    template = jinja_environment.get_template('index.html')
-    html_str = template.render(args)
+   
+    #template = jinja_environment.get_template('index.html')
+    #html_str = template.render(args)
+    
+    # work around getattr throwing an exeption if name is not in module
+    def mygetattr(mod, name):
+        try:
+            r = getattr(mod, name)
+        except:
+            r = "" # name not found
+        else:
+            return r
+    
+    # add any vars from server/config.py that may need to be inlined
+    args["GOOGLE_ANALYTICS_CODE"] = mygetattr(server.config, "GOOGLE_ANALYTICS_CODE")
+            
+    # string with index.html "file" with mapid, token, etc. inlined
+    html_str = render_template("index.html", **args)
     return html_str
 
+# @app.rounte("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
 
-@app.route("/preview/<string:my_zip_file>")
-def preview(my_zip_file):
+@app.route("/preview/<string:zip_file>")
+def preview(zip_file):
 
     def preview_STL_generator():
         
@@ -188,7 +202,7 @@ def preview(my_zip_file):
         html = '<html>'
         
         # onload event will only be triggered once </body> is given
-        html += '''<body onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
+        html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
        
         # progress bar, will be hidden after loading is complete
         html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>\n'
@@ -198,7 +212,7 @@ def preview(my_zip_file):
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
         
         # download button
-        zip_url = url_for("download", filename=my_zip_file) # URL(!) of unzipped zip file
+        zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
         html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
         html += '  <input type="submit" value="Download zip File" '
         html += ''' onclick="ga('send', 'pageview', 'download')" '''
@@ -207,10 +221,10 @@ def preview(my_zip_file):
         html += '</form>\n'  
         
         # get path (not URL) to zip file in download folder
-        full_zip_path = os.path.join(DOWNLOADS_FOLDER, my_zip_file)
+        full_zip_path = os.path.join(DOWNLOADS_FOLDER, zip_file)
         
         # make a dir in preview to contain the STLs
-        job_id = my_zip_file[:-4] # name for folder
+        job_id = zip_file[:-4] # name for folder
         preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
         try:
             os.mkdir(preview_dir)
@@ -274,7 +288,7 @@ def preview(my_zip_file):
         for i,f in enumerate(stl_files):
             html += '\n                            {'
             html += 'id:' + str(i+1) + ', '
-            url = url_for("preview_file", my_zip_file=my_zip_file, filename=f)
+            url = url_for("preview_file", zip_file=zip_file, filename=f)
             html += 'filename:"' + url + '", rotationx:-0.35, display:"flat",'
             #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
             html += '},'
@@ -302,9 +316,9 @@ def preview(my_zip_file):
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
 
-@app.route("/preview/<string:my_zip_file>/<string:filename>")
-def preview_file(my_zip_file, filename):
-    job_id = my_zip_file[:-4]
+@app.route("/preview/<string:zip_file>/<string:filename>")
+def preview_file(zip_file, filename):
+    job_id = zip_file[:-4]
     return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
                                filename, as_attachment=True)
 
@@ -490,7 +504,7 @@ def export():
 
 
             if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="' + url_for("preview", my_zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
+                html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " '
                 html += ''' onclick="ga('send', 'pageview', 'download')" '''
                 html += '   title=""> '
