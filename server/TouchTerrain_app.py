@@ -218,7 +218,7 @@ def preview(zip_file):
         zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
         html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
         html += '  <input type="submit" value="Download zip File" '
-        html += ''' onclick="ga('send', { 'hitType': 'pageview', 'page': '/download/', 'title': 'Download' });" '''
+        html += ''' onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0')" '''
         html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
         #html += '  To return to the selection map, click the back button in your browser twice.\n'
         html += '</form>\n'  
@@ -515,7 +515,7 @@ def export():
             if args["fileformat"] in ("STLa", "STLb"): 
                 html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
                 html += '  <input type="submit" value="Preview STL " '
-                html += ''' onclick="ga('send', { 'hitType': 'pageview', 'page': '/download/', 'title': 'Download' });" '''
+                html += ''' onclick="ga('send', 'event', 'Preview', 'Click', 'preview', '0')" '''
                 html += '   title=""> '
                 html += 'This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
                 html += 'You may not see anything for a while even after the progress bar is full!'
@@ -523,7 +523,7 @@ def export():
             
             html += '<br><form action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
             html += '  <input type="submit" value="Download zip File " '
-            html += ''' onclick="ga('send', { 'hitType': 'pageview', 'page': '/preview/', 'title': 'Preview' });" '''
+            html += ''' onclick="ga('send', 'event', 'Download', 'Click', 'direct', '0')" '''
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">'
             html += '</form>'            
             
