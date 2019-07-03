@@ -145,11 +145,14 @@ def main_page():
         args[key] = request.args[key]
         #print(key, request.args[key])
 
+    ''' # not sure if this is actually needed ?
     # convert " to &quot; for URL
     if args.get("manual") != None:
         args["manual"] = args["manual"].replace('\"', '&quot;')
+        pass
     else:
         args["manual"] = ""
+    '''
 
     # for ETOPO1 we need to first select one of the two bands as elevation
     if args["DEM_name"] == """NOAA/NGDC/ETOPO1""":
@@ -371,7 +374,7 @@ def export():
             # CH Jun 3: for some reason " in the URL sometimes ends up as &amp;quot; 
             # not sure how to properly unescape those, so I'll just replace them
             # Question for Nick ...
-            manual = manual.replace('&amp;quot;', '"') 
+            #manual = manual.replace('&#34;', '"') 
             
             JSON_str = "{ " + manual + "}"
             try:
