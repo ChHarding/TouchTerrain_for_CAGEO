@@ -367,6 +367,12 @@ def export():
         manual = args.get("manual", None)
         extra_args={}
         if manual != None:
+            
+            # CH Jun 3: for some reason " in the URL sometimes ends up as &amp;quot; 
+            # not sure how to properly unescape those, so I'll just replace them
+            # Question for Nick ...
+            manual = manual.replace('&amp;quot;', '"') 
+            
             JSON_str = "{ " + manual + "}"
             try:
                 extra_args = json.loads(JSON_str)
