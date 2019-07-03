@@ -367,14 +367,10 @@ def export():
 
         # decode any extra (manual) args and put them in the args dict as
         # separate args as the are needed in that form for processing
+        # Note: the type of each arg is decided by  json.loads(), so 1.0 will be a float, etc.
         manual = args.get("manual", None)
         extra_args={}
         if manual != None:
-            
-            # CH Jun 3: for some reason " in the URL sometimes ends up as &amp;quot; 
-            # not sure how to properly unescape those, so I'll just replace them
-            # Question for Nick ...
-            #manual = manual.replace('&#34;', '"') 
             
             JSON_str = "{ " + manual + "}"
             try:

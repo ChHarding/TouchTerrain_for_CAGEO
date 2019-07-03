@@ -265,6 +265,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          only=None,
                          original_query_string=None,
                          no_normals=True,
+                         projection=None,
                          **otherargs):
     """
     args:
@@ -293,7 +294,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed 
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
     - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
-    
+    - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
     returns the total size of the zip file in Mb
 
     """
@@ -307,8 +308,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else: # local raster file as DEM source
         assert os.path.exists(importedDEM), "Error: local DEM raster file " + importedDEM + " does not exist"
         assert fileformat != "GeoTiff", "Error: it's silly to make a Geotiff from a local DEM file (" + importedDEM + ") instead of a mesh file format ..."
-        
-    
+
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(base_thick) + ") must be > 0.5 mm when using a bottom relief image"
 
@@ -369,7 +369,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr(k, "=", v)
             dict_for_url[k] = v
 
-        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only", "original_query_string", "no_normals"):
+        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only", 
+                  "original_query_string", "no_normals", "projection"):
             if args.get(k) != None: # may not exist ...
                 v = args[k]
                 pr(k, "=", v)            
@@ -390,7 +391,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Figure out which projection to use when getting DEM from GEE
         #
         if unprojected == False:
-            if bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
+            if projection != None:
+                epsg = projection
+                epsg_str = "EPSG:%d" % (epsg)
+                utm_zone_str = epsg_str
+                pr("using " + epsg_str + " as projection")
+            elif bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
                 utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3995
                 epsg_str = "EPSG:%d" % (epsg)
@@ -462,8 +468,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Get a download URL for DEM from Earth Engine
         #
 
-        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while
-        # try both ways of authenticating
+        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while ...
+        # Try both ways of authenticating
         try:
             ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
