@@ -148,7 +148,8 @@ Once this tile was downloaded, using only with [1,2], but otherwise repeating th
 create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the
 tiles will fit together without overlaps if tile_centered was false.
 
-
+* `projection`: default: null . By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or mayby you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), my work better than UTM. See [https://spatialreference.org/] for description of EPSG codes.
+     Be aware, however, that  Earth Engine does not support all possible EPSG codes. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives an error message: *The CRS of a map projection could not be parsed*
 
 
 
