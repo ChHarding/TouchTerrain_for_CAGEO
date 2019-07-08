@@ -59,6 +59,26 @@ except:
     pass # file does not exist - will show the ugly Google map version
 
 
+# a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons 
+GA_script = """
+<head>
+ <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 
+      '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
+      'auto');
+  ga('send', 'pageview');
+ </script>
+</head>
+"""
+
+
+
+
 # functions for computing hillshades in EE (from EE examples)
 # Currently, I only use the precomputed hs, but they might come in handy later ...
 def Radians(img):
@@ -204,6 +224,8 @@ def preview(zip_file):
         # create html string
         html = '<html>'
         
+        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
+        
         # onload event will only be triggered once </body> is given
         html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
        
@@ -311,11 +333,8 @@ def preview(zip_file):
             </body>
         </html> 
         """
-        print(html)
+        #print(html)
         yield html        
-
-    #  
-
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
 
@@ -334,6 +353,8 @@ def export():
         
         # create html string
         html = '<html>'
+        
+        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
         
         # onload event will only be triggered once </body> is given
         html +=  '''<body onerror="document.getElementById('error').innerHTML='ERROR'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
