@@ -336,9 +336,9 @@ def export():
         html = '<html>'
         
         # onload event will only be triggered once </body> is given
-        html +=  '''<body onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>'
-        html += 'Once the animation stops, you can preview and download your file.</h2>'
+        html +=  '''<body onerror="document.getElementById('error').innerHTML='ERROR'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
+        html += 'Once the animation stops, you can preview and download your file.</h2>\n'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
@@ -442,7 +442,7 @@ def export():
             html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
             html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
             html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2))
-            html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ..."
+            html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ...\n"
             html +=  '</body></html>'
             yield html
             return "bailing out!"
@@ -472,6 +472,9 @@ def export():
 
         # show snazzy animate gif - set to style="display: none to hide once
         html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
+        
+        # add an empty paragraph for error messages during proecssing that come from JS
+        html += '<p id="error"> </p>\n'
         yield html
 
         #
