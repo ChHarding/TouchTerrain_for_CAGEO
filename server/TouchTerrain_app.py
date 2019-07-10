@@ -357,7 +357,7 @@ def export():
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
         
         # onload event will only be triggered once </body> is given
-        html +=  '''<body onerror="document.getElementById('error').innerHTML='ERROR'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
         html += 'Once the animation stops, you can preview and download your file.</h2>\n'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
