@@ -13,7 +13,8 @@ DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
 # Defaults
 
 # type of server:
-SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
+#SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
+SERVER_TYPE = "gnunicorn"
 
 # multiprocessing:
 NUM_CORES = 0 # 0 means: use all cores
