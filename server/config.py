@@ -21,7 +21,8 @@ NUM_CORES = 0 # 0 means: use all cores
 if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at all
 
 
-# limits for ISU server (Mar. 2019)
+# limits for ISU server 
+NUM_CORES = 1  # SP only for now until MP weirdness is resolved ...
 
 # for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 100!
 MAX_CELLS_PERMITED =   1000 * 1000 * 0.567  
