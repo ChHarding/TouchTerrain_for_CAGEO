@@ -363,7 +363,7 @@ class grid(object):
         #print top.astype(int)
         #print np.nanmin(top), np.nanmax(top)
         top += tile_info["base_thickness_mm"] # add base thickness
-        #print "top min/max:", np.nanmin(top), np.nanmax(top)
+        print("top min/max:", np.nanmin(top), np.nanmax(top))
         #print top.astype(int)
 
         tile_info["max_elev"] = np.nanmax(top)
@@ -824,6 +824,27 @@ class grid(object):
         temp_file.write(buf)
         return temp_file
     '''
+    
+    def write_into_temp_file(self, temp_file, buf, ascii=True):
+        """ open temp_file (as ascii if True, else binary) and write buffer into it, close it
+        return temp_file if OK, exception object otherwise"""
+        
+        # overwrite and open as ascii or binary
+        mode = "w+" if ascii == True else "wb+" # ternary operator, youso cool!
+        
+        try:
+            fo = open(temp_file, mode)
+        except Exception as e:
+            print("Error openening:",temp_file, e, file=sys.stderr)
+            return e
+        else:
+            # assuming no other exception can occur here (?)
+            fo.write(buf)
+            fo.close()
+            return temp_file
+
+
+
     def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None, no_normals=False):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
@@ -897,17 +918,22 @@ class grid(object):
             '''
 
         #print len(buf)
-        if temp_file ==  None: return buf
+        if temp_file ==  None: 
+            return buf
+        else: 
+            r = self.write_into_temp_file(temp_file, buf, ascii=ascii)
+            return r # if OK, just returns temp filename
 
-        # Write string into temp file and return it
-        temp_file.write(buf)
-        return temp_file    
+            
+            
 
     def make_OBJfile_buffer(self, no_bottom=False, temp_file=None, no_normals=False):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
-           if no_bottom is True, bottom triangles are omitted
-           if temp_file is not None, write OBJ into it (instead of a buffer) and return it
-           no_normals is not used for now
+        if no_bottom is True, bottom triangles are omitted
+        if temp_file is not None, open it and write OBJ into it (instead of a buffer) and close it, 
+        return temp_file or exception 
+        no_normals is not used for now
+        
 
         mtllib dontcare.mtl
         g vert
@@ -962,11 +988,11 @@ class grid(object):
         # concat list of strings to a single string
         buf = "\n".join(buf_as_list).encode("UTF-8")
 
-        if temp_file ==  None: return buf
-
-        # Write string into temp file and return it
-        temp_file.write(buf)
-        return temp_file
+        if temp_file ==  None: 
+            return buf
+        else: 
+            r = self.write_into_temp_file(temp_file, buf, ascii=True)
+            return r # if OK, just returns temp filename
 
 # MAIN  (left this in so I can test stuff ...)
 if __name__ == "__main__":
