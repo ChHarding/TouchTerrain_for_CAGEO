@@ -115,15 +115,15 @@ def make_bottom_raster(image_file_name, shape):
     return bottom_raster
 
 
-# utility function to unwrap each tile from a tile list into its info and numpy array
+
+# utility function to unwrap a tile tuple into its info and numpy array parts
 # if multicore processing is used, this is called via multiprocessing.map()
-# tile_info["temp_file"] may contain file name to open and write into,
-# otherwise a string is used as buffer.
-# In both cases, the buffer and its size are returned
-def process_tile(tile):
-    tile_info = tile[0] # this is one individual tile!
-    tile_elev_raster = tile[1]
-    
+# tile_info["temp_file"] contains the file name to open and write into (creating a file object)
+# but if it's None, a buffer is made instead.
+# the tile info dict (with the file/buffer size) and the buffer (or the file's name) are returns as a tuple
+def process_tile(tile_tuple):
+    tile_info = tile_tuple[0] # has info for this individual tile
+    tile_elev_raster = tile_tuple[1]
     
     print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -141,52 +141,41 @@ def process_tile(tile):
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     printres = tile_info["pixel_mm"]
 
-    # zigzag processing to slow down the speed when printing the shell
-    if use_zigzag_magic:
-        printres = tile_info["pixel_mm"]
-        width_of_1_zig_zag_mm = 50
-        num_cells_per_zig = int(width_of_1_zig_zag_mm / float(tile_info["pixel_mm"]))
-        zig_dist_mm, zig_undershoot_mm = 0.1, 0.02
-        print("zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
-                    num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm))
-        g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
-
     del tile_elev_raster
 
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
 
+    
     if tile_info.get("temp_file") != None:  # contains None or a file name.
-        # open temp file for writing
         print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
-        try:
-            b = open(tile_info["temp_file"], "wb+")
-        except Exception as e:
-            print("Error openening:",tile_info["temp_file"], e, file=sys.stderr)
+        temp_fn = tile_info.get("temp_file")
     else:
-        b = None # means: use memory
+        temp_fn = None # means: use memory
 
+    # Create triangle "file" either in a buffer or in a tempfile
+    # if file: open, write and close it, b will be temp file name
     if  fileformat == "obj":
-        b = g.make_OBJfile_buffer(temp_file=b)
+        b = g.make_OBJfile_buffer(temp_file=temp_fn)
         # TODO: add a header for obj
     elif fileformat == "STLa":
         b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"], 
-                                  no_normals=tile_info["no_normals"], temp_file=b)
+                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
     elif fileformat == "STLb":
         b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"], 
-                                  no_normals=tile_info["no_normals"], temp_file=b)
+                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
     else:
         raise ValueError("invalid file format:", fileformat)
 
-    if tile_info.get("temp_file") != None:
-        fsize = os.stat(b.name).st_size / float(1024*1024)
-        b.close()
+    if temp_fn != None:
+        fsize = os.stat(temp_fn).st_size / float(1024*1024)
     else:
         fsize = len(b) / float(1024*1024)
 
+
     tile_info["file_size"] = fsize
     print("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", file=sys.stderr) #, multiprocessing.current_process()
-    return (tile_info, b) # return info and buffer/temp_file
+    return (tile_info, b) # return info and buffer/temp_file NAME
 
 
 """ 
@@ -995,7 +984,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                    
     
         # single processing: just work on the list sequentially, don't use multi-core processing
-        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:  # only one tile or SP specifically requested
+        # us if only one tile or one CPU or CPU_cores_to_use is still at default None 
+        # processed list will contain tuple(s): [0] is always the tile info dict, if its 
+        # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
+        # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)  
+        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:  
             pr("using single-core only")
             processed_list = []
             # Convert each tile into a list: [0]: updated tile info, [1]: grid object
@@ -1004,21 +997,34 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pt = process_tile(t)
                 processed_list.append(pt) # append to list of processed tiles
         
-        # use multi-core processing
+        # use multi-core processing 
         else:  
+            
+            #if CPU_cores_to_use is 0(!) us all cores, otherwise use that number
+            if CPU_cores_to_use == 0: 
+                num_cores = None
+            else: 
+                num_cores = CPU_cores_to_use
+            # TODO: Using 0 here that needs to become None is confusing, but too esoteric to clean up ..
+            # Better: make default 1, else use MP with None (meaning all)
+            
             pr("using multi-core (no logging info available while processing)  ...")
             import multiprocessing
-            pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
+            import dill as pickle
+            pool = multiprocessing.Pool(processes=num_cores, maxtasksperchild=1) # processes=None means use all available cores
     
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
-            processed_list = pool.map(process_tile, tile_list)
-
+            try:
+                processed_list = pool.map(process_tile, tile_list)
+            except Exception as e:
+                pr(e)   
+            else:
+                pool.close()
+                pool.terminate()                
+                
             pr("... multi-core processing done, logging resumed")
-            pool.close()
-            pool.terminate()
+
     
-        # tile size is the same for all tiles
-        tile_info = processed_list[0][0]
         
         # the tile width/height was written into tileinfo during processing
         _ = "\n%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
