@@ -547,7 +547,8 @@ def export():
             html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n' 
             html += '  <input type="submit" value="Download zip File " \n'
             html += '''  onclick="ga('send', 'event', 'Download', 'Click', {
-                                     'dimension1':  document.getElementById('comment').value
+                                     'dimension1': document.getElementById('comment').value,
+                                     'dimension2': 'Test for setting dimension2 from download button click' 
                                   });" \n'''
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
