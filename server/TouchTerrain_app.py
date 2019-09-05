@@ -549,6 +549,7 @@ def export():
             html += '''  onclick="ga('send', 'event', 'Download', 'Click', {
                                      'dimension1': document.getElementById('comment').value,
                                      'dimension2': 'Test for setting dimension2 from download button click' 
+                                     'dimension03': 'Test for setting dimension03 from download button click' 
                                   });" \n'''
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
