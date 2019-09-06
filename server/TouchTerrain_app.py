@@ -28,7 +28,7 @@ import server
 
 from common import config
 # Some server settings
-from server.config import *  
+from server.config import *
 
 from server import app
 
@@ -59,7 +59,7 @@ except:
     pass # file does not exist - will show the ugly Google map version
 
 
-# a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons 
+# a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 GA_script = """
 <head>
  <script>
@@ -68,7 +68,7 @@ GA_script = """
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
   })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
-  ga('create', 
+  ga('create',
       '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
       'auto');
   ga('send', 'pageview');
@@ -108,13 +108,13 @@ def Hillshade(az, ze, slope, aspect):
 @app.route("/", methods=["GET"])
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
-    
+
     # try both ways of authenticating
     try:
         ee.Initialize() # uses .config/earthengine/credentials
     except Exception as e:
         print("EE init() error (with .config/earthengine/credentials),", e, ", trying .pem file", file=sys.stderr)
-        
+
         try:
             # try authenticating with a .pem file
             from oauth2client.service_account import ServiceAccountCredentials
@@ -194,10 +194,10 @@ def main_page():
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
 
-   
+
     #template = jinja_environment.get_template('index.html')
     #html_str = template.render(args)
-    
+
     # work around getattr throwing an exeption if name is not in module
     def mygetattr(mod, name):
         try:
@@ -206,10 +206,10 @@ def main_page():
             r = "" # name not found
         else:
             return r
-    
+
     # add any vars from server/config.py that may need to be inlined
     args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(server.config, "GOOGLE_ANALYTICS_TRACKING_ID")
-            
+
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
     return html_str
@@ -220,34 +220,34 @@ def main_page():
 def preview(zip_file):
 
     def preview_STL_generator():
-        
+
         # create html string
         html = '<html>'
-        
+
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
-        
+
         # onload event will only be triggered once </body> is given
         html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
-       
+
         # progress bar, will be hidden after loading is complete
         html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>\n'
-        
+
         # Message shown during unzipping
         html += '\n<h4 id="working" style="display:inline; white-space:nowrap" >Preparing for preview, please be patient ...</h4>\n'
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
-        
+
         # download button
         zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
-        html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">' 
+        html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">'
         html += '  <input type="submit" value="Download zip File" '
         html += ''' onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0')" '''
         html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
         #html += '  To return to the selection map, click the back button in your browser twice.\n'
-        html += '</form>\n'  
-        
+        html += '</form>\n'
+
         # get path (not URL) to zip file in download folder
         full_zip_path = os.path.join(DOWNLOADS_FOLDER, zip_file)
-        
+
         # make a dir in preview to contain the STLs
         job_id = zip_file[:-4] # name for folder
         preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
@@ -256,49 +256,49 @@ def preview(zip_file):
         except OSError as e:
             if e.errno != 17:  # 17 means dir already exists, so that error is OK
                 print("Error:", e, file=sys.stderr)
-                return "Error:" + str(e)     
-        
+                return "Error:" + str(e)
+
         with ZipFile(full_zip_path, "r") as zip_ref:
-            fl = zip_ref.namelist() # list of files   
+            fl = zip_ref.namelist() # list of files
             stl_files = []
             for f in fl:
                 if f[-4:].lower() == ".stl":
                     stl_files.append(f)
                     zip_ref.extract(f, preview_dir)
-                    
-                    
+
+
         if len(stl_files) == 0:
             errstr = "No STL files found in " + full_zip_path
             print("Error:", errstr, file=sys.stderr)
-            return "Error:" + errstr      
-        
+            return "Error:" + errstr
 
-        # JS functions for loading bar 
+
+        # JS functions for loading bar
         html +=  """
             <script>
                   function load_prog(load_status, load_session){
                       let loaded = 0;
                       let total = 0;
-                      
+
                       //go over all models that are/were loaded
                       Object.keys(load_status).forEach(function(model_id)
                       {
                           //need to make sure we're on the last loading session (not counting previous loaded models)
                           if (load_status[model_id].load_session == load_session){
                               loaded += load_status[model_id].loaded;
-                              total += load_status[model_id].total;                              
+                              total += load_status[model_id].total;
                           }
                       });
-                      
+
                       //set total progress bar
                       document.getElementById("pbtotal").value = loaded/total;
-                  }    
+                  }
             </script>"""
-        
+
         html += """
                 <div id="stl_cont" style="width:100%;height:80%;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
-                
-                <script src="/static/js/stl_viewer.min.js"></script>        
+
+                <script src="/static/js/stl_viewer.min.js"></script>
                 <script>
                     var stl_viewer=new StlViewer(
                         document.getElementById("stl_cont"),
@@ -308,7 +308,7 @@ def preview(zip_file):
                             all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
                             models:
                             ["""
-        
+
         # make JS object for each tile
         for i,f in enumerate(stl_files):
             html += '\n                            {'
@@ -318,23 +318,23 @@ def preview(zip_file):
             #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
             html += '},'
         html += """\n                            ],
-                            load_three_files: "/static/js/", 
+                            load_three_files: "/static/js/",
                             center_models:"""
-        
+
         # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
         # Downside: the trackball will rotate around lower left tile corner (which is 0/0), not the center
         html += 'false' if len(stl_files) > 1 else 'true'
-        
+
         html += """
                         }
                     );
                 </script>
-            
+
             </body>
-        </html> 
+        </html>
         """
         #print(html)
-        yield html        
+        yield html
 
     return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
 
@@ -350,12 +350,12 @@ def preview_file(zip_file, filename):
 def export():
 
     def preflight_generator():
-        
+
         # create html string
         html = '<html>'
-        
+
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
-        
+
         # onload event will only be triggered once </body> is given
         html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
@@ -367,14 +367,14 @@ def export():
         #  print/log all args and their values
         #
 
-        
-        # put all agrs we got from the browser in a  dict as key:value
-        args = request.form.to_dict() 
 
-        # list of the subset of args needed for processing 
+        # put all agrs we got from the browser in a  dict as key:value
+        args = request.form.to_dict()
+
+        # list of the subset of args needed for processing
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
                   "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
-    
+
         for k in key_list:
 
             # float-ify some ags
@@ -392,7 +392,7 @@ def export():
         manual = args.get("manual", None)
         extra_args={}
         if manual != None:
-            
+
             JSON_str = "{ " + manual + "}"
             try:
                 extra_args = json.loads(JSON_str)
@@ -417,7 +417,7 @@ def export():
             logging.info("%s = %s" % (k, str(args[k])))
         html += "<br>"
         yield html
-        
+
         #
         # bail out if the raster would be too large
         #
@@ -493,7 +493,7 @@ def export():
 
         # show snazzy animate gif - set to style="display: none to hide once
         html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
-        
+
         # add an empty paragraph for error messages during processing that come from JS
         html += '<p id="error"> </p>\n'
         yield html
@@ -506,7 +506,7 @@ def export():
         except Exception as e:
             print("Error:", e, file=sys.stderr)
             html =  '</body></html>' + "Error:," + str(e)
-            yield html   
+            yield html
             return "bailing out!"
 
         # if totalsize is negative, something went wrong, error message is in full_zip_file_name
@@ -518,7 +518,7 @@ def export():
 
         else:
             html = ""
-            
+
             # move zip from temp folder to static folder so flask can serve it (. is server root!)
             zip_file = fname + ".zip"
             try:
@@ -526,45 +526,48 @@ def export():
             except Exception as e:
                 print("Error:", e, file=sys.stderr)
                 html =  '</body></html>' + "Error:," + str(e)
-                yield html   
-                return "bailing out!"       
-            
-            zip_url = url_for("download", filename=zip_file) 
+                yield html
+                return "bailing out!"
+
+            zip_url = url_for("download", filename=zip_file)
 
 
-            if args["fileformat"] in ("STLa", "STLb"): 
-                html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">' 
+            if args["fileformat"] in ("STLa", "STLb"):
+                html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">'
                 html += '  <input type="submit" value="Preview STL " '
                 html += ''' onclick="ga('send', 'event', 'Preview', 'Click', 'preview', '0')" '''
                 html += '   title=""> '
                 html += 'Note: This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
                 html += 'You may not see anything for a while even after the progress bar is full!'
-                html += '</form>\n'            
-            
-            html += "Optional: tell us what you're using this model for<br>\n"   
+                html += '</form>\n'
+
+            html += "Optional: tell us what you're using this model for<br>\n"
             html += '''<textarea autofocus form="dl" id="comment" cols="100" maxlength=150 rows="2"></textarea><br>\n'''
-            
-            html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n' 
+
+            html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
             html += '  <input type="submit" value="Download zip File " \n'
             #https://stackoverflow.com/questions/57499732/google-analytics-events-present-in-console-but-no-more-in-api-v4-results
-            html += '''  onclick="ga('send', 'event', 'Download', 'Click', 
+            html += '''  onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0');\n
+                                  ga('send', 'event', 'Comment1', 'Click', document.getElementById('comment') , 1);"\n '''
+            '''
             						  {
                                        'dimension1': document.getElementById('comment').value,
-                                       'dimension2': 'Test for setting dimension2 from download button click' 
-                                       'dimension03': 'Test for setting dimension03 from download button click' 
-                                      }, 
+                                       'dimension2': 'Test for setting dimension2 from download button click'
+                                       'dimension03': 'Test for setting dimension03 from download button click'
+                                      },
                                       1);" \n'''
+
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
             html += "   <br>To return to the selection map, click the back button in your browser once.\n"
-            html += '</form>\n'            
-            
+            html += '</form>\n'
 
-            
+
+
             html +=  '</body></html>'
             yield html
 
-        
+
     r =  Response(stream_with_context(preflight_generator()), mimetype='text/html')
     return r
 
