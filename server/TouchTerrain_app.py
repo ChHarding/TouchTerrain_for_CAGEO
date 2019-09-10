@@ -72,6 +72,18 @@ GA_script = """
       '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
       'auto');
   ga('send', 'pageview');
+  
+  function onclick_for_dl(){
+  		ga('send', 'event', 'Download', 'Click', 'direct', '1');
+  		let comment_text=document.getElementById('comment').value;
+  		//console.log(comment_text) 
+  		ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
+  		//console.log('done comment1') 
+  		ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true});
+  		//console.log('done comment2') 
+  		ga('set', 'dimension3', 'example of text for dimension3 using set');
+  		//console.log('done comment3') 
+  }
  </script>
 </head>
 """
@@ -349,15 +361,13 @@ def preview_file(zip_file, filename):
 @app.route("/export", methods=["POST"])
 def export():
 
-    # clean up old exports
-    os.system('tmpwatch --mtime 6h {} {} {}'.format(DOWNLOADS_FOLDER, PREVIEWS_FOLDER, TMP_FOLDER))
-
     def preflight_generator():
 
         # create html string
         html = '<html>'
 
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
+        
 
         # onload event will only be triggered once </body> is given
         html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
@@ -550,15 +560,17 @@ def export():
             html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
             html += '  <input type="submit" value="Download zip File " \n'
             #https://stackoverflow.com/questions/57499732/google-analytics-events-present-in-console-but-no-more-in-api-v4-results
-            html += '''  onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0');\n
-                                  ga('send', 'event', 'Comment1', 'Click', document.getElementById('comment') , 1);"\n '''
-            '''
-            						  {
-                                       'dimension1': document.getElementById('comment').value,
-                                       'dimension2': 'Test for setting dimension2 from download button click'
-                                       'dimension03': 'Test for setting dimension03 from download button click'
-                                      },
-                                      1);" \n'''
+            html += '''  onclick=onclick_for_dl();\n'''
+            
+            
+            #html += '''  onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0');\n
+                                  #ga('send', 'event', 'Comment1', 'Click', document.getElementById('comment') , 1);"\n '''
+                                  #{
+                                       #'dimension1': document.getElementById('comment').value,
+                                       #'dimension2': 'Test for setting dimension2 from download button click'
+                                       #'dimension03': 'Test for setting dimension03 from download button click'
+                                      #},
+                                      #1);" \n
 
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
