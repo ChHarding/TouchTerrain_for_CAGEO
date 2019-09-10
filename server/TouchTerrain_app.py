@@ -350,7 +350,7 @@ def preview_file(zip_file, filename):
 def export():
 
     # clean up old exports
-    os.system('tmpwatch --mtime --nodirs 6h {} {} {}'.format(DOWNLOADS_FOLDER, PREVIEWS_FOLDER, TMP_FOLDER))
+    os.system('tmpwatch --mtime 6h {} {} {}'.format(DOWNLOADS_FOLDER, PREVIEWS_FOLDER, TMP_FOLDER))
 
     def preflight_generator():
 
