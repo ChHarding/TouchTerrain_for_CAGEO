@@ -80,9 +80,9 @@ GA_script = """
   		//console.log(comment_text) 
   		ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
   		//console.log('done comment1') 
-  		ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true});
+  		//ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true}); // works
   		//console.log('done comment2') 
-  		ga('set', 'dimension3', 'example of text for dimension3 using set');
+  		//ga('set', 'dimension3', 'example of text for dimension3 using set'); /// doesn't work
   		//console.log('done comment3') 
   }
  </script>
