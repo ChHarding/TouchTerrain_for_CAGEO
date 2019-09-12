@@ -17,6 +17,7 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
+# CH: Apr. 2019: converted to Python 3
 # CH: Feb. 2018: added use of tempfile as file buffer to lower memory footprint
 # CH: Feb. 2017: added calculations for normals in stl files
 # CH: Jan. 22, 16: putting the vert index behind a comment makes some programs crash
@@ -45,9 +46,29 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
+# turns out vectormath is about 10 times slower than vector :(
+'''
+#https://pypi.python.org/pypi/vectormath/
+import vectormath as vmath
 
-# https://pypi.python.org/pypi/vectors/
-from vectors import Vector, Point
+# function to calculate the normal for a triangle
+def get_normal(tri):
+    
+    """in: 3 verts, out normal (nx, ny,nz) with length 1
+    """
+    
+    v_ar = vmath.Vector3Array([tri[0].get(), tri[1].get(), tri[2].get()])
+    
+    
+    a = v_ar[1] - v_ar[0]
+    b = v_ar[2] - v_ar[1]
+    c = a.cross(b)
+    n = c.normalize()
+    
+    return list(n) # convert Vector3 to list
+'''
+# TODO: this is still pretty slow (takes as long as the first processing step!), maybe have a nonormals setting which uses 0,0,0 ?
+from vectors import Vector, Point  #
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -69,13 +90,14 @@ def get_normal(tri):
     else:
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
-
+    
 def dist(v1,v2):
     ''' distance between 2 vertices'''
-    p1 = Point.from_list(v1.get())
-    p2 = Point.from_list(v2.get())
-    v = Vector.from_points(p1, p2)
-    return v.magnitude()
+    p1 = vmath.Vector3(v1.get())
+    p2 = vmath.Vector3(v2.get()) 
+    v = p1 - p2
+    m = v.magnitude()
+    return v
 
 class vertex(object):
     def __init__(self, x,y,z, vertex_idx_from_grid):
@@ -85,7 +107,7 @@ class vertex(object):
         # for non obj file this is set to -1, and there's no need to deal with vertex indices
         if self.vert_idx != -1:
             # if key does not yet exist ...
-            if not self.vert_idx.has_key(tuple(self.coords)): # can't hash lists
+            if tuple(self.coords) not in self.vert_idx: # can't hash lists
                 # hash with 3D coords with a running number as Id
                 self.vert_idx[tuple(self.coords)] = len(self.vert_idx) # ... store it with current length (= number of elements) as index value
             else: # this vertex already has an Id
@@ -292,7 +314,7 @@ class grid(object):
 
         #print top.shape, bottom.shape
         tp = top.dtype # dtype('float32')
-        if not str(tp).startswith("float"): print "Warning: expecting float raster!"
+        if not str(tp).startswith("float"): print("Warning: expecting float raster!")
 
         # Important: in 2D numpy arrays, x and y are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
@@ -341,7 +363,7 @@ class grid(object):
         #print top.astype(int)
         #print np.nanmin(top), np.nanmax(top)
         top += tile_info["base_thickness_mm"] # add base thickness
-        #print "top min/max:", np.nanmin(top), np.nanmax(top)
+        print("top min/max:", np.nanmin(top), np.nanmax(top))
         #print top.astype(int)
 
         tile_info["max_elev"] = np.nanmax(top)
@@ -371,12 +393,12 @@ class grid(object):
         percent = 10
         pc_step = int(ymaxidx/percent) + 1
         progress = 0
-        print >> sys.stderr, "started processing", multiprocessing.current_process()
+        print("creating internal triangle data structure for", multiprocessing.current_process(), file=sys.stderr)
 
         for j in range(1, ymaxidx+1):    # y dimension for looping within the +1 padded raster
             if j % pc_step == 0:
                 progress += percent
-                print >> sys.stderr, progress, "%", multiprocessing.current_process()
+                print(progress, "%", multiprocessing.current_process(), file=sys.stderr)
 
             for i in range(1, xmaxidx+1):# x dim.
                 #print "y=",j," x=",i, " elev=",top[j,i]
@@ -432,7 +454,7 @@ class grid(object):
                             SEelev = np.nanmean( np.array([top[j+0,i+0], top[j-0,i+1], top[j+1,i+1], top[j+1,i+0]]) )
                             SWelev = np.nanmean( np.array([top[j+0,i+0], top[j+1,i+0], top[j+1,i-1], top[j+0,i-1]]) )
                         except RuntimeWarning: #  corner is surrounded by NaN eleveations - skip this cell
-                            print j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell"
+                            print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
                             #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
                             num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
                             if num_nans > 0: # yes, set cell to None and skip it ...
@@ -494,7 +516,7 @@ class grid(object):
         #print self.cells
         #print vertex.vert_idx
 
-        print >> sys.stderr, "100%", multiprocessing.current_process()
+        print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
 
 
     def create_zigzag_borders(self, num_cells_per_zig = 100, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
@@ -655,11 +677,13 @@ class grid(object):
         BINARY_HEADER = "80sI" # up to 80 chars ( do NOT start with the word solid!) + number of faces as UINT32
         BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
         l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(facets))] #  (I)
-        for facet  in facets:
+
+        for i,facet  in enumerate(facets):
             # prepend normal (0,0,0), pad the end with a unsigned short byte ("attribute byte count")
             # I assume a 0 normal forces the sw reading this to calculate it (Meshlab seems to do this) (???)
             facet = [0,0,0]  + facet + [0]        #print facet
             l.append(struct.pack(BINARY_FACET, *facet))
+            
         return l
 
     def _build_ascii_stl_orig(self, facets):
@@ -673,12 +697,21 @@ class grid(object):
         l.append('endsolid digital_elevation_model')
         return l
 
-    def _build_ascii_stl(self, tris):
+    def _build_ascii_stl(self, tris, no_normals=False):
         "in: list of triangles, each a list of 3 verts   out: list of ascii STL strings"
         l = ['solid digital_elevation_model'] # digital_elevation_model is the name of the model
-        for t in tris:
-            n = get_normal(t)
-            tl = n
+        pc_step = int(len(tris)/10) + 1
+        progress = 0
+        print("assembling ascii stl from", len(tris), "triangles", file=sys.stderr)
+        for i,t  in enumerate(tris):
+            
+            if i % pc_step == 0: 
+                progress += 10
+                print(progress, "%", file=sys.stderr, end=", ")                
+                
+            # start with x,y,z for normal
+            tl = get_normal(t) if no_normals == False else [0,0,0]  
+            
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
                 tl.extend(coords) # extend() unpacks that list!
@@ -687,23 +720,33 @@ class grid(object):
             #print s
             l.append(s)
         l.append('endsolid digital_elevation_model')
+        print("\n", file=sys.stderr)
         return l
 
-    def _build_binary_stl(self, tris):
+    def _build_binary_stl(self, tris, no_normals=False):
         "in: list of triangles, each a list of 3 verts   out: list of binary STL strings"
         # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
         BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
         BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
         l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris))] #  (I)
-        for t  in tris:
-            n = get_normal(t)
-            tl = n
+        pc_step = int(len(tris)/10) + 1       
+        progress = 0
+        print("assembling binary stl from", len(tris), "triangles", file=sys.stderr)
+        for i,t  in enumerate(tris):
+                    
+            if i % pc_step == 0: 
+                progress += 10
+                print(progress, "%", file=sys.stderr, end=", ")                   
+            
+            # start with x,y,z for normal
+            tl = get_normal(t) if no_normals == False else [0,0,0]
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
-                tl.extend(coords) # extend() unpacks that list!
+                tl.extend(coords) # like append() but extend() unpacks that list!
                 #print tl
             tl.append(0) # append attribute byte 0
             l.append(struct.pack(BINARY_FACET, *tl))
+        print("\n", file=sys.stderr)
         return l
     ''' 
     # splits skinny triangles
@@ -781,10 +824,32 @@ class grid(object):
         temp_file.write(buf)
         return temp_file
     '''
-    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
+    
+    def write_into_temp_file(self, temp_file, buf, ascii=True):
+        """ open temp_file (as ascii if True, else binary) and write buffer into it, close it
+        return temp_file if OK, exception object otherwise"""
+        
+        # overwrite and open as ascii or binary
+        mode = "w+" if ascii == True else "wb+" # ternary operator, youso cool!
+        
+        try:
+            fo = open(temp_file, mode)
+        except Exception as e:
+            print("Error openening:",temp_file, e, file=sys.stderr)
+            return e
+        else:
+            # assuming no other exception can occur here (?)
+            fo.write(buf)
+            fo.close()
+            return temp_file
+
+
+
+    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None, no_normals=False):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
             if temp_file is not None, write STL into it (instead of a buffer) and return it
+            if no_normals is True, all normals are 0,0,0, which makes this process subestantially faster
         """
         # Example: list of 2 triangles
         #[
@@ -815,7 +880,7 @@ class grid(object):
                 else:
                     quads = [cell.topquad] # no bottom quads, only top                     
                     
-                for k in cell.borders.keys(): # plus get border quads if we have any
+                for k in list(cell.borders.keys()): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                     # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
                 for q in quads:
@@ -828,24 +893,47 @@ class grid(object):
 
         buf = None
         if ascii:
-            buf_as_list = self._build_ascii_stl(triangles)
+            buf_as_list = self._build_ascii_stl(triangles, no_normals)
             buf = "\n".join(buf_as_list).encode("UTF-8") # single utf8 string
         else:
-            buf_as_list = self._build_binary_stl(triangles)
+            
+            # profiling
+            '''
+            import cProfile, pstats, io
+            from pstats import SortKey            
+            pr = cProfile.Profile()
+            pr.enable()            
+            '''         
+            
+            buf_as_list = self._build_binary_stl(triangles, no_normals)
             buf = b"".join(buf_as_list)  # single "binary string"/buffer
+            
+            '''
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+            '''
 
         #print len(buf)
+        if temp_file ==  None: 
+            return buf
+        else: 
+            r = self.write_into_temp_file(temp_file, buf, ascii=ascii)
+            return r # if OK, just returns temp filename
 
-        if temp_file ==  None: return buf
+            
+            
 
-        # Write string into temp file and return it
-        temp_file.write(buf)
-        return temp_file    
-
-    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None):
+    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None, no_normals=False):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
-           if no_bottom is True, bottom triangles are omitted
-           if temp_file is not None, write OBJ into it (instead of a buffer) and return it
+        if no_bottom is True, bottom triangles are omitted
+        if temp_file is not None, open it and write OBJ into it (instead of a buffer) and close it, 
+        return temp_file or exception 
+        no_normals is not used for now
+        
 
         mtllib dontcare.mtl
         g vert
@@ -864,7 +952,7 @@ class grid(object):
         # initially, store each line in output file as string in a list
         buf_as_list = []
         buf_as_list.append("g vert")    # header for vertex indexing section
-        for v in self.vi.keys(): # self.vi is a dict of vertex indices
+        for v in list(self.vi.keys()): # self.vi is a dict of vertex indices
             #vstr = "v %f %f %f #%d" % (v[0], v[1], v[2], i+1) # putting the vert index behind a comment makes some programs crash when loading the obj file!
             vstr = "v %f %f %f" % (v[0], v[1], v[2])
             buf_as_list.append(vstr)
@@ -887,7 +975,7 @@ class grid(object):
                 else:
                     quads = [cell.topquad] # no bottom quads, only top  
                     
-                for k in cell.borders.keys(): # plus get border quads if we have any
+                for k in list(cell.borders.keys()): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                 for q in quads:
                     t0,t1 = q.get_triangles_with_indexed_verts()
@@ -900,11 +988,11 @@ class grid(object):
         # concat list of strings to a single string
         buf = "\n".join(buf_as_list).encode("UTF-8")
 
-        if temp_file ==  None: return buf
-
-        # Write string into temp file and return it
-        temp_file.write(buf)
-        return temp_file
+        if temp_file ==  None: 
+            return buf
+        else: 
+            r = self.write_into_temp_file(temp_file, buf, ascii=True)
+            return r # if OK, just returns temp filename
 
 # MAIN  (left this in so I can test stuff ...)
 if __name__ == "__main__":
@@ -958,7 +1046,7 @@ if __name__ == "__main__":
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
-    print top
+    print(top)
     #print bottom
 
     """
@@ -1006,7 +1094,7 @@ if __name__ == "__main__":
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
-    print "done"
+    print("done")
 
 
 

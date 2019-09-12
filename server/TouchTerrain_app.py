@@ -22,42 +22,73 @@ import os
 from datetime import datetime
 import json
 import ee
+import sys
+import common
+import server
 
+from common import config
+# Some server settings
+from server.config import *
+
+from server import app
+
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template
+app = Flask(__name__)
+
+
+# import module from common
+from common import TouchTerrainEarthEngine
+from common.Coordinate_system_conv import * # arc to meters conversion
+
+import logging
+import time
+
+from zipfile import ZipFile
 
 # Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
 google_maps_key = ""
 try:
-    with open("GoogleMapsKey.txt") as f:
+    with open(GOOGLE_MAPS_KEY_FILE) as f:
         google_maps_key = f.read().rstrip()
         if google_maps_key == "Put your Google Maps key here":
             google_maps_key = ""
         else:
-            print "Google Maps key is:", google_maps_key
+            print("Google Maps key is:", google_maps_key)
             pass
 except:
-    pass # file did not exist - no problem
+    pass # file does not exist - will show the ugly Google map version
+
+
+# a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
+GA_script = """
+<head>
+ <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create',
+      '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
+      'auto');
+  ga('send', 'pageview');
   
+  //fire off several messages to GA when download button is clicked
+  function onclick_for_dl(){
+  		ga('send', 'event', 'Download', 'Click', 'direct', '1');
+  		let comment_text=document.getElementById('comment').value;
+  		//console.log(comment_text) 
+  		ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
+  		//console.log('done comment1') 
+  		//ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true}); // works
+  		//console.log('done comment2') 
+  		//ga('set', 'dimension3', 'example of text for dimension3 using set'); /// doesn't work
+  		//console.log('done comment3') 
+  }
+ </script>
+</head>
+"""
 
-from touchterrain_config  import *  # Some server settings, touchterrain_config.py must be in this folder
-
-# import module form common
-import sys
-from os.path import abspath, dirname
-top = abspath(__file__)
-this_folder = dirname(top)
-tmp_folder = this_folder + os.sep + "tmp"  # dir to store zip files and temp tile files
-common_folder = dirname(this_folder) + os.sep + "common"
-sys.path.append(common_folder) # add common folder to sys.path
-#print >> sys.stderr, "sys.path:", sys.path
-import TouchTerrainEarthEngine
-from Coordinate_system_conv import * # arc to meters conversion
-
-import webapp2
-
-import jinja2
-jinja_environment = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
-import logging
-import time
 
 
 
@@ -80,205 +111,330 @@ def Hillshade(az, ze, slope, aspect):
 
 
 
+
+
+
 #
 # The page for selecting the ROI and putting in printer parameters
 #
 
-# example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
-class MainPage(webapp2.RequestHandler):
-  def get(self):                             # pylint: disable=g-bad-name
-      
+@app.route("/", methods=["GET"])
+def main_page():
+    # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
+
     # try both ways of authenticating
     try:
         ee.Initialize() # uses .config/earthengine/credentials
     except Exception as e:
-        print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
- 
+        print("EE init() error (with .config/earthengine/credentials),", e, ", trying .pem file", file=sys.stderr)
+
         try:
             # try authenticating with a .pem file
-            import config  # sets location of .pem file, config.py must be in this folder
-            ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+            from oauth2client.service_account import ServiceAccountCredentials
+            from ee import oauth
+            credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
+            ee.Initialize(credentials, config.EE_URL)
         except Exception as e:
-            print >> sys.stderr, "EE init() error (with config.py and .pem file)", e      
+            print("EE init() error with .pem file", e, file=sys.stderr)
 
+    # init all browser args with defaults, these must be strings and match the SELECT values
+    args = {
+        'DEM_name': 'USGS/NED',
 
-    #print self.request.GET # all args
-
-    DEM_name = self.request.get("DEM_name")
-    map_lat = self.request.get("map_lat")
-    map_lon = self.request.get("map_lon")
-    map_zoom = self.request.get("map_zoom")
-    trlat = self.request.get("trlat")
-    trlon = self.request.get("trlon")
-    bllat = self.request.get("bllat")
-    bllon = self.request.get("bllon")
-    hillshade_gamma = self.request.get("hs_gamma")
-    printres =  self.request.get("printres")
-    ntilesx, ntilesy = self.request.get("ntilesx"), self.request.get("ntilesy")
-    tilewidth = self.request.get("tilewidth")
-    basethick = self.request.get("basethick")
-    zscale = self.request.get("zscale")
-    fileformat = self.request.get("fileformat")
-    manual = self.request.get("manual")
-    manual = manual.replace('\"', '&quot;')
-
-    # default args, are only used the very first time, after that the URL will have the values encoded
-    # these must be strings and match the SELECT values!
-    if DEM_name not in TouchTerrainEarthEngine.DEM_sources: DEM_name = 'USGS/NED' # 10m NED as default
-    if map_lat == "": map_lat = "44.59982"  # Sheep Mtn, Greybull, WY
-    if map_lon == "": map_lon ="-108.11695"
-    if map_zoom == "": map_zoom ="11"
-    if hillshade_gamma == "": hillshade_gamma = "1.0"
-    if printres == "": printres = "0.5"
-    if ntilesx == "": ntilesx = "1"
-    if ntilesy == "": ntilesy = "1"
-    if tilewidth == "": tilewidth = "80"
-    if basethick == "": basethick = "2"
-    if zscale == "": zscale = "1.0"
-    if fileformat not in ["obj", "STLa", "STLb", "GeoTiff"]: fileformat = "STLb"
-
-    # for ETOPO1 we need to first select one of the two bands as elevation
-
-    if DEM_name == """NOAA/NGDC/ETOPO1""":
-        img = ee.Image(DEM_name)
-        elev = img.select('bedrock') # or ice_surface
-        terrain = ee.Terrain.products(elev)
-    else:
-        terrain = ee.Algorithms.Terrain(ee.Image(DEM_name))
-
-    
-    hs = terrain.select('hillshade')
-
-    mapid = hs.getMapId( {'gamma':float(hillshade_gamma)}) # opacity is set in JS
-
-    # jinja will inline these variables and their values into the template and create index.html
-    template_values = {
-        'mapid': mapid['mapid'],
-        'token': mapid['token'],
-     'DEM_name': DEM_name,
-
-     # defines map location
-        'map_lat': map_lat,
-        'map_lon': map_lon,
-        'map_zoom': map_zoom,
+        # defines map location
+        'map_lat': "44.59982",
+        'map_lon': "-108.11695",
+        'map_zoom': "11",
 
          # defines area box
-        'trlat' : trlat,
-        'trlon' : trlon,
-        'bllat' : bllat,
-        'bllon' : bllon,
+        'trlat' : "",
+        'trlon' : "",
+        'bllat' : "",
+        'bllon' : "",
 
         # 3D print parameters
-        "printres": printres,
-        "ntilesx" : ntilesx,
-        "ntilesy" : ntilesy,
-        "tilewidth" : tilewidth,
-        "basethick" : basethick,
-        "zscale" : zscale,
-        "fileformat" : fileformat,
-        "manual" : manual,
+        "printres": "0.4",
+        "ntilesx" : "1",
+        "ntilesy" : "1",
+        "tilewidth" : "80",
+        "basethick" : "1",
+        "zscale" : "1.0",
+        "fileformat" : "STLb",
 
-        "hsgamma": hillshade_gamma,
-        
+        "hsgamma": "1.0",
+
         "google_maps_key": google_maps_key,  # '' or a key, if there was a key file
     }
 
-    # this creates a index.html "file" with mapid, token, etc. inlined
-    template = jinja_environment.get_template('index.html')
-    self.response.out.write(template.render(template_values))
+    #re-assemble the URL query string and store it , so we can put it into the log file
+    qs = "?"
+    for k,v in list(request.args.items()):
+        v = v.replace('\"', '&quot;')
+        qs = qs + k + "=" + v + "&"
+    #print qs
+
+    # overwrite args with values from request
+    for key in request.args:
+        args[key] = request.args[key]
+        #print(key, request.args[key])
+
+    ''' # not sure if this is actually needed ?
+    # convert " to &quot; for URL
+    if args.get("manual") != None:
+        args["manual"] = args["manual"].replace('\"', '&quot;')
+        pass
+    else:
+        args["manual"] = ""
+    '''
+
+    # for ETOPO1 we need to first select one of the two bands as elevation
+    if args["DEM_name"] == """NOAA/NGDC/ETOPO1""":
+        img = ee.Image(args["DEM_name"])
+        elev = img.select('bedrock') # or ice_surface
+        terrain = ee.Terrain.products(elev)
+    else:
+        terrain = ee.Algorithms.Terrain(ee.Image(args["DEM_name"]))
+
+    hs = terrain.select('hillshade')
+
+    gamma = float(args["hsgamma"])
+    mapid = hs.getMapId( {'gamma':gamma}) # opacity is set in JS
+
+    # these have to be added to the args so they end up in the template
+    # 'mapid': mapid['mapid'],
+    # 'token': mapid['token'],
+
+    args['mapid'] = mapid['mapid']
+    args['token'] = mapid['token']
 
 
+    #template = jinja_environment.get_template('index.html')
+    #html_str = template.render(args)
 
-# preflight page: showing some notes on how there's no used feedback until processing is done
-# as I don't know how to carry over the args I get here to the export page handler's post() method,
-# I store the entire request in the registry and write it back later.
-class preflight(webapp2.RequestHandler):
-    def __init__(self, request, response):
-        # Set self.request, self.response and self.app.
-        self.initialize(request, response)
-        app = webapp2.get_app()
-        app.registry['preflightrequest'] = self.request
-        print "preflight app.registry is", app.registry
-        print app.registry['preflightrequest'] #Levi I don't know why, but without this, complains about expired request
+    # work around getattr throwing an exeption if name is not in module
+    def mygetattr(mod, name):
+        try:
+            r = getattr(mod, name)
+        except:
+            r = "" # name not found
+        else:
+            return r
+
+    # add any vars from server/config.py that may need to be inlined
+    args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(server.config, "GOOGLE_ANALYTICS_TRACKING_ID")
+
+    # string with index.html "file" with mapid, token, etc. inlined
+    html_str = render_template("index.html", **args)
+    return html_str
+
+# @app.rounte("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
+
+@app.route("/preview/<string:zip_file>")
+def preview(zip_file):
+
+    def preview_STL_generator():
+
+        # create html string
+        html = '<html>'
+
+        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
+
+        # onload event will only be triggered once </body> is given
+        html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
+
+        # progress bar, will be hidden after loading is complete
+        html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>\n'
+
+        # Message shown during unzipping
+        html += '\n<h4 id="working" style="display:inline; white-space:nowrap" >Preparing for preview, please be patient ...</h4>\n'
+        yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
+
+        # download button
+        zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
+        html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">'
+        html += '  <input type="submit" value="Download zip File" '
+        html += ''' onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0')" '''
+        html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
+        #html += '  To return to the selection map, click the back button in your browser twice.\n'
+        html += '</form>\n'
+
+        # get path (not URL) to zip file in download folder
+        full_zip_path = os.path.join(DOWNLOADS_FOLDER, zip_file)
+
+        # make a dir in preview to contain the STLs
+        job_id = zip_file[:-4] # name for folder
+        preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
+        try:
+            os.mkdir(preview_dir)
+        except OSError as e:
+            if e.errno != 17:  # 17 means dir already exists, so that error is OK
+                print("Error:", e, file=sys.stderr)
+                return "Error:" + str(e)
+
+        with ZipFile(full_zip_path, "r") as zip_ref:
+            fl = zip_ref.namelist() # list of files
+            stl_files = []
+            for f in fl:
+                if f[-4:].lower() == ".stl":
+                    stl_files.append(f)
+                    zip_ref.extract(f, preview_dir)
 
 
-    def post(self):
-        #print self.request.POST # all args
-        self.response.headers['X-Content-Type-Options'] = 'nosniff' # Prevent browsers from MIME-sniffing the content-type:
-        self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
-        self.response.out.write('<html><body>')
-        self.response.out.write("<h2>Processing started:</h2>")
-        self.response.out.write("Press the Start button to process the DEM into 3D model files.<br>")
-        self.response.out.write("Note that there's NO progress indicator (yet), you will only see this page trying to connect. That's OK, just be patient!<br>")
-        self.response.out.write("Pressing Start again during processing has no effect.<br>")
-        self.response.out.write("Once your 3D model is created, you will get a new page (Processing finished) for downloading a zip file.<br><br>")
-        self.response.out.write('<form action="/export" method="POST" enctype="multipart/form-data">')
-        self.response.out.write('<input type="hidden" maxlength="50" size="20" name="Note" id="Note" value="NULL">') # for user comment
-        #self.response.out.write('<input type="hidden" name="prog_pct" id="prog_pct" value="0">') # progress percentage
-        self.response.out.write('<input type="submit" value="Start"> </form>')
-        self.response.out.write('</body></html>')
+        if len(stl_files) == 0:
+            errstr = "No STL files found in " + full_zip_path
+            print("Error:", errstr, file=sys.stderr)
+            return "Error:" + errstr
 
-# Page that creates the 3D models (tiles) in a in-memory zip file, stores it in tmp with
-# a timestamp and shows a download URL to the zip file. The args are the same as in the
-# main page (via preflight by using app.registry.get('preflightrequest'))
-class ExportToFile(webapp2.RequestHandler):
-    def __init__(self, request, response):
-        self.initialize(request, response)
-        app = webapp2.get_app()
-        self.request = app.registry.get('preflightrequest')
+
+        # JS functions for loading bar
+        html +=  """
+            <script>
+                  function load_prog(load_status, load_session){
+                      let loaded = 0;
+                      let total = 0;
+
+                      //go over all models that are/were loaded
+                      Object.keys(load_status).forEach(function(model_id)
+                      {
+                          //need to make sure we're on the last loading session (not counting previous loaded models)
+                          if (load_status[model_id].load_session == load_session){
+                              loaded += load_status[model_id].loaded;
+                              total += load_status[model_id].total;
+                          }
+                      });
+
+                      //set total progress bar
+                      document.getElementById("pbtotal").value = loaded/total;
+                  }
+            </script>"""
+
+        html += """
+                <div id="stl_cont" style="width:100%;height:80%;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
+
+                <script src="/static/js/stl_viewer.min.js"></script>
+                <script>
+                    var stl_viewer=new StlViewer(
+                        document.getElementById("stl_cont"),
+                        {
+                            loading_progress_callback:load_prog,
+                            //all_loaded_callback:all_loaded,
+                            all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
+                            models:
+                            ["""
+
+        # make JS object for each tile
+        for i,f in enumerate(stl_files):
+            html += '\n                            {'
+            html += 'id:' + str(i+1) + ', '
+            url = url_for("preview_file", zip_file=zip_file, filename=f)
+            html += 'filename:"' + url + '", rotationx:-0.35, display:"flat",'
+            #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
+            html += '},'
+        html += """\n                            ],
+                            load_three_files: "/static/js/",
+                            center_models:"""
+
+        # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
+        # Downside: the trackball will rotate around lower left tile corner (which is 0/0), not the center
+        html += 'false' if len(stl_files) > 1 else 'true'
+
+        html += """
+                        }
+                    );
+                </script>
+
+            </body>
+        </html>
+        """
+        #print(html)
+        yield html
+
+    return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
+
+@app.route("/preview/<string:zip_file>/<string:filename>")
+def preview_file(zip_file, filename):
+    job_id = zip_file[:-4]
+    return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
+                               filename, as_attachment=True)
+
+# Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
+# a timestamp and shows a download URL to the zip file.
+@app.route("/export", methods=["POST"])
+def export():
+
+    def preflight_generator():
+
+        # create html string
+        html = '<html>'
+
+        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
         
-        
-    def post(self): # make tiles in zip file and write
-        #print self.request.arguments() # should be the same as given to preflight
-        self.response.headers['X-Content-Type-Options'] = 'nosniff' # Prevent browsers from MIME-sniffing the content-type:
-        self.response.headers["X-Frame-Options"] = "SAMEORIGIN"   # prevent clickjacking
-        self.response.out.write('<html><body>')
-        self.response.out.write('<h2>Processing finished:</h2>')
-        
-        print self.request.params     
 
-        # debug: print/log all args and then values
-        args = {} # put arg name and value in a dict as key:value
-        for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres", "ntilesx", "ntilesy", "tilewidth",
-                  "basethick", "zscale", "fileformat", "manual"):
-            v = self.request.get(k) # key = name of arg
-            args[k] = v # value
-            if k not in ["DEM_name", "fileformat", "manual"]: args[k] = float(args[k]) # floatify non-string args
-            print k, args[k]
-            
-        # decode any extra (manual) args and put them in args dict
-        manual = args["manual"] 
+        # onload event will only be triggered once </body> is given
+        html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
+        html += 'Once the animation stops, you can preview and download your file.</h2>\n'
+        yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
+
+
+        #
+        #  print/log all args and their values
+        #
+
+
+        # put all agrs we got from the browser in a  dict as key:value
+        args = request.form.to_dict()
+
+        # list of the subset of args needed for processing
+        key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
+                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
+
+        for k in key_list:
+
+            # float-ify some ags
+            if k in ["trlat", "trlon", "bllat", "bllon","printres", "tilewidth", "basethick", "zscale"]:
+                args[k] = float(args[k])
+
+            # int-ify some args
+            if k in ["ntilesx", "ntilesy"]:
+                args[k] = int(args[k])
+
+
+        # decode any extra (manual) args and put them in the args dict as
+        # separate args as the are needed in that form for processing
+        # Note: the type of each arg is decided by  json.loads(), so 1.0 will be a float, etc.
+        manual = args.get("manual", None)
+        extra_args={}
         if manual != None:
-            JSON_str = "{ " + manual + "}" 
-            del args["manual"]
+
+            JSON_str = "{ " + manual + "}"
             try:
                 extra_args = json.loads(JSON_str)
-            except Exception, e:
-                logging.error(e)
-                print e
+            except Exception as e:
+                s = "JSON decode Error for manual: " + manual + "   " + str(e)
+                logging.warning(s)
+                print(e)
+                yield "Warning: " + s + "<br>"
             else:
                 for k in extra_args:
                     args[k] = extra_args[k] # append/overwrite
-                    # TODO: validate  
-                    
+                    # TODO: validate
+
         # log and show args in browser
-        for k in args:
-            self.response.out.write("%s = %s <br>" % (k, str(args[k])))
+        html =  '<br>'
+        for k in key_list:
+            html += "%s = %s <br>" % (k, str(args[k]))
             logging.info("%s = %s" % (k, str(args[k])))
-        self.response.out.write("")
+        html += "<br>"
         for k in extra_args:
-            self.response.out.write("%s = %s <br>" % (k, str(args[k])))
-            logging.info("%s = %s" % (k, str(args[k])))        
-        self.response.out.write("")
-        
+            html += "%s = %s <br>" % (k, str(args[k]))
+            logging.info("%s = %s" % (k, str(args[k])))
+        html += "<br>"
+        yield html
+
         #
         # bail out if the raster would be too large
         #
-        
-        # ???
-        from touchterrain_config import MAX_CELLS_PERMITED # WTH? If I don't re-import it here I get:UnboundLocalError: local variable 'MAX_CELLS_PERMITED' referenced before assignment 
-        # ???        
-        
         width = args["tilewidth"]
         bllon = args["bllon"]
         trlon = args["trlon"]
@@ -290,43 +446,56 @@ class ExportToFile(webapp2.RequestHandler):
         latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
         num_total_tiles = args["ntilesx"] * args["ntilesy"]
         pr = args["printres"]
-        
+
         # if we have "only" set, divide load by number of tiles
         div_by = 1
         if extra_args.get("only") != None:
             div_by = float(num_total_tiles)
-            
-        
-        # for geotiffs only, set a much higher limit b/c we don't do any processing, just d/l the GEE geotiff and zip it
-        if args["fileformat"] == "GeoTiff": MAX_CELLS_PERMITED *= 100                     
-        
+
+        # for geotiffs only, set a much higher limit b/c we don't do any processing,
+        # just d/l the GEE geotiff and zip it
+        if args["fileformat"] == "GeoTiff":
+            global MAX_CELLS_PERMITED # thanks Nick!
+            MAX_CELLS_PERMITED *= 100
+
+        # pr <= 0 means: use source
         if pr > 0: # print res given by user (width and height are in mm)
             height = width * (dlat / float(dlon))
             pix_per_tile = (width / float(pr)) * (height / float(pr))
             tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
-            print >> sys.stderr, "total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED
+            print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
         else:
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cell is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!            
+            cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
             tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
-            print >> sys.stderr, "total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED
+            print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
 
         if tot_pix >  MAX_CELLS_PERMITED:
-            self.response.out.write("<br>Your requested job is too large! Please reduce area (red box) or lower the print resolution")
-            self.response.out.write("<br>Current total number of pixels is " + str(tot_pix))
-            self.response.out.write(" but must be less than " + str(MAX_CELLS_PERMITED))
-            return       
+            html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
+            html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
+            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2))
+            html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ...\n"
+            html +=  '</body></html>'
+            yield html
+            return "bailing out!"
 
-            
+
         args["CPU_cores_to_use"] = NUM_CORES
 
-        # getcwd() returns / on Linux ????
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        args["temp_folder"] = cwd + os.sep + TMP_FOLDER
-        #print >> sys.stderr, "temp_folder is:", args["temp_folder"]
+
+        # check if we have a valid temp folder
+        args["temp_folder"] = TMP_FOLDER
+        print("temp_folder is set to", args["temp_folder"], file=sys.stderr)
+        if not os.path.exists(args["temp_folder"]):
+            s = "temp folder " + args["temp_folder"] + " does not exist!"
+            print(s, file=sys.stderr)
+            logging.error(s)
+            html = '</body></html>Error:' + s
+            yield html
+            return "bailing out!"# Cannot continue without proper temp folder
 
         # name of zip file is time since 2000 in 0.01 seconds
         fname = str(int((datetime.now()-datetime(2000,1,1)).total_seconds() * 1000))
@@ -336,38 +505,91 @@ class ExportToFile(webapp2.RequestHandler):
         args["max_cells_for_memory_only"] = MAX_CELLS
 
 
+        # show snazzy animate gif - set to style="display: none to hide once
+        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
+
+        # add an empty paragraph for error messages during processing that come from JS
+        html += '<p id="error"> </p>\n'
+        yield html
+
+        #
+        # Create zip and write to tmp
+        #
         try:
-            # create zip and write to tmp
-            totalsize, full_zip_zile_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
-        except Exception, e:
-            logging.error(e)
-            print e
-            self.response.out.write("Error:" + str(e))
-            return
+            totalsize, full_zip_file_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+        except Exception as e:
+            print("Error:", e, file=sys.stderr)
+            html =  '</body></html>' + "Error:," + str(e)
+            yield html
+            return "bailing out!"
 
-        if totalsize < 0: # something went wrong, error message is in full_zip_zile_name
-            print >> sys.stderr, "Error:", full_zip_zile_name
-            self.response.out.write(full_zip_zile_name)
-        else:    
-            print >> sys.stderr, "Finished processing", full_zip_zile_name
-            self.response.out.write("total zipped size: %.2f Mb<br>" % totalsize)
-    
-            self.response.out.write('<br><form action="tmp/%s.zip" method="GET" enctype="multipart/form-data">' % (fname))
-            self.response.out.write('<input type="submit" value="Download zip File " title="">   (will be deleted in 24 hrs)</form>')
-            #self.response.out.write('<form action="/" method="GET" enctype="multipart/form-data">')
-            #self.response.out.write('<input type="submit" value="Go back to selection map"> </form>')
-            self.response.out.write("<br>To return to the selection map, click the back button in your browser twice")
-            self.response.out.write(
-            """<br>After downloading you can preview a STL/OBJ file at <a href="http://www.viewstl.com/" target="_blank"> www.viewstl.com ) </a>  (limit: 35 Mb)""")
+        # if totalsize is negative, something went wrong, error message is in full_zip_file_name
+        if totalsize < 0:
+            print("Error:", full_zip_file_name, file=sys.stderr)
+            html =  '</body></html>' + "Error:," + str(full_zip_file_name)
+            yield html
+            return "bailing out!"
 
-# the pages that can be requested from the browser and the handler that will respond (get or post method)
-app = webapp2.WSGIApplication([('/', MainPage), # index.html
-                              ('/export', ExportToFile), # results page, generated by: <form action="/export" ....>
-                              ('/preflight', preflight)],
-                              debug=True)
+        else:
+            html = ""
 
-if SERVER_TYPE == "paste":
-    from paste import httpserver
-    print "running local httpserver ,",
-    httpserver.serve(app, host='127.0.0.1', port='8080') # run the server
-print "end of TouchTerrain_app.py"
+            # move zip from temp folder to static folder so flask can serve it (. is server root!)
+            zip_file = fname + ".zip"
+            try:
+                os.rename(full_zip_file_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
+            except Exception as e:
+                print("Error:", e, file=sys.stderr)
+                html =  '</body></html>' + "Error:," + str(e)
+                yield html
+                return "bailing out!"
+
+            zip_url = url_for("download", filename=zip_file)
+
+
+            if args["fileformat"] in ("STLa", "STLb"):
+                html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">'
+                html += '  <input type="submit" value="Preview STL " '
+                html += ''' onclick="ga('send', 'event', 'Preview', 'Click', 'preview', '0')" '''
+                html += '   title=""> '
+                html += 'Note: This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
+                html += 'You may not see anything for a while even after the progress bar is full!'
+                html += '</form>\n'
+
+            html += "Optional: tell us what you're using this model for<br>\n"
+            html += '''<textarea autofocus form="dl" id="comment" cols="100" maxlength=150 rows="2"></textarea><br>\n'''
+
+            html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
+            html += '  <input type="submit" value="Download zip File " \n'
+            #https://stackoverflow.com/questions/57499732/google-analytics-events-present-in-console-but-no-more-in-api-v4-results
+            html += '''  onclick=onclick_for_dl();\n'''
+            
+            
+            #html += '''  onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0');\n
+                                  #ga('send', 'event', 'Comment1', 'Click', document.getElementById('comment') , 1);"\n '''
+                                  #{
+                                       #'dimension1': document.getElementById('comment').value,
+                                       #'dimension2': 'Test for setting dimension2 from download button click'
+                                       #'dimension03': 'Test for setting dimension03 from download button click'
+                                      #},
+                                      #1);" \n
+
+            html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
+            html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
+            html += "   <br>To return to the selection map, click the back button in your browser once.\n"
+            html += '</form>\n'
+
+
+
+            html +=  '</body></html>'
+            yield html
+
+
+    r =  Response(stream_with_context(preflight_generator()), mimetype='text/html')
+    return r
+
+@app.route('/download/<string:filename>')
+def download(filename):
+    return send_from_directory(DOWNLOADS_FOLDER,
+                               filename, as_attachment=True)
+
+#print "end of TouchTerrain_app.py"

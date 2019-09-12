@@ -1,4 +1,7 @@
-Mar. 5.
+Apr. 19. 2019
+- moved to Python 3
+
+Mar. 5. 2019
 - added support for both .pem files or .config/earthengine/credentials for authetication
 
 

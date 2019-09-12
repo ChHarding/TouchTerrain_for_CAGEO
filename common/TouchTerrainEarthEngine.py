@@ -25,16 +25,17 @@ import os
 
 
 import datetime
-from StringIO import StringIO
-import urllib2
+from io import StringIO
+import urllib.request, urllib.error, urllib.parse
 import socket
 import io
 from zipfile import ZipFile
 
-import httplib
+import http.client
 
-from grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
-from Coordinate_system_conv import * # arc to meters conversion
+import common
+from common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
+from common.Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
 from PIL import Image
@@ -45,7 +46,7 @@ import random
 import os.path
 
 
-# geo root loogger, will later be redirected into a logfile
+# get root logger, will later be redirected into a logfile
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -56,7 +57,7 @@ def pr(*arglist):
     s = ""
     for a in arglist:
         s = s + str(a) + " "
-    print s
+    print(s)
     logger.info(s)
 
 
@@ -78,7 +79,7 @@ def make_bottom_raster(image_file_name, shape):
     try:
         bg = Image.open(image_file_name)
     except Exception as e:
-        print  "Warning:", image_file_name, "not found, using flat bottom",  e    
+        print("Warning:", image_file_name, "not found, using flat bottom",  e)    
 
     bg = bg.transpose(Image.FLIP_LEFT_RIGHT)
     w,h = bg.size
@@ -91,7 +92,7 @@ def make_bottom_raster(image_file_name, shape):
     #bg = bg.resize(scaled_size, Image.LANCZOS)
     bg = bg.resize(scaled_size) # nearest neighbor
     #bg.save("bg_resized.png")
-    print "Used", image_file_name, "for bottom relief, rescaled to", scaled_size, 
+    print("Used", image_file_name, "for bottom relief, rescaled to", scaled_size, end=' ') 
     
     # white 8 bit image (0-255) (flip shape as it's from numpy)
     canvas = Image.new("L", shape[::-1], color=255)  \
@@ -114,17 +115,17 @@ def make_bottom_raster(image_file_name, shape):
     return bottom_raster
 
 
-# utility function to unwrap each tile from a tile list into its info and numpy array
+
+# utility function to unwrap a tile tuple into its info and numpy array parts
 # if multicore processing is used, this is called via multiprocessing.map()
-# tile_info["temp_file"] may contain file name to open and write into,
-# otherwise a string is used as buffer.
-# In both cases, the buffer and its size are returned
-def process_tile(tile):
-    tile_info = tile[0] # this is one individual tile!
-    tile_elev_raster = tile[1]
+# tile_info["temp_file"] contains the file name to open and write into (creating a file object)
+# but if it's None, a buffer is made instead.
+# the tile info dict (with the file/buffer size) and the buffer (or the file's name) are returns as a tuple
+def process_tile(tile_tuple):
+    tile_info = tile_tuple[0] # has info for this individual tile
+    tile_elev_raster = tile_tuple[1]
     
-    
-    print "processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y']
+    print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
     
     # create a bottom relief raster (values 0.0 - 1.0)
@@ -133,57 +134,48 @@ def process_tile(tile):
         bottom_raster = make_bottom_raster(tile_info["bottom_image"], tile_elev_raster.shape)
         #print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)
         bottom_raster *= (tile_info["base_thickness_mm"] * 0.8) # max relief is 80% of base thickness to still have a bit of "roof" 
-        print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster) # range of bottom raster
+        print("min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)) # range of bottom raster
     else:
         bottom_raster = None # None means Bottom is flat
     
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     printres = tile_info["pixel_mm"]
 
-    # zigzag processing to slow down the speed when printing the shell
-    if use_zigzag_magic:
-        printres = tile_info["pixel_mm"]
-        width_of_1_zig_zag_mm = 50
-        num_cells_per_zig = int(width_of_1_zig_zag_mm / float(tile_info["pixel_mm"]))
-        zig_dist_mm, zig_undershoot_mm = 0.1, 0.02
-        print "zigzag magic: num_cells_per_zig %d (%.2f mm), zig_dist_mm %.2f, zig_undershoot_mm %.2f" % (num_cells_per_zig,
-                    num_cells_per_zig * printres, zig_dist_mm, zig_undershoot_mm)
-        g.create_zigzag_borders(num_cells_per_zig, zig_dist_mm, zig_undershoot_mm)
-
     del tile_elev_raster
 
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
 
+    
     if tile_info.get("temp_file") != None:  # contains None or a file name.
-        # open temp file for writing
-        print >> sys.stderr, "Writing tile into temp. file", os.path.realpath(tile_info["temp_file"])
-        try:
-            b = open(tile_info["temp_file"], "wb+")
-        except Exception as e:
-            print >> sys.stderr, "Error openening:",tile_info["temp_file"], e
+        print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
+        temp_fn = tile_info.get("temp_file")
     else:
-        b = None # means: use memory
+        temp_fn = None # means: use memory
 
+    # Create triangle "file" either in a buffer or in a tempfile
+    # if file: open, write and close it, b will be temp file name
     if  fileformat == "obj":
-        b = g.make_OBJfile_buffer(temp_file=b)
+        b = g.make_OBJfile_buffer(temp_file=temp_fn)
         # TODO: add a header for obj
     elif fileformat == "STLa":
-        b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"], temp_file=b)
+        b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"], 
+                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
     elif fileformat == "STLb":
-        b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"], temp_file=b)
+        b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"], 
+                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
     else:
         raise ValueError("invalid file format:", fileformat)
 
-    if tile_info.get("temp_file") != None:
-        fsize = os.stat(b.name).st_size / float(1024*1024)
-        b.close()
+    if temp_fn != None:
+        fsize = os.stat(temp_fn).st_size / float(1024*1024)
     else:
         fsize = len(b) / float(1024*1024)
 
+
     tile_info["file_size"] = fsize
-    print >> sys.stderr, "tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb " #, multiprocessing.current_process()
-    return (tile_info, b) # return info and buffer/temp_file
+    print("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", file=sys.stderr) #, multiprocessing.current_process()
+    return (tile_info, b) # return info and buffer/temp_file NAME
 
 
 """ 
@@ -259,7 +251,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          bottom_image=None,
                          ignore_leq=None,
                          unprojected=False,
-                         only=None):
+                         only=None,
+                         original_query_string=None,
+                         no_normals=True,
+                         projection=None,
+                         **otherargs):
     """
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
@@ -285,7 +281,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - ignore_leq: ignore elevation values <= this value, good for removing offshore data 
     - unprojected: don't apply UTM projectin, can only work when exporting a Geotiff as the mesh export needs x/y in meters
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed 
-    
+    - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
+    - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
+    - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
     returns the total size of the zip file in Mb
 
     """
@@ -299,8 +297,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else: # local raster file as DEM source
         assert os.path.exists(importedDEM), "Error: local DEM raster file " + importedDEM + " does not exist"
         assert fileformat != "GeoTiff", "Error: it's silly to make a Geotiff from a local DEM file (" + importedDEM + ") instead of a mesh file format ..."
-        
-    
+
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(base_thick) + ") must be > 0.5 mm when using a bottom relief image"
 
@@ -331,7 +328,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             import ee
         except Exception as e:
-            print >> sys.stderr, "Earth Engine module (ee) not installed", e
+            print("Earth Engine module (ee) not installed", e, file=sys.stderr)
 
         region = [[bllon, trlat],#WS  NW
                   [trlon, trlat],#EN  NE
@@ -354,16 +351,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         args = locals() # dict of local variables
         dict_for_url = {} # dict with only those args that are valid for a URL query string
         for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
-                     "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat", 
-                     "no_bottom", "ignore_leq", "unprojected"):
+                     "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat"):
             v = args[k]
             if k in ("basethick", "ntilesx", "ntilesx"):
                 v = int(v) # need to be ints to work with the JS UI
             pr(k, "=", v)
             dict_for_url[k] = v
 
-        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only"):
-            if args.get(k) != None: # may not exists ...
+        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only", 
+                  "original_query_string", "no_normals", "projection"):
+            if args.get(k) != None: # may not exist ...
                 v = args[k]
                 pr(k, "=", v)            
                 dict_for_url[k] = v
@@ -383,7 +380,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Figure out which projection to use when getting DEM from GEE
         #
         if unprojected == False:
-            if bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
+            if projection != None:
+                epsg = projection
+                epsg_str = "EPSG:%d" % (epsg)
+                utm_zone_str = epsg_str
+                pr("using " + epsg_str + " as projection")
+            elif bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
                 utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3995
                 epsg_str = "EPSG:%d" % (epsg)
@@ -446,7 +448,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # it's not bad, req: 1200 x 2235.85 i.e. 19.48 m cells => 1286 x 2282 which is good enough for me.
             # This also affects the total tile width in mm, which I'll also adjust later
             cell_size_m = cell_size_meters_lat # will later be used to calc the scale of the model
-            print "requesting", cell_size_m, "m resolution from EarthEngine"
+            print("requesting", cell_size_m, "m resolution from EarthEngine")
         else:
             # print3D_resolution  <= 0 means: get whatever GEEs default is. 
             cell_size_m = 0  
@@ -455,27 +457,30 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Get a download URL for DEM from Earth Engine
         #
 
-        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while
-        # try both ways of authenticating
+        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while ...
+        # Try both ways of authenticating
         try:
             ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
-            print >> sys.stderr, "EE init() error (with .config/earthengine/credentials)", e
+            print("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e, file=sys.stderr)
      
             try:
                 # try authenticating with a .pem file
-                import config  # sets location of .pem file, config.py must be in this folder
-                ee.Initialize(config.EE_CREDENTIALS, config.EE_URL)
+                from common import config  # sets location of .pem file, config.py must be in this folder
+                from oauth2client.service_account import ServiceAccountCredentials
+                from ee import oauth
+                credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
+                ee.Initialize(credentials, config.EE_URL)
             except Exception as e:
-                print >> sys.stderr, "EE init() error (with config.py and .pem file)", e       
+                print("EE init() error (with config.py and .pem file)", e, file=sys.stderr)       
 
         # TODO: this can probably go, the exception was prb always caused by ee not staying inited
         got_eeImage = False
         while not got_eeImage:
             try:
                 image1 = ee.Image(DEM_name)
-            except Exception, e:
-                print e
+            except Exception as e:
+                print(e)
                 logger.error("ee.Image(DEM_name) failed: " + str(e))
                 time.sleep(random.randint(1,10))
             else:
@@ -486,12 +491,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("Earth Engine raster:", info["id"])
         try:# 
             pr(" " + info["properties"]["title"])  
-        except Exception, e:
+        except Exception as e:
             #print e
             pass
         try: 
             pr(" " + info["properties"]["link"])
-        except Exception, e:
+        except Exception as e:
             #print e
             pass    
 
@@ -531,16 +536,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # download zipfile from url
             #
             try:
-                web_sock = urllib2.urlopen(request, timeout=20) # 20 sec timeout
-            except socket.timeout, e:
+                web_sock = urllib.request.urlopen(request, timeout=20) # 20 sec timeout
+            except socket.timeout as e:
                 raise logger.error("Timeout error %r" % e)
-            except urllib2.HTTPError, e:
+            except urllib.error.HTTPError as e:
                 logger.error('HTTPError = ' + str(e.code))
                 if e.code == 429:  # 429: quota reached
                     time.sleep(random.randint(1,10)) # wait for a couple of secs
-            except urllib2.URLError, e:
+            except urllib.error.URLError as e:
                 logger.error('URLError = ' + str(e.reason))
-            except httplib.HTTPException, e:
+            except http.client.HTTPException as e:
                 logger.error('HTTPException')
             except Exception:
                 import traceback
@@ -713,6 +718,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr( "fileformat:", fileformat)
         pr( "tile_centered:", tile_centered)
         pr( "no_bottom:", no_bottom)
+        pr( "no_normals:", no_normals)
         pr( "ignore_leq:", ignore_leq)
         
         #
@@ -832,7 +838,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
          
         # min/max elev (all tiles)
-        print("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim))) # use nanmin() so we can use (NaN) undefs
+        print(("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)))) # use nanmin() so we can use (NaN) undefs
     
         # apply z-scaling
         if zscale != 1.0:
@@ -898,7 +904,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "no_bottom": no_bottom,
             "bottom_image": bottom_image,
             "ntilesy": ntilesy, # number of tiles in y
-            "only": only # if nont None, process only this tile e.g. [1,2]
+            "only": only, # if nont None, process only this tile e.g. [1,2]
+            "no_normals": no_normals,
         }        
         
         #
@@ -906,8 +913,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
     
         # num_tiles[0], num_tiles[1]: x, y !
-        cells_per_tile_x = npim.shape[1] / num_tiles[0] # tile size in pixels
-        cells_per_tile_y = npim.shape[0] / num_tiles[1]
+        cells_per_tile_x = int(npim.shape[1] / num_tiles[0]) # tile size in pixels
+        cells_per_tile_y = int(npim.shape[0] / num_tiles[1])
         pr("Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y)
     
     
@@ -968,7 +975,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     if process_only[0] == tile_info['tile_no_x'] and process_only[1] == tile_info['tile_no_y']:
                         tile_list.append(tile) # got the only tile
                     else:
-                        print "process only is:", process_only, ", skipping tile", tile_info['tile_no_x'], tile_info['tile_no_y'] 
+                        print("process only is:", process_only, ", skipping tile", tile_info['tile_no_x'], tile_info['tile_no_y']) 
         
         if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
             logger.debug("tempfile or memory? number of pixels:" + str(tile_info["full_raster_height"] * tile_info["full_raster_width"]) + ">" + str(max_cells_for_memory_only) + " => using temp file")
@@ -977,7 +984,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                    
     
         # single processing: just work on the list sequentially, don't use multi-core processing
-        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:  # only one tile or SP specifically requested
+        # us if only one tile or one CPU or CPU_cores_to_use is still at default None 
+        # processed list will contain tuple(s): [0] is always the tile info dict, if its 
+        # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
+        # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)  
+        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:  
             pr("using single-core only")
             processed_list = []
             # Convert each tile into a list: [0]: updated tile info, [1]: grid object
@@ -986,21 +997,34 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pt = process_tile(t)
                 processed_list.append(pt) # append to list of processed tiles
         
-        # use multi-core processing
+        # use multi-core processing 
         else:  
+            
+            #if CPU_cores_to_use is 0(!) us all cores, otherwise use that number
+            if CPU_cores_to_use == 0: 
+                num_cores = None
+            else: 
+                num_cores = CPU_cores_to_use
+            # TODO: Using 0 here that needs to become None is confusing, but too esoteric to clean up ..
+            # Better: make default 1, else use MP with None (meaning all)
+            
             pr("using multi-core (no logging info available while processing)  ...")
             import multiprocessing
-            pool = multiprocessing.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
+            #import dill as pickle
+            pool = multiprocessing.Pool(processes=num_cores, maxtasksperchild=1) # processes=None means use all available cores
     
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
-            processed_list = pool.map(process_tile, tile_list)
-
+            try:
+                processed_list = pool.map(process_tile, tile_list)
+            except Exception as e:
+                pr(e)   
+            else:
+                pool.close()
+                pool.terminate()                
+                
             pr("... multi-core processing done, logging resumed")
-            pool.close()
-            pool.terminate()
+
     
-        # tile size is the same for all tiles
-        tile_info = processed_list[0][0]
         
         # the tile width/height was written into tileinfo during processing
         _ = "\n%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
@@ -1015,7 +1039,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 tile_info = p[0] # per-tile info
                 tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
                 buf= p[1] # either a string or a file object
-                logger.debug("adding tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]))
+                
     
                 if tile_info.get("temp_file") != None: # if buf is a file object
                     fname = tile_info["temp_file"]
@@ -1032,7 +1056,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     del buf
     
                 total_size += tile_info["file_size"]
-    
+                logger.debug("adding tile %d %d, total size is %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"], total_size))
+                
                 # print size and elev range
                 pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
                    ", file size:", round(tile_info["file_size"]), "Mb")
@@ -1048,7 +1073,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
          
     # end of: if fileformat != "GeoTiff"
     
-    print "zip finished:", datetime.datetime.now().time().isoformat()
+    print("zip finished:", datetime.datetime.now().time().isoformat())
 
     # add (full) geotiff we got from EE to zip 
     if importedDEM == None:
@@ -1063,7 +1088,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     log_file_handler.flush()
     log_file_handler.close()    
     logger.removeHandler(log_file_handler)
-    zip_file.write(log_file_name, zip_file_name +"_logfile.txt")
+    zip_file.write(log_file_name, "logfile.txt")
     zip_file.close() # flushes zip file
     
     # remove geotiff d/led from EE
@@ -1071,14 +1096,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             os.remove(GEE_dem_filename) 
         except Exception as e:   
-             print >> sys.stderr, "Error removing " + str(GEE_dem_filename) + " " + str(e)
+             print("Error removing " + str(GEE_dem_filename) + " " + str(e), file=sys.stderr)
              
              
     # remove logfile
     try:    
         os.remove(log_file_name) 
     except Exception as e:   
-         print >> sys.stderr, "Error removing logfile " + str(log_file_name) + " " + str(e)     
+         print("Error removing logfile " + str(log_file_name) + " " + str(e), file=sys.stderr)     
              
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
@@ -1108,7 +1133,7 @@ if __name__ == "__main__":
     zip_string = r[1] # r[1] is a zip folder as string, r[0] is the size of the file in Mb
     with open(fname+".zip", "w+") as f:
         f.write(zip_string)
-    print "done"
+    print("done")
 
 
 

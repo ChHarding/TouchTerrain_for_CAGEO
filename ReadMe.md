@@ -18,22 +18,19 @@ TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded 
 
 The server version offers a Google Map interface to select the area and a simple GUI to specifiy the preocessing paramaters. Some "expert" parameters are only exposed via a JSON style text field input. One the request has been processed it is again downloaded as a zip file.
 
-Besides Python 2.7 you need to install a few modules (see `standalone/TouchTerrain_standalone_installation.pdf`) using pip or conda. After this you can use the stand-alone version to process local DEM raster file (see the`importedDEM` under Standalone)
+Besides Python 3.x you need to install a few modules (see `standalone/TouchTerrain_standalone_installation.pdf`) using pip or conda. After this you can use the stand-alone version to process local DEM raster file (see the`importedDEM` under Standalone)
 
  If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://developers.google.com/earth-engine/python_install_manual) (section on _Setting Up Authentication Credentials_). In addition, you need to install the earthengine-api (ee) package and its dependencies, which is described in `standalone/TouchTerrain_standalone_installation.pdf`. There are other options to install the [Earth Engine Python API](https://developers.google.com/earth-engine/python_install), but I have no experience beyond their _Minimal Earth Engine Python API Installation_.
 
 
 
 ## Standalone folder
-
-The standalone version runs on a local machine that has Python 2.7 installed.
+The standalone version runs on a local machine that has Python >3.6 and packages installed.
 
 ### Jupyter Notebook
-The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very  to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).
+The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](http://public.vrac.iastate.edu/~charding/touchTerrain/html/TouchTerrain_standalone_jupyter_notebook_web_view.html)
 
-You can see web view version of the note book [here](http://public.vrac.iastate.edu/~charding/touchTerrain/html/TouchTerrain_standalone_jupyter_notebook_web_view.html)
-
-To get started with jupyter see https://jupyter.org/install. Make sure to install Anaconda for Python __2.7__, not for Python 3!
+To get started see this [installation guide](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
 
 ### Straight python
 `TouchTerrain_standalone.py`is the straight python version of the jupyter notebook. Processing parameters as either given as a dictionary inside the file or are read in via a JSON configuration file such as`standalone/example_config.json`.
@@ -75,10 +72,10 @@ The JSON config file has the following format:
 ```
 
  * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) 
-  - USGS/NED: 10 m, continental USA only 
-  - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north 
-  - USGS/GMTED2010: ~230 m, truly worldwide 
-  - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
+    - USGS/NED: 10 m, continental USA only 
+    - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north 
+    - USGS/GMTED2010: ~230 m, truly worldwide 
+    - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
 
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
  model. This is particularly important for models with long, deep valleys, which can cause the model  to shine through or if the base is not thick enough. A base thickness of at least twice the
@@ -132,7 +129,9 @@ The JSON config file has the following format:
 the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid
 printed bottom (tested in Cura 3.6)
 
-* `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print shorlines. Note that 0 may not be excatly sealevel on some DEMs, you may have to experiment with slightly larger values (e.g. 0.5)
+* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false.
+
+* `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. GGood for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
 
 * `unprojected`: default: false . (Works only for exporting GeoTiffs, not for meshes) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
@@ -149,7 +148,8 @@ Once this tile was downloaded, using only with [1,2], but otherwise repeating th
 create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the
 tiles will fit together without overlaps if tile_centered was false.
 
-
+* `projection`: default: null . By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), my work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
+     Be aware, however, that  Earth Engine does not support all possible EPSG codes. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives an error message: *The CRS of a map projection could not be parsed*
 
 
 
