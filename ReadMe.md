@@ -28,7 +28,7 @@ Besides Python 3.x you need to install a few modules (see `standalone/TouchTerra
 The standalone version runs on a local machine that has Python >3.6 and packages installed.
 
 ### Jupyter Notebook
-The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](http://public.vrac.iastate.edu/~charding/touchTerrain/html/TouchTerrain_standalone_jupyter_notebook_web_view.html)
+The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/standalone/TouchTerrain_standalone_jupyter_notebook.html)
 
 To get started see this [installation guide](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
 
