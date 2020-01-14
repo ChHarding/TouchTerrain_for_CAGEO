@@ -235,7 +235,10 @@ def resampleDEM(a, factor):
     if has_nan:  # swap NaN back in
         a = numpy.where(a < nanmin, numpy.nan, a)
         #print "resample4 min/max : %.2f to %.2f" % (numpy.nanmin(a), numpy.nanmax(a))
-        
+    
+    # fix CH Jan 2, 20: needs to be a copy, PIL locks it to read only!
+    # Thanks to ljverge for finding this!
+    a = numpy.copy(a) 
     return a
 
 
@@ -784,8 +787,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             
             cell_size_m *= scale_factor
             pr(" ",npim.shape[::-1], adjusted_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
-            npim.flags.writeable = True # not sure why it's not writeable after the PIL interpolation but this fixes it            
-            
+                        
             if adjusted_print3D_resolution != print3D_resolution:
                 pr("after resampling, requested print res was adjusted from", print3D_resolution, "to", adjusted_print3D_resolution, "to ensure correct model dimensions")
                 print3D_resolution = adjusted_print3D_resolution
