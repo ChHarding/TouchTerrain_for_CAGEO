@@ -348,7 +348,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             DEM_title = DEM_title.split('/')[-1]
         DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
 
-        pr("START: Log for creating 3D model tile(s) for ", DEM_title, "\n")
+        pr("Log for creating 3D model tile(s) for ", DEM_title, "\n")
 
         # print args to log
         args = locals() # dict of local variables
@@ -529,8 +529,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # don't apply UTM projection, can only worrk for Geotiff export
         if unprojected == True: del request_dict["crs"]
         
+        pr("***************************************"
         request = image1.getDownloadUrl(request_dict)
-        pr("request URL is: " + request)
+        pr("request URL is: ", request)
+        pr("***************************************"
+        pr("request dict is: ", request_dict)
+         pr("***************************************"
 
         # This should retry until the request was successfull
         web_sock = None
