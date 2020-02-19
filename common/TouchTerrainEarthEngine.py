@@ -530,11 +530,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if unprojected == True: del request_dict["crs"]
         
         pr("***************************************")
+        pr("request dict is: ", request_dict)
+        pr("***************************************")
         request = image1.getDownloadUrl(request_dict)
         pr("request URL is: ", request)
         pr("***************************************")
-        pr("request dict is: ", request_dict)
-        pr("***************************************")
+
 
         # This should retry until the request was successfull
         web_sock = None
