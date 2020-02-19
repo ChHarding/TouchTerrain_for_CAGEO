@@ -515,22 +515,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     	# https://github.com/google/earthengine-api/commit/8e170b4f6a1b71892c3da2b390592c4f70582fc6#diff-dbd67b2892cf3dc80c31ea1adfa0beaf
         region_extent = [trlon, bllat, bllon, trlat]
         
-        # using ee Geometry
-		polygon = ee.Geometry.Polygon([[-120, 35], [-119, 35], [-119, 34], [-120, 34]])
-		strpoly = polygon.toGeoJSONString()
-		pr("POLGON:", strpoly)
-		rect = ee.Geometry.Rectangle([[-120, 35], [-119, 34]])
-		strrect = rect.toGeoJSONString()
-		pr("RECT:", strrect)
-	
 
         # make the request dict
         request_dict = {
             #'scale': 10, # cell size
             'scale': cell_size_m, # cell size in meters
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]', <- not working anymore?
-            #'region': str(region_extent),
-            'region': strrect,
+            'region': str(region_extent),
+            #'region': strrect,
             'crs': 'EPSG:4326',
             #'crs': epsg_str, # projection
             #'format': 'png',
