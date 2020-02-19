@@ -518,10 +518,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         
         
         polygon = ee.Geometry.Polygon([[-120, 35], [-119, 35], [-119, 34], [-120, 34]]);
-		strpoly = polygon.toGeoJSONString();
+		strpoly = polygon.toGeoJSONString()
 		pr("POLGON:", strpoly)
 	    rect = ee.Geometry.Rectangle([[-120, 35], [-119, 34]])
-		strrect = rect.toGeoJSONString();
+		strrect = rect.toGeoJSONString()
 		pr("RECT:", strrect)
 	
 
