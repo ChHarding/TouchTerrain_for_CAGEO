@@ -512,11 +512,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         image1 = image1.resample("bilinear")
     
         
-    	# https://github.com/google/earthengine-api/commit/8e170b4f6a1b71892c3da2b390592c4f70582fc6#diff-dbd67b2892cf3dc80c31ea1adfa0beaf
-        region_extent = [trlon, bllat, bllon, trlat]
+    	region_extent = [trlon, bllat, bllon, trlat] # Min, yMin, xMax, yMax
         
+        
+        # ee.Geometry
         reg_poly = ee.Geometry.Polygon([[-120, 35], [-119, 35], [-119, 34], [-120, 34]])
-        reg_rect = ee.Geometry.Rectangle([[-120, 35], [-119, 34]])
+        reg_rect = ee.Geometry.Rectangle([[-120, 35], [-119, 34]]) # opposite corners
         reg_poly_str = reg_poly.toGeoJSONString()
         reg_rect_str = reg_rect.toGeoJSONString()
         
@@ -527,7 +528,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             'scale': cell_size_m, # cell size in meters
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]', <- not working anymore?
             #'region': str(region_extent),
-            'region': strrect,
+            'region': reg_rect_str ,
             'crs': 'EPSG:4326',
             #'crs': epsg_str, # projection
             #'format': 'png',
