@@ -625,7 +625,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # typically, GEE serves does not use proper undefined values in the geotiffs it serves, but just in case ...
             if gdal_undef_val != None:
-                logger.debug("undefined GDAL value used by GEE geotiff: ", +star(gdal_undef_val))
+                logger.debug("undefined GDAL value used by GEE geotiff: " + str(gdal_undef_val))
 
 
             # delete zip file and buffer from memory
