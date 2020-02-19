@@ -511,13 +511,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #image1 = image1.resample("bicubic") # only very small differences to bilinear
         image1 = image1.resample("bilinear")
     
-    
-    	# str(region) is not working anymore (?)    
+        
     	# https://github.com/google/earthengine-api/commit/8e170b4f6a1b71892c3da2b390592c4f70582fc6#diff-dbd67b2892cf3dc80c31ea1adfa0beaf
         region_extent = [trlon, bllat, bllon, trlat]
         
-        
-		polygon = ee.Geometry.Polygon([[-120, 35], [-119, 35], [-119, 34], [-120, 34]]);
+        # using ee Geometry
+		polygon = ee.Geometry.Polygon([[-120, 35], [-119, 35], [-119, 34], [-120, 34]])
 		strpoly = polygon.toGeoJSONString()
 		pr("POLGON:", strpoly)
 		rect = ee.Geometry.Rectangle([[-120, 35], [-119, 34]])
