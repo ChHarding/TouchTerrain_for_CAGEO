@@ -535,7 +535,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # don't apply UTM projection, can only work for Geotiff export
         if unprojected == True: del request_dict["crs"]
-)
+
         request = image1.getDownloadUrl(request_dict)
         pr("URL for geotiff is: ", request)
 
