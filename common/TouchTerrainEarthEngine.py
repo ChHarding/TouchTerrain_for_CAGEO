@@ -508,6 +508,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # so I set the resampling mode here to bilinear or bicubic
         #image1 = image1.resample("bicubic") # only very small differences to bilinear
         image1 = image1.resample("bilinear")
+    
+    
+    	# str(region) is not working anymore (?)    
+    	# https://github.com/google/earthengine-api/commit/8e170b4f6a1b71892c3da2b390592c4f70582fc6#diff-dbd67b2892cf3dc80c31ea1adfa0beaf
+        region_extent = [trlon, bllat, bllon, trlat]
 
         # make the request dict
         request_dict = {
@@ -515,8 +520,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             'scale': cell_size_m, # cell size in meters
             #'crs': 'EPSG:4326',
             'crs': epsg_str, # projection
-            #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]',
-            'region': str(region),
+            #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]', <- not working anymore?
+            'region': str(region_extent),
             #'format': 'png',
             'format': 'tiff'
             #'format': 'jpeg'
@@ -526,7 +531,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
         if cell_size_m <= 0: del request_dict["scale"]
         
-        # don't apply UTM projection, can only worrk for Geotiff export
+        # don't apply UTM projection, can only work for Geotiff export
         if unprojected == True: del request_dict["crs"]
         
         pr("***************************************")
