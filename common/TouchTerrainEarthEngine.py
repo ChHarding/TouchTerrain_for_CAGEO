@@ -522,8 +522,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #'format': 'jpeg'
         }
         
-        # CH 2/19
-        pr("request_dict:", request_dict)
         
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
         if cell_size_m <= 0: del request_dict["scale"]
@@ -532,7 +530,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if unprojected == True: del request_dict["crs"]
         
         request = image1.getDownloadUrl(request_dict)
-        logger.debug("request URL is: " + request)
+        pr("request URL is: " + request)
 
         # This should retry until the request was successfull
         web_sock = None
