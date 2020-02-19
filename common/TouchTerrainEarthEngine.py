@@ -518,10 +518,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         request_dict = {
             #'scale': 10, # cell size
             'scale': cell_size_m, # cell size in meters
-            #'crs': 'EPSG:4326',
-            'crs': epsg_str, # projection
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]', <- not working anymore?
             'region': str(region_extent),
+            'crs': 'EPSG:4326',
+            #'crs': epsg_str, # projection
             #'format': 'png',
             'format': 'tiff'
             #'format': 'jpeg'
