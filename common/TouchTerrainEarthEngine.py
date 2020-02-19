@@ -512,7 +512,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         image1 = image1.resample("bilinear")
     
         
-    	region_extent = [trlon, bllat, bllon, trlat] # Min, yMin, xMax, yMax
+        region_extent = [trlon, bllat, bllon, trlat] # Min, yMin, xMax, yMax
         
         
         # ee.Geometry
