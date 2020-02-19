@@ -522,6 +522,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #'format': 'jpeg'
         }
         
+        # CH 2/19
+        pr("request_dict:", request_dict)
+        
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
         if cell_size_m <= 0: del request_dict["scale"]
         
