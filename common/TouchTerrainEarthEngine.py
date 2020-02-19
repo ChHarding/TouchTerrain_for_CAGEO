@@ -534,7 +534,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("request URL is: ", request)
         pr("***************************************")
         pr("request dict is: ", request_dict)
-         pr("***************************************")
+        pr("***************************************")
 
         # This should retry until the request was successfull
         web_sock = None
