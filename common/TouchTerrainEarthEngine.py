@@ -463,7 +463,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while ...
         # Try both ways of authenticating
         try:
+            pr("******* BEFORE init")
             ee.Initialize() # uses .config/earthengine/credentials
+            pr("******* AFTER  init")
         except Exception as e:
             pr("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e)
      
