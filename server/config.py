@@ -27,8 +27,8 @@ if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at
 MAX_CELLS_PERMITED =   1000 * 1000 * 0.567
 
 # if DEM has > this number of cells, use tempfile instead of memory
-#MAX_CELLS = MAX_CELLS_PERMITED / 4
-MAX_CELLS = MAX_CELLS_PERMITED # CH: testing if tempfile doesn't work anymore?
+MAX_CELLS = MAX_CELLS_PERMITED / 4
+#MAX_CELLS = MAX_CELLS_PERMITED # CH: testing if tempfile doesn't work anymore?
 
 
 TMP_FOLDER = os.getenv('TOUCHTERRAIN_TMP_FOLDER', os.path.join(config.SERVER_DIR, "tmp"))
