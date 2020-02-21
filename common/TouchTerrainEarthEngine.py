@@ -624,7 +624,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             del band
 
         else:  # mesh file export
-            assert abs(gt[1]) == abs(gt[5]), "Error: raster cells are not square!" # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
+            assert abs(geo_transform[1]) == abs(geo_transform[5]), "Error: raster cells are not square!" # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
 
             # typically, GEE serves does not use proper undefined values in the geotiffs it serves, but just in case ...
             if gdal_undef_val != None:
@@ -923,7 +923,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "no_normals": no_normals,
             "geo_transform": geo_transform, # GeoTransform of geotiff
             "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
-        }   
+        }
 
         #
         # Make tiles (subsets) of the full raster and generate 3D grid model
