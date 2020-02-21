@@ -514,10 +514,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #image1 = image1.resample("bicubic") # only very small differences to bilinear
         image1 = image1.resample("bilinear")
 
-        # Feb. 19: need to use ee.Geometry with geoJSON instead of just a string
+        # Feb. 19, 2020: need to use ee.Geometry with geoJSON instead of just a string
         reg_rect = ee.Geometry.Rectangle([[bllon, bllat], [trlon, trlat]]) # opposite corners
         reg_rect_str = reg_rect.toGeoJSONString()
-
 
         # make the request dict
         request_dict = {
@@ -531,7 +530,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             'format': 'tiff'
             #'format': 'jpeg'
         }
-
 
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
         if cell_size_m <= 0: del request_dict["scale"]
@@ -607,17 +605,19 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # use GDAL to get cell size and undef value of geotiff
         dem = gdal.Open(GEE_dem_filename)
+        ras_x_sz = dem.RasterXSize # number of pixels in x
+        ras_y_sz = dem.RasterYSize
         band = dem.GetRasterBand(1)
         gdal_undef_val = band.GetNoDataValue()
-        gt = dem.GetGeoTransform()
-        GEE_cell_size_m =  (gt[1], gt[5])
+        geo_transform = dem.GetGeoTransform()
+        GEE_cell_size_m =  (geo_transform[1], geo_transform[5])
 
         # if we requested the true resolution of the source, use the cellsize of the gdal/GEE geotiff
         if cell_size_m <= 0:
-            cell_size_m = gt[1]
+            cell_size_m = geo_transform[1]
 
         pr(" geotiff size:", len(str_data) / 1048576.0, "Mb")
-        pr(" cell size", cell_size_m, "m, upper left corner (x/y): ", gt[0], gt[3])
+        pr(" cell size", cell_size_m, "m, upper left corner (x/y): ", geo_transform[0], geo_transform[3])
 
         if fileformat == "GeoTiff": # for Geotiff output, we don't need to make a numpy array, etc, just close the GDAL dem so we can move it into the zip later
             dem = None #  Python GDAL's way of closing/freeing the raster
