@@ -921,7 +921,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "ntilesy": ntilesy, # number of tiles in y
             "only": only, # if nont None, process only this tile e.g. [1,2]
             "no_normals": no_normals,
-        }
+            "geo_transform": geo_transform, # GeoTransform of geotiff
+            "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
+        }   
 
         #
         # Make tiles (subsets) of the full raster and generate 3D grid model
