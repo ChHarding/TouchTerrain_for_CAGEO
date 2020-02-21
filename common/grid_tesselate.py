@@ -36,6 +36,12 @@ import sys
 import multiprocessing
 import tempfile
 
+# get root logger, will later be redirected into a logfile
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
 # template for ascii STL file
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
   outer loop
@@ -338,8 +344,8 @@ class grid(object):
         #x_norm_delta  = 1 / float(top.shape[1]) # x (east-west) direction
         #print "normalized x/y delta:", x_norm_delta, y_norm_delta
 
-        # cell size (x and y delta) in mm
-        csz_mm = tile_info["pixel_mm"]
+        # cell size (x and y delta)
+        cell_size = tile_info["pixel_mm"]
 
         have_nan = np.isnan(np.sum(top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-numpy
         #print "have_nan", have_nan
@@ -350,22 +356,34 @@ class grid(object):
         ro_top = top
         top = ro_top.copy() # writeable 
         
-        #
-        # convert top's elevation from real word elevation (m) to model height (mm)
-        #
-        #print top.astype(int)
-        top -= float(tile_info["min_elev"]) # subtract tile-wide max from top
-        #print np.nanmin(top), np.nanmax(top)
-        #print top.astype(int)
-        scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
-        #print tile_info["scale"], tile_info["z_scale"], scz
-        top *= scz * tile_info["z_scale"] # apply z-scale
-        #print top.astype(int)
-        #print np.nanmin(top), np.nanmax(top)
-        top += tile_info["base_thickness_mm"] # add base thickness
-        print("top min/max:", np.nanmin(top), np.nanmax(top))
-        #print top.astype(int)
+        # if bottom is None, we don't have a bottom raster, so the bottom is a constant
+        if bottom == None: bottom = 0
+        
+        # Coordinates are in mm (for 3D printing on a buildplate)
+        if tile_info["use_geo_coords"] == None:        
+        
+            #
+            # convert top's elevation from real word elevation (m) to model height (mm)
+            #
+            
+            #print top.astype(int)
+            top -= float(tile_info["min_elev"]) # subtract tile-wide max from top
+            #print np.nanmin(top), np.nanmax(top)
+            #print top.astype(int)
+            scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
+            #print tile_info["scale"], tile_info["z_scale"], scz
+            top *= scz * tile_info["z_scale"] # apply z-scale
+            #print top.astype(int)
+            #print np.nanmin(top), np.nanmax(top)
+            top += tile_info["base_thickness_mm"] # add base thickness
+            print("top min/max:", np.nanmin(top), np.nanmax(top))
+            #print top.astype(int)
+            
+        else:  # using geo coords - thickness is meters) 
+            bottom = np.nanmin(top) - tile_info["base_thickness_mm"] * 10
+            logger.info("Using geo coords with a base thickness of " + str(tile_info["base_thickness_mm"] * 10) + " meters")
 
+        
         tile_info["max_elev"] = np.nanmax(top)
         tile_info["min_elev"] = np.nanmin(top)
 
@@ -375,7 +393,6 @@ class grid(object):
         #print range(1, xmaxidx+1), range(1, ymaxidx+1)
 
         # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the lower left corner of all tiles (global)
-        
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
             offsetx = -tile_info["tile_width"]  * (tile_info["tile_no_x"]-1)  # tile_no starts with 1!
             offsety = -tile_info["tile_height"] * (tile_info["tile_no_y"]-1)  + tile_info["tile_height"] * tile_info["ntilesy"]
@@ -383,7 +400,39 @@ class grid(object):
             offsetx = tile_info["tile_width"] / 2.0
             offsety = tile_info["tile_height"] / 2.0
         #print offsetx, offsety
-        #offsetx = offsety = 0 # DEBUG
+
+        
+        # geo coords are in meters (UTM). Place the tiles so that the center is at 0/0, which is what Blender GIS needs.
+        # tile_centered is ignored got geo coords
+        if tile_info["use_geo_coords"] != None:
+            
+            geo_transform = tile_info["geo_transform"]
+            cell_size = abs(geo_transform[1]) # rw pixel size of geotiff in m
+            tile_width_m  = xmaxidx * cell_size # number of (unpadded) pixels of current tile
+            tile_height_m = ymaxidx * cell_size
+               
+            # size in meters but 0/0 of full model is at its center (BlenderGIS)
+            if tile_info["use_geo_coords"] == "centered":
+          
+                offsetx = -tile_width_m  * (tile_info["tile_no_x"]-1)
+                offsety = tile_height_m  * tile_info["ntilesy"] - tile_height_m * (tile_info["tile_no_y"]-1)            
+          
+                # center by half the total size
+                offsetx += (tile_info["full_raster_width"] * cell_size) / 2  
+                offsety -= (tile_info["full_raster_height"] * cell_size) / 2  
+                
+
+            
+            # size in meters but the UTM zone's origin is used, i.e. each vertex is in full
+            # UTM coordinates. Not sure what CAD/modelling system uses that but if needed it's an option.
+            else:  # "UTM"
+                
+                offsetx = -tile_width_m  * (tile_info["tile_no_x"]-1)
+                offsety = - tile_height_m * (tile_info["tile_no_y"]-1)
+                 
+                offsetx = -geo_transform[0] + offsetx # UTM x of upper left corner
+                offsety =  geo_transform[3] + offsety # UTM y
+  
         
         # store cells in an array, init to None
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)
@@ -410,10 +459,10 @@ class grid(object):
 
 
                 # x/y coords of cell "walls", origin is upper left
-                E = (i-1) * csz_mm - offsetx # index -1 as it's ref'ing to top, not ptop
-                W = E + csz_mm
-                N = -(j-1) * csz_mm + offsety # y is flipped to negative
-                S = N - csz_mm
+                E = (i-1) * cell_size - offsetx # index -1 as it's ref'ing to top, not ptop
+                W = E + cell_size
+                N = -(j-1) * cell_size + offsety # y is flipped to negative
+                S = N - cell_size
                 #print i,j, " ", E,W, " ",  N,S, " ", top[j,i]
 
 
@@ -478,12 +527,17 @@ class grid(object):
 
 
                 # make bottom quad (x,y,z)
-                NEelev = NWelev = SEelev = SWelev = 0 # uniform bottom elevation, when bottom is None
-                if hasattr(bottom, "__len__"):# if bottom is not None, interpolate bottom elevation (NaN should never occur here!)
+                
+                # if bottom is not None, interpolate bottom from the given array 
+                # (NaN should never occur here!)
+                if hasattr(bottom, "__len__"):#
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
                     NWelev = (bottom[j+0,i+0] + bottom[j+0,i-1] + bottom[j-1,i-1] + bottom[j-1,i+0]) / 4.0
                     SEelev = (bottom[j+0,i+0] + bottom[j-0,i+1] + bottom[j+1,i+1] + bottom[j+1,i+0]) / 4.0
                     SWelev = (bottom[j+0,i+0] + bottom[j+1,i+0] + bottom[j+1,i-1] + bottom[j+0,i-1]) / 4.0
+                else:
+                    NEelev = NWelev = SEelev = SWelev = bottom # uniform bottom elevation, no bottom array was given
+                    
                 NEb = vertex(E, N, NWelev, self.vi)
                 NWb = vertex(W, N, NEelev, self.vi)
                 SEb = vertex(E, S, SWelev, self.vi)
@@ -981,7 +1035,7 @@ class grid(object):
                     t0,t1 = q.get_triangles_with_indexed_verts()
 
                     for f in (t0,t1): # output the 2 facets (triangles)
-                        fstr = "f %d %d %d" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indedices start at 1!
+                        fstr = "f %d %d %d" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indices start at 1!
                         buf_as_list.append(fstr)
                 del cell
 
