@@ -470,7 +470,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             ee.Initialize() # uses .config/earthengine/credentials
         except Exception as e:
-            pr("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e)
+            pr("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e, file=sys.stderr)
 
             try:
                 # try authenticating with a .pem file
@@ -480,7 +480,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
                 ee.Initialize(credentials, config.EE_URL)
             except Exception as e:
-                pr("EE init() error (with config.py and .pem file)", e)
+                pr("EE init() error (with config.py and .pem file)", e, file=sys.stderr)
 
         # TODO: this can probably go, the exception was prb always caused by ee not staying inited
         got_eeImage = False
