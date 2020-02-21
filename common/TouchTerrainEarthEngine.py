@@ -364,12 +364,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr(k, "=", v)
             dict_for_url[k] = v
 
+        # optional manual args
         for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only",
-                  "original_query_string", "no_normals", "projection"):
-            if args.get(k) != None: # may not exist ...
+                  "original_query_string", "no_normals", "projection", "use_geo_coords"):
+            if args.get(k) != None: # may not have been used ...
                 v = args[k]
                 pr(k, "=", v)
                 dict_for_url[k] = v
+
 
 
         # print full query string:
