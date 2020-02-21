@@ -258,6 +258,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          original_query_string=None,
                          no_normals=True,
                          projection=None,
+                         use_geo_coords=None,
                          **otherargs):
     """
     args:
@@ -287,6 +288,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
     - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
     - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
+    - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles
+                      not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)
     returns the total size of the zip file in Mb
 
     """
