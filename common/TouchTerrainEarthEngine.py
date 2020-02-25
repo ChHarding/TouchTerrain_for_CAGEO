@@ -107,7 +107,7 @@ def make_bottom_raster(image_file_name, shape):
     #canvas.save("canvas.png") #DEBUG
 
     # convert to 0 (bottom = buildplate) to 1 (top)
-    bottom_raster = numpy.asarray(canvas).astype(numpy.float)
+    bottom_raster = numpy.asarray(canvas).astype(numpy.float64)
     bottom_raster /= 255.0 # normalize
     bottom_raster *= -1
     bottom_raster += 1
@@ -706,7 +706,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("started:", datetime.datetime.now().time().isoformat())
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
-        npim = band.ReadAsArray().astype(numpy.float32)
+        npim = band.ReadAsArray().astype(numpy.float64)
 
         # get the GDAL cell size in x (width), assumes cells are square!
         tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
@@ -1238,7 +1238,7 @@ if __name__ == "__main__":
             #bimg.show()
 
             # Convert bimg to numpy, normalize and scale
-            bottom_elev = numpy.asarray(bimg).astype(numpy.float)
+            bottom_elev = numpy.asarray(bimg).astype(numpy.float64)
             #print bottom_elev.shape, bottom_elev.min(), bottom_elev.max()
             bottom_elev /= 255.0 # normalize from max 8 bit value (255) to 1.0
             #print bottom_elev.min(), bottom_elev.max() # normalized to 0 - 1.0
@@ -1271,7 +1271,7 @@ if __name__ == "__main__":
             #himg.show()
 
             # Convert himg to numpy and mult by hole height
-            hole_elev = numpy.asarray(himg).astype(numpy.float)
+            hole_elev = numpy.asarray(himg).astype(numpy.float64)
             hole_elev /= hole_elev.max() # normalize to 0 - 1.0
             hole_thickness = tile_info["magnet_hole_mm"][1]
             hole_elev *= hole_thickness # mult 1 (=hole) by height
