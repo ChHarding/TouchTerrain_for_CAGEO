@@ -635,8 +635,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             GEEZippedGeotiff.close()
             del zipdir, str_data
 
-            # cast to 32 bit floats as STL can only write in 32 bit precision anyway
-            npim = band.ReadAsArray().astype(numpy.float32)
+            # although STL can only use 32-bit floats, we need to use 64 bit floats
+            # for calculations, otherewise we get non-manifold vertices!
+            npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
 
             min_elev = numpy.nanmin(npim)
