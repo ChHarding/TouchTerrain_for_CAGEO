@@ -422,7 +422,7 @@ class grid(object):
                 offsety -= (tile_info["full_raster_height"] * cell_size) / 2
 
                 # correct for off-by-1 cells
-                offsetx += cell_size
+                offsetx -= cell_size
                 offsety += cell_size
 
             # size in meters but the UTM zone's origin is used, i.e. each vertex is in full
