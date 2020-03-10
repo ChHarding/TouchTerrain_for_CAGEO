@@ -526,9 +526,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             'region': reg_rect_str, # geoJSON polygon
             #'crs': 'EPSG:4326',
             'crs': epsg_str, # projection
-            #'format': 'png',
-            'format': 'tiff'
-            #'format': 'jpeg'
+ 			# CH Mar 10, 2020: Do NOT specify format anymore or getDownloadUrl() won't work!
+ 			# apparently it's all geotiffs now
         }
 
         # if cellsize is <= 0, just get whatever GEE's default cellsize is
