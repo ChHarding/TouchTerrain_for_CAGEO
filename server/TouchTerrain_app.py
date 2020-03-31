@@ -163,9 +163,8 @@ def main_page():
 
         "hsgamma": "1.0",
 
-        "google_maps_key": google_maps_key,  # '' or a key, if there was a key file
+        "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
     }
-
     #re-assemble the URL query string and store it , so we can put it into the log file
     qs = "?"
     for k,v in list(request.args.items()):
@@ -222,6 +221,7 @@ def main_page():
 
     # add any vars from server/config.py that may need to be inlined
     args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(server.config, "GOOGLE_ANALYTICS_TRACKING_ID")
+   
 
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
