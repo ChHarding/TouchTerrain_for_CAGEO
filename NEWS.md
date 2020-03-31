@@ -1,3 +1,17 @@
+Mar. 31, 2020: fixed issues arising from changes in Earth Engine API 
+
+Mar. 16, 2020: Took out the source option for print resolution b/c the d/l size restrictions of new Mar 2020 EarthEngine API update.
+
+Mar 2020: added use_geo_coords
+
+Aug. 2019: Version 2
+- 3D preview using JS
+- Wait animation
+- Optional feedback box
+- added geotiff of full tiel to d/l zip
+- print resolution can be same as source (Mar 2020: only for stand alone!)
+- more precise model dimensions
+
 Apr. 19. 2019
 - moved to Python 3
 
@@ -39,7 +53,7 @@ added optional Google Maps key. If a file called GoogleMapsKey.txt in the serve 
 
 Sept. 18:
 - fixed bug where the print resolution was wrong in some cases when multiple tiles are used
-- added the geotiff I get from Google Earth Engine to the zipped folder as DEM.tif 
+- added the geotiff I get from Google Earth Engine to the zipped folder as DEM.tif
 
 August 29:
 - both: set resample mode for GEE to bilinear (from nearest neighbor), which was creating aliasing artifacts when projecting/resampling. Standalone resampling is still nearest neighbor.
@@ -50,22 +64,22 @@ April 4, 2018:
 - server: added MAX_LOAD factor which prevents running of large jobs, that would requite too much memory.
 - standalone: added max_cells_for_memory_only for use of tempfiles instead of in-memory for processing large rasters.
 
-Feb. 14, 2018: 
-- added the use of tempfiles instead of in-memory for processing large rasters 
+Feb. 14, 2018:
+- added the use of tempfiles instead of in-memory for processing large rasters
 - config settings/constants are now in common/touchterrain_config.py
 
-Jan. 12, 2018: 
+Jan. 12, 2018:
 - added code for zigzag magic (currently disabled). May help to prevent curling corners.
 - vertex indexing is now only done for obj, not for STL
 
-Dec. 05, 2017: 
-- Cleaned up index.html. 
-- Added getting area box from kml file. 
-- All GUI options are now put in URL. 
-- Changed tile width/height from cm to mm. 
+Dec. 05, 2017:
+- Cleaned up index.html.
+- Added getting area box from kml file.
+- All GUI options are now put in URL.
+- Changed tile width/height from cm to mm.
 - Gamma value changes now trigger refresh.
 
-Oct. 27, 2017: server: fixed Earth engine 404 bug. Standalone: added ability to read in local geotiff file (via json config file). Added link to blog. 
+Oct. 27, 2017: server: fixed Earth engine 404 bug. Standalone: added ability to read in local geotiff file (via json config file). Added link to blog.
 Aug. 14, 2017: added a show URL button to the Area UI. This will load the app (w/o changing the area!) and show the full URL in the browser. This is useful to capture the area for others to use.
 
 Aug. 11, 2017: added multi-core processing. By default server and standalone will use all available cores. If this doesn;t work, CPU_cores_to_use can be set to 1 to go back to single-processor mode
@@ -76,26 +90,26 @@ Apr. 4: added check to convert water cells outside the defines DEM area to 0. Do
 Mar. 6: index.html
 - added boilerplate code for google analytics. Change UA-XXXXXX to your tracking id if you want to use it
 - added contact info and github URL
- 
+
 Feb. 16: separated standalone and server version into subfolders:
 - common: .py files (modules) used by both versions
 - standalone: main for standalone, install-howto, etc.. Works
-- server: server main (touchterrain_app.py) and server setup files. 
+- server: server main (touchterrain_app.py) and server setup files.
 
-version 0.12 is now live at: touchterrain.geol.iastate.edu 
+version 0.12 is now live at: touchterrain.geol.iastate.edu
 
 Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
 
-April 3:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM). That 
+April 3:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM). That
 
-0.12 (Dec. 12 - X-mas edition): 
+0.12 (Dec. 12 - X-mas edition):
 - Transparency defaults to 40%
 - results page has link to viewstl.com to preview downloaded files
 - ETOPO elevation is for ice, not bedrock
 - can now use server type flags: Apache, paste or GEA_devserver
 - added a hillshade gamma slider to change default gamma (1.0). Requires reload of page: press set new gamma button.
 - added 30m SRTM DEM as data source
-- better info on how the original raster DEM will be rescaled based on area, tile number/size, etc. 
+- better info on how the original raster DEM will be rescaled based on area, tile number/size, etc.
 - tile height (in cm) is now automatically calculated from tile width and aspect ratio of red box (using meters for box sides).
 - general layout changes, incl. a link to help page.
 
@@ -110,19 +124,18 @@ Version 0.10 of the TouchTerrain project, primarily a set of python source code 
 for Python 2.7:
 
 - TouchTerrain-app.py: a server module (service) to be run as part of a Google App Engine server. The server creates a webpage, through which the user inputs the area selection and print parameters.
-    
+
 - index.html: HTML template for the main webpage, includes Javascript
-    
-- TouchTerrain_standalone.py: A stand-alone version in which the user input is given 
+
+- TouchTerrain_standalone.py: A stand-alone version in which the user input is given
     in a JSON file, rather then via a web page.
-    
+
 - TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
-    
+
 - grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in the desired file format (STL or OBJ)
-    
+
 - Coordinate_system_conv.py, InMemoryZip.py: utility functions  
 
-- config.py: used for oauth credentials for the Google dev (Earth Engine) account 
+- config.py: used for oauth credentials for the Google dev (Earth Engine) account
 
-- tmp folder: contains an example terrain model, a zipped stl file 
-
+- tmp folder: contains an example terrain model, a zipped stl file
