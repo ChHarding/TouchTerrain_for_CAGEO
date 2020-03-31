@@ -30,6 +30,7 @@ Terrain 3D print Touchterrain project
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
+
     <script type="text/javascript" async defer
       src="https://maps.google.com/maps/api/js?key={{ google_maps_key }}">
       <!-- key=<nothing> will give you the crappy google map background, which is still usable.
@@ -37,10 +38,11 @@ Terrain 3D print Touchterrain project
 	   one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
 	   As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
 	   Put this key into a text file called GoogleMapsKey.txt in the server folder
-	   Note: if the key is wrong, you'll get a Google key error and you won't see any map.
+	   Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
     </script>
 
-
+    <!-- <script src="/static/js/ee_api_js.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
 
     <script type="text/javascript">
 
@@ -118,30 +120,23 @@ Terrain 3D print Touchterrain project
       map = new google.maps.Map(document.getElementById("map"), mapOptions);
 
       // hillshade overlay from google earth engine
-      /**
-      * The Google Maps API calls getTileUrl when it tries to display a maps
-      * tile.  This is a good place to swap in the mapid and token we got from
-      * the Python script. The other values describe other properties of the
-      * custom map type.
-      */
-      let eeMapOptions = {
-        getTileUrl: function(tile, zoom) {
-          let url = ['https://earthengine.googleapis.com/map',
-                     MAPID, zoom, tile.x, tile.y].join("/");
-          url += '?token=' + TOKEN
-          return url;
-        },
-        tileSize: new google.maps.Size(256, 256),
-        name: "hillshade"
-      };
-      eemap = new google.maps.ImageMapType(eeMapOptions);
-      map.overlayMapTypes.push(eemap);
+ 
+      // Create an ImageOverlay using the MapID and token we got from App Engine.
+      const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1alpha';
+      const tileSource = new ee.layers.EarthEngineTileSource({
+							      MAPID,
+							      TOKEN,
+							      formatTileUrl: (x, y, z) =>
+								  `${EE_MAP_PATH}/${MAPID}/tiles/${z}/${x}/${y}`
+      });
+      eemap = new ee.layers.ImageOverlay(tileSource); // eemap is a global so we can change its gamma later 
+      map.overlayMapTypes.insertAt(0, eemap); // insert as index 0, use this for opacity: map.overlayMapTypes.getAt(0).setOpacity(0.25)
 
       init_print_options(); //update all print option values in the GUI to what was inlined by jinja
       update_options_hidden(); // also store values in hidden ids
       SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
       updateGamma(hsgamma); // set hillshade gamma value to what was inlined by jinja
-      updateTransparency(40); // set initial transparency to 40%
+      updateTransparency(50); // set initial transparency 
 
 
       // Area selection box
@@ -413,13 +408,14 @@ Terrain 3D print Touchterrain project
     // set opacity of hillshade as inverse of transparency given
     function updateTransparency(transparency_pct) {
       let op = 1.0 - transparency_pct / 100.0 // opacity
-      eemap.setOpacity(op)
+      map.overlayMapTypes.getAt(0).setOpacity(op)
       document.getElementById('hillshade_transparency').value=transparency_pct;
       document.getElementById('hillshade_transparency_slider').value=transparency_pct;
     }
 
     //Update gamma in both places
     function updateGamma(val) {
+      eemap.gamma = val
       document.getElementById('hsgamma').value=val;  // id in reload form  (hidden)
       document.getElementById('hsgamma2').value=val; // gui text field
       document.getElementById('hs_slider').value=val; // gui slider
@@ -573,7 +569,8 @@ Terrain 3D print Touchterrain project
     <!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
     TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
     <a href="https://touchterrain.blogspot.com/" target="_blank">
-    See what's New! Get Help!</a>
+    There's new stuff (Mar.31)! </a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+    Help</a>
   </div>
 
 
@@ -624,7 +621,7 @@ Terrain 3D print Touchterrain project
       <b>Hillshade layer:</b> <br>
       Transparency(%):
       <input type="range" id="hillshade_transparency_slider" min="0" max="100" value=""
-	     step="5" oninput="updateTransparency(this.value);">
+	     step="1" oninput="updateTransparency(this.value);">
       <input type="text" id="hillshade_transparency"
             maxlength="4" size="3" value=""
             onkeydown="if (event.keyCode == 13) { updateTransparency(this.value); }"
@@ -794,10 +791,12 @@ Terrain 3D print Touchterrain project
       <br>Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
       </h5>
 
+
+      <h6>
       <a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
            TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a>
            (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
-
+      </h6>
 
     </div>
    </div>
