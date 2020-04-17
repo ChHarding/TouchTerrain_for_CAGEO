@@ -65,9 +65,16 @@ def pr(*arglist):
 use_zigzag_magic = False
 
 #  List of DEM sources  Earth engine offers and their nominal resolutions (only used for guessing the size of a geotiff ...)
-DEM_sources = ["""USGS/NED""", """USGS/GMTED2010""", """NOAA/NGDC/ETOPO1""", """USGS/SRTMGL1_003"""]
+DEM_sources = ["USGS/NED", 
+               "USGS/GMTED2010", 
+               "NOAA/NGDC/ETOPO1", 
+               "USGS/SRTMGL1_003",
+               "JAXA/ALOS/AW3D30/V2_2",
+               "NRCan/CDEM",
+               "USGS/GTOPO30",
+               "CPOM/CryoSat2/ANTARCTICA_DEM",
+              ]
 
-#
 def make_bottom_raster(image_file_name, shape):
     """ Make a bottom image (numpy array) to be used in the stl model
 
@@ -111,10 +118,7 @@ def make_bottom_raster(image_file_name, shape):
     bottom_raster /= 255.0 # normalize
     bottom_raster *= -1
     bottom_raster += 1
-
     return bottom_raster
-
-
 
 # utility function to unwrap a tile tuple into its info and numpy array parts
 # if multicore processing is used, this is called via multiprocessing.map()
