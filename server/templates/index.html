@@ -83,6 +83,9 @@ Terrain 3D print Touchterrain project
     let zscale = "{{ zscale }}";
     let fileformat = "{{ fileformat }}";
     let manual = "{{ manual }}";
+    manual = manual.replace(/&#34;/g, '\"')
+    manual = manual.replace(/&amp;quot;/g, '\"')
+
 
     // map visualiztion parameters: maptype, transparency, gamma, hsazi, hzelev
     let maptype = "{{ maptype }}";
@@ -146,7 +149,7 @@ Terrain 3D print Touchterrain project
 	  update_corners_form();
       }
       else{ // at this stage we don't have map bounds to make the box bounds b/c it hasn't been
-	     // drawn yet, so we need to defer that until the map bounds_changed is called.
+	    // drawn yet, so we need to defer that until the map bounds_changed is called.
 	    google.maps.event.addListenerOnce(map, 'bounds_changed', function(){
 	      center_rectangle();
 	    });
@@ -161,7 +164,7 @@ Terrain 3D print Touchterrain project
 	case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
         case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
 	case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
-	case "USGS/CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
+	case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
         case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
       }
       document.getElementById('DEM_link').href = link;
@@ -410,7 +413,7 @@ Terrain 3D print Touchterrain project
 	case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
         case "USGS/GMTED2010": res = "90 m"; break;
 	case "USGS/GTOPO30" : res = "1000 m"; break;
-	case "USGS/CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
+	case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
       }
 
@@ -453,7 +456,7 @@ Terrain 3D print Touchterrain project
         case 10: // super flat
          updateGamma(2.5); break;
 	 case 5: // extremely flat
-         updateGamma(4); break;
+         updateGamma(4.5); break;
         default:
            alert(elev + "is bad!");
       } 
@@ -636,16 +639,16 @@ Terrain 3D print Touchterrain project
       <form action="/" method="get" id="reloadform">
 
         <b>Elevation Data source:</b> &nbsp 
-	<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Click here for more info)</a>  
+        <a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Info on DEM)</a>
         <select id="DEM_name" name="DEM_name" onchange="submit_for_reload()"
-	        title="Switch to different Digital Elevation data source" >
+         title="Switch to different Digital Elevation data source" >
           <option value="USGS/NED"selected><a href="https://developers.google.com/earth-engine/datasets/catalog/USGS_NED">  USGS/NED </a>(10 m resolution, US only)</option>
-	  <!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
-	  <option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
-	  <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
+          <!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
+          <option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
+          <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
           <option value="USGS/GMTED2010">GMTED2010 (230m resolution, worldwide)</option>
-	  <option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
-	  <option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m res., Antarctica)</option>
+          <option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
+          <option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m res., Antarctica)</option>
           <option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
         </select>
 	
@@ -714,11 +717,11 @@ Terrain 3D print Touchterrain project
        &nbspSun angle: 
       <select title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
 	    id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload();">
-	    <option value="55">steep terrain</option> 
-	    <option value="45" selected >normal terrain</option>
-	    <option value="35">somewhat flat </option>
-	    <option value="25">very flat </option>
-	    <option value="10">super flat </option>
+	    <option value="55">steep</option> 
+	    <option value="45" selected >normal</option>
+	    <option value="35">bit flat </option>
+	    <option value="25">flat </option>
+	    <option value="10">very flat </option>
 	    <option value="5">extremely flat</option>
       </select>
       </br></br>
@@ -884,7 +887,7 @@ Terrain 3D print Touchterrain project
 
       <h6>
       <a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
-           TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a>
+           TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a><br>
            (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
       </h6>
 
