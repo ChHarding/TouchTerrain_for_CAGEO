@@ -26,6 +26,7 @@ import sys
 import common
 import server
 
+
 from common import config
 # Some server settings
 from server.config import *
@@ -90,30 +91,6 @@ GA_script = """
 """
 
 
-
-
-# functions for computing hillshades in EE (from EE examples)
-# Currently, I only use the precomputed hs, but they might come in handy later ...
-def Radians(img):
-  return img.toFloat().multiply(math.pi).divide(180)
-
-def Hillshade(az, ze, slope, aspect):
-  """Compute hillshade for the given illumination az, el."""
-  azimuth = Radians(ee.Image(az))
-  zenith = Radians(ee.Image(ze))
-  # Hillshade = cos(Azimuth - Aspect) * sin(Slope) * sin(Zenith) +
-  #     cos(Zenith) * cos(Slope)
-  return (azimuth.subtract(aspect).cos()
-          .multiply(slope.sin())
-          .multiply(zenith.sin())
-          .add(
-              zenith.cos().multiply(slope.cos())))
-
-
-
-
-
-
 #
 # The page for selecting the ROI and putting in printer parameters
 #
@@ -136,6 +113,16 @@ def main_page():
             ee.Initialize(credentials, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
+
+
+    # visualization parameters for hillshade overlay (defaults)
+    # these must be known in python to generate the mapid, but can be changed from JS and given back to python,
+    # so the must end up in the URL. I'm using a JSON struct here
+    args = {"maptype":"terrain",  # or: 'satellite' 'terrain' 'hybrid'
+                 "transparency":0.5,
+                 "gamma":1.0,
+                 "hsazi":315,
+                 "hselev":45}    
 
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
@@ -161,31 +148,32 @@ def main_page():
         "zscale" : "1.0",
         "fileformat" : "STLb",
 
-        "hsgamma": "1.0",
+        # Earth engine layer vis
+        "maptype": "roadmap",  # or: 'satellite' 'terrain' 'hybrid'
+        "transp": 20, # transparency in %
+        "gamma": 1, # gamma ("contrast")
+        "hsazi": 315, # hillshade azimuth (compass)
+        "hselev": 45, # hillshade elevation (above horizon)
 
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
     }
-    #re-assemble the URL query string and store it , so we can put it into the log file
+    
+
+        
+    # re-assemble the URL query string and store it , so we can put it into the log file
     qs = "?"
-    for k,v in list(request.args.items()):
+    requ_args = list(request.args.items())
+    for k,v in requ_args:
         v = v.replace('\"', '&quot;')
         qs = qs + k + "=" + v + "&"
     #print qs
 
-    # overwrite args with values from request
+    # overwrite args with values from flask request args 
     for key in request.args:
         args[key] = request.args[key]
         #print(key, request.args[key])
 
-    ''' # not sure if this is actually needed ?
-    # convert " to &quot; for URL
-    if args.get("manual") != None:
-        args["manual"] = args["manual"].replace('\"', '&quot;')
-        pass
-    else:
-        args["manual"] = ""
     '''
-
     # for ETOPO1 we need to first select one of the two bands as elevation
     if args["DEM_name"] == """NOAA/NGDC/ETOPO1""":
         img = ee.Image(args["DEM_name"])
@@ -195,9 +183,21 @@ def main_page():
         terrain = ee.Algorithms.Terrain(ee.Image(args["DEM_name"]))
 
     hs = terrain.select('hillshade')
+    '''
+    # get hillshade for elevation
+    if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
+        dataset = ee.ImageCollection('NRCan/CDEM')
+        elev = dataset.select('elevation')
+    else:
+        elev = ee.Image(args["DEM_name"])
+    
+    
+    hsazi = float(args["hsazi"]) # compass heading of sun
+    hselev = float(args["hselev"]) # angle of sun above the horizon
+    hs = ee.Terrain.hillshade(elev, hsazi, hselev)
 
-    gamma = float(args["hsgamma"])
-    mapid = hs.getMapId( {'gamma':gamma}) # opacity is set in JS
+    gamma = float(args["gamma"])
+    mapid = hs.getMapId( {'gamma':gamma}) # request map from EE, transparency will be set in JS
 
     # these have to be added to the args so they end up in the template
     # 'mapid': mapid['mapid'],
@@ -468,7 +468,9 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cell is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"""USGS/NED""":1/9.0, """USGS/GMTED2010""":7.5, """NOAA/NGDC/ETOPO1""":30, """USGS/SRTMGL1_003""":1} # in arcseconds!
+            cell_width_arcsecs = {"USGS/NED":1/9.0, "USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+                                  "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
+                                  "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75,} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
             tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
