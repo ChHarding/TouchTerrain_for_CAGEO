@@ -114,16 +114,6 @@ def main_page():
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
 
-
-    # visualization parameters for hillshade overlay (defaults)
-    # these must be known in python to generate the mapid, but can be changed from JS and given back to python,
-    # so the must end up in the URL. I'm using a JSON struct here
-    args = {"maptype":"terrain",  # or: 'satellite' 'terrain' 'hybrid'
-                 "transparency":0.5,
-                 "gamma":1.0,
-                 "hsazi":315,
-                 "hselev":45}    
-
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
         'DEM_name': 'USGS/NED',
@@ -147,6 +137,7 @@ def main_page():
         "basethick" : "1",
         "zscale" : "1.0",
         "fileformat" : "STLb",
+        "manual": "",   # &quot;bottom:true&quot;
 
         # Earth engine layer vis
         "maptype": "roadmap",  # or: 'satellite' 'terrain' 'hybrid'
