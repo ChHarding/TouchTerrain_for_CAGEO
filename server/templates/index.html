@@ -75,7 +75,6 @@ Terrain 3D print Touchterrain project
     let bllat = "{{ bllat }}"; // bottom left corner
     let bllon = "{{ bllon }}";
     let DEM_name = "{{ DEM_name }}"; // name of DEM layer
-    let hsgamma = "{{ hsgamma }}"; // hillshade gamma value
     let printres = "{{ printres }}"; // in mm
     let ntilesx = "{{ ntilesx }}";
     let ntilesy = "{{ ntilesy }}";
@@ -84,27 +83,17 @@ Terrain 3D print Touchterrain project
     let zscale = "{{ zscale }}";
     let fileformat = "{{ fileformat }}";
     let manual = "{{ manual }}";
-    manual = manual.replace(/&#34;/g, "\"");
 
-
+    // map visualiztion parameters: maptype, transparency, gamma, hsazi, hzelev
+    let maptype = "{{ maptype }}";
+    let transp = "{{ transp }}";
+    let gamma = "{{ gamma }}";
+    let hsazi = "{{ hsazi }}";
+    let hselev = "{{ hselev }}";
+    
+    
     // run this once the browser is ready
     window.onload = function () {
-
-      /*
-      // update GUI values to jinja inlined values
-      document.getElementById('trlat2').value=trlat;
-      document.getElementById('trlon2').value=trlon;
-      document.getElementById('bllat2').value=bllat;
-      document.getElementById('bllon2').value=bllon;
-
-      // also update hidden id values to jinja inlined values
-      document.getElementById('trlat').value=trlat;
-      document.getElementById('trlon').value=trlon;
-      document.getElementById('bllat').value=bllat;
-      document.getElementById('bllon').value=bllon;
-      */
-
-
 
       // init google map
       let myLatLng = new google.maps.LatLng( map_lat, map_lon);
@@ -115,30 +104,21 @@ Terrain 3D print Touchterrain project
           zoomControl: true,
           scaleControl: true,
           streetViewControl: false,
-	   //mapTypeControlOptions: { mapTypeIds: ['hillshade'] }
+          mapTypeId: maptype
       };
+      
       map = new google.maps.Map(document.getElementById("map"), mapOptions);
-
-      // hillshade overlay from google earth engine
- 
-      // Create an ImageOverlay using the MapID and token we got from App Engine.
-      const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1alpha';
-      const tileSource = new ee.layers.EarthEngineTileSource({
-							      MAPID,
-							      TOKEN,
-							      formatTileUrl: (x, y, z) =>
-								  `${EE_MAP_PATH}/${MAPID}/tiles/${z}/${x}/${y}`
-      });
-      eemap = new ee.layers.ImageOverlay(tileSource); // eemap is a global so we can change its gamma later 
-      map.overlayMapTypes.insertAt(0, eemap); // insert as index 0, use this for opacity: map.overlayMapTypes.getAt(0).setOpacity(0.25)
-
+      eemap = create_overlay(MAPID, map); // hillshade overlay from google earth engine
       init_print_options(); //update all print option values in the GUI to what was inlined by jinja
       update_options_hidden(); // also store values in hidden ids
       SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
-      updateGamma(hsgamma); // set hillshade gamma value to what was inlined by jinja
-      updateTransparency(50); // set initial transparency 
-
-
+      
+      // Init map Overlay GUI settings
+      updateTransparency(transp); // set initial transparency 
+      updateGamma(gamma); // initial gamma value
+      document.getElementById('hsazi2').value = hsazi;
+      document.getElementById('hselev2').value = hselev;
+      
       // Area selection box
       rectangle = new google.maps.Rectangle({
         editable: true,
@@ -148,7 +128,7 @@ Terrain 3D print Touchterrain project
         strokeWeight: 2,
         fillColor: '#FF0000',
         fillOpacity: 0.01,
-	 map: map
+        map: map
       });
 
 
@@ -171,9 +151,25 @@ Terrain 3D print Touchterrain project
 	      center_rectangle();
 	    });
       }
+      
+      // show link for current DEM source
+      let link = "https://developers.google.com/earth-engine/datasets"
+      switch(DEM_name){
+        case "USGS/NED": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_NED"; break;
+	case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
+        case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
+	case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
+        case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
+	case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
+	case "USGS/CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
+        case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
+      }
+      document.getElementById('DEM_link').href = link;
 
+      // 
       // Callbacks
-
+      //
+      
       // Add an event listener on the rectangle.
       rectangle.addListener('bounds_changed', update_corners_form);
       rectangle.addListener('dragstart', remove_divison_lines);
@@ -219,7 +215,22 @@ Terrain 3D print Touchterrain project
     }; // end of onload()
 
     // FUNCTIONS
-
+    
+    // Create an ImageOverlay using the MapID, which encodes all the vis params (besides opacity, which is set browser-side)
+    function create_overlay(MAPID, map){
+      const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1alpha';
+      const tileSource = new ee.layers.EarthEngineTileSource({
+							      MAPID,
+							      TOKEN,
+							      formatTileUrl: (x, y, z) =>
+								  `${EE_MAP_PATH}/${MAPID}/tiles/${z}/${x}/${y}`
+      });
+      eemap = new ee.layers.ImageOverlay(tileSource); // eemap is a global so we can change its gamma later 
+      map.overlayMapTypes.removeAt(0); // remove old overlay
+      map.overlayMapTypes.insertAt(0, eemap); // insert as index 0, use this for opacity: map.overlayMapTypes.getAt(0).setOpacity(0.25)
+      return eemap;
+    }
+    
     // Function to return an arc-degree distance in meters at a given latitude
     // as an array (along_east, along_north)
     // see http://www.csgnetwork.com/degreelenllavcalc.html
@@ -292,7 +303,6 @@ Terrain 3D print Touchterrain project
       document.getElementById('trlon').value=trlon;
       document.getElementById('bllat').value=bllat;
       document.getElementById('bllon').value=bllon;
-
 
       setApproxDEMResolution_meters();
       calcTileHeight();
@@ -395,10 +405,16 @@ Terrain 3D print Touchterrain project
       let res = "unknown resolution"
       switch(DEM_name){
         case "USGS/NED": res = "10 m"; break;
+	case "NRCan/CDEM": res = "20 m"; break;
         case "USGS/SRTMGL1_003": res = "30 m"; break;
+	case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
         case "USGS/GMTED2010": res = "90 m"; break;
-        case "NOAA/NGDC/ETOPO1": res = "1000 m"; break;
+	case "USGS/GTOPO30" : res = "1000 m"; break;
+	case "USGS/CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
+        case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
       }
+
+
 
       // set resolution of DEM source
       document.getElementById('source_resolution').innerHTML = res
@@ -409,17 +425,39 @@ Terrain 3D print Touchterrain project
     function updateTransparency(transparency_pct) {
       let op = 1.0 - transparency_pct / 100.0 // opacity
       map.overlayMapTypes.getAt(0).setOpacity(op)
-      document.getElementById('hillshade_transparency').value=transparency_pct;
+      //document.getElementById('hillshade_transparency').value=transparency_pct;
       document.getElementById('hillshade_transparency_slider').value=transparency_pct;
+      document.getElementById('transp').value=transparency_pct; // id in hidden reload
     }
 
     //Update gamma in both places
     function updateGamma(val) {
-      eemap.gamma = val
-      document.getElementById('hsgamma').value=val;  // id in reload form  (hidden)
-      document.getElementById('hsgamma2').value=val; // gui text field
-      document.getElementById('hs_slider').value=val; // gui slider
+      document.getElementById('gamma').value=val;  // id in reload form  (hidden)
+      document.getElementById('gamma2').value=val; // gui text field
+      //document.getElementById('hs_slider').value=val; // gui slider
     }
+    
+    // update hillshade elevation(angle above horizon) and adjust gamma
+    function updateHillshadeElevation(elev) {
+      document.getElementById('hselev').value=elev;   // hidden id
+      document.getElementById('hselev2').value=elev;  // gui list
+      switch(Number(elev)) {
+        case 55: // steep
+          updateGamma(0.3); break;
+        case 45: // normal
+          updateGamma(1.0); break;
+        case 35: // somewhat flat
+          updateGamma(1.2); break;
+        case 25: // very flat
+          updateGamma(1.5); break;
+        case 10: // super flat
+         updateGamma(2.5); break;
+	 case 5: // extremely flat
+         updateGamma(4); break;
+        default:
+           alert(elev + "is bad!");
+      } 
+    }  
 
     // update the hidden ids in reload form
     function update_options_hidden(){
@@ -447,19 +485,27 @@ Terrain 3D print Touchterrain project
       document.getElementById('options_manual').value = manual;
     }
 
-    // called on idle (after map pann/zoom), sets current lat, lon and zoom
+    // called on idle (after map pan/zoom), sets current lat, lon and zoom
     function saveMapSettings(){
       let  c = map.getCenter();
       let cx = c.lng();
       let cy = c.lat();
+      
       // hidden ids in reloadform
       document.getElementById('map_lat').value = c.lat();
       document.getElementById('map_lon').value = c.lng();
-      document.getElementById('map_zoom').value = map.getZoom();
+      document.getElementById('map_zoom').value = map.getZoom(); 
     }
 
     function submit_for_reload(){
       saveMapSettings();
+      
+      // save current settings into hidden ids
+      document.getElementById('maptype').value = map.getMapTypeId();
+      document.getElementById('hsazi').value = document.getElementById('hsazi2').value;
+      document.getElementById('hselev').value = document.getElementById('hselev2').value;
+      
+      // trigger a reload with all the vars in reloadform
       let f = document.forms["reloadform"];
       f.submit();
     }
@@ -561,6 +607,11 @@ Terrain 3D print Touchterrain project
       }
     }
   </script>
+  
+  <style>
+    #hillshade_transparency_slider {width: 150px;}
+  </style>
+  
   </head>
 
   <body>
@@ -569,7 +620,7 @@ Terrain 3D print Touchterrain project
     <!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
     TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
     <a href="https://touchterrain.blogspot.com/" target="_blank">
-    There's new stuff (Mar.31)! </a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+    New Version: Apr.17</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
     Help</a>
   </div>
 
@@ -581,30 +632,36 @@ Terrain 3D print Touchterrain project
     </div>
 
     <div id ="right" style="background-color:#FFFF;width:505px; float:left; margin-left: 10px ">
-
-
-
-
+    
       <form action="/" method="get" id="reloadform">
 
-        <b>Elevation Data source:</b>
+        <b>Elevation Data source:</b> &nbsp 
+	<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Click here for more info)</a>  
         <select id="DEM_name" name="DEM_name" onchange="submit_for_reload()"
 	        title="Switch to different Digital Elevation data source" >
-          <option value="USGS/NED"selected>USGS/NED (10 m resolution, US only)</option>
-          <option value="USGS/SRTMGL1_003">SRTM GL1 (30 m resolution, worldwide)</option>
-          <option value="USGS/GMTED2010">GMTED2010 (230 m resolution, worldwider)</option>
-          <option value="NOAA/NGDC/ETOPO1">ETOPO1 (1000 m resolution, worldwide, incl. bathymetry!)</option>
+          <option value="USGS/NED"selected><a href="https://developers.google.com/earth-engine/datasets/catalog/USGS_NED">  USGS/NED </a>(10 m resolution, US only)</option>
+	  <!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
+	  <option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
+	  <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
+          <option value="USGS/GMTED2010">GMTED2010 (230m resolution, worldwide)</option>
+	  <option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
+	  <option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m res., Antarctica)</option>
+          <option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
         </select>
-
+	
         <!-- hidden ids so they get put into the URL on reload -->
-	<input type="hidden" name="hsgamma" id="hsgamma" value="NULL">
-        <input type="hidden" name="map_lat" id="map_lat" value="NULL">
+	<input type="hidden" name="maptype" id="maptype" value="NULL">
+	<input type="hidden" name="gamma" id="gamma" value="NULL">
+	<input type="hidden" name="transp" id="transp" value="NULL">
+	<input type="hidden" name="hsazi"id="hsazi" value="NULL">
+	<input type="hidden" name="hselev" id="hselev" value="NULL">
+	<input type="hidden" name="map_lat" id="map_lat" value="NULL">
 	<input type="hidden" name="map_lon" id="map_lon" value="NULL">
 	<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
 	<input type="hidden" id="trlat" name="trlat" value="NULL" >
-        <input type="hidden" id="trlon" name="trlon" value="NULL" >
-        <input type="hidden" id="bllat" name="bllat" value="NULL" >
-        <input type="hidden" id="bllon" name="bllon" value="NULL" >
+	<input type="hidden" id="trlon" name="trlon" value="NULL" >
+	<input type="hidden" id="bllat" name="bllat" value="NULL" >
+	<input type="hidden" id="bllon" name="bllon" value="NULL" >
 	<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
 	<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
 	<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
@@ -613,27 +670,60 @@ Terrain 3D print Touchterrain project
 	<input type="hidden" id="zscale" name="zscale" value="NULL" >
 	<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
 	<input type="hidden" id="manual" name="manual" value="NULL" >
-
-
       </form>
       <br>
 
-      <b>Hillshade layer:</b> <br>
+      <b>Hillshade layer (Terrain relief overlay):</b> <br>
       Transparency(%):
       <input type="range" id="hillshade_transparency_slider" min="0" max="100" value=""
-	     step="1" oninput="updateTransparency(this.value);">
-      <input type="text" id="hillshade_transparency"
-            maxlength="4" size="3" value=""
-            onkeydown="if (event.keyCode == 13) { updateTransparency(this.value); }"
-                 > (set to 100% to hide)
-
+	    title="Changes the hillshade transparentcy from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
+	    list="tickmarks"
+	    step="1" oninput="updateTransparency(this.value);">
+	    <datalist id="tickmarks">
+		<option value="0"></option>
+		<option value="10"></option>
+		<option value="20"></option>
+		<option value="30"></option>
+		<option value="40"></option>
+		<option value="50"></option>
+		<option value="60"></option>
+		<option value="70"></option>
+		<option value="80"></option>
+		<option value="90"></option>
+		<option value="100"></option>
+	      </datalist>
+      &nbspGamma:
+      <!-- <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
+             oninput="updateGamma(this.value)" onmouseup="submit_for_reload()"> -->
+      <input type="text" id="gamma2"  maxlength="4" size="2" value="1.0" 
+	    title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+            onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload();}"> 
       <br>
-      Gamma:
-      <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
-             oninput="updateGamma(this.value)" onmouseup="submit_for_reload()">
-      <input type="text" id="hsgamma2"  maxlength="4" size="3" value="0"
-            onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload()}">
-      <br> <br>
+      
+      Sun direction:
+      <select title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
+	    id="hsazi2" name="Sun Direction" onchange="submit_for_reload();">
+	    <option value="270">West</option>
+	    <option value="315" selected>North-West</option>
+	    <option value="360">North</option>
+	    <option value="45">North-East</option>
+	    <option value="90">East</option>
+	    <option value="180">South</option>
+      </select>
+      
+       &nbspSun angle: 
+      <select title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
+	    id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload();">
+	    <option value="55">steep terrain</option> 
+	    <option value="45" selected >normal terrain</option>
+	    <option value="35">somewhat flat </option>
+	    <option value="25">very flat </option>
+	    <option value="10">super flat </option>
+	    <option value="5">extremely flat</option>
+      </select>
+      </br></br>
+      
+      
 
       <b>Area Selection Box:</b>
       <input id="recenter-box-button" type="button"
@@ -683,7 +773,7 @@ Terrain 3D print Touchterrain project
 
 	  <select title="(printres) Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
 	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
-	    <!-- <option value="-1">source resolution</option> CH Mar 16 not really possible with new API d/l restrictions-->
+	    <!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
 	    <option value="0.2">0.2 mm</option>
 	    <option value="0.25">0.25 mm</option>
 	    <option value="0.3">0.3 mm</option>
