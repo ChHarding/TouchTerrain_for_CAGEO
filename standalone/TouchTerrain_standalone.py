@@ -73,6 +73,7 @@ args = {
     #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
     "bottom_image": None,  # 1 band greyscale image used for bottom relief
     "ignore_leq": None, # set values <= this to NaN, so they are ignored
+    "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
     "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
 }
@@ -138,6 +139,7 @@ def main():
             #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
             "bottom_image": None,  # 1 band greyscale image used for bottom relief
             "ignore_leq": None, # set values <= this to NaN, so they are ignored
+            "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
             "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
             "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
         }

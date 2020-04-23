@@ -54,6 +54,7 @@ The JSON config file has the following format:
 "bottom_image": null,
 "fileformat": "STLb",
 "ignore_leq": null,
+"lower_leq": null,
 "importedDEM": null,
 "max_cells_for_memory_only": 1000000,
 "no_bottom": false,
@@ -131,7 +132,9 @@ printed bottom (tested in Cura 3.6)
 
 * `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false.
 
-* `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. GGood for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
+* `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
+
+* `lower_leq`: default: null. An alternative to ignore_leq. Given a list in the format [threshold, offset], all cells less than or equal to threshold will be lowered by the offset. This helps with giving emphasis to coastlines. The offset is in mm with respect to the final mesh size. Unaffected by zscale.
 
 * `unprojected`: default: false . (Works only for exporting GeoTiffs, not for meshes) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 

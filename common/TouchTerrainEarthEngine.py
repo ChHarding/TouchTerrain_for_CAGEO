@@ -257,6 +257,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          no_bottom=False,
                          bottom_image=None,
                          ignore_leq=None,
+                         lower_leq=None,
                          unprojected=False,
                          only=None,
                          original_query_string=None,
@@ -287,6 +288,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - no_bottom: don't create any bottom triangles. The STL file is not watertight but should still print fine with most slicers (e.g. Cura) and is much smaller
     - bottom_image: 1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)
     - ignore_leq: ignore elevation values <= this value, good for removing offshore data
+    - lower_leq: lower elevation values <= lower_leq[0] m by lower_leq[1] mm in final mesh, good for adding emphasis to coastlines. Unaffected by z_scale.
     - unprojected: don't apply UTM projectin, can only work when exporting a Geotiff as the mesh export needs x/y in meters
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
@@ -309,7 +311,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         assert fileformat != "GeoTiff", "Error: it's silly to make a Geotiff from a local DEM file (" + importedDEM + ") instead of a mesh file format ..."
 
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
-    assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(base_thick) + ") must be > 0.5 mm when using a bottom relief image"
+    assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
 
 
     # set up log file
@@ -369,7 +371,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             dict_for_url[k] = v
 
         # optional manual args
-        for k in ("no_bottom", "bottom_image", "ignore_leq", "unprojected", "only",
+        for k in ("no_bottom", "bottom_image", "ignore_leq", "lower_leq", "unprojected", "only",
                   "original_query_string", "no_normals", "projection", "use_geo_coords"):
             if args.get(k) != None: # may not have been used ...
                 v = args[k]
@@ -740,6 +742,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr( "no_bottom:", no_bottom)
         pr( "no_normals:", no_normals)
         pr( "ignore_leq:", ignore_leq)
+        pr("lower_leq:", lower_leq)
 
         #
         # set Cells with GDAL undef to numpy NaN
@@ -858,6 +861,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # min/max elev (all tiles)
         print(("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)))) # use nanmin() so we can use (NaN) undefs
+
+        if lower_leq is not None:
+            assert len(lower_leq) == 2, \
+                "lower_leq should have the format [threshold, offset]. Got {}".format(lower_leq)
+            sf = (print3D_height_total_mm / 1000) / region_size_in_meters[1]
+            threshold = lower_leq[0]
+            offset = (lower_leq[1] / 1000) / sf
+            # Shift elevations greater than the threshold up to avoid negatives
+            npim = numpy.where(npim > threshold, npim + offset, npim)
+            pr("Lowering elevations <= ", threshold, " by ", offset, " mm")
 
         # apply z-scaling
         if zscale != 1.0:
