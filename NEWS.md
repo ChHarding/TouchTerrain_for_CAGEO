@@ -1,3 +1,7 @@
+Apr. 23, 2020: added lower_leq manual option to lower any cells below a threshold by a offset in mm. (thanks to idenc, who did nearly all the work!)
+
+Apr. 19, 2020: added hillshade settings for azimuth and elevation angles in the GUI. Gamma is linked to changes of these settings.
+
 Mar. 31, 2020: fixed issues arising from changes in Earth Engine API 
 
 Mar. 16, 2020: Took out the source option for print resolution b/c the d/l size restrictions of new Mar 2020 EarthEngine API update.
