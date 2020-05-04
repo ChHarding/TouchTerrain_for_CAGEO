@@ -220,13 +220,12 @@ def main():
     '''
     #
     # end of main()
-    #
     
     
 if __name__ == "__main__":
     
     # this is/should only be needed on Windows and only if we do multi processing
-    # but it has to be done here before I know if MP is actually used
+    # but it has to be done before we know if MP is actually used
     from multiprocessing import freeze_support
     freeze_support()
     main()

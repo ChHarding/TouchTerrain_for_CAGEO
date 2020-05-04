@@ -1,8 +1,10 @@
 # CH
+.vscode/
 *.json
 *.??*
 *.code-workspace
 *.pyc
+Run_TouchTerrain_debug_server_app.py
 
 # Prerequisites
 *.d
@@ -36,5 +38,3 @@
 *.exe
 *.out
 *.app
-.vscode/
-*.pyc
