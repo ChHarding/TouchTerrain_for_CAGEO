@@ -33,9 +33,9 @@ from zipfile import ZipFile
 
 import http.client
 
-import common
-from common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
-from common.Coordinate_system_conv import * # arc to meters conversion
+import touchterrain.common
+from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
+from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import numpy
 from PIL import Image
@@ -480,7 +480,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             try:
                 # try authenticating with a .pem file
-                from common import config  # sets location of .pem file, config.py must be in this folder
+                from touchterrain.common import config  # sets location of .pem file, config.py must be in this folder
                 from oauth2client.service_account import ServiceAccountCredentials
                 from ee import oauth
                 credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)

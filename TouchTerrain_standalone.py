@@ -169,7 +169,7 @@ def main():
      
             try:
                 # try authenticating with a .pem file
-                from common import config  # sets location of .pem file, config.py must be in this folder
+                from touchterrain.common import config  # sets location of .pem file, config.py must be in this folder
                 from oauth2client.service_account import ServiceAccountCredentials
                 from ee import oauth
                 credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
@@ -181,13 +181,13 @@ def main():
         args["importedDEM"] = abspath(args["importedDEM"])
 
     # TODO: should change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deals with file DEMs
-    from common import TouchTerrainEarthEngine as TouchTerrain
+    from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
     
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
-    if 1: # set this to 0 if you don't want the zip file tp be unzippeed
+    if 1: # set this to 0 if you don't want the zip file to be unzippeed
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
         folder = os.getcwd() + os.sep + args["zip_file_name"]# new stl folder in current folder
