@@ -5,6 +5,7 @@
 *.code-workspace
 *.pyc
 Run_TouchTerrain_debug_server_app.py
+tmp/*
 
 # Prerequisites
 *.d
