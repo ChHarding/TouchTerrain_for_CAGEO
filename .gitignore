@@ -2,3 +2,4 @@
 # CH
 *.code-workspace
 .vscode/
+*.pyc
