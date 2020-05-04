@@ -6,6 +6,8 @@
 *.pyc
 Run_TouchTerrain_debug_server_app.py
 tmp/*
+*/__pycache__
+*/*/__pycache__
 
 # Prerequisites
 *.d
