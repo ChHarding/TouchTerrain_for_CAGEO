@@ -28,21 +28,28 @@ Alternative to running the TouchTerrain web server.
 '''
 import time
 import json
+import sys
 
+try:
+    from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
+except:
+    print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
+    sys.exit()
 #
 # How to run the standalone version:
 #
 
-# Make a copy of example_config.json, modify the parameters and save it with a new
-# name (e.g. my.json). The JSON file format follows the args dict shown below.
+# Make a copy of example_config.json (in the stuff folder), modify the parameters and save it with a new
+# name (e.g. my.json) in the same folder as this .py file. The JSON file format follows the args dict shown below.
 #
-# run python with your JSON file as the only arg:
+# run python with your JSON file as the only arg, e.g.:
 #
 # python TouchTerrain_standalone.py my.json
 #
-# Gets a geotiff either from Google Earth Engine or locally, coverts it
+# The default config gets a geotiff either from Google Earth Engine or locally, coverts it
 # into one or more 3D model files (tiles) and stores it/them in a zipped folder.
-# pyramid.tif can be used to test this, use a z-scale of 0.5
+# pyramid.tif can be used to test this with a local geotiff. Set importedDEM to pyramid.tif 
+# and use a z-scale of 0.5
 
 # Default parameters:
 # The JSON file overwrites values for the following keys, which are used as
@@ -180,9 +187,10 @@ def main():
     else:
         args["importedDEM"] = abspath(args["importedDEM"])
 
-    # TODO: should change TouchTerrainEarthEngine.py to TouchTerrain.py as it now also deals with file DEMs
-    from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
-    
+
+
+
+    # Give all config values to get_zipped_tiles for processing:
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
