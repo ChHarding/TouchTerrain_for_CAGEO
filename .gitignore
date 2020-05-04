@@ -2,6 +2,7 @@
 *.json
 *.??*
 *.code-workspace
+*.pyc
 
 # Prerequisites
 *.d
