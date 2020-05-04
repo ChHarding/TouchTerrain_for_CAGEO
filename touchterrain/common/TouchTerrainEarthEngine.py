@@ -257,6 +257,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          no_bottom=False,
                          bottom_image=None,
                          ignore_leq=None,
+                         lower_leq=None,
                          unprojected=False,
                          only=None,
                          original_query_string=None,
@@ -731,16 +732,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         utm_zone_str = utm_zone_str[:i]
         epsg_str = "N/A"
 
-        pr( "projection:", utm_zone_str)
+        pr("projection:", utm_zone_str)
 
 
-        pr( "z-scale:", zscale)
-        pr( "basethickness:", basethick)
-        pr( "fileformat:", fileformat)
-        pr( "tile_centered:", tile_centered)
-        pr( "no_bottom:", no_bottom)
-        pr( "no_normals:", no_normals)
-        pr( "ignore_leq:", ignore_leq)
+        pr("z-scale:", zscale)
+        pr("basethickness:", basethick)
+        pr("fileformat:", fileformat)
+        pr("tile_centered:", tile_centered)
+        pr("no_bottom:", no_bottom)
+        pr("no_normals:", no_normals)
+        pr("ignore_leq:", ignore_leq)
         pr("lower_leq:", lower_leq)
 
         #
@@ -864,15 +865,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if lower_leq is not None:
             assert len(lower_leq) == 2, \
                 "lower_leq should have the format [threshold, offset]. Got {}".format(lower_leq)
-            sf = (print3D_height_total_mm / 1000) / region_size_in_meters[1]
+            #sf = (print3D_height_total_mm / 1000) / region_size_in_meters[1] # IdenC
+            #offset = (lower_leq[1] / 1000) / sf
+            
             threshold = lower_leq[0]
-            offset = (lower_leq[1] / 1000) / sf
+            offset = lower_leq[1] / 1000 * print3D_scale_number  # scale mm up to real world meters
+            offset /= zscale # account for zscale
             
             # Instead of lowering, shift elevations greater than the threshold up to avoid negatives
             npim = numpy.where(npim > threshold, npim + offset, npim)
-            pr("Lowering elevations <= ", threshold, " by ", offset, " mm")
-            # TODO: CH Now that the total printed height has increased, do I need to
-            # update something with that new height?     
+            pr("Lowering elevations <= ", threshold, " by ", offset, "m, equiv. to", lower_leq[1],  "mm at map scale")  
 
         # apply z-scaling
         if zscale != 1.0:
