@@ -23,23 +23,19 @@ from datetime import datetime
 import json
 import ee
 import sys
-import common
-import server
 
 
-from common import config
-# Some server settings
-from server.config import *
-
-from server import app
+from touchterrain.common import config # general settings
+from touchterrain.server.config import * # server only settings
+from touchterrain.server import app
 
 from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template
 app = Flask(__name__)
 
 
-# import module from common
-from common import TouchTerrainEarthEngine
-from common.Coordinate_system_conv import * # arc to meters conversion
+# import modules from common
+from touchterrain.common import TouchTerrainEarthEngine
+from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import logging
 import time
@@ -211,7 +207,7 @@ def main_page():
             return r
 
     # add any vars from server/config.py that may need to be inlined
-    args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(server.config, "GOOGLE_ANALYTICS_TRACKING_ID")
+    args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(config, "GOOGLE_ANALYTICS_TRACKING_ID")
    
 
     # string with index.html "file" with mapid, token, etc. inlined

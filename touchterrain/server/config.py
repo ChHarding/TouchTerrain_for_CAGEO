@@ -1,4 +1,4 @@
-from common import config
+from touchterrain.common import config
 import os
 
 # TouchTerrain server config settings
