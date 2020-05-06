@@ -74,7 +74,7 @@ def get_normal(tri):
     return list(n) # convert Vector3 to list
 '''
 # TODO: this is still pretty slow (takes as long as the first processing step!), maybe have a nonormals setting which uses 0,0,0 ?
-from vectors import Vector, Point  #
+from touchterrain.common.vectors import Vector, Point  #
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
