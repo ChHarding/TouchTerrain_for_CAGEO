@@ -3,9 +3,11 @@
 TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as both as a standalone version  and as a server version for a web application. To see the server version in action, go to
 [touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu)
 
+
 TouchTerrain is developed by Chris Harding (Iowa State University) and Franek Hasiuk (Kansas Geological Survey). For questions email `Geofablab AT gmail DOT com`.
 
-For more in-depth information read our paper in Computers & Geosciences: TouchTerrain: A simple
+
+For more in-depth information, read our paper in Computers & Geosciences: TouchTerrain: A simple
 web-tool for creating 3D-printable topographic models, Volume 109, December 2017, Pages 25-31,
 https://doi.org/10.1016/j.cageo.2017.07.005
 
@@ -14,35 +16,45 @@ https://doi.org/10.1016/j.cageo.2017.07.005
 
 TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded from Earth Engine or from a local raster file) an creates a 3D model suitable for 3D printing. The geotiff from EE is automatically UTM projected and usually downsampled. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a zip file along with a log file with details about the process steps.
 
- For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. After processing the geotiff according to these parameters, the resulting zip file is stored locally. However, there is no graphical (map) interface for easily requesting a certain area from EE, the geographical extent of the request has to be given in lat/long coordinates as text.
 
-The server version offers a Google Map interface to select the area and a simple GUI to specifiy the preocessing paramaters. Some "expert" parameters are only exposed via a JSON style text field input. One the request has been processed it is again downloaded as a zip file.
-
-Besides Python 3.x you need to install a few modules (see `standalone/TouchTerrain_standalone_installation.pdf`) using pip or conda. After this you can use the stand-alone version to process local DEM raster file (see the`importedDEM` under Standalone)
-
- If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://developers.google.com/earth-engine/python_install_manual) (section on _Setting Up Authentication Credentials_). In addition, you need to install the earthengine-api (ee) package and its dependencies, which is described in `standalone/TouchTerrain_standalone_installation.pdf`. There are other options to install the [Earth Engine Python API](https://developers.google.com/earth-engine/python_install), but I have no experience beyond their _Minimal Earth Engine Python API Installation_.
+ For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. However, there is no graphical (map) interface for easily requesting a certain area from EE, the geographical extent of the request has to be given in lat/long coordinates as text. (Note: this might change in the future, I'm looking into using geemap inside jupyter ...)
 
 
+The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
 
-## Standalone folder
-The standalone version runs on a local machine that has Python >3.6 and packages installed.
 
-### Jupyter Notebook
-The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/standalone/TouchTerrain_standalone_jupyter_notebook.html)
+TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: 'pip install .' in the same folder as the setup.py file (
 
-To get started see this [installation guide](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
 
-### Straight python
-`TouchTerrain_standalone.py`is the straight python version of the jupyter notebook. Processing parameters as either given as a dictionary inside the file or are read in via a JSON configuration file such as`standalone/example_config.json`.
+ If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account) EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain can use.
+
+
+ (TODO: add something more about how to get the Earth Engine account set up!)
+
+
+## Standalone mode
+To use touchterrain in standalone mode (i.e. not via a web server), either run `TouchTerrain_standalone.py` or `TouchTerrain_standalone_jupyter_notebook.ipynb`. Both sit in the project root folder and require that the touchterrain module has been installed.
+
+### Jupyter Notebook version
+The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/stuff/TouchTerrain_standalone_jupyter_notebook.html)
+
+For more details see this: [touchterrain jupyter notebook - get started](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
+
+### Simple python version
+`TouchTerrain_standalone.py`is the straight python equivalent of the jupyter notebook. Processing parameters as either given as a dictionary inside the file or are read in via a JSON configuration file such as `stuff/example_config.json`.
 
 If you don't want to use a JSON file, edit the parameters in `TouchTerrain_standalone.py` and run it an IDE or via the command line terminal. To run it in a terminal, go into the standalone folder and type:
 `python TouchTerrain_standalone.py`
 
-To run it with the JSON config file, edit the JSON file, save it in the same folder and type:
+To run it with the JSON config file, edit the JSON file `stuff/example_config.json`, save it in the same folder as `TouchTerrain_standalone.py` and edit it for your needs. To run it, open a terminal and type:
+
 `python TouchTerrain_standalone.py example_config.json`
 
 
-#### Processing parameters
+### Processing parameters
+
+These parameters can be used in the JSON config file or in a python dictionary for hardingcoding them in the jupyter notebook or TouchTerrain_standalone.py.
+
 The JSON config file has the following format:
 ```
 {
@@ -72,16 +84,24 @@ The JSON config file has the following format:
 }
 ```
 
- * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!) 
-    - USGS/NED: 10 m, continental USA only 
-    - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north 
-    - USGS/GMTED2010: ~230 m, truly worldwide 
+Note that for Python, None and True/False need to be different:
+
+```
+    Python:  JSON:
+    None     null
+    True     true
+    False    false
+```
+
+ * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!)
+    - USGS/NED: 10 m, continental USA only
+    - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
+    - USGS/GMTED2010: ~230 m, truly worldwide
     - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
 
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
  model. This is particularly important for models with long, deep valleys, which can cause the model  to shine through or if the base is not thick enough. A base thickness of at least twice the
  filament thickness is recommended.
-
 
  * `bllat`:         Bottom-left latitude of area to be printed
  * `bllon`:         Bottom-left longitude
@@ -96,7 +116,7 @@ The JSON config file has the following format:
 
 
  * `ntilesx`:       Divide the x axis evenly among this many tiles. This is useful if the area being
- printed would be too large to fit in the printer's bed. 
+ printed would be too large to fit in the printer's bed.
  * `ntilesy`:       See `ntilesx`, above.
 
  * `tilewidth`:     The width of a tile in mm, tile height will be calculated from the aspect ratio
@@ -138,8 +158,7 @@ printed bottom (tested in Cura 3.6)
 
 * `unprojected`: default: false . (Works only for exporting GeoTiffs, not for meshes) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
-* `bottom_image`: default: null . If a filename to a valid greyscale (1-band) 8-bit local image is
-given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
+* `bottom_image`: default: null . If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
 and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect  bed adhesion and will certainly make the first few layers considerably slower to print!
 
 * `only`: default: null . If given a list [x,y] will only process that tile index ([1,1] is upper
@@ -167,27 +186,24 @@ http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of y
 Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
 
+- "use_geo_coords": default: null.
+    - "UTM" will use meter based UTM x/y coordinates for all generated coordinates instead of mm within your buildplate). See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background).
+    - "centered" will set the UTM origin to the center of the full tile, to work with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
 
-## Server folder
+## Server version
 
-(Note: depending on the type of server we may have a dockerized version available ...)
+All server related files are in `touchterrain/server`
 
-Running `TouchTerrain_app.py` starts a server module (service) which will be run inside Apache.
-Modify the ansiable script to set up the server. The server creates a webpage, through which the
-user inputs the area selection and print parameters.
+Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want a dockerized Gunicorn version). The server creates a webpage, through which the user inputs the area selection and print parameters.
 
-The server presents users with `index.html`, which can be styled to suit your needs, provided the
-various input dialogs and JavaScript remain.
+The server presents users with `index.html` (in templates), which can be styled to suit your needs, provided the various input dialogs and JavaScript remain.
 
-index.html contain the standard Google Analytics tracking boilerplate code at the top. By default it has a bogus tracking id ('UA-XXXXXXXX'), so tracking doesn't work. If you want to activate it, you need to set up your own Google Analytics (https://www.google.com/analytics/web/#home) and use your own UA- tracking code instead.
-
-touchterrain_config.py contains server specific config settings:
+config.py contains server specific config settings:
 - NUM_CORES:  0 means: use all cores, 1 means: use only 1 core (usefull for debugging)
 - MAX_CELLS: if the raster has more cells than this number, tempfiles are used instead of memory during the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
 - MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
+- GOOGLE_ANALYTICS_TRACKING_ID is the Google Analytics tracking id that gets inlined into index.html. By default it's our GA id, so be sure to change this to yours or set it to 'UA-XXXXXXXX' to disable tracking.
 
 
-## Common folder
-
-The `common` directory contains files used by both the standalone and server apps.
+The `touchterrain/common` directory contains files used by both, the standalone and server versions.
