@@ -96,10 +96,13 @@ Note that for Python, None and True/False need to be different:
 ```
 
  * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!)
-    - USGS/NED: 10 m, continental USA only
-    - USGS/SRTMGL1_003: 30 m, "worldwide" but not very far north
-    - USGS/GMTED2010: ~230 m, truly worldwide
-    - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
+    - USGS/NED: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
+    - ALOS DSM: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2)
+    - USGS/SRTMGL1_003: 30 m, "worldwide", but not very far north (lower quality and older than ALOS!). [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
+    - USGS/GMTED2010: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
+    - GTOPO30: 30 Arc-Second, 1000 m, 1996, worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30)
+    - CryoSat-2 Antarctica: 1000 m, antarctica only. [link](https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM)
+    - NOAA/NGDC/ETOPO1: 2000 m, worldwide, with bathymetry. [link](https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1)
 
 
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
