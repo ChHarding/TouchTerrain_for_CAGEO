@@ -14,7 +14,7 @@ https://doi.org/10.1016/j.cageo.2017.07.005
 
 ## Getting Started
 
-TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded from Earth Engine or from a local raster file) an creates a 3D model suitable for 3D printing. The geotiff from EE is automatically UTM projected and usually downsampled. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a zip file along with a log file with details about the process steps.
+TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded from Earth Engine or from a local raster file) and from it creates a 3D model suitable for 3D printing. Online data from EE is automatically UTM projected and usually downsampled. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a zip file along with a log file with details about the process steps.
 
 
  For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. However, there is no graphical (map) interface for easily requesting a certain area from EE, the geographical extent of the request has to be given in lat/long coordinates as text. (Note: this might change in the future, I'm looking into using geemap inside jupyter ...)
@@ -36,14 +36,16 @@ TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.p
 To use touchterrain in standalone mode (i.e. not via a web server), either run `TouchTerrain_standalone.py` or `TouchTerrain_standalone_jupyter_notebook.ipynb`. Both sit in the project root folder and require that the touchterrain module has been installed.
 
 ### Jupyter Notebook version
-The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __standalone/TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the k3d package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/stuff/TouchTerrain_standalone_jupyter_notebook.html)
+The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the `k3d` package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/stuff/TouchTerrain_standalone_jupyter_notebook.html)
 
 For more details see this: [touchterrain jupyter notebook - get started](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
 
-### Simple python version
-`TouchTerrain_standalone.py`is the straight python equivalent of the jupyter notebook. Processing parameters as either given as a dictionary inside the file or are read in via a JSON configuration file such as `stuff/example_config.json`.
 
-If you don't want to use a JSON file, edit the parameters in `TouchTerrain_standalone.py` and run it an IDE or via the command line terminal. To run it in a terminal, go into the standalone folder and type:
+### Simple python version
+`TouchTerrain_standalone.py`is the straight python equivalent of the jupyter notebook. Processing parameters are either given as a dictionary inside the file or are read in from a JSON configuration file such as `stuff/example_config.json`.
+
+If you don't want to use a JSON file, edit the hardcoded parameters in `TouchTerrain_standalone.py` and run it an IDE or via the command line terminal. To run it in a terminal, go into the standalone folder and type:
+
 `python TouchTerrain_standalone.py`
 
 To run it with the JSON config file, edit the JSON file `stuff/example_config.json`, save it in the same folder as `TouchTerrain_standalone.py` and edit it for your needs. To run it, open a terminal and type:
@@ -99,6 +101,7 @@ Note that for Python, None and True/False need to be different:
     - USGS/GMTED2010: ~230 m, truly worldwide
     - NOAA/NGDC/ETOPO1: 1000 m, worldwide, with bathymetry
 
+
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
  model. This is particularly important for models with long, deep valleys, which can cause the model  to shine through or if the base is not thick enough. A base thickness of at least twice the
  filament thickness is recommended.
@@ -107,6 +110,7 @@ Note that for Python, None and True/False need to be different:
  * `bllon`:         Bottom-left longitude
  * `trlat`:         Top-right latitude
  * `trlon`:         Top-right longitude
+
 
  * `fileformat`: file format for 3D model file.
     - obj: wavefront obj (ascii)  
@@ -127,9 +131,11 @@ Note that for Python, None and True/False need to be different:
  __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED).  
  It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. You can set printres to be whatever the original (source) resolution of the DEM is by setting it to -1 (i.e. 10 m in this example). However, with a 0.4 mm nozzle this only makes sense if your area is more than 80 mm wide otherwise you're again only wasting time and diskspace.
 
+
  * `tile_centered`:  default: false
     - false: All tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
     - true:  each tile is centered around 0/0
+
 
  * `zip_file_name`: default: "terrain" Prefix of output filename. (.zip is added)
 
@@ -162,8 +168,8 @@ printed bottom (tested in Cura 3.6)
 and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect  bed adhesion and will certainly make the first few layers considerably slower to print!
 
 * `only`: default: null . If given a list [x,y] will only process that tile index ([1,1] is upper
-left tile). This will enable users to d/l otherwise unreasonably large models by processing one of
-its tiles at a time (thus staying under the server limit).  
+left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).  
+
     _Example_: only:[1,1] (JSON) or only = [1,1] (python) will d/l only the tile with index 1,1
 Once this tile was downloaded, using only with [1,2], but otherwise repeating the request, will d/l tile 1,2
     Although each tile will be in a new zip, unzipping them and putting all tiles in a common folder will
@@ -171,24 +177,20 @@ create a "single" model that will make all tiles fit together when printed. In a
 tiles will fit together without overlaps if tile_centered was false.
 
 * `projection`: default: null . By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), my work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
-     Be aware, however, that  Earth Engine does not support all possible EPSG codes. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives an error message: *The CRS of a map projection could not be parsed*
+     Be aware, however, that  Earth Engine does not support all possible EPSG codes. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives the error message: *The CRS of a map projection could not be parsed*.
 
-
-
-
-
-__A note on distances:__ Google Earth Engine requires that the requested area is given in lat/lon
-coordinates but it's worth knowing the approximate real-world meter distance in order to select good
-values for the tile width, number of tiles and the printres. The server version displays the tile
-width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here:
+    A note on distances:  
+    - Earth Engine requires that the requested area is given in lat/lon
+coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here:
 http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area.
 
-Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
+ - Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
 
 - "use_geo_coords": default: null.
-    - "UTM" will use meter based UTM x/y coordinates for all generated coordinates instead of mm within your buildplate). See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background).
-    - "centered" will set the UTM origin to the center of the full tile, to work with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
+    - with null (or if not given), x/y coordinates are in mm and refer to the buildplate
+    - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background).
+    - "centered" will set the UTM origin to the center of the full tile, this is make it work togther with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
 
 ## Server version
