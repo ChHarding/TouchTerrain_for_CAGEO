@@ -1,3 +1,14 @@
+May. 7, 2020:
+- pretty massive restructuring of folders:
+	- no more standalone folder, the "main" code files (TouchTerrain_standalone_jupyter_notebook.ipynb and TouchTerrain_standalone.py) are now in root
+	- common and server folders are now in a new touchterrain folder
+	- the eloquently named new stuff folder contains all helper files, e.g. json and getiff examples
+- the vectors module (by allelos) was moved into common to remove some install trickery. It will sit there for the future, I don't anticipate any need to go to a new version (Python 4?)
+- running setup.py will now build and install a __touchterrain module__ (versioning coming soon)
+	- use pip install .  (dot!) to have pip install it for you (better than python setup.py install clean)
+- al imports were re-written to import from the installed touchterrain module (e.g. touchterrain.common.config)
+	
+
 Apr. 23, 2020: added lower_leq manual option to lower any cells below a threshold by a offset in mm. (thanks to idenc, who did nearly all the work!)
 
 Apr. 19, 2020: added hillshade settings for azimuth and elevation angles in the GUI. Gamma is linked to changes of these settings.
@@ -12,7 +23,7 @@ Aug. 2019: Version 2
 - 3D preview using JS
 - Wait animation
 - Optional feedback box
-- added geotiff of full tiel to d/l zip
+- added geotiff of full tile to d/l zip
 - print resolution can be same as source (Mar 2020: only for stand alone!)
 - more precise model dimensions
 
