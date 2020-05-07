@@ -721,7 +721,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         cell_size_m = pw
         pr("source raster upper left corner (x/y): ",tf[0], tf[3])
         pr("source raster cells size", cell_size_m, "m ", npim.shape)
-
+        geo_transform = tf
 
         # I use PROJCS[ to get a projection name, e.g. PROJCS["NAD_1983_UTM_Zone_10N",GEOGCS[....
         # I'm grabbing the text between the first and second double-quote.
