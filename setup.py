@@ -32,7 +32,7 @@ setup(
     
     extras_require={
         'server': [
-            'gunicorn>=19.9.0',
+            'gunicorn>=20.0.4',
         ],
     },
 )
