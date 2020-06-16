@@ -471,6 +471,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Get a download URL for DEM from Earth Engine
         #
 
+        '''
+        #
+        # June 15, 2020
+        # disabling the re-init for now as it seems to create a weird error in the log
+        # file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
+        #
+
+
         # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while ...
         # Try both ways of authenticating
         try:
@@ -499,8 +507,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 time.sleep(random.randint(1,10))
             else:
                 break
-
-        info = image1.getInfo() # this can go wrong for some sources, but we don't really need the info as long as we get the actual data
+        '''
+        
+        image1 = ee.Image(DEM_name)
+        info = image1.getInfo() # this can go wrong and return nothing for some sources, but we don't really need the info as long as we get the actual data
 
         pr("Earth Engine raster:", info["id"])
         try:#
@@ -533,10 +543,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #'crs': 'EPSG:4326',
             'crs': epsg_str, # projection
  			# CH Mar 10, 2020: Do NOT specify format anymore or getDownloadUrl() won't work!
- 			# apparently it's all geotiffs now
+ 			# apparently it's only geotiffs now
         }
 
-        # if cellsize is <= 0, just get whatever GEE's default cellsize is
+        # if cellsize is <= 0, just get whatever GEE's default cellsize is (printres = -1)
         if cell_size_m <= 0: del request_dict["scale"]
 
         # don't apply UTM projection, can only work for Geotiff export
