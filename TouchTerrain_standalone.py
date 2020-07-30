@@ -28,13 +28,16 @@ Alternative to running the TouchTerrain web server.
 '''
 import time
 import json
-import sys
+import sys, os
+from os.path import abspath, dirname
 
 try:
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
 except:
     print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
     sys.exit()
+
+
 #
 # How to run the standalone version:
 #
@@ -46,55 +49,55 @@ except:
 #
 # python TouchTerrain_standalone.py my.json
 #
-# The default config gets a geotiff either from Google Earth Engine or locally, coverts it
-# into one or more 3D model files (tiles) and stores it/them in a zipped folder.
-# pyramid.tif can be used to test this with a local geotiff. Set importedDEM to pyramid.tif 
-# and use a z-scale of 0.5
 
-# Default parameters:
-# The JSON file overwrites values for the following keys, which are used as
-# args for get_zipped_tiles() and save them inside a zipped folder.
-# Print each tile on a 3D printer (they are already scaled!)
-args = {
-    "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
-                           # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-    "trlat": 44.69741706507476,        # lat/lon of top right corner
-    "trlon": -107.97962089843747,
-    "bllat": 44.50185267072875,        # lat/lon of bottom left corner
-    "bllon": -108.25427910156247,
-    "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-    "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-    "ntilesx": 1,      # number of tiles in x and y
-    "ntilesy": 1,
-    "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
-    "basethick": 1, # thickness (in mm) of printed base
-    "zscale": 1.0,      # elevation (vertical) scaling
-    "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
-    "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-    "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
-    "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
-    "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
-    
-    # these are the args that could be given "manually" via the web UI
-    "no_bottom": False, # omit bottom triangles?
-    #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
-    "bottom_image": None,  # 1 band greyscale image used for bottom relief
-    "ignore_leq": None, # set values <= this to NaN, so they are ignored
-    "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
-    "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
-    "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-}
 
 # main function, will be called at the end of the script
 def main():
+
+    # The default config gets a geotiff either from Google Earth Engine or locally, coverts it
+    # into one or more 3D model files (tiles) and stores it/them in a zipped folder.
+    # pyramid.tif can be used to test this with a local geotiff. Set importedDEM to pyramid.tif 
+    # and use a z-scale of 0.5
+
+    # Default parameters:
+    # The JSON file overwrites values for the following keys, which are used as
+    # args for get_zipped_tiles() and save them inside a zipped folder.
+    # Print each tile on a 3D printer (they are already scaled!)
+    args = {
+        "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+                            # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
+        "trlat": 44.69741706507476,        # lat/lon of top right corner
+        "trlon": -107.97962089843747,
+        "bllat": 44.50185267072875,        # lat/lon of bottom left corner
+        "bllon": -108.25427910156247,
+        "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+        "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+        "ntilesx": 1,      # number of tiles in x and y
+        "ntilesy": 1,
+        "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
+        "basethick": 1, # thickness (in mm) of printed base
+        "zscale": 1.0,      # elevation (vertical) scaling
+        "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+        "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
+        "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
+        "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
+        "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
+        
+        # these are the args that could be given "manually" via the web UI
+        "no_bottom": False, # omit bottom triangles?
+        #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
+        "bottom_image": None,  # 1 band greyscale image used for bottom relief
+        "ignore_leq": None, # set values <= this to NaN, so they are ignored
+        "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
+        "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
+        "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
+    }
+
     # write an example json file, in case it gets deleted ...
     with open('example_config.json', 'w+') as fp:
         json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
     print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
     
-    
-    import sys, os
-    from os.path import abspath, dirname
     
     
     # parse args
@@ -186,9 +189,6 @@ def main():
             
     else:
         args["importedDEM"] = abspath(args["importedDEM"])
-
-
-
 
     # Give all config values to get_zipped_tiles for processing:
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
