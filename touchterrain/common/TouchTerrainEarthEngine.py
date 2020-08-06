@@ -305,7 +305,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     - importedGPX: Array of GPX file paths that are to be plotted on the model
     - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the mdoel 
-    - gpxPixelsBetweenPoints: GPX Files haves a lot of points. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner 
+    - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
     returns the total size of the zip file in Mb
 
@@ -662,7 +662,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             del zipdir, str_data
 
             # although STL can only use 32-bit floats, we need to use 64 bit floats
-            # for calculations, otherewise we get non-manifold vertices!
+            # for calculations, otherwise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
 

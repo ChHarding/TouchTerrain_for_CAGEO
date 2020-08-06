@@ -1,8 +1,24 @@
+"""Module to add GPX paths to a TouchTerrain 3D model
+   (Aug. 4, 2020, by KohlhardC)
+   This is accomplished by adjusting the height data that is used to generate the 3D model such that the GPX paths are shown with higher or lower elevations therby creating a visible path. 
+"""
 import time 
 import math
 
+def plotLineHigh(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset): 
+    """ Draw a line in the npim array using using Bresenham's line algorithm as shown here: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm. This function is for lines where y increases. 
 
-def plotLineHigh(x0,y0,x1,y1,height,npim,pathedPoints,averagePathHeight,thicknessOffset): 
+    Args:
+        x0 (int): x position of the start of the primary line 
+        y0 (int): y position of the start of the primary line 
+        x1 (int): x position of the end of the primary line 
+        y1 (int): y position of the end of the primary line
+        height (int): height offset, in meters, from the terrain elevation to denote a GPX track. Negative numbers are ok. 
+        npim (numpy array): The numpy array containing elevation data for points on the 3D terrain map 
+        pathedPoints (dictionary): A dictionary the keeps track of points that have already been adjusted to mark a GPX path
+        thicknessOffset (int): The number of pixels, positive or negative, to offset the drawn line from the primary line described by x0,y0 : x1,y1
+
+    """ 
     dx = x1 - x0
     dy = y1 - y0
     xi = 1
@@ -11,24 +27,31 @@ def plotLineHigh(x0,y0,x1,y1,height,npim,pathedPoints,averagePathHeight,thicknes
         xi = -1
         dx = -dx
     
-    D = 2*dx - dy
+    D = 2 * dx - dy
     x = x0
 
     for y in range(y0,y1+1):
-        plotPoint(x,y,height,npim,pathedPoints,averagePathHeight,thicknessOffset)
+        plotPoint(x,y,height,npim,pathedPoints,thicknessOffset)
         if D > 0:
             x = x + xi
-            D = D - 2*dy
+            D = D - 2 * dy
 
-        D = D + 2*dx
+        D = D + 2 * dx
 
+def plotLineLow(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset):
+    """ Draw a line in the npim array using using Bresenham's line algorithm as shown here: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm. This function is for lines where y decreases. 
 
+    Args:
+        x0 (int): x position of the start of the primary line 
+        y0 (int): y position of the start of the primary line 
+        x1 (int): x position of the end of the primary line 
+        y1 (int): y position of the end of the primary line
+        height (int): height offset, in meters, from the terrain elevation to denote a GPX track. Negative numbers are ok. 
+        npim (numpy array): The numpy array containing elevation data for points on the 3D terrain map 
+        pathedPoints (dictionary): A dictionary the keeps track of points that have already been adjusted to mark a GPX path
+        thicknessOffset (int): The number of pixels, positive or negative, to offset the drawn line from the primary line described by x0,y0 : x1,y1
+    """
 
-
-
-def plotLineLow(x0,y0,x1,y1,height,npim,pathedPoints,averagePathHeight,thicknessOffset):
-   
-   
     dx = x1 - x0
     dy = y1 - y0
     yi = 1
@@ -37,114 +60,120 @@ def plotLineLow(x0,y0,x1,y1,height,npim,pathedPoints,averagePathHeight,thickness
         yi = -1
         dy = -dy
     
-    D = 2*dy - dx
+    D = 2 * dy - dx
     y = y0
 
     for x in range(x0,x1+1): 
-        plotPoint(x,y,height,npim,pathedPoints,averagePathHeight,thicknessOffset)
+        plotPoint(x,y,height,npim,pathedPoints,thicknessOffset)
         if D > 0: 
             y = y + yi
-            D = D - 2*dx
-
-        D = D + 2*dy
-
-
-
+            D = D - 2 * dx
+        D = D + 2 * dy
 
 def plotLine(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset):
-    #pr(" plotLine")
-    averagePathHeight = []
+    """ Draw a line in the npim array using using Bresenham's line algorithm as shown here: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 
-    if abs( y1-y0 ) < abs( x1-x0 ):
+    Args:
+        x0 (int): x position of the start of the primary line 
+        y0 (int): y position of the start of the primary line 
+        x1 (int): x position of the end of the primary line 
+        y1 (int): y position of the end of the primary line
+        height (int): height offset, in meters, from the terrain elevation to denote a GPX track. Negative numbers are ok. 
+        npim (numpy array): The numpy array containing elevation data for points on the 3D terrain map 
+        pathedPoints (dictionary): A dictionary the keeps track of points that have already been adjusted to mark a GPX path
+        thicknessOffset (int): The number of pixels, positive or negative, to offset the drawn line from the 
+                               primary line described by x0,y0 : x1,y1
+    """
+    #pr(" plotLine") 
+    if abs(y1 - y0) < abs(x1 - x0):
         if x0 > x1: 
-             plotLineLow(x1,y1,x0,y0 ,height,npim,pathedPoints, averagePathHeight,thicknessOffset ) 
+             plotLineLow(x1,y1,x0,y0,height,npim,pathedPoints,thicknessOffset ) 
         else: 
-             plotLineLow( x0,y0,x1,y1,height,npim,pathedPoints, averagePathHeight,thicknessOffset ) 
+             plotLineLow(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset ) 
     else:
         if y0 > y1: 
-            plotLineHigh(x1,y1,x0,y0,height,npim,pathedPoints, averagePathHeight,thicknessOffset )  
+            plotLineHigh(x1,y1,x0,y0,height,npim,pathedPoints,thicknessOffset )  
         else: 
-            plotLineHigh( x0,y0,x1,y1,height,npim,pathedPoints, averagePathHeight,thicknessOffset )           
+            plotLineHigh(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset )           
  
+def plotPoint(x,y,height,npim,pathedPoints,thicknessOffset):
+    """ Draw a line in the npim array using using Bresenham's line algorithm as shown here: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 
+    Args:
+        x (int): x position of the primary point
+        y (int): y position of the primary point
+        height (int): height offset, in meters, from the terrain elevation to denote a GPX track. Negative numbers are ok. 
+        npim (numpy array): The numpy array containing elevation data for points on the 3D terrain map 
+        pathedPoints (dictionary): A dictionary the keeps track of points that have already been adjusted to mark a GPX path
+        thicknessOffset (int): The number of pixels, positive or negative, to offset the drawn point from
+                               the primary point described by x,y 
 
-
-def plotPoint(x,y,height,npim,pathedPoints,averagePathHeight,thicknessOffset):
+    """ 
     plotY = y + thicknessOffset 
     plotX = x + thicknessOffset 
     pointKey = str(plotX) + "x" + str(plotY)  
     
     #pr("  plotting: {0}".format( pointKey ) )
 
-    #Only update a point if we haven't already done something to it
+    # Only update a point if we haven't already done something to it
     if pointKey not in pathedPoints: 
-      
-
-        # Smooth out heights by using an average of previous points on this line. 
-        # This has the effect of paths getting too flat on steep aspects 
-        if False:
-            newHeight = height + npim[plotX][plotY]
-
-            #Use average of last N heights. If this is too high, the flattening effect is worse
-            numberOfAverageHeightsToUse = 5
-            if len(averagePathHeight) > numberOfAverageHeightsToUse: 
-                averagePathHeight.pop() 
-        
-            averagePathHeight.insert(0, newHeight )   
-            npim[plotX][plotY] = sum(averagePathHeight) / len( averagePathHeight)  
-            #pr("   using height: {0}".format(npim[plotX][plotY]) )
+        if thicknessOffset == 0:
+            newHeight = height + npim[x][y]
         else:
-        #make thicker paths horizontally 'flat' by using the height from the primary line 
-            if thicknessOffset == 0:
-                newHeight = height + npim[x][y]
-            else:
-                #get the height from the primary line
-                newHeight = npim[x][y]
-
-            npim[plotX][plotY] = newHeight 
+            # get the height from the primary line so that thicker lines appear flat
+            newHeight = npim[x][y]
+            try: 
+                npim[plotX][plotY] = newHeight # might be outside of npim
+            except:
+                pass
             #pr("   using height: {0}".format(npim[plotX][plotY]) )
        
         pathedPoints[ pointKey ] = True 
     else: 
-        something = 0
-        #pr("   skipped:")
+        pass
+        #pr("   skipped:") 
 
-
-
-
-
-
-
-# Add 1 or more GPX tracks to the model
-#
-# npim - The NumPy array that represents the elevation data
-# dem - 
-# importedGPX - Array of GPX file paths to be plotted
-# gpxPathHeight - In meters, the height of the gpxPath. Negative number will show as a dent on the model
-# trlat - top right latitude
-# trlon - top right longitude
-# bllat - bottom left latitude
-# bllat - bottom left longitude 
-#
-# returns a modified numpy array of the elevation data
 def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,gpxPathThickness,trlat,trlon,bllat,bllon):
+    """ Add 1 or more GPX tracks to the terrain model
+
+    Args: 
+        pr (function): reference to the logging function 
+        npim (2d numpy array): The numpy array containing elevation data for points on the 3D terrain map 
+        dem (GDAL raster dataset): The GDAL raster dataset is needed since it contains the projection used by 
+                                   the elevation data 
+        importedGPX (list): List of strings which reference the file paths for GPX tracks.  
+        gpxPathHeightHeight (int): height offset, in meters, from the terrain elevation to denote a GPX track. 
+                                   Negative numbers are ok. 
+        gpxPixelsBetweenPoints (int): GPX Files can have a lot of points. This argument controls how 
+                                      many pixel distance there should be between points, effectively causing fewing 
+                                      lines to be drawn. A higher number will create more space between lines drawn 
+                                      on the model and can have the effect of making the paths look a bit cleaner at 
+                                      the expense of less precision 
+        gpxPathThickness (int): Stacks parallel lines on either side of the primary line to create thickness. 
+        trlat (float): top right latitude of the terrain map. 
+        trlon (float): top right longitude of the terrain map.
+        bllat (float): bottom left latitude of the terrain map. 
+        bllat (float): bottom left longitude of the terrain map.  
+    
+    Returns:
+        a modified npim array that now contains adjusted elevation data such that the GPX path(s) will be 
+        recognizable on the terrain model
+
+    """ 
     import xml.etree.ElementTree as ET 
     import osr 
     import time 
     import math
 
     gpxStartTime = time.time()
-    # Parse GPX file
     pathedPoints = {} 
-
+    
+    # Parse GPX file
     ulx, xres, xskew, uly, yskew, yres  = dem.GetGeoTransform()   
-
     target = osr.SpatialReference()
     target.ImportFromWkt( dem.GetProjection() ) 
-
-    # This is WGS84
     source = osr.SpatialReference()
-    source.ImportFromEPSG(4326) 
+    source.ImportFromEPSG(4326) # This is WGS84
 
     for gpxFile in importedGPX:
         pr("process gpx file: {0}".format( gpxFile ) )
@@ -154,21 +183,13 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
 
         # We need to keep track of the last point so that we can draw a line between points
         lastPoint = None       
-
-
-       
         count = 0 
-
+        
         for trkpt in points:
-
             count = count + 1
-             
-           
-
             gpx_lat = float( trkpt.attrib['lat'] )
             gpx_lon = float( trkpt.attrib['lon'] ) 
-            #pr("Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
-
+            #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
             
             #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
             transform = osr.CoordinateTransformation(source,target ) 
@@ -181,9 +202,6 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
             if rasterX >= 0 and rasterX < npim.shape[0] and rasterY >=0 and rasterY < npim.shape[1]:
                 
                 currentPoint = (rasterX,rasterY) 
-
-         
-                #plotPoint( currentPoint[0],currentPoint[1],gpxPathHeight+300,npim,pathedPoints,averagePathHeight ) 
                               
                 #Draw line between two points using Bresenham's line algorithm 
                 if lastPoint is not None: 
@@ -205,7 +223,6 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
                         for loopy in range(1, int(gpxPathThickness) ):
                             
                             #pr("thickerLine")
-                      
                             plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,thicknessOffset) 
 
                             #alternate sides of line to draw on when adding 
@@ -214,19 +231,14 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
                                 thicknessOffset = (thicknessOffset * -1) + 1    
                             else:
                                 thicknessOffset = thicknessOffset * -1    
-                                
-                            
-
                         lastPoint = currentPoint
                 else:
                     lastPoint = currentPoint 
             else:
-                #if a point is out of bounds, we need to invalidate lastPoint
+                # if a point is out of bounds, we need to invalidate lastPoint
+                #pr("out of bounds: {0},{1}".format(gpx_lat, gpx_lon) )
                 lastPoint = None
 
     gpxEndTime = time.time()
     gpxElapsedTime = gpxEndTime - gpxStartTime
     pr("Time to add GPX paths:{0}".format( gpxElapsedTime ) )
-     
-
-
