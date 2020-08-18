@@ -109,7 +109,9 @@ def main_page():
             ee.Initialize(credentials, config.EE_URL)
         except Exception as e:
             print("EE init() error with .pem file", e, file=sys.stderr)
-
+    else:
+        print("EE init() worked (with .config/earthengine/credentials)", file=sys.stderr)
+        
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
         'DEM_name': 'USGS/NED',
