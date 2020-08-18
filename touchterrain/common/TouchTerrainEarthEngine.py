@@ -614,6 +614,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             else:
                 break
         '''
+
+        # CH Aug 18: putting init back. It works in TouchTerrain_app.py but
+        # then complains about needing it here again  ... grrrrr!
+        try:
+            ee.Initialize() # uses .config/earthengine/credentials
+        except Exception as e:
+            print("EE init() error (with .config/earthengine/credentials),", e, file=sys.stderr)
+        else:
+            print("EE init() worked in TouchTerrainEarthEngine.py (with .config/earthengine/credentials)", file=sys.stderr)
         
         image1 = ee.Image(DEM_name)
         info = image1.getInfo() # this can go wrong and return nothing for some sources, but we don't really need the info as long as we get the actual data
