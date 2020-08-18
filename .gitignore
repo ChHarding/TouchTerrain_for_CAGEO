@@ -3,6 +3,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode
 
+# CH: don't put debug server script on github
+Run_TouchTerrain_debug_server_app.py
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
