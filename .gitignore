@@ -6,6 +6,16 @@
 # CH: don't put debug server script on github
 Run_TouchTerrain_debug_server_app.py
 
+# auto generated json
+example_config.json 
+
+# any files in the tmp subfolders (but not .gitkeep!)
+touchterrain/server/tmp/??*
+touchterrain/server/downloads/??*
+touchterrain/server/previews/??*
+
+.vscode
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
