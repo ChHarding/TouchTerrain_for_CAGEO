@@ -21,6 +21,7 @@ setup(
         #'vectors==99.0.0',  # is now part of common folder
         'oauth2client>=4.1.3',
         'numpy>=1.17',
+        'kml2geojson>=4.0.2', # for reading polygon coords from kml
     ],
     
     # Deactivated for now b/c there's no standalone submodule, TouchTerrain_standalone.py is at root
