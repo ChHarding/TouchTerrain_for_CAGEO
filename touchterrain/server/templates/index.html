@@ -4,7 +4,7 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain (BUILDID)</title>
+    <title>TouchTerrain - get files for 3D printing terrain BETA (BUILDID)</title>
     <meta charset="UTF-8">
     <meta name="description" content="Application for creating 3D printable terrain models">
     <meta property="og:image" content="/static/touchTerrain_logo.png">
@@ -85,9 +85,9 @@ Terrain 3D print Touchterrain project
     let manual = "{{ manual }}";
     manual = manual.replace(/&#34;/g, '\"')
     manual = manual.replace(/&amp;quot;/g, '\"')
-
-
-    // map visualiztion parameters: maptype, transparency, gamma, hsazi, hzelev
+    let polyURL = "{{ polyURL }}";
+    
+    // map visualization parameters: maptype, transparency, gamma, hsazi, hzelev
     let maptype = "{{ maptype }}";
     let transp = "{{ transp }}";
     let gamma = "{{ gamma }}";
@@ -143,28 +143,28 @@ Terrain 3D print Touchterrain project
           initial_bounds.extend(tr);
           initial_bounds.extend(bl);
 
-	  //alert(initial_bounds.toUrlValue(2))
-	  // draw rectangle and put coords in form
-	  rectangle.setBounds(initial_bounds);
-	  update_corners_form();
+	        //alert(initial_bounds.toUrlValue(2))
+	        // draw rectangle and put coords in form
+	        rectangle.setBounds(initial_bounds);
+	        update_corners_form();
       }
       else{ // at this stage we don't have map bounds to make the box bounds b/c it hasn't been
-	    // drawn yet, so we need to defer that until the map bounds_changed is called.
-	    google.maps.event.addListenerOnce(map, 'bounds_changed', function(){
-	      center_rectangle();
-	    });
+	          // drawn yet, so we need to defer that until the map bounds_changed is called.
+	          google.maps.event.addListenerOnce(map, 'bounds_changed', function(){
+	            center_rectangle();
+	          });
       }
       
       // show link for current DEM source
       let link = "https://developers.google.com/earth-engine/datasets"
       switch(DEM_name){
         case "USGS/NED": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_NED"; break;
-	case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
+	      case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
         case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
-	case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
+	      case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
         case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
-	case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
-	case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
+	      case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
+	      case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
         case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
       }
       document.getElementById('DEM_link').href = link;
@@ -408,16 +408,14 @@ Terrain 3D print Touchterrain project
       let res = "unknown resolution"
       switch(DEM_name){
         case "USGS/NED": res = "10 m"; break;
-	case "NRCan/CDEM": res = "20 m"; break;
+	      case "NRCan/CDEM": res = "20 m"; break;
         case "USGS/SRTMGL1_003": res = "30 m"; break;
-	case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
+	      case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
         case "USGS/GMTED2010": res = "90 m"; break;
-	case "USGS/GTOPO30" : res = "1000 m"; break;
-	case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
+	      case "USGS/GTOPO30" : res = "1000 m"; break;
+	      case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
       }
-
-
 
       // set resolution of DEM source
       document.getElementById('source_resolution').innerHTML = res
@@ -473,6 +471,7 @@ Terrain 3D print Touchterrain project
       document.getElementById('zscale').value = document.getElementById('options_z_scale').value;
       document.getElementById('fileformat').value= document.getElementById('options_fileformat').value;
       document.getElementById('manual').value= document.getElementById('options_manual').value;
+      document.getElementById('polyURL').value= document.getElementById('options_polyURL').value;
     }
 
     // update the print option values in the GUI from the global vars
@@ -486,6 +485,7 @@ Terrain 3D print Touchterrain project
       document.getElementById('options_z_scale').value = zscale;
       document.getElementById('options_fileformat').value = fileformat;
       document.getElementById('options_manual').value = manual;
+      document.getElementById('options_polyURL').value = polyURL; 
     }
 
     // called on idle (after map pan/zoom), sets current lat, lon and zoom
@@ -541,22 +541,22 @@ Terrain 3D print Touchterrain project
 
       if (xmlfile && xmlfile.length) {  // file exists and is not empty
 
-	  // parse XML file
-	  let xmlDoc = null;
-	  try {
-	  	xmlDoc = $.parseXML( xmlfile );
-	  }
-	  catch(e) {
-		console.dir(e);
-	  	return null;
-	  }
+	      // parse XML file
+	      let xmlDoc = null;
+	      try {
+	  	      xmlDoc = $.parseXML( xmlfile );
+	      }
+	      catch(e) {
+		        console.dir(e);
+	  	  return null;
+	    }
 
 
 	  let $xml = $(xmlDoc);
 	  if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
 	      alert('Please upload a KML file');
 	       return null;
-	  } else{
+	  }else{
 	    let coords = $xml.find("coordinates").text();
 	    //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
 
@@ -580,10 +580,10 @@ Terrain 3D print Touchterrain project
 	    let xcoords = [];
 	    let ycoords = [];
 	    for (let i=0; i < coords.length; i++) {
-		let c = coords[i].split(","); // split in 3 x,y,z strings
-		//console.log(c[0], c[1]);
-		xcoords.push(c[0]);
-		ycoords.push(c[1]);
+        let c = coords[i].split(","); // split in 3 x,y,z strings
+        //console.log(c[0], c[1]);
+        xcoords.push(c[0]);
+        ycoords.push(c[1]);
 	    }
 
 	    // convert string array to number array
@@ -621,7 +621,7 @@ Terrain 3D print Touchterrain project
 
   <div id="title" style="clear:both;text-align:left;font-size:x-large;" >
     <!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
-    TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
+    TouchTerrain: Easily Create 3D-Printable Terrain Models BETA (BUILDID)  &nbsp
     <a href="https://touchterrain.blogspot.com/" target="_blank">
     What new in ver. 2.5?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
     Help</a>
@@ -653,29 +653,30 @@ Terrain 3D print Touchterrain project
         </select>
 	
         <!-- hidden ids so they get put into the URL on reload -->
-	<input type="hidden" name="maptype" id="maptype" value="NULL">
-	<input type="hidden" name="gamma" id="gamma" value="NULL">
-	<input type="hidden" name="transp" id="transp" value="NULL">
-	<input type="hidden" name="hsazi"id="hsazi" value="NULL">
-	<input type="hidden" name="hselev" id="hselev" value="NULL">
-	<input type="hidden" name="map_lat" id="map_lat" value="NULL">
-	<input type="hidden" name="map_lon" id="map_lon" value="NULL">
-	<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
-	<input type="hidden" id="trlat" name="trlat" value="NULL" >
-	<input type="hidden" id="trlon" name="trlon" value="NULL" >
-	<input type="hidden" id="bllat" name="bllat" value="NULL" >
-	<input type="hidden" id="bllon" name="bllon" value="NULL" >
-	<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
-	<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
-	<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
-	<input type="hidden" id="printres" name="printres" value="NULL" >
-	<input type="hidden" id="basethick" name="basethick" value="NULL" >
-	<input type="hidden" id="zscale" name="zscale" value="NULL" >
-	<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
-	<input type="hidden" id="manual" name="manual" value="NULL" >
+        <input type="hidden" name="maptype" id="maptype" value="NULL">
+        <input type="hidden" name="gamma" id="gamma" value="NULL">
+        <input type="hidden" name="transp" id="transp" value="NULL">
+        <input type="hidden" name="hsazi" id="hsazi" value="NULL">
+        <input type="hidden" name="hselev" id="hselev" value="NULL">
+        <input type="hidden" name="map_lat" id="map_lat" value="NULL">
+        <input type="hidden" name="map_lon" id="map_lon" value="NULL">
+        <input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
+        <input type="hidden" id="trlat" name="trlat" value="NULL" >
+        <input type="hidden" id="trlon" name="trlon" value="NULL" >
+        <input type="hidden" id="bllat" name="bllat" value="NULL" >
+        <input type="hidden" id="bllon" name="bllon" value="NULL" >
+        <input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
+        <input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
+        <input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
+        <input type="hidden" id="printres" name="printres" value="NULL" >
+        <input type="hidden" id="basethick" name="basethick" value="NULL" >
+        <input type="hidden" id="zscale" name="zscale" value="NULL" >
+        <input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+        <input type="hidden" id="manual" name="manual" value="NULL" >
+        <input type="hidden" id="polyURL" name="polyURL" value="NULL" >
       </form>
+      
       <br>
-
       <b>Hillshade layer (Terrain relief overlay):</b> <br>
       Transparency(%):
       <input type="range" id="hillshade_transparency_slider" min="0" max="100" value=""
@@ -683,17 +684,17 @@ Terrain 3D print Touchterrain project
 	    list="tickmarks"
 	    step="1" oninput="updateTransparency(this.value);">
 	    <datalist id="tickmarks">
-		<option value="0"></option>
-		<option value="10"></option>
-		<option value="20"></option>
-		<option value="30"></option>
-		<option value="40"></option>
-		<option value="50"></option>
-		<option value="60"></option>
-		<option value="70"></option>
-		<option value="80"></option>
-		<option value="90"></option>
-		<option value="100"></option>
+        <option value="0"></option>
+        <option value="10"></option>
+        <option value="20"></option>
+        <option value="30"></option>
+        <option value="40"></option>
+        <option value="50"></option>
+        <option value="60"></option>
+        <option value="70"></option>
+        <option value="80"></option>
+        <option value="90"></option>
+        <option value="100"></option>
 	      </datalist>
       &nbspGamma:
       <!-- <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
@@ -732,32 +733,41 @@ Terrain 3D print Touchterrain project
       <input id="recenter-box-button" type="button"
 	title="re-centers the red Area Selection box insides the currently viewed map"
 	onclick="center_rectangle()"
-	value="Re-center box in current map view">
-
-	<input type="file" id="kml_file" style="display: none;" />
-	<input type="button" value="Set box from polygon in KML file"
+  value="Re-center box in current map view">
+<!--  
+</br>
+<input type="file" id="kml_file" style="display: none;" />
+	<input type="button" value="Upload KML polygon"
 	       title="Sets the area box as a bounding box around a polygon stored in a Google Earth KML file"
-	       onclick="document.getElementById('kml_file').click();" />
+         onclick="document.getElementById('kml_file').click();" />
+ -->
+</br>
 
 
-      <form action="/export" method="post">
-          <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
+<form action="/export" method="post">
 
-         <!-- Put the box corner coords here so they get transmitted with get -->
-         <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
-         <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
+  <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
 
-         <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
-         <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
-         <br>
+  <input type="text" id="options_polyURL" name="polyURL" size="16""
+      title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+  > URL to cloud KML polygon file</br>
+
+
+  <!-- Put the box corner coords here so they get transmitted with get -->
+  <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
+  <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
+
+  <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
+  <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
+  <br>
 
 	<div id='options_container'>
 	  <b> 3D Printer Options: </b><br>
 	  <select title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
              id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight(); ">
-	    <option value="20">20 mm</option>
-	    <option value="30">30 mm</option>
-	    <option value="40">40 mm</option>
+	    <option value="50">20 mm</option>
+	    <option value="50">30 mm</option>
+	    <option value="50">40 mm</option>
 	    <option value="50">50 mm</option>
 	    <option value="60">60 mm</option>
 	    <option value="70">70 mm</option>
@@ -817,11 +827,9 @@ Terrain 3D print Touchterrain project
 	<!-- Approximate DEM resolution given box and tile parameters -->
 	Re-scaling <b id="source_resolution"></b> resolution to about
 	<input type="text" id="DEMresolution"
-	       title="To print each tile at the given width  at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
+	       title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
 	       name="DEMresolution" maxlength="4" size="6" value="NULL" readonly>m
 	<br>
-
-
 
 	<select title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
 	  id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
@@ -868,16 +876,17 @@ Terrain 3D print Touchterrain project
 	<br><br>
 
     <input type="button"
-	title="Puts your current settings into the URL and refreshes"
-	onclick="update_options_hidden(); submit_for_reload();"
-	value="1) Save options to URL">
+      title="Puts your current settings into the URL and refreshes"
+      onclick="update_options_hidden(); submit_for_reload();"
+      value="1) Save options to URL">
 
     <input type="submit" value="2) Export"
       onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
-      title="Converts area inside the box into file(s) for 3D printing."  onchange="update_options_hidden(); submit_for_reload();">
+      title="Converts area inside the box into file(s) for 3D printing."  
+      onchange="update_options_hidden(); submit_for_reload();">
       to 3D printable files
       </div>
-      </form>
+  </form>
 
 
       <h5>

@@ -119,6 +119,9 @@ def main_page():
         'map_lon': "-108.11695",
         'map_zoom': "11",
 
+        # defines optional polygon
+        'polyURL': "https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
+
          # defines area box
         'trlat' : "",
         'trlon' : "",
@@ -144,8 +147,6 @@ def main_page():
 
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
     }
-    
-
         
     # re-assemble the URL query string and store it , so we can put it into the log file
     qs = "?"
@@ -193,10 +194,6 @@ def main_page():
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
 
-
-    #template = jinja_environment.get_template('index.html')
-    #html_str = template.render(args)
-
     # work around getattr throwing an exeption if name is not in module
     def mygetattr(mod, name):
         try:
@@ -214,7 +211,7 @@ def main_page():
     html_str = render_template("index.html", **args)
     return html_str
 
-# @app.rounte("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
+# @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
 
 @app.route("/preview/<string:zip_file>")
 def preview(zip_file):
@@ -353,10 +350,8 @@ def export():
 
         # create html string
         html = '<html>'
-
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
         
-
         # onload event will only be triggered once </body> is given
         html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
@@ -368,17 +363,16 @@ def export():
         #  print/log all args and their values
         #
 
-
-        # put all agrs we got from the browser in a  dict as key:value
+        # put all args we got from the browser in a  dict as key:value
         args = request.form.to_dict()
 
         # list of the subset of args needed for processing
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
-                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
+                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat",
+                  "polyURL")
 
         for k in key_list:
-
-            # float-ify some ags
+            # float-ify some args
             if k in ["trlat", "trlon", "bllat", "bllon","printres", "tilewidth", "basethick", "zscale"]:
                 args[k] = float(args[k])
 
@@ -445,7 +439,7 @@ def export():
             global MAX_CELLS_PERMITED # thanks Nick!
             MAX_CELLS_PERMITED *= 100
 
-        # pr <= 0 means: use source
+        # pr <= 0 means: use source resolution
         if pr > 0: # print res given by user (width and height are in mm)
             height = width * (dlat / float(dlon))
             pix_per_tile = (width / float(pr)) * (height / float(pr))
@@ -471,7 +465,6 @@ def export():
             yield html
             return "bailing out!"
 
-
         args["CPU_cores_to_use"] = NUM_CORES
 
 
@@ -493,8 +486,7 @@ def export():
         # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
 
-
-        # show snazzy animate gif - set to style="display: none to hide once
+        # show snazzy animated gif - set to style="display: none to hide once processing is done
         html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
 
         # add an empty paragraph for error messages during processing that come from JS
@@ -527,7 +519,7 @@ def export():
             try:
                 os.rename(full_zip_file_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
             except Exception as e:
-                print("Error:", e, file=sys.stderr)
+                print("Error moving file from tmp to downloads:", e, file=sys.stderr)
                 html =  '</body></html>' + "Error:," + str(e)
                 yield html
                 return "bailing out!"

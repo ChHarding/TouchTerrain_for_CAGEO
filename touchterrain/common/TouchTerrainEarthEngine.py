@@ -37,16 +37,14 @@ import touchterrain.common
 from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
-from touchterrain.common.TouchTerrainGPX import *  
-
-
 import numpy
 from PIL import Image
 import gdal # for reading/writing geotiffs
 
 import time
 import random
-import os.path 
+import os.path
+
 
 # get root logger, will later be redirected into a logfile
 import logging
@@ -211,8 +209,8 @@ def rotateDEM(a, rot_degs):
 
 def resampleDEM(a, factor):
     ''' resample the DEM raster a by a factor
-        a: 2D numpy array
-        factor: down(!) sample factor, 2.0 will reduce the number of cells in x and y to 50%
+    a: 2D numpy array
+    factor: down(!) sample factor, 2.0 will reduce the number of cells in x and y to 50%
         Should(?) deal with undef/NaN ...
     '''
 
@@ -232,7 +230,6 @@ def resampleDEM(a, factor):
     img = Image.fromarray(a)  # was using fromarray(a, 'F') but that affected the elevation value, which were much lower!
     #print "pre-resam", img.size
     #print "resamp 2.5 min/max", img.getextrema()
-
     img  = img.resize(newsh[::-1], resample=Image.BILINEAR) # x and y are swapped in numpy
     #print "post-resam", img.size
     a = numpy.asarray(img)
@@ -248,14 +245,75 @@ def resampleDEM(a, factor):
     return a
 
 
+import kml2geojson # https://rawgit.com/araichev/kml2geojson/master/docs/_build/singlehtml/index.html
+import xml.dom.minidom as md
+
+def get_KML_poly_geometry(kml_doc):
+    ''' Parses a kml document (string) via xml.dom.minidom
+        finds the geometry of the first(!) polygon feature encountered otherwise returns None
+        returns a list of double floats: [[-112.0, 36.1], [-113.0, 36.0], [-113.5, 36.5]]
+                Note: that KML has 3D points, so I discard z
+
+        Setup:
+        layers: just a list at root: [<layer0>, <layer1>, ... ]
+        features:  {'type': 'FeatureCollection', 'features': [ ...
+        single feature: {'type': 'Feature', 'geometry': {'type': 'Polygon', 'coordinates': [[[-
+        geometry: {'type': 'Polygon', 'coordinates': [[[-106.470, 38.9711, 0.0], ... ]]
+    '''
+
+    root = md.parseString(kml_doc)
+    layers = kml2geojson.build_layers(root)
+    #print(root)
+
+    for layer in layers:
+        #print(layer)
+        features = layer["features"]
+        for feature in features:
+            #print(feature)
+            geometry = feature["geometry"]
+            #print(geometry)
+            geom_type = geometry["type"]
+            coords = geometry["coordinates"]
+            if geom_type == "Polygon":
+                coords_2d = [[c3[0], c3[1]] for c3 in coords[0]] # [0] -> ignore holes, which would be in 1,2, ...
+                return coords_2d
+    return None
+
+def check_poly_with_bounds(coords, trlat, trlon, bllat, bllon):
+    ''' check if all coords are inside the bounds'''
+    lat = [c[1] for c in coords] # extract last and lons
+    lon = [c[0] for c in coords]
+    if min(lat) < bllat or max(lat) > trlat or min(lon) < bllon or max(lon) > trlon:
+        return False # something was out of bounds!
+    return True
+
+def get_bounding_box(coords):
+    ''' return list with trlat, trlon, bllat, bllon based on list of coords
+        will grow the box by 1/100th of the box width/height'''
+    lat = [c[1] for c in coords] # extract last and lons
+    lon = [c[0] for c in coords]
+    trlat = max(lat)
+    trlon = max(lon)
+    bllat = min(lat)
+    bllon = min(lon)
+    height = trlat - bllat
+    width = trlon - bllon
+    trlat += height/100
+    bllat -= height/100
+    trlon += width/100
+    bllon -= width/100
+    return trlat, trlon, bllat, bllon
+        
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
+                         polygon=None, 
+                         polyURL = None,
                          importedDEM=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
                          max_cells_for_memory_only=500*500*4,
                          temp_folder = "tmp",
-                         zip_file_name=None,
+                         zip_file_name="terrain",
                          no_bottom=False,
                          bottom_image=None,
                          ignore_leq=None,
@@ -274,8 +332,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     """
     args:
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
-    - trlat, trlon: lat/lon of top right corner
-    - bllat, bllon: lat/lon of bottom left corner
+    - trlat, trlon: lat/lon of top right corner of bounding box
+    - bllat, bllon: lat/lon of bottom left corner of bounding box
+    - polygon: optional geoJSON polygon, within the bounding box
     - importedDEM: None (means get DEM from GEE) or local file name with DEM to be used instead
     - printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
     - ntilesx, ntilesy: number of tiles in x and y
@@ -295,18 +354,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - bottom_image: 1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)
     - ignore_leq: ignore elevation values <= this value, good for removing offshore data
     - lower_leq: lower elevation values <= lower_leq[0] m by lower_leq[1] mm in final mesh, good for adding emphasis to coastlines. Unaffected by z_scale.
-    - unprojected: don't apply UTM projectin, can only work when exporting a Geotiff as the mesh export needs x/y in meters
+    - unprojected: don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
     - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
     - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
     - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles
-                      not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)
-
-    - importedGPX: Array of GPX file paths that are to be plotted on the model
+                      not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)    
+    - importedGPX: List of GPX file paths that are to be plotted on the model
     - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the mdoel 
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
+    - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive,
     returns the total size of the zip file in Mb
 
     """
@@ -324,7 +383,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
 
-
     # set up log file
     log_file_name = temp_folder + os.sep + zip_file_name + ".log"
     log_file_handler = logging.FileHandler(log_file_name, mode='w+')
@@ -339,10 +397,49 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         assert only[0] > 0 and only[0] <= num_tiles[0], "Error: x index of only tile out of range"
         assert only[1] > 0 and only[1] <= num_tiles[1], "Error: y index of only tile out of range"
 
+    # horizontal size of "cells" on the 3D printed model (realistically: the diameter of the nozzle)
+    print3D_resolution_mm = printres
 
-    # horizontal size of "cells" on the 3D printed model (realistically the size of the extruder)
-    print3D_resolution = printres
+    #
+    # get polygon data, either from GeoJSON or from KLM file
+    #
+    clip_poly_coords = None # list of lat/lons, will create ee.Feature used for clipping the terrain image 
+    if polygon != None: 
+        
+        # If we have a GeoJSON and a URL polygon, ignore the URL
+        if polyURL != None: 
+            pr("Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!")
+        from geojson import Polygon
+        assert polygon.is_valid, "Error: GeoJSON polygon is not valid!"
+        clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
+        pr("Got GeoJSON polygon with", len(clip_poly_coords), "points")
+    
+    # Get a poly from a KML file via google drive URL
+    elif polyURL != None:
+        import re, requests
+        pattern = r".*[^-\w]([-\w]{25,})[^-\w]?.*" # https://stackoverflow.com/questions/16840038/easiest-way-to-get-file-id-from-url-on-google-apps-script
+        matches = re.search(pattern, polyURL)
+        if matches and len(matches.groups()) == 1: # need to have exactly one group match
+            file_URL = "https://docs.google.com/uc?export=download&id=" + matches.group(1)
+        else:
+            assert False, "Error: polyURL is invalid: " + polyURL
 
+        try:
+            r = requests.get(file_URL)
+            r.raise_for_status()
+        except Exception as e:
+            pr("Error: GDrive kml download failed", e, " - falling back to region box", trlat, trlon, bllat, bllon)
+        else:
+            t = r.text
+            clip_poly_coords = get_KML_poly_geometry(t) # returns None if no polygon can be found
+            assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
+            pr("Read GDrive KML polygon with", len(clip_poly_coords), "points from", polyURL)
+    
+    # overwrite trlat, trlon, bllat, bllon with bounding box around 
+    if clip_poly_coords != None: 
+        trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
+        pr("Set trlat, trlon, bllat, bllon to polygon bounding box:", trlat, trlon, bllat, bllon)
+    # end of polygon stuff
 
     #
     # A) use Google Earth Engine to get DEM
@@ -388,8 +485,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 v = args[k]
                 pr(k, "=", v)
                 dict_for_url[k] = v
-
-
 
         # print full query string:
         # TODO: would not actually work as a URL b/c it misses the google map data!
@@ -455,13 +550,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
         print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
 
-        if print3D_resolution > 0:
+        if print3D_resolution_mm > 0:
 
             # Get a cell size for EE
 
             # number of samples needed to cover ALL tiles
-            num_samples_lat = print3D_width_total_mm  / float(print3D_resolution) # width
-            num_samples_lon = print3D_height_total_mm / float(print3D_resolution) # height
+            num_samples_lat = print3D_width_total_mm  / float(print3D_resolution_mm) # width
+            num_samples_lon = print3D_height_total_mm / float(print3D_resolution_mm) # height
             #pr(print3D_resolution,"mm print resolution => requested num samples (width x height):", num_samples_lat, "x",  num_samples_lon)
 
             # get cell size (in meters) for request from ee # both should be the same
@@ -541,19 +636,29 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #image1 = image1.resample("bicubic") # only very small differences to bilinear
         image1 = image1.resample("bilinear")
 
+
+        # if we got clip_poly_coords, clip the image, using -32768 as NoData value
+        if clip_poly_coords != None:
+            clip_polygon = ee.Geometry.Polygon([clip_poly_coords])
+            clip_feature = ee.Feature(clip_polygon)
+            image1 = image1.clip(clip_feature).unmask(-32768, False)
+
         # Feb. 19, 2020: need to use ee.Geometry with geoJSON instead of just a string
         reg_rect = ee.Geometry.Rectangle([[bllon, bllat], [trlon, trlat]]) # opposite corners
-        reg_rect_str = reg_rect.toGeoJSONString()
+        if polygon == None:
+            polygon_geojson = reg_rect.toGeoJSONString() # polyon is just the bounding box
+        else:
+            polygon_geojson = polygon
 
         # make the request dict
         request_dict = {
             #'scale': 10, # cell size
             'scale': cell_size_m, # cell size in meters
             #'region': "{\"type\":\"Polygon\",\"coordinates\":[[[-120,34],[-120,35],[-119,35],[-119,34]]],\"evenOdd\":true}"
-            'region': reg_rect_str, # geoJSON polygon
+            'region': polygon_geojson, # geoJSON polygon
             #'crs': 'EPSG:4326',
             'crs': epsg_str, # projection
- 			# CH Mar 10, 2020: Do NOT specify format anymore or getDownloadUrl() won't work!
+ 			# CH Mar 10, 2020: Do NOT specify the format anymore or getDownloadUrl() won't work!
  			# apparently it's only geotiffs now
         }
 
@@ -652,25 +757,26 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         else:  # mesh file export
             assert abs(geo_transform[1]) == abs(geo_transform[5]), "Error: raster cells are not square!" # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
 
-            # typically, GEE serves does not use proper undefined values in the geotiffs it serves, but just in case ...
+            # typically, EE does not use proper undefined values in the geotiffs it serves, but just in case ...
             if gdal_undef_val != None:
                 logger.debug("undefined GDAL value used by GEE geotiff: " + str(gdal_undef_val))
-
 
             # delete zip file and buffer from memory
             GEEZippedGeotiff.close()
             del zipdir, str_data
 
             # although STL can only use 32-bit floats, we need to use 64 bit floats
-            # for calculations, otherwise we get non-manifold vertices!
+            # for calculations, otherewise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
-
-            # Add GPX points to the model 
-            addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,gpxPathThickness,trlat,trlon,bllat,bllon) 
-
-
             min_elev = numpy.nanmin(npim)
+
+            # Add GPX points to the model (thanks KohlhardtC!)
+            if importedGPX != None:
+                from touchterrain.common.TouchTerrainGPX import addGPXToModel  
+                addGPXToModel(pr, npim, dem, importedGPX, 
+                              gpxPathHeight, gpxPixelsBetweenPoints, gpxPathThickness, 
+                              trlat, trlon, bllat, bllon) 
 
             # clip values?
             if ignore_leq != None:
@@ -713,12 +819,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             if printres > 0: # did NOT use source resolution
                 pr("cell size:", cell_size_m, "m ")
-                pr("adjusted print res from the requested", print3D_resolution, "mm to", adjusted_print3D_resolution, "mm to ensure correct model dimensions")
-                print3D_resolution = adjusted_print3D_resolution
+                pr("adjusted print res from the requested", print3D_resolution_mm, "mm to", adjusted_print3D_resolution, "mm to ensure correct model dimensions")
+                print3D_resolution_mm = adjusted_print3D_resolution
             else:
-                print3D_resolution = adjusted_print3D_resolution
+                print3D_resolution_mm = adjusted_print3D_resolution
                 pr("cell size:", cell_size_m, "m (<- native source resolution)")
-                pr("print res for native source resolution is", print3D_resolution, "mm")
+                pr("print res for native source resolution is", print3D_resolution_mm, "mm")
 
             pr("total model size in mm:", print3D_width_total_mm, "x", print3D_height_total_mm)
     # end of getting DEM data via GEE
@@ -807,10 +913,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pr("no resampling, using source resolution of ", source_print3D_resolution, "mm for a total model width of", print3D_width_total_mm, "mm")
                 if source_print3D_resolution < 0.2 and fileformat != "GeoTiff":
                     pr("Warning: this print resolution of", source_print3D_resolution, "mm is pretty small for a typical nozzle size of 0.4 mm. You might want to use a printres that's just a bit smaller than your nozzle size ...")
-                print3D_resolution = source_print3D_resolution
+                print3D_resolution_mm = source_print3D_resolution
 
         else: # yes, resample
-            scale_factor = print3D_resolution / float(source_print3D_resolution)
+            scale_factor = print3D_resolution_mm / float(source_print3D_resolution)
             if scale_factor < 1.0:
                 pr("Warning: will re-sample to a resolution finer than the original source raster. Consider instead a value for printres >", source_print3D_resolution)
 
@@ -833,11 +939,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             cell_size_m *= scale_factor
             pr(" ",npim.shape[::-1], adjusted_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
 
-            if adjusted_print3D_resolution != print3D_resolution:
-                pr("after resampling, requested print res was adjusted from", print3D_resolution, "to", adjusted_print3D_resolution, "to ensure correct model dimensions")
-                print3D_resolution = adjusted_print3D_resolution
+            if adjusted_print3D_resolution != print3D_resolution_mm:
+                pr("after resampling, requested print res was adjusted from", print3D_resolution_mm, "to", adjusted_print3D_resolution, "to ensure correct model dimensions")
+                print3D_resolution_mm = adjusted_print3D_resolution
             else:
-                pr("print res is", print3D_resolution, "mm")
+                pr("print res is", print3D_resolution_mm, "mm")
 
         DEM_title = filename[:filename.rfind('.')]
         # end local raster file
@@ -946,7 +1052,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "crs" : epsg_str, # EPSG name for UTM zone
             "UTMzone" : utm_zone_str, # UTM zone eg  UTM13N
             "scale"  : print3D_scale_number, # horizontal scale number, defines the size of the model (= 3D map): eg 1000 means 1m in model = 1000m in reality
-            "pixel_mm" : print3D_resolution, # lateral (x/y) size of a 3D printed "pixel" in mm
+            "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
             "max_elev" : numpy.nanmax(npim), # tilewide minimum/maximum elevation (in meter)
             "min_elev" : numpy.nanmin(npim),
             "z_scale" :  zscale,     # z (vertical) scale (elevation exageration) factor
@@ -1044,9 +1150,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             logger.debug("tempfile or memory? number of pixels:" + str(tile_info["full_raster_height"] * tile_info["full_raster_width"]) + ">" + str(max_cells_for_memory_only) + " => using temp file")
 
 
-
-
-        # single processing: just work on the list sequentially, don't use multi-core processing
+        # single core processing: just work on the list sequentially, don't use multi-core processing
         # if there's only one tile or one CPU or CPU_cores_to_use is still at default None
         # processed list will contain tuple(s): [0] is always the tile info dict, if its
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
@@ -1180,6 +1284,7 @@ if __name__ == "__main__":
     #                     tilewidth=120, basethick=2, zscale=1.0)
 
     # test for importing dem raster files
+    '''
     #fname = "Oso_after_5m_cropped.tif"
     fname = "pyramid_wide.tif" # pyramid with height values 0-255
     r = get_zipped_tiles(importedDEM=fname,
@@ -1193,7 +1298,26 @@ if __name__ == "__main__":
                          fileformat="STLb",
                          max_cells_for_memory_only=0,
                          zip_file_name="pyramid")
-    zip_string = r[1] # r[1] is a zip folder as string, r[0] is the size of the file in Mb
+    '''
+    args = {"DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+                                   # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
+            "trlat": 39.6849,        # lat/lon of top right corner
+            "trlon": -104.6451,
+            "bllat": 37.6447,        # lat/lon of bottom left corner
+            "bllon": -106.6694,
+            "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+            "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+            "ntilesx": 1,      # number of tiles in x and y
+            "ntilesy": 1,
+            "tilewidth": 160, # width of each tile in mm (<- !!!!!), tile height is calculated
+            "basethick": 1, # thickness (in mm) of printed base
+            "zscale": 2.0,      # elevation (vertical) scaling
+            "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+            "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
+            "polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
+            }   
+    r = get_zipped_tiles(**args)
+    zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
     with open(fname+".zip", "w+") as f:
         f.write(zip_string)
     print("done")
