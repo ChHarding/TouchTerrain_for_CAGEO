@@ -45,12 +45,35 @@ import time
 import random
 import os.path
 
-
 # get root logger, will later be redirected into a logfile
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
+# CH test Aug 18: do EE init here only  
+# this seems to prevent the file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
+# crap from happening and assumes that any "main" file imports TouchTerrainEarth Engine anyway
+# But, as this could als be run in a standalone scenario where EE should not be involved,
+# the failed to EE init messages are just warnings 
+try:
+    import ee
+    ee.Initialize() # uses .config/earthengine/credentials
+except Exception as e:
+    logging.warning("EE init() error (with .config/earthengine/credentials) " + str(e) + " (This is OK if you don't use EE!)")
+    try:
+        # try authenticating with a .pem file
+        from oauth2client.service_account import ServiceAccountCredentials
+        from ee import oauth
+        from touchterrain.server.config import * # server only settings
+        credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
+        ee.Initialize(credentials, config.EE_URL)
+    except Exception as e:
+        logging.warning("EE init() error with .pem file " + str(e) + " (This is OK if you don't use EE!)")
+    else:
+        logging.info("EE init() worked with .pem file")
+else:
+    logging.info("EE init() worked with .config/earthengine/credentials")
 
 # utility to print to stdout and to logger.info
 def pr(*arglist):
@@ -306,7 +329,7 @@ def get_bounding_box(coords):
         
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None, 
-                         polyURL = None,
+                         polyURL=None,
                          importedDEM=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
@@ -383,6 +406,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
 
+    if not os.path.exists(temp_folder): # do we have a temp folder?
+        try:
+            os.mkdir(temp_folder)
+        except:
+            assert False, temp_folder + "doesn't exists but could also not be created"
+
+
     # set up log file
     log_file_name = temp_folder + os.sep + zip_file_name + ".log"
     log_file_handler = logging.FileHandler(log_file_name, mode='w+')
@@ -412,7 +442,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         from geojson import Polygon
         assert polygon.is_valid, "Error: GeoJSON polygon is not valid!"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
-        pr("Got GeoJSON polygon with", len(clip_poly_coords), "points")
+        logging.info("Got GeoJSON polygon with " + str(len(clip_poly_coords)) + " points")
     
     # Get a poly from a KML file via google drive URL
     elif polyURL != None:
@@ -433,16 +463,17 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             t = r.text
             clip_poly_coords = get_KML_poly_geometry(t) # returns None if no polygon can be found
             assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
-            pr("Read GDrive KML polygon with", len(clip_poly_coords), "points from", polyURL)
+            logging.info("Read GDrive KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
     
     # overwrite trlat, trlon, bllat, bllon with bounding box around 
     if clip_poly_coords != None: 
         trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
-        pr("Set trlat, trlon, bllat, bllon to polygon bounding box:", trlat, trlon, bllat, bllon)
     # end of polygon stuff
 
+
+
     #
-    # A) use Google Earth Engine to get DEM
+    # A) use Earth Engine to download DEM geotiff
     #
     if importedDEM == None:
         try:
@@ -615,15 +646,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 break
         '''
 
-        # CH Aug 18: putting init back. It works in TouchTerrain_app.py but
-        # then complains about needing it here again  ... grrrrr!
-        try:
-            ee.Initialize() # uses .config/earthengine/credentials
-        except Exception as e:
-            print("EE init() error (with .config/earthengine/credentials),", e, file=sys.stderr)
-        else:
-            print("EE init() worked in TouchTerrainEarthEngine.py (with .config/earthengine/credentials)", file=sys.stderr)
-        
         image1 = ee.Image(DEM_name)
         info = image1.getInfo() # this can go wrong and return nothing for some sources, but we don't really need the info as long as we get the actual data
 
@@ -651,6 +673,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             clip_polygon = ee.Geometry.Polygon([clip_poly_coords])
             clip_feature = ee.Feature(clip_polygon)
             image1 = image1.clip(clip_feature).unmask(-32768, False)
+            if polyURL != None:
+                pr("Clipping DEM with polygon with", (len(clip_poly_coords)), "points from " + polyURL)
 
         # Feb. 19, 2020: need to use ee.Geometry with geoJSON instead of just a string
         reg_rect = ee.Geometry.Rectangle([[bllon, bllat], [trlon, trlat]]) # opposite corners
@@ -682,13 +706,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
 
-        # This should retry until the request was successfull
+        # Retry download zipfile from url until request was successfull
         web_sock = None
-        to = 2
         while web_sock == None:
-            #
-            # download zipfile from url
-            #
             try:
                 web_sock = urllib.request.urlopen(request, timeout=20) # 20 sec timeout
             except socket.timeout as e:
@@ -705,7 +725,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 import traceback
                 logger.error('generic exception: ' + traceback.format_exc())
 
-            # at any exception wait for a couple of secs
+            # at any exception, wait for a couple of secs
             if web_sock == None:
                 time.sleep(random.randint(1,10))
 
@@ -735,7 +755,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Debug: print out the data from the world file
         #worldfile = zipdir.read(zipfile.namelist()[0]) # world file as textfile
         #raster_info = [float(l) for l in worldfile.splitlines()]  # https://en.wikipedia.org/wiki/World_file
-
+        
+        # geotiff as data string 
         str_data = zipdir.read(tif)
 
         # write the GEE geotiff into the temp folder and add it to the zipped d/l folder later
@@ -842,6 +863,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     #
     # B) DEM data comes from a local raster file (geotiff, etc.)
     #
+    # TODO: deal with clip polygon?   
+
     else:
 
         filename = os.path.basename(importedDEM)

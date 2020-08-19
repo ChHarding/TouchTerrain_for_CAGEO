@@ -34,7 +34,7 @@ app = Flask(__name__)
 
 
 # import modules from common
-from touchterrain.common import TouchTerrainEarthEngine
+from touchterrain.common import TouchTerrainEarthEngine # will also init EE
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import logging
@@ -95,6 +95,7 @@ GA_script = """
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
+    '''
     # try both ways of authenticating
     try:
         ee.Initialize() # uses .config/earthengine/credentials
@@ -111,7 +112,7 @@ def main_page():
             print("EE init() error with .pem file", e, file=sys.stderr)
     else:
         print("EE init() worked (with .config/earthengine/credentials)", file=sys.stderr)
-        
+    '''
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
         'DEM_name': 'USGS/NED',
