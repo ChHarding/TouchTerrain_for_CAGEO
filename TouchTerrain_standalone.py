@@ -164,6 +164,10 @@ def main():
     
     # No DEM file given, use Google Earth Engine
     if args["importedDEM"] == None:
+        pass
+        ''' #not needed anymore? EE init is now done on TouchTerrainEarthEngine import
+        # drawback: local geotiff users will get init warnings/fails#
+
         # initialize ee - needs a google earth engine account! See TouchTerrain_standalone_installation.pdf
         try:
             import ee
@@ -185,10 +189,9 @@ def main():
                 ee.Initialize(credentials, config.EE_URL)
             except Exception as e:
                 print("EE init() error (with config.py and .pem file)", e, file=sys.stderr)          
-            
+        '''
     else:
         args["importedDEM"] = abspath(args["importedDEM"])
-
 
 
 
