@@ -384,7 +384,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
     - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles
                       not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)    
-    - importedGPX: List of GPX file paths that are to be plotted on the model
+    - importedGPX: None or List of GPX file paths that are to be plotted on the model
     - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the mdoel 
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
