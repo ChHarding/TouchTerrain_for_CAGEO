@@ -14,7 +14,14 @@ touchterrain/server/tmp/??*
 touchterrain/server/downloads/??*
 touchterrain/server/previews/??*
 
+tmp/*
 .vscode
+test/*
+
+# white listings
+!.gitignore
+!README.md
+!test/test_TouchTerrain_standalone.py
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
