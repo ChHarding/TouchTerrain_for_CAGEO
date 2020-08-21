@@ -63,7 +63,7 @@ def plotLineLow(x0,y0,x1,y1,height,npim,pathedPoints,thicknessOffset):
     D = 2 * dy - dx
     y = y0
 
-    for x in range(x0,x1+1): 
+    for x in range(x0, x1+1): 
         plotPoint(x,y,height,npim,pathedPoints,thicknessOffset)
         if D > 0: 
             y = y + yi
@@ -113,25 +113,26 @@ def plotPoint(x,y,height,npim,pathedPoints,thicknessOffset):
     plotX = x + thicknessOffset 
     pointKey = str(plotX) + "x" + str(plotY)  
     
-    #pr("  plotting: {0}".format( pointKey ) )
+    #print("  plotting: {0}".format(pointKey) )
 
     # Only update a point if we haven't already done something to it
     if pointKey not in pathedPoints: 
         if thicknessOffset == 0:
-            newHeight = height + npim[x][y]
+            newHeight = height + npim[x][y]  
         else:
             # get the height from the primary line so that thicker lines appear flat
-            newHeight = npim[x][y]
-            try: 
-                npim[plotX][plotY] = newHeight # might be outside of npim
-            except:
-                pass
-            #pr("   using height: {0}".format(npim[plotX][plotY]) )
+            newHeight = npim[x][y] 
+        
+        try:
+            npim[plotX][plotY] = newHeight # might be outside of npim
+        except:
+            print(f"    npim coords {plotX} {plotY} are out of bounds!")
+        
        
-        pathedPoints[ pointKey ] = True 
+        pathedPoints[pointKey] = True 
     else: 
         pass
-        #pr("   skipped:") 
+        #print("   skipped:") 
 
 def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,gpxPathThickness,trlat,trlon,bllat,bllon):
     """ Add 1 or more GPX tracks to the terrain model
@@ -171,7 +172,7 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
     # Parse GPX file
     ulx, xres, xskew, uly, yskew, yres  = dem.GetGeoTransform()   
     target = osr.SpatialReference()
-    target.ImportFromWkt( dem.GetProjection() ) 
+    target.ImportFromWkt(dem.GetProjection()) 
     source = osr.SpatialReference()
     source.ImportFromEPSG(4326) # This is WGS84
 
