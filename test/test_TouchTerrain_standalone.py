@@ -12,7 +12,7 @@ if args["importedDEM"] != None:
 '''
 
 def run_get_zipped_tiles(args):
-    '''utility function to actually run get_zipped_tiles()'''
+    '''utility to actually run get_zipped_tiles()'''
     
     import ee
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
@@ -35,6 +35,8 @@ def run_get_zipped_tiles(args):
     print("unzipped STL file into", folder)
 
 class TestStringMethods(unittest.TestCase):
+
+
 
     def test_get_zipped_tiles_gpx(self):
         '''Test using gpx files in stuff gpx-test '''
@@ -70,8 +72,7 @@ class TestStringMethods(unittest.TestCase):
                                                 # on the model and can have the effect of making the paths look a bit cleaner 
                 "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness. 
                                         # A setting of 1 probably looks the best 
-            }
-            
+        }
         run_get_zipped_tiles(args)
         
 
@@ -92,8 +93,7 @@ class TestStringMethods(unittest.TestCase):
                 "zscale": 1.5,  # elevation (vertical) scaling
                 "fileformat": "STLb",  # format of 3D model file
                 "zip_file_name": "test_get_zipped_tiles_basic_EE",   # base name of zipfile, .zip will be added
-            }
-
+        }
         run_get_zipped_tiles(args)
 
     '''
