@@ -894,9 +894,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         i = utm_zone_str.find('"')
         utm_zone_str = utm_zone_str[:i]
         epsg_str = "N/A"
-
         pr("projection:", utm_zone_str)
-
 
         pr("z-scale:", zscale)
         pr("basethickness:", basethick)
@@ -906,6 +904,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("no_normals:", no_normals)
         pr("ignore_leq:", ignore_leq)
         pr("lower_leq:", lower_leq)
+        pr("importedGPX:", importedGPX)
+        pr("polyURL:", polyURL)
+
 
         #
         # set Cells with GDAL undef to numpy NaN
