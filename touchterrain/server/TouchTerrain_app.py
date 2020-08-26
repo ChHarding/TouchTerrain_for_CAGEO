@@ -123,7 +123,7 @@ def main_page():
         'map_zoom': "11",
 
         # defines optional polygon
-        'polyURL': "https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
+        'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
 
          # defines area box
         'trlat' : "",

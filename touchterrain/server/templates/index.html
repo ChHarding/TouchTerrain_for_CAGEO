@@ -748,10 +748,15 @@ Terrain 3D print Touchterrain project
 
   <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
 
-  <input type="text" id="options_polyURL" name="polyURL" size="16""
+  <input type="hidden" id="options_polyURL" name="polyURL" size="0"
+      title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+  > 
+
+  <!--
+  <input type="text" id="options_polyURL" name="polyURL" size="16"
       title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
   > URL to cloud KML polygon file</br>
-
+  -->
 
   <!-- Put the box corner coords here so they get transmitted with get -->
   <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N

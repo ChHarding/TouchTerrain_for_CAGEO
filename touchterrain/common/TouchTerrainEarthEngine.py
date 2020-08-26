@@ -438,14 +438,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         
         # If we have a GeoJSON and a URL polygon, ignore the URL
         if polyURL != None: 
+
             pr("Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!")
         from geojson import Polygon
-        assert polygon.is_valid, "Error: GeoJSON polygon is not valid!"
+        assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polyURL + ")"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
         logging.info("Got GeoJSON polygon with " + str(len(clip_poly_coords)) + " points")
     
     # Get a poly from a KML file via google drive URL
-    elif polyURL != None:
+    elif polyURL != None and polyURL != '':
         import re, requests
         pattern = r".*[^-\w]([-\w]{25,})[^-\w]?.*" # https://stackoverflow.com/questions/16840038/easiest-way-to-get-file-id-from-url-on-google-apps-script
         matches = re.search(pattern, polyURL)
@@ -673,7 +674,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             clip_polygon = ee.Geometry.Polygon([clip_poly_coords])
             clip_feature = ee.Feature(clip_polygon)
             image1 = image1.clip(clip_feature).unmask(-32768, False)
-            if polyURL != None:
+            if polyURL != None and polyURL != '':
                 pr("Clipping DEM with polygon with", (len(clip_poly_coords)), "points from " + polyURL)
 
         # Feb. 19, 2020: need to use ee.Geometry with geoJSON instead of just a string
@@ -905,7 +906,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("ignore_leq:", ignore_leq)
         pr("lower_leq:", lower_leq)
         pr("importedGPX:", importedGPX)
-        pr("polyURL:", polyURL)
+        #pr("polyURL:", polyURL)
 
 
         #
