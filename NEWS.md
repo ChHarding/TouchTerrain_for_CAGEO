@@ -1,5 +1,6 @@
-Aug. 3, 2020
+Aug. 28, 2020
 	- Thanks to github.com/KohlhardtC, who added a module to drape GPX path lines over the terrain
+	- added a test folder with unittests
 May. 7, 2020:
 - pretty massive restructuring of folders:
 	- no more standalone folder, the "main" code files (TouchTerrain_standalone_jupyter_notebook.ipynb and TouchTerrain_standalone.py) are now in root
