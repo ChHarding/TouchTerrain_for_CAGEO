@@ -28,7 +28,8 @@ Alternative to running the TouchTerrain web server.
 '''
 import time
 import json
-import sys
+import sys, os
+from os.path import abspath, dirname
 
 try:
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
@@ -36,6 +37,8 @@ try:
 except:
     print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
     sys.exit()
+
+
 #
 # How to run the standalone version:
 #
@@ -47,10 +50,6 @@ except:
 #
 # python TouchTerrain_standalone.py my.json
 #
-# The default config gets a geotiff either from Google Earth Engine or locally, coverts it
-# into one or more 3D model files (tiles) and stores it/them in a zipped folder.
-# pyramid.tif can be used to test this with a local geotiff. Set importedDEM to pyramid.tif 
-# and use a z-scale of 0.5
 
 # main function, will be called at the end of the script
 def main():
@@ -94,9 +93,6 @@ def main():
         json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
     print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
     
-    
-    import sys, os
-    from os.path import abspath, dirname
     
     
     # parse args
