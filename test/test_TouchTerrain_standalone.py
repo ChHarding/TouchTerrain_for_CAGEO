@@ -3,7 +3,7 @@ import unittest
 # Note that the cwd when running the test will be project root, NOT the test folder in it!
 
 
-''' FOR LATER
+''' KEEP FOR LATER
 # if we want to work on a local raster, get the full pathname to it
 if args["importedDEM"] != None: 
     from os.path import abspath
@@ -35,8 +35,6 @@ def run_get_zipped_tiles(args):
     print("unzipped STL file into", folder)
 
 class TestStringMethods(unittest.TestCase):
-
-
 
     def test_get_zipped_tiles_gpx(self):
         '''Test using gpx files in stuff gpx-test '''
