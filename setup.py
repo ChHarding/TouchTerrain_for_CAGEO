@@ -22,6 +22,8 @@ setup(
         'oauth2client>=4.1.3',
         'numpy>=1.17',
         'kml2geojson>=4.0.2', # for reading polygon coords from kml
+        'geojson>=2.5', # for wrapping polygon data
+
     ],
     
     # Deactivated for now b/c there's no standalone submodule, TouchTerrain_standalone.py is at root
