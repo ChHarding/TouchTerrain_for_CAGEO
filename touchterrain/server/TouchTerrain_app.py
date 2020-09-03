@@ -529,8 +529,8 @@ def export():
         yield html
 
         # profiling
-        import cProfile 
-        cProfile.run("TouchTerrainEarthEngine.get_zipped_tiles(**args)")
+        #import cProfile 
+        #cProfile.run("TouchTerrainEarthEngine.get_zipped_tiles(**args)")
         #foo = TouchTerrainEarthEngine.get_zipped_tiles
         #print(foo)
         #cProfile.run("foo(**args)")
