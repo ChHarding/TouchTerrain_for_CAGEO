@@ -896,17 +896,14 @@ Terrain 3D print Touchterrain project
               name="manual" size="40" value="" > Manual settings
         <br><br>
         
-        
+        <!--
         <input type="button"
           title="Puts your current settings into the URL and refreshes"
           onclick="update_options_hidden(); submit_for_reload('GET');"
-          value="1) Save options to URL">
-      
-
+          value="1) Save options to URL">  -->
         <!-- <br>Optional KML file: <input type="file" name="kml_file" /> -->
         
-        <br>
-        <input type="submit" value="2) Export and Download file(s)"
+        <input type="submit" value="Export to file and Download"
           onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
           title="Converts area inside the box into file(s) for 3D printing."  
           onchange="update_options_hidden(); submit_for_reload('POST');">
