@@ -365,6 +365,9 @@ def export():
         html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
         html += 'Once the animation stops, you can preview and download your file.</h2>\n'
+        
+        
+        
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
 
@@ -525,6 +528,13 @@ def export():
         html += '<p id="error"> </p>\n'
         yield html
 
+        # profiling
+        #import cProfile 
+        #cProfile.run("TouchTerrainEarthEngine.get_zipped_tiles(**args)")
+        #foo = TouchTerrainEarthEngine.get_zipped_tiles
+        #print(foo)
+        #cProfile.run("foo(**args)")
+
         #
         # Create zip and write to tmp
         #
@@ -591,7 +601,13 @@ def export():
             html += "   <br>To return to the selection map, click the back button in your browser once.\n"
             html += '</form>\n'
 
-
+            # print out the query parameters
+            html += "To have somebody else generate the same model, have them copy&paste this URL into a browser:<br>https://touchterrain.geol.iastate.edu/?"
+            query = ''
+            from urllib.parse import quote
+            for kv in list(request.form.items()):
+                query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
+            html += query[:-1] + "<br>"
 
             html +=  '</body></html>'
             yield html
