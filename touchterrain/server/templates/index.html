@@ -4,13 +4,13 @@ Terrain 3D print Touchterrain project
 -->
 <html>
   <head>
-    <title>TouchTerrain - get files for 3D printing terrain BETA (BUILDID)</title>
+    <title>TouchTerrain - get files for 3D printing terrain (BUILDID)</title>
     <meta charset="UTF-8">
     <meta name="description" content="Application for creating 3D printable terrain models">
     <meta property="og:image" content="/static/touchTerrain_logo.png">
     <meta name="keywords" content="HTML,JavaScript">
     <meta name="author" content="Chris Harding">
-    <meta name="version" content="prod-BUILDID">
+    <meta name="version" content="BUILDID">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
 
@@ -34,11 +34,11 @@ Terrain 3D print Touchterrain project
     <script type="text/javascript" async defer
       src="https://maps.google.com/maps/api/js?key={{ google_maps_key }}">
       <!-- key=<nothing> will give you the crappy google map background, which is still usable.
-	   If you want a proper google maps version you need replace the above line with
-	   one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
-	   As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
-	   Put this key into a text file called GoogleMapsKey.txt in the server folder
-	   Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
+      If you want a proper google maps version you need replace the above line with
+      one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
+      As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
+      Put this key into a text file called GoogleMapsKey.txt in the server folder
+      Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
     </script>
 
     <!-- <script src="/static/js/ee_api_js.js"></script> -->
@@ -55,6 +55,7 @@ Terrain 3D print Touchterrain project
     let eemap = -1    // Google Earth Engine map
     let div_lines_x = []; // internal division lines for tile boundaries
     let div_lines_y = [];
+    let polygon = -1  // optional masking polygon
 
 
 
@@ -115,6 +116,13 @@ Terrain 3D print Touchterrain project
       init_print_options(); //update all print option values in the GUI to what was inlined by jinja
       update_options_hidden(); // also store values in hidden ids
       SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
+      polygon = new google.maps.Polygon({ // make empty polygon for now, will set paths later
+                    strokeColor: "#FFFF00",
+                    strokeOpacity: 1,
+                    strokeWeight: 0.75,
+                    fillColor: "#FFFF00",
+                    fillOpacity: 0.05
+                  });
       
       // Init map Overlay GUI settings
       updateTransparency(transp); // set initial transparency 
@@ -193,26 +201,24 @@ Terrain 3D print Touchterrain project
       // add change callback for kml_file button
       let fileInput = document.getElementById('kml_file');
       fileInput.addEventListener('change', function(e) {
-	  if (fileInput.files.length) {
-	      let file = fileInput.files[0];
-
-	      let reader = new FileReader();
-
-	      reader.onload = function(e) {
-		  let s = reader.result;
-		  let bbox = processKMLFile(s);
-		  if(!!bbox){ // not null => good bounding box
-		    rectangle.setBounds(bbox);
-		    update_corners_form();
-		    map.fitBounds(bbox); // makes the map fit around the box
-		    submit_for_reload();
-		  } else {
-			alert("Error: invalid KML file!");
-		  }
-	      }
-	      reader.readAsText(file);
-
-	  }
+        if (fileInput.files.length) {
+            let file = fileInput.files[0];
+            let reader = new FileReader();
+            reader.onload = function(e) {
+              let s = reader.result;
+              const [bbox, latloncoords] = processKMLFile(s);
+              if(!!bbox){ // not null => valid bounding box
+                  rectangle.setBounds(bbox);
+                  update_corners_form();
+                  map.fitBounds(bbox); // makes the map fit around the box
+                  polygon.setPath(latloncoords);
+                  polygon.setMap(map);
+                }else{
+                  alert("Error: invalid KML file!");
+                }
+            }
+            reader.readAsText(file);
+        }
       });
 
     }; // end of onload()
@@ -281,10 +287,12 @@ Terrain 3D print Touchterrain project
 
     // set bounding box of rectangle so it's centered
     function center_rectangle(){
-      let box  = make_center_box();
+      polygon.setMap(null); // remove polygon
+      let box = make_center_box();
       rectangle.setBounds(box);
       update_corners_form();
-      //submit_for_reload();
+      
+
     }
 
     // callback to update corner lat/lon in form to current rectangle
@@ -500,7 +508,7 @@ Terrain 3D print Touchterrain project
       document.getElementById('map_zoom').value = map.getZoom(); 
     }
 
-    function submit_for_reload(){
+    function submit_for_reload(trans_method){
       saveMapSettings();
       
       // save current settings into hidden ids
@@ -510,6 +518,7 @@ Terrain 3D print Touchterrain project
       
       // trigger a reload with all the vars in reloadform
       let f = document.forms["reloadform"];
+      f.method = trans_method
       f.submit();
     }
 
@@ -536,79 +545,79 @@ Terrain 3D print Touchterrain project
       document.getElementById('options_tile_height').innerHTML = tile_height_rounded + "&nbsp mm";
     }
 
-    // return bounds of polygon in kml file or null on parse error ot if <3 coords
-    function processKMLFile(xmlfile) {
-
-      if (xmlfile && xmlfile.length) {  // file exists and is not empty
-
+    // return bounds of polygon in kml file or null on parse error or if <3 coords
+    function processKMLFile(xmlfile){
+      if (xmlfile && xmlfile.length){  // file exists and is not empty
 	      // parse XML file
 	      let xmlDoc = null;
 	      try {
-	  	      xmlDoc = $.parseXML( xmlfile );
+	  	      xmlDoc = $.parseXML(xmlfile);
 	      }
 	      catch(e) {
 		        console.dir(e);
 	  	  return null;
 	    }
 
+      let $xml = $(xmlDoc);
+      if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
+          alert('Please upload a KML file');
+          return null;
+      }else{
+        let coords = $xml.find("coordinates").text();
+        //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
 
-	  let $xml = $(xmlDoc);
-	  if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
-	      alert('Please upload a KML file');
-	       return null;
-	  }else{
-	    let coords = $xml.find("coordinates").text();
-	    //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
+        // remove tabs and newlines and trim
+        coords = coords.replace(/\t/g, '');
+        coords = coords.replace(/\n/g, '');
+        coords = coords.trim();
+        //console.dir(JSON.stringify(coords)) //"-109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0"
 
-	    // remove tabs and newlines and trim
-	    coords = coords.replace(/\t/g, '');
-	    coords = coords.replace(/\n/g, '');
-	    coords = coords.trim();
-	    //console.dir(JSON.stringify(coords)) //"-109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0"
+        // split at space in array of strings with "x,y,z"
+        coords = coords.split(" ");
+        //console.dir(JSON.stringify(coords))
 
-	    // split at space in array of strings with "x,y,z"
-	    coords = coords.split(" ");
-	    //console.dir(JSON.stringify(coords))
+        // if we have less than 3 coords, bail out
+        if (coords.length < 3){
+          alert("Error: KML file does not contain polygon (need >2 coordinates)!");
+          return(null);
+        }
 
-	    // if we have less than 3 coords, bail out
-	    if (coords.length < 3){
-	       alert("Error: KML file does not contain polygon (need >2 coordinates)!");
-	       return(null);
+        // make arrays of x and y coords
+        let xcoords = [];
+        let ycoords = [];
+        let llcoords = []; // array of lat/lon coords, used for polygon path later
+        for (let i=0; i < coords.length; i++) {
+          let c = coords[i].split(","); // split in 3 x,y,z strings
+          //console.log(c[0], c[1]);
+          xcoords.push(c[0]);
+          ycoords.push(c[1]);
+
+          let ll = new google.maps.LatLng(c[1], c[0])
+          llcoords.push(ll)
+        }
+
+        // convert string array to number array
+        xcoords = xcoords.map(Number);
+        ycoords = ycoords.map(Number);
+
+        // get min/max of arrays
+        let xmax = Math.max(...xcoords); // ... is spread operator
+        let ymax = Math.max(...ycoords);
+        let xmin = Math.min(...xcoords);
+        let ymin = Math.min(...ycoords);
+        //console.log(xmin, xmax, ymin, ymax)
+
+        // make bounds
+        let southWest = new google.maps.LatLng(ymin, xmin);
+        let northEast = new google.maps.LatLng(ymax, xmax);
+        let bounds = new google.maps.LatLngBounds(southWest,northEast);
+        //console.log(southWest.toString(), northEast.toString(), bounds.toString());
+
+	      return [bounds, llcoords] 
 	    }
-
-	    // make arrays of x and y coords
-	    let xcoords = [];
-	    let ycoords = [];
-	    for (let i=0; i < coords.length; i++) {
-        let c = coords[i].split(","); // split in 3 x,y,z strings
-        //console.log(c[0], c[1]);
-        xcoords.push(c[0]);
-        ycoords.push(c[1]);
-	    }
-
-	    // convert string array to number array
-	    xcoords = xcoords.map(Number);
-	    ycoords = ycoords.map(Number);
-
-	    // get min/max of arrays
-	    let xmax = Math.max(...xcoords); // ... is spread operator
-	    let ymax = Math.max(...ycoords);
-	    let xmin = Math.min(...xcoords);
-	    let ymin = Math.min(...ycoords);
-	    //console.log(xmin, xmax, ymin, ymax)
-
-	    // make bounds
-	    let southWest = new google.maps.LatLng(ymin, xmin);
-	    let northEast = new google.maps.LatLng(ymax, xmax);
-	    let bounds = new google.maps.LatLngBounds(southWest,northEast);
-	    //console.log(southWest.toString(), northEast.toString(), bounds.toString());
-
-
-
-	    return(bounds);
-	  }
-      }
+     }
     }
+
   </script>
   
   <style>
@@ -636,11 +645,11 @@ Terrain 3D print Touchterrain project
 
     <div id ="right" style="background-color:#FFFF;width:505px; float:left; margin-left: 10px ">
     
-      <form action="/" method="get" id="reloadform">
+      <form action="/" method="post" id="reloadform">
 
         <b>Elevation Data source:</b> &nbsp 
         <a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Info on DEM)</a>
-        <select id="DEM_name" name="DEM_name" onchange="submit_for_reload()"
+        <select id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')"
          title="Switch to different Digital Elevation data source" >
           <option value="USGS/NED"selected><a href="https://developers.google.com/earth-engine/datasets/catalog/USGS_NED">  USGS/NED </a>(10 m resolution, US only)</option>
           <!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
@@ -698,15 +707,15 @@ Terrain 3D print Touchterrain project
 	      </datalist>
       &nbspGamma:
       <!-- <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
-             oninput="updateGamma(this.value)" onmouseup="submit_for_reload()"> -->
+             oninput="updateGamma(this.value)" onmouseup="submit_for_reload('GET')"> -->
       <input type="text" id="gamma2"  maxlength="4" size="2" value="1.0" 
 	    title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
-            onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload();}"> 
+            onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload('GET');}"> 
       <br>
       
       Sun direction:
       <select title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
-	    id="hsazi2" name="Sun Direction" onchange="submit_for_reload();">
+	    id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');">
 	    <option value="270">West</option>
 	    <option value="315" selected>North-West</option>
 	    <option value="360">North</option>
@@ -717,7 +726,7 @@ Terrain 3D print Touchterrain project
       
        &nbspSun angle: 
       <select title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
-	    id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload();">
+	    id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
 	    <option value="55">steep</option> 
 	    <option value="45" selected >normal</option>
 	    <option value="35">bit flat </option>
@@ -731,167 +740,179 @@ Terrain 3D print Touchterrain project
 
       <b>Area Selection Box:</b>
       <input id="recenter-box-button" type="button"
-	title="re-centers the red Area Selection box insides the currently viewed map"
-	onclick="center_rectangle()"
-  value="Re-center box in current map view">
-<!--  
-</br>
-<input type="file" id="kml_file" style="display: none;" />
-	<input type="button" value="Upload KML polygon"
-	       title="Sets the area box as a bounding box around a polygon stored in a Google Earth KML file"
-         onclick="document.getElementById('kml_file').click();" />
- -->
-</br>
+        title="re-centers the red Area Selection box insides the currently viewed map"
+        onclick="center_rectangle()"
+        value="Re-center box in current map view">
+
+      <!-- Test for uploading a kml file style="display: none;"
+        <label id="kml_file_name"></label> style="display: none;
+      <input type="button" value="Use polygon from uploaded kml file"
+              title="Sets the area box as a bounding box around a polygon stored in a Google Earth KML file and will use the polygon as a mask when creating the model"
+              onclick="document.getElementById('kml_file').click();" />
+      <form action = "/kml_upload" method=post enctype=multipart/form-data>
+        <input type=file name=file id=kml_filename>
+        <input type=submit value="Upload kml polygon file">
+      </form> -->
+     
+
+      <form action="/export" method="post" enctype=multipart/form-data>
+
+        Use polygon from KML file <input type="file" id="kml_file" name="kml_file"  />
+        <!--
+        <input type="button" value="Set box from polygon in KML file"
+        title="set box from polygon in kml file"
+        onclick="document.getElementById('kml_file').click();" /> -->
+        </br> 
+
+        <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
+        <input type="hidden" id="options_polyURL" name="polyURL" size="0"
+            title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+        > 
+        <!--
+        <input type="text" id="options_polyURL" name="polyURL" size="16"
+            title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+        > URL to cloud KML polygon file</br>
+        -->
+
+        <!-- Put the box corner coords here so they get transmitted with get -->
+        <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
+        <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
+
+        <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
+        <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
+        <br>
+
+        <div id='options_container'>
+          <b> 3D Printer Options: </b><br>
+          <select title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
+                  id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight(); ">
+            <option value="50">20 mm</option>
+            <option value="50">30 mm</option>
+            <option value="50">40 mm</option>
+            <option value="50">50 mm</option>
+            <option value="60">60 mm</option>
+            <option value="70">70 mm</option>
+            <option value="80" selected >80 mm</option>
+            <option value="90">90 mm</option>
+            <option value="100">100 mm</option>
+            <option value="110">110 mm</option>
+            <option value="120">120 mm</option>
+            <option value="140">140 mm</option>
+            <option value="160">160 mm</option>
+            <option value="180">180 mm</option>
+            <option value="200">200 mm</option>
+            <option value="225">225 mm</option>
+            <option value="250">250 mm</option>
+            <option value="275">275 mm</option>
+            <option value="300">300 mm</option>
+
+          </select> Tile width, <b id="options_tile_height"></b> Tile height<br>
+
+          <select title="(printres) Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
+              id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
+            <!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
+            <option value="0.2">0.2 mm</option>
+            <option value="0.25">0.25 mm</option>
+            <option value="0.3">0.3 mm</option>
+            <option value="0.35">0.35 mm</option>
+            <option value="0.4" selected >0.4 mm</option>
+            <option value="0.45">0.45 mm</option>
+            <option value="0.5">0.5 mm</option>
+
+        </select> Resolution for 3D Print (Extruder width)<br>
+
+        <select title="(ntilesx) The number of tiles in x direction"
+          id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
+            <option value="1" selected >1 by</option>
+            <option value="2" >2 by</option>
+            <option value="3">3 by</option>
+            <option value="4">4 by</option>
+            <option value="5">5 by</option>
+            <option value="6">6 by</option>
+            <option value="7">7 by</option>
+            <option value="8">8 by</option>
+        </select>
+
+        <select title="(ntilesy) The number of tiles in y direction"
+          id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
+            <option value="1" selected >1  </option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+        </select> Tiles to print (X by Y)<br>
+
+        <!-- Approximate DEM resolution given box and tile parameters -->
+        Re-scaling <b id="source_resolution"></b> resolution to about
+        <input type="text" id="DEMresolution"
+              title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
+              name="DEMresolution" maxlength="4" size="6" value="NULL" readonly>m
+        <br>
+
+        <select title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
+          id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
+            <option value="0">0 mm</option>
+            <option value="0.5">0.5 mm</option>
+            <option value="1" selected >1 mm</option>
+            <option value="2">2 mm</option>
+            <option value="3">3 mm</option>
+            <option value="4">4 mm</option>
+            <option value="5">5 mm</option>
+        </select> Model Base thickness<br>
+
+        <select title="(zscale) The DEM's elevation is multiplied by this number"
+          id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
+            <option value="0.5">x 0.5</option>
+            <option value="1.0" selected>x 1.0 (none)</option>
+            <option value="1.25">x 1.25</option>
+            <option value="1.5">x 1.5</option>
+            <option value="2">x 2</option>
+            <option value="2.5">x 2.5</option>
+            <option value="3">x 3</option>
+            <option value="3.5">x 3.5</option>
+            <option value="4">x 4</option>
+            <option value="4.5">x 4.5</option>
+            <option value="5">x 5</option>
+            <option value="7.5">x 7.5</option>
+            <option value="10">x 10</option>
+            <option value="15">x 15</option>
+            <option value="20">x 20</option>
+        </select> Vertical Exaggeration (Z-scale)<br>
+
+        <select id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
+          title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
+            <option value="obj" > Obj</option>
+            <option value="STLb" selected> STL binary</option>
+            <option value="STLa"> STL ascii</option>
+            <option value="GeoTiff"> GeoTiff</option>
+        </select> File format<br>
 
 
-<form action="/export" method="post">
+        <input type="text" id="options_manual"
+            title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot ...  For more info see standalone on github"
+              name="manual" size="40" value="" > Manual settings
+        <br><br>
+        
+        <!--
+        <input type="button"
+          title="Puts your current settings into the URL and refreshes"
+          onclick="update_options_hidden(); submit_for_reload('GET');"
+          value="1) Save options to URL">
+        -->
 
-  <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
-
-  <input type="hidden" id="options_polyURL" name="polyURL" size="0"
-      title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
-  > 
-
-  <!--
-  <input type="text" id="options_polyURL" name="polyURL" size="16"
-      title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
-  > URL to cloud KML polygon file</br>
-  -->
-
-  <!-- Put the box corner coords here so they get transmitted with get -->
-  <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
-  <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
-
-  <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
-  <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
-  <br>
-
-	<div id='options_container'>
-	  <b> 3D Printer Options: </b><br>
-	  <select title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
-             id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight(); ">
-	    <option value="50">20 mm</option>
-	    <option value="50">30 mm</option>
-	    <option value="50">40 mm</option>
-	    <option value="50">50 mm</option>
-	    <option value="60">60 mm</option>
-	    <option value="70">70 mm</option>
-	    <option value="80" selected >80 mm</option>
-	    <option value="90">90 mm</option>
-	    <option value="100">100 mm</option>
-	    <option value="110">110 mm</option>
-	    <option value="120">120 mm</option>
-	    <option value="140">140 mm</option>
-	    <option value="160">160 mm</option>
-	    <option value="180">180 mm</option>
-	    <option value="200">200 mm</option>
-	    <option value="225">225 mm</option>
-	    <option value="250">250 mm</option>
-	    <option value="275">275 mm</option>
-	    <option value="300">300 mm</option>
-
-	  </select> Tile width, <b id="options_tile_height"></b> Tile height<br>
-
-	  <select title="(printres) Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
-	       id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
-	    <!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
-	    <option value="0.2">0.2 mm</option>
-	    <option value="0.25">0.25 mm</option>
-	    <option value="0.3">0.3 mm</option>
-	    <option value="0.35">0.35 mm</option>
-	    <option value="0.4" selected >0.4 mm</option>
-	    <option value="0.45">0.45 mm</option>
-	    <option value="0.5">0.5 mm</option>
-
-	</select> Resolution for 3D Print (Extruder width)<br>
-
-	 <select title="(ntilesx) The number of tiles in x direction"
-		 id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
-	    <option value="1" selected >1 by</option>
-	    <option value="2" >2 by</option>
-	    <option value="3">3 by</option>
-	    <option value="4">4 by</option>
-	    <option value="5">5 by</option>
-	    <option value="6">6 by</option>
-	    <option value="7">7 by</option>
-	    <option value="8">8 by</option>
-	</select>
-
-	<select title="(ntilesy) The number of tiles in y direction"
-		id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
-	    <option value="1" selected >1  </option>
-	    <option value="2">2</option>
-	    <option value="3">3</option>
-	    <option value="4">4</option>
-	    <option value="5">5</option>
-	    <option value="6">6</option>
-	    <option value="7">7</option>
-	    <option value="8">8</option>
-	</select> Tiles to print (X by Y)<br>
-
-	<!-- Approximate DEM resolution given box and tile parameters -->
-	Re-scaling <b id="source_resolution"></b> resolution to about
-	<input type="text" id="DEMresolution"
-	       title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
-	       name="DEMresolution" maxlength="4" size="6" value="NULL" readonly>m
-	<br>
-
-	<select title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
-	  id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
-	    <option value="0">0 mm</option>
-	    <option value="0.5">0.5 mm</option>
-	    <option value="1" selected >1 mm</option>
-	    <option value="2">2 mm</option>
-	    <option value="3">3 mm</option>
-	    <option value="4">4 mm</option>
-	    <option value="5">5 mm</option>
-	</select> Model Base thickness<br>
-
-	<select title="(zscale) The DEM's elevation is multiplied by this number"
-	  id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
-	    <option value="0.5">x 0.5</option>
-	    <option value="1.0" selected>x 1.0 (none)</option>
-	    <option value="1.25">x 1.25</option>
-	    <option value="1.5">x 1.5</option>
-	    <option value="2">x 2</option>
-	    <option value="2.5">x 2.5</option>
-	    <option value="3">x 3</option>
-	    <option value="3.5">x 3.5</option>
-	    <option value="4">x 4</option>
-	    <option value="4.5">x 4.5</option>
-	    <option value="5">x 5</option>
-	    <option value="7.5">x 7.5</option>
-	    <option value="10">x 10</option>
-	    <option value="15">x 15</option>
-	    <option value="20">x 20</option>
-	</select> Vertical Exaggeration (Z-scale)<br>
-
-	<select id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
-		title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
-	    <option value="obj" > Obj</option>
-	    <option value="STLb" selected> STL binary</option>
-	    <option value="STLa"> STL ascii</option>
-	    <option value="GeoTiff"> GeoTiff</option>
-	</select> File format<br>
-
-
-	<input type="text" id="options_manual"
-		   title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot ...  For more info see standalone on github"
-	       name="manual" size="40" value="" > Manual settings
-	<br><br>
-
-    <input type="button"
-      title="Puts your current settings into the URL and refreshes"
-      onclick="update_options_hidden(); submit_for_reload();"
-      value="1) Save options to URL">
-
-    <input type="submit" value="2) Export"
-      onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
-      title="Converts area inside the box into file(s) for 3D printing."  
-      onchange="update_options_hidden(); submit_for_reload();">
-      to 3D printable files
-      </div>
-  </form>
+        <!-- <br>Optional KML file: <input type="file" name="kml_file" /> -->
+        
+        <br>
+        <input type="submit" value="Export and Download file(s)"
+          onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
+          title="Converts area inside the box into file(s) for 3D printing."  
+          onchange="update_options_hidden(); submit_for_reload('POST');">
+          to 3D printable files
+       </div>
+      </form>
 
 
       <h5>
@@ -904,8 +925,8 @@ Terrain 3D print Touchterrain project
 
       <h6>
       <a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
-           TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a><br>
-           (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
+            TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a><br>
+            (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
       </h6>
 
     </div>
