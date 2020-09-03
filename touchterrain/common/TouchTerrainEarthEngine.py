@@ -437,11 +437,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     if polygon != None: 
         
         # If we have a GeoJSON and a URL polygon, ignore the URL
-        if polyURL != None: 
+        if polyURL != None and polyURL != '': 
 
             pr("Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!")
-        from geojson import Polygon
-        assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polyURL + ")"
+        assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polygon + ")"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
         logging.info("Got GeoJSON polygon with " + str(len(clip_poly_coords)) + " points")
     

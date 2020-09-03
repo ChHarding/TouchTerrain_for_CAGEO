@@ -29,7 +29,7 @@ from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
 
-from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template, flash, redirect
 app = Flask(__name__)
 
 
@@ -91,7 +91,7 @@ GA_script = """
 # The page for selecting the ROI and putting in printer parameters
 #
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=['GET', 'POST'])
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
@@ -215,6 +215,9 @@ def main_page():
     return html_str
 
 # @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
+
+
+
 
 @app.route("/preview/<string:zip_file>")
 def preview(zip_file):
@@ -344,6 +347,9 @@ def preview_file(zip_file, filename):
     return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
                                filename, as_attachment=True)
 
+
+
+
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
 # a timestamp and shows a download URL to the zip file.
 @app.route("/export", methods=["POST"])
@@ -407,13 +413,33 @@ def export():
         # log and show args in browser
         html =  '<br>'
         for k in key_list:
-            html += "%s = %s <br>" % (k, str(args[k]))
-            logging.info("%s = %s" % (k, str(args[k])))
+            if args[k] != None and args[k] != '':
+                html += "%s = %s <br>" % (k, str(args[k]))
+                logging.info("%s = %s" % (k, str(args[k])))
         html += "<br>"
         for k in extra_args:
-            html += "%s = %s <br>" % (k, str(args[k]))
-            logging.info("%s = %s" % (k, str(args[k])))
+            if args[k] != None and args[k] != '':
+                html += "%s = %s <br>" % (k, str(args[k]))
+                logging.info("%s = %s" % (k, str(args[k])))
+
+        # see if we have a optional kml file in requests
+        geojson_polygon = None
+        if 'kml_file' in request.files:
+            kml_file = request.files['kml_file']
+            
+            if kml_file.filename != '':
+                # process kml file
+                kml_stream = kml_file.read()
+                try:
+                    coords = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream)
+                except: # this will fail if we got a bad file, so ignore it
+                    html  += "kml polygon file " + kml_file.filename + " is invalid - ignored<br>"
+                else:
+                    from geojson import Polygon
+                    geojson_polygon = Polygon([coords]) # coords must be [0], [1] etc. would be holes 
+                    html  += "Using polygon from kml file " + kml_file.filename + " with " + str(len(coords)) + " points<br>"
         html += "<br>"
+        
         yield html
 
         #
@@ -488,6 +514,9 @@ def export():
 
         # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
+
+        # set geojson_polygon as polygon arg (None by default)
+        args["polygon"] = geojson_polygon
 
         # show snazzy animated gif - set to style="display: none to hide once processing is done
         html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
