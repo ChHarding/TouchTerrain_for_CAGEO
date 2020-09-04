@@ -327,7 +327,7 @@ def profile_me(func):
 class grid(object):
     " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a simple dict"
     
-    @profile_me
+    #@profile_me
     def __init__(self, top, bottom, tile_info):
         "top: top elevation raster, must hang over by 1 row/column on each side (be already padded)\
          bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size\
