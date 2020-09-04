@@ -302,11 +302,32 @@ class cell(object):
             if self.borders[d] != False:
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
+#profiling decorator
+# https://medium.com/fintechexplained/advanced-python-learn-how-to-profile-python-code-1068055460f9
+import cProfile
+import functools
+import pstats
+import tempfile
+def profile_me(func):
+    @functools.wraps(func)
+    def wraps(*args, **kwargs):
+        print("profiling started")
+        file = tempfile.mktemp()
+        profiler = cProfile.Profile()
+        profiler.runcall(func, *args, **kwargs)
+        profiler.dump_stats(file)
+        metrics = pstats.Stats(file)
+        metrics.strip_dirs().sort_stats('time').print_stats(100)
+    return wraps
+
+
+
 
 
 class grid(object):
     " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a simple dict"
-
+    
+    @profile_me
     def __init__(self, top, bottom, tile_info):
         "top: top elevation raster, must hang over by 1 row/column on each side (be already padded)\
          bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size\
@@ -499,11 +520,17 @@ class grid(object):
                     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
-                        try:
-                            NEelev = np.nanmean( np.array([top[j+0,i+0], top[j-1,i-0], top[j-1,i+1], top[j-0,i+1]]) )
-                            NWelev = np.nanmean( np.array([top[j+0,i+0], top[j+0,i-1], top[j-1,i-1], top[j-1,i+0]]) )
-                            SEelev = np.nanmean( np.array([top[j+0,i+0], top[j-0,i+1], top[j+1,i+1], top[j+1,i+0]]) )
-                            SWelev = np.nanmean( np.array([top[j+0,i+0], top[j+1,i+0], top[j+1,i-1], top[j+0,i-1]]) )
+                        NEar = np.array([top[j+0,i+0], top[j-1,i-0], top[j-1,i+1], top[j-0,i+1]])
+                        NWar = np.array([top[j+0,i+0], top[j+0,i-1], top[j-1,i-1], top[j-1,i+0]])
+                        SEar = np.array([top[j+0,i+0], top[j-0,i+1], top[j+1,i+1], top[j+1,i+0]])
+                        SWar = np.array([top[j+0,i+0], top[j+1,i+0], top[j+1,i-1], top[j+0,i-1]])
+
+                        try: # nanmean is expensive, so only use it when actually needed
+                            NEelev = np.nanmean(NEar) if np.isnan(np.sum(NEar)) else (top[j+0,i+0] + top[j-1,i-0] + top[j-1,i+1] + top[j-0,i+1]) / 4.0  
+                            NWelev = np.nanmean(NWar) if np.isnan(np.sum(NWar)) else (top[j+0,i+0] + top[j+0,i-1] + top[j-1,i-1] + top[j-1,i+0]) / 4.0
+                            SEelev = np.nanmean(SEar) if np.isnan(np.sum(SEar)) else (top[j+0,i+0] + top[j-0,i+1] + top[j+1,i+1] + top[j+1,i+0]) / 4.0
+                            SWelev = np.nanmean(SWar) if np.isnan(np.sum(SWar)) else (top[j+0,i+0] + top[j+1,i+0] + top[j+1,i-1] + top[j+0,i-1]) / 4.0
+
                         except RuntimeWarning: #  corner is surrounded by NaN eleveations - skip this cell
                             print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
                             #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
