@@ -87,6 +87,7 @@ GA_script = """
 """
 
 
+
 #
 # The page for selecting the ROI and putting in printer parameters
 #
@@ -122,9 +123,6 @@ def main_page():
         'map_lon': "-108.11695",
         'map_zoom': "11",
 
-        # defines optional polygon
-        'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
-
          # defines area box
         'trlat' : "",
         'trlon' : "",
@@ -147,6 +145,10 @@ def main_page():
         "gamma": 1, # gamma ("contrast")
         "hsazi": 315, # hillshade azimuth (compass)
         "hselev": 45, # hillshade elevation (above horizon)
+
+        # defines optional polygon (currently not used)
+        'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
+
 
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
     }
@@ -375,13 +377,12 @@ def export():
         #  print/log all args and their values
         #
 
-        # put all args we got from the browser in a  dict as key:value
+        # put all args we got from the browser in a dict as key:value
         args = request.form.to_dict()
 
         # list of the subset of args needed for processing
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
-                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat",
-                  "polyURL")
+                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
 
         for k in key_list:
             # float-ify some args
@@ -528,13 +529,6 @@ def export():
         html += '<p id="error"> </p>\n'
         yield html
 
-        # profiling
-        #import cProfile 
-        #cProfile.run("TouchTerrainEarthEngine.get_zipped_tiles(**args)")
-        #foo = TouchTerrainEarthEngine.get_zipped_tiles
-        #print(foo)
-        #cProfile.run("foo(**args)")
-
         #
         # Create zip and write to tmp
         #
@@ -606,7 +600,8 @@ def export():
             query = ''
             from urllib.parse import quote
             for kv in list(request.form.items()):
-                query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
+                if kv[1] != '': # skip empty
+                    query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
             html += query[:-1] + "<br>"
 
             html +=  '</body></html>'
