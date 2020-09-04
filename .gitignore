@@ -18,6 +18,12 @@ tmp/*
 .vscode
 test/*
 
+# default folder for stand alone
+terrain  
+
+*.kml
+*.kmz
+
 # white listings
 !.gitignore
 !README.md
