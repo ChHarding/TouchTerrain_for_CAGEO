@@ -53,7 +53,7 @@ logger.setLevel(logging.INFO)
 
 # CH test Aug 18: do EE init here only  
 # this seems to prevent the file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
-# crap from happening and assumes that any "main" file imports TouchTerrainEarth Engine anyway
+# crap from happening and assumes that any "main" file imports TouchTerrainEarthEngine anyway.
 # But, as this could als be run in a standalone scenario where EE should not be involved,
 # the failed to EE init messages are just warnings 
 try:
@@ -165,6 +165,7 @@ def process_tile(tile_tuple):
     else:
         bottom_raster = None # None means Bottom is flat
 
+
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     printres = tile_info["pixel_mm"]
 
@@ -269,8 +270,7 @@ def resampleDEM(a, factor):
 
 
 import kml2geojson # https://rawgit.com/araichev/kml2geojson/master/docs/_build/singlehtml/index.html
-import xml.dom.minidom as md
-
+import defusedxml.minidom as md 
 def get_KML_poly_geometry(kml_doc):
     ''' Parses a kml document (string) via xml.dom.minidom
         finds the geometry of the first(!) polygon feature encountered otherwise returns None
@@ -330,6 +330,7 @@ def get_bounding_box(coords):
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None, 
                          polyURL=None,
+                         poly_file=None,
                          importedDEM=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
@@ -390,6 +391,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive,
     returns the total size of the zip file in Mb
+    - poly_file: local KML file to use as mask
 
     """
     # Sanity checks:   TODO: use better exit on error instead of throwing an assert exception
@@ -431,20 +433,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     print3D_resolution_mm = printres
 
     #
-    # get polygon data, either from GeoJSON or from KLM file
+    # get polygon data, either from GeoJSON or from kml URL or file
     #
     clip_poly_coords = None # list of lat/lons, will create ee.Feature used for clipping the terrain image 
     if polygon != None: 
         
-        # If we have a GeoJSON and a URL polygon, ignore the URL
+        # If we have a GeoJSON and also a kml
         if polyURL != None and polyURL != '': 
-
             pr("Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!")
+        elif poly_file != None and poly_file != '':
+             pr("Warning: polygon via KML file will be ignored b/c a GeoJSON polygon was also given!")
         assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polygon + ")"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
         logging.info("Got GeoJSON polygon with " + str(len(clip_poly_coords)) + " points")
     
-    # Get a poly from a KML file via google drive URL
+    # Get poly from a KML file via google drive URL
     elif polyURL != None and polyURL != '':
         import re, requests
         pattern = r".*[^-\w]([-\w]{25,})[^-\w]?.*" # https://stackoverflow.com/questions/16840038/easiest-way-to-get-file-id-from-url-on-google-apps-script
@@ -465,9 +468,20 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
             logging.info("Read GDrive KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
     
+    elif poly_file != None and poly_file != '':
+        try:
+            with open(poly_file, "r") as pf:
+                poly_file_str = pf.read()
+            clip_poly_coords = get_KML_poly_geometry(poly_file_str)
+        except Exception as e:
+            pr("Error with kml file", poly_file, ":", e, " - falling back to region box", trlat, trlon, bllat, bllon)
+        assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
+        logging.info("Read polygon with " + str(len(clip_poly_coords)) + " points from kml file " + poly_file)
+
     # overwrite trlat, trlon, bllat, bllon with bounding box around 
     if clip_poly_coords != None: 
         trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
+    
     # end of polygon stuff
 
 
