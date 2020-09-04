@@ -23,6 +23,7 @@ setup(
         'numpy>=1.17',
         'kml2geojson>=4.0.2', # for reading polygon coords from kml
         'geojson>=2.5', # for wrapping polygon data
+        'defusedxml>=0.6', # safe minidom for parsing kml
 
     ],
     
