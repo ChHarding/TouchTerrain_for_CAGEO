@@ -134,6 +134,27 @@ def plotPoint(x,y,height,npim,pathedPoints,thicknessOffset):
         pass
         #print("   skipped:") 
 
+def convert_to_GeoJSON(importedGPX):
+    ''' reads in gpx files from list of filenames and returns a ee.Geometry.MultiLineString'''
+    import xml.etree.ElementTree as ET 
+    import ee # I'm assuming that ee.Initialize() was already done!
+    line_list = []
+
+    for gpxFile in importedGPX:
+        tree = ET.parse(gpxFile)
+        root = tree.getroot() 
+        points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
+        line = []
+
+        for trkpt in points:
+            gpx_lat = float( trkpt.attrib['lat'] )
+            gpx_lon = float( trkpt.attrib['lon'] ) 
+            line.append([gpx_lon, gpx_lat])
+        line_list.append(line)
+
+    mls = ee.Geometry.MultiLineString(line_list)
+    return mls
+
 def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,gpxPathThickness,trlat,trlon,bllat,bllon):
     """ Add 1 or more GPX tracks to the terrain model
 
