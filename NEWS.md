@@ -1,6 +1,11 @@
+Sep. 7, 2020 (2.5.2)
+	- Added upload of kml file with masking polygon to server version 
+	- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used. they are also shown on the geemap
+
 Aug. 28, 2020
 	- Thanks to github.com/KohlhardtC, who added a module to drape GPX path lines over the terrain
 	- added a test folder with unittests
+
 May. 7, 2020:
 - pretty massive restructuring of folders:
 	- no more standalone folder, the "main" code files (TouchTerrain_standalone_jupyter_notebook.ipynb and TouchTerrain_standalone.py) are now in root
@@ -8,8 +13,8 @@ May. 7, 2020:
 	- the eloquently named new stuff folder contains all helper files, e.g. json and getiff examples
 - the vectors module (by allelos) was moved into common to remove some install trickery. It will sit there for the future, I don't anticipate any need to go to a new version (Python 4?)
 - running setup.py will now build and install a __touchterrain module__ (versioning coming soon)
-	- use pip install .  (dot!) to have pip install it for you (better than python setup.py install clean)
-- al imports were re-written to import from the installed touchterrain module (e.g. touchterrain.common.config)
+- use pip install .  (dot!) to have pip install it for you (better than python setup.py install clean)
+- all imports were re-written to import from the installed touchterrain module (e.g. touchterrain.common.config)
 	
 
 Apr. 23, 2020: added lower_leq manual option to lower any cells below a threshold by a offset in mm. (thanks to idenc, who did nearly all the work!)
@@ -22,7 +27,7 @@ Mar. 16, 2020: Took out the source option for print resolution b/c the d/l size 
 
 Mar 2020: added use_geo_coords
 
-Aug. 2019: Version 2
+Aug. 2019: Version 2.0
 - 3D preview using JS
 - Wait animation
 - Optional feedback box
@@ -34,7 +39,7 @@ Apr. 19. 2019
 - moved to Python 3
 
 Mar. 5. 2019
-- added support for both .pem files or .config/earthengine/credentials for authetication
+- added support for both .pem files or .config/earthengine/credentials for authentication
 
 
 Mar.1, 2019
@@ -118,9 +123,9 @@ version 0.12 is now live at: touchterrain.geol.iastate.edu
 
 Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
 
-April 3:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM). That
+April 3, 2017:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM).  
 
-0.12 (Dec. 12 - X-mas edition):
+0.12 (Dec. 12, 2016 - X-mas edition):
 - Transparency defaults to 40%
 - results page has link to viewstl.com to preview downloaded files
 - ETOPO elevation is for ice, not bedrock
@@ -131,29 +136,21 @@ April 3:  added check to set all <0 elevations to 0 for non-bathymetry DEM sourc
 - tile height (in cm) is now automatically calculated from tile width and aspect ratio of red box (using meters for box sides).
 - general layout changes, incl. a link to help page.
 
-0.11 (Oct. 31 - Halloween edition): Includes Levi's changes/fixes/additions:
+0.11 (Oct. 31, 2016 - Halloween edition): Includes Levi's changes/fixes/additions:
 - proper separation of server vs stand-alone:
 - stand-alone version can now be run without having to install the google app engine (GAE) modules
 - full server now runs on Apache mod_wsgi, rather than via the Google App Engine dev server. However, the GAE modules still need to be installed, as some parts are used by the server module.
 - fixed a noobish use of a Python global for duplicating request_handling data for the pre-flight page
 
 
-Version 0.10 of the TouchTerrain project, primarily a set of python source code files
-for Python 2.7:
+Version 0.10 of the TouchTerrain project, primarily a set of python source code files for Python 2.7:
 
 - TouchTerrain-app.py: a server module (service) to be run as part of a Google App Engine server. The server creates a webpage, through which the user inputs the area selection and print parameters.
-
 - index.html: HTML template for the main webpage, includes Javascript
-
 - TouchTerrain_standalone.py: A stand-alone version in which the user input is given
     in a JSON file, rather then via a web page.
-
 - TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
-
 - grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in the desired file format (STL or OBJ)
-
 - Coordinate_system_conv.py, InMemoryZip.py: utility functions  
-
 - config.py: used for oauth credentials for the Google dev (Earth Engine) account
-
 - tmp folder: contains an example terrain model, a zipped stl file

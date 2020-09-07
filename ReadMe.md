@@ -28,7 +28,6 @@ TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.p
 
  If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account) EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain can use.
 
-
  (TODO: add something more about how to get the Earth Engine account set up!)
 
 
@@ -131,7 +130,7 @@ Note that for Python, None and True/False need to be different:
  * `printres`:  (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:    
 
  __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED).  
- It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. You can set printres to be whatever the original (source) resolution of the DEM is by setting it to -1 (i.e. 10 m in this example). However, with a 0.4 mm nozzle this only makes sense if your area is more than 80 mm wide otherwise you're again only wasting time and diskspace.
+ It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. You can set printres to be whatever the original (source) resolution of the DEM is by setting it to -1 (i.e. 10 m in this example). However, with a 0.4 mm nozzle this only makes sense if your area is more than 80 mm wide otherwise you're again only wasting time and disk space.
 
 
  * `tile_centered`:  default: false
