@@ -189,8 +189,10 @@ def main():
                 "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness. 
                                         # A setting of 1 probably looks the best 
     }
+    
+    ml = convert_to_GeoJSON(args["importedGPX"])
     '''
-
+    
     # print out current args 
     print("\nUsing these config values:")
     for k in sorted(args.keys()):
