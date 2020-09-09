@@ -848,16 +848,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # Polygon masked pixels will have been set to -32768, so turn
             # these into NaN. Huge values can also occur outside
-            # polygon masking (e.g. offshore pixels in on-shore-only DEMS)
+            # polygon masking (e.g. offshore pixels in GTOPO or non US pixels in NED)
             if min_elev < -16384:
                 npim = numpy.where(npim <  -16384, numpy.nan, npim)
                 pr("omitting cells with elevation < -16384")
             if numpy.nanmax(npim) > 16384:
                 npim = numpy.where(npim >  16384, numpy.nan, npim)
                 pr("omitting cells with elevation > 16384")
-
-            pr("full (untiled) raster (height,width): ", npim.shape, npim.dtype)
-            print("DEBUG: elev. min/max:", numpy.nanmin(npim), numpy.nanmax(npim))
+            pr("full (untiled) raster (height,width) ", npim.shape, npim.dtype, "elev. min/max:", numpy.nanmin(npim), numpy.nanmax(npim))
 
             #
             # based on the full raster's shape and given the model width, recalc the model height
