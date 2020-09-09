@@ -1,0 +1,195 @@
+<html>
+	<head>
+		<title>TouchTerrain Boostrap test</title>
+		<script type="text/javascript" src="js/touchterrain.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+	    <script src="js/vendor/bootstrap.min.js"></script>
+	    <script src="js/vendor/bootstrap-submenu.min.js"></script>
+	    <script src="js/iastate.js"></script>
+	</head>
+	<body>
+		<div class="container-fluid">
+			<div class="page-header">
+				<h1>Terrain2STL <small>Create STL models of the surface of Earth</small></h1>
+			</div>
+			<div class="row">
+				<div class="col-md-8"><div style="height:75%" id="gmap">Map didn't load</div></div>
+				<div class="col-md-4" id="controlbox">
+
+					<center><h1>STL Generator</h1></center>
+
+					<form id="paramForm" class="form-horizontal" action="gen" method="post" onsubmit="ga('send', 'event', 'Terrain2STL', 'Model');">
+
+					<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+						<div class="panel panel-default">
+					    <div class="panel-heading" role="tab" id="headingOne">
+					      <h4 class="panel-title">
+					        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseZero" aria-expanded="true" aria-controls="collapseZero">
+					          Location
+					        </a>
+					      </h4>
+					    </div>
+					    <div id="collapseZero" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingZero">
+					      <div class="panel-body">
+									<h4>Northwest Corner Coordinates</h4>
+
+
+										<div class="form-group">
+											<label class="col-sm-3 control-label">Latitude: </label>
+											<div class="col-sm-4">
+												<input class="form-control" value=44.2 name="lat" id="c-lat" onchange="updateLatLng()">
+											</div>
+										</div>
+										<div class="form-group">
+											<label class="col-sm-3 control-label">Longitude: </label>
+											<div class="col-sm-4">
+												<input class="form-control" value=-69.09 name="lng" id="c-lng" onchange="updateLatLng()"></br>
+											</div>
+										</div>
+
+									<input type="button" class="btn btn-small" onclick="centerToView()" value="Center to View">
+					      </div>
+					    </div>
+					  </div>
+						<div class="panel panel-default">
+					    <div class="panel-heading" role="tab" id="headingOne">
+					      <h4 class="panel-title">
+					        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+					          Model Details
+					        </a>
+					      </h4>
+					    </div>
+					    <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+					      <div class="panel-body">
+									<div class="form-group">
+										<label class="control-label col-sm-6">Box Size:</label>
+										<div class="col-sm-4">
+											<input name="boxSize" type="range" min="120" max="4920" step="240" value="120" onchange="changeSize()">
+										</div>
+										<div class="col-sm-2" id="boxSizeLabel">120</div>
+									</div>
+
+									<div class="form-group">
+										<label class="control-label col-sm-6">Box Scaling Factor:</label>
+										<div class="col-sm-4">
+											<input name="boxScale" type="range" min="1" max="10" step="1" value="1" onchange="changeSize()">
+										</div>
+										<div class="col-sm-2" id="boxScaleLabel">1</div>
+									</div>
+
+									<div class="form-group">
+										<label class="control-label col-sm-6">Box Rotation (degrees)</label>
+										<div class="col-sm-4">
+											<input name="rotation" type="range" min="-90" max="90" step="1" value="0" onchange="changeRotation()">
+										</div>
+										<div class="col-sm-2" id="rotationLabel">0</div>
+									</div>
+									<div class="form-group">
+										<label class="control-label col-sm-6">Vertical Scaling</label>
+										<div class="col-sm-4">
+											<input name="vScale" type="range" min=".5" max="4" step=".1" value="1" onchange="changeVScale()">
+										</div>
+										<div class="col-sm-2" id="vScaleLabel">1</div>
+									</div>
+					      </div>
+					    </div>
+					  </div>
+
+						<div class="panel panel-default">
+					    <div class="panel-heading" role="tab" id="headingFive">
+					      <h4 class="panel-title">
+					        <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+					          Water and Base Settings
+					        </a>
+					      </h4>
+					    </div>
+							<div id="collapseFive" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFive">
+					      <div class="panel-body">
+									<div class="form-group">
+										<label class="control-label col-sm-6">Water Drop (mm):</label>
+										<div class="col-sm-4">
+											<input name="waterDrop" type="range" min="0" max="5" step="1" value="0"  onchange="changeWaterDrop()">
+										</div>
+										<div class="col-sm-2" id="waterDropLabel">0</div>
+									</div>
+									<div class="form-group">
+										<label class="control-label col-sm-6">Base Height (mm):</label>
+										<div class="col-sm-4">
+											<input name="baseHeight" type="range" min="1" max="10" step="1" value="1"  onchange="changeBaseHeight()">
+										</div>
+										<div class="col-sm-2" id="baseHeightLabel">2</div>
+									</div>
+					      </div>
+					    </div>
+					  </div>
+
+						<div class="panel panel-default">
+					    <div class="panel-heading" role="tab" id="headingThree">
+					      <h4 class="panel-title">
+					        <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+					          Instructions
+					        </a>
+					      </h4>
+					    </div>
+							<div id="collapseFour" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+					      <div class="panel-body">
+
+									<div id="inst">
+										<h2 align='center' style="margin-top:-10">Instructions</h2></br>
+										<ul style="margin-top:-20">
+											<li>Select the area you want an STL of using the red box</li>
+											<li>'Center to View' will move the box. It's also draggable</li>
+											<li>Rotate and resize the box as needed</li>
+											<li>Z-Scale exaggerates the vertical scale of models</li>
+											<li>Water drop lowers the height of the oceans for emphasis</li>
+											<li>Don't worry about the box skewing with rotations - the model will be accurate to the real terrain</li>
+										</ul>
+									</div>
+
+					      </div>
+					    </div>
+					  </div>
+					</div>
+
+					<button type="submit" id="genButton" class="btn btn-default">Generate Model</button>
+					<a id="downloadbtn" style="visibility:hidden" role="button" class="btn btn-default" href="stls/rawmodel-0.stl">Download</a>
+				</form>
+				<center><small>Terrain2STL is a free-to-use service, but if you want to help <a href="/support.html">support</a> the site, donations are welcome.</small></center>
+				</div>
+			</div>
+			<div class="row">
+	      </br>
+	      <center>
+	        <small><i>
+	          Terrain2STL creates STL files using the <a href='http://www.cgiar-csi.org/data/srtm-90m-digital-elevation-database-v4-1'>SRTM3 dataset</a> from 2000,
+	          which has a resolution of about 90 meters on the equator.
+	        </i></small>
+	      </center>
+	    </div>
+	    <div class="row">
+	      </br>
+	      <center>
+	        <small>
+	          <a href="/">Home</a> | Terrain2STL | <a href="mailto:j.thatcher.c+t2s@gmail.com">Contact</a></br>
+	        </small>
+	      </center>
+	    </div>
+
+		</div>
+
+
+		<script async defer
+    		  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC2I9wZ-oU3PfWc_3ErfOpO0SJIYco8yWo&callback=initializeMap">
+    </script>
+	<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-61036065-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+	</body>
+</html>
