@@ -710,15 +710,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             clip_polygon = ee.Geometry.Polygon([clip_poly_coords])
             clip_feature = ee.Feature(clip_polygon)
             image1 = image1.clip(clip_feature).unmask(-32768, False)
-            if polyURL != None and polyURL != '':
-                pr("Clipping DEM with polygon with", (len(clip_poly_coords)), "points from " + polyURL)
-
-        # Feb. 19, 2020: need to use ee.Geometry with geoJSON instead of just a string
+             
+        # Make a geoJSON polygon to define the area to be printed 
         reg_rect = ee.Geometry.Rectangle([[bllon, bllat], [trlon, trlat]]) # opposite corners
         if polygon == None:
             polygon_geojson = reg_rect.toGeoJSONString() # polyon is just the bounding box
         else:
-            polygon_geojson = polygon
+            polygon_geojson = polygon # actual polygon used as mask
 
         # make the request dict
         request_dict = {
@@ -740,8 +738,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         request = image1.getDownloadUrl(request_dict)
         pr("URL for geotiff is: ", request)
-
-
 
         # Retry download zipfile from url until request was successfull
         web_sock = None
@@ -833,7 +829,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             del zipdir, str_data
 
             # although STL can only use 32-bit floats, we need to use 64 bit floats
-            # for calculations, otherewise we get non-manifold vertices!
+            # for calculations, otherwise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
             min_elev = numpy.nanmin(npim)
@@ -850,20 +846,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
                 pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
 
-            # sanity check: for all onshore-only sources, set very large values
-            # (which must actually mean NoData) as NaN so they get omitted.
-            # Note: the GeoTiffs from GEE don't seem to have any notion of undefined either as an offcial value
-            # or as the very large number thing we check against here ... so this check is prb not needed
-            if DEM_name == """USGS/NED""" or DEM_name == """USGS/SRTMGL1_003""" or DEM_name == """USGS/GMTED2010""":
-                if min_elev < -16384:
-                    npim = numpy.where(npim <  -16384, numpy.nan, npim)
-                    pr("omitting cells with elevation < -16384")
-                if numpy.nanmax(npim) > 16384:
-                    npim = numpy.where(npim >  16384, numpy.nan, npim)
-                    pr("omitting cells with elevation > 16384")
+            # Polygon masked pixels will have been set to -32768, so turn
+            # these into NaN. Huge values can also occur outside
+            # polygon masking (e.g. offshore pixels in on-shore-only DEMS)
+            if min_elev < -16384:
+                npim = numpy.where(npim <  -16384, numpy.nan, npim)
+                pr("omitting cells with elevation < -16384")
+            if numpy.nanmax(npim) > 16384:
+                npim = numpy.where(npim >  16384, numpy.nan, npim)
+                pr("omitting cells with elevation > 16384")
 
             pr("full (untiled) raster (height,width): ", npim.shape, npim.dtype)
-            #print "elev. min/max:", min_elev, numpy.nanmax(npim)
+            print("DEBUG: elev. min/max:", numpy.nanmin(npim), numpy.nanmax(npim))
 
             #
             # based on the full raster's shape and given the model width, recalc the model height
