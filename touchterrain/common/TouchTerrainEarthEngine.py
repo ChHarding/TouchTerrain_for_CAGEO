@@ -274,8 +274,11 @@ import defusedxml.minidom as md
 def get_KML_poly_geometry(kml_doc):
     ''' Parses a kml document (string) via xml.dom.minidom
         finds the geometry of the first(!) polygon feature encountered otherwise returns None
-        returns a list of double floats: [[-112.0, 36.1], [-113.0, 36.0], [-113.5, 36.5]]
-                Note: that KML has 3D points, so I discard z
+        returns a tuple of 
+            - list of double floats: [[-112.0, 36.1], [-113.0, 36.0], [-113.5, 36.5]] or None on Error/Warning
+            - Error/Warning string (or None if OK)
+        
+        Note: that KML has 3D points, so I discard z
 
         Setup:
         layers: just a list at root: [<layer0>, <layer1>, ... ]
@@ -288,6 +291,7 @@ def get_KML_poly_geometry(kml_doc):
     layers = kml2geojson.build_layers(root)
     #print(root)
 
+    # try to find a polygon
     for layer in layers:
         #print(layer)
         features = layer["features"]
@@ -299,8 +303,21 @@ def get_KML_poly_geometry(kml_doc):
             coords = geometry["coordinates"]
             if geom_type == "Polygon":
                 coords_2d = [[c3[0], c3[1]] for c3 in coords[0]] # [0] -> ignore holes, which would be in 1,2, ...
-                return coords_2d
-    return None
+                return (coords_2d, None)
+        
+        # didn't find a Polygon, try again and look for a LineString
+        for feature in features:
+            #print(feature)
+            geometry = feature["geometry"]
+            #print(geometry)
+            geom_type = geometry["type"]
+            coords = geometry["coordinates"]
+            if geom_type == "LineString":
+                coords_2d = [[c3[0], c3[1]] for c3 in coords]
+                return (coords_2d, "Warning: no Polygon found, used a (closed) Line instead") 
+    
+    # found neither polygon nor line
+    return (None, "Error: no Polygon or LineString found, falling back to region box")
 
 def check_poly_with_bounds(coords, trlat, trlon, bllat, bllon):
     ''' check if all coords are inside the bounds'''
@@ -448,6 +465,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         logging.info("Using GeoJSON polygon for masking with " + str(len(clip_poly_coords)) + " points")
     
     # Get poly from a KML file via google drive URL
+    #TODO: TEST THIS!!!!!!
     elif polyURL != None and polyURL != '':
         import re, requests
         pattern = r".*[^-\w]([-\w]{25,})[^-\w]?.*" # https://stackoverflow.com/questions/16840038/easiest-way-to-get-file-id-from-url-on-google-apps-script
@@ -464,20 +482,25 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("Error: GDrive kml download failed", e, " - falling back to region box", trlat, trlon, bllat, bllon)
         else:
             t = r.text
-            clip_poly_coords = get_KML_poly_geometry(t) # returns None if no polygon can be found
-            assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
-            logging.info("Read GDrive KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
+            clip_poly_coords, msg = get_KML_poly_geometry(t) 
+            if msg != None: # Either go a line instead of polygon (take but warn) or nothing (ignore)
+                logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
+            else:
+                logging.info("Read GDrive KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
     
     elif poly_file != None and poly_file != '':
         try:
             with open(poly_file, "r") as pf:
                 poly_file_str = pf.read()
-            clip_poly_coords = get_KML_poly_geometry(poly_file_str)
         except Exception as e:
-            pr("Error with kml file", poly_file, ":", e, " - falling back to region box", trlat, trlon, bllat, bllon)
-        assert clip_poly_coords, "Error: Kml doc contrains no Polygon feature"
-        logging.info("Read polygon with " + str(len(clip_poly_coords)) + " points from kml file " + poly_file)
-
+            pr("Read Error with kml file", poly_file, ":", e, " - falling back to region box", trlat, trlon, bllat, bllon)
+        else:
+            clip_poly_coords, msg = get_KML_poly_geometry(poly_file_str)     
+            if msg != None: # Either go a line instead of polygon (take but warn) or nothing (ignore)
+                logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
+            else:
+                logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
+        
     # overwrite trlat, trlon, bllat, bllon with bounding box around 
     if clip_poly_coords != None: 
         trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)

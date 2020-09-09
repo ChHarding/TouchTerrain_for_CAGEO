@@ -432,18 +432,23 @@ def export():
             kml_file = request.files['kml_file']
             
             if kml_file.filename != '':
+                from geojson import Polygon
+                
                 # process kml file
                 kml_stream = kml_file.read()
-                try:
-                    coords = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream)
-                except: # this will fail if we got a bad file, so ignore it
-                    html  += "kml polygon file " + kml_file.filename + " is invalid - ignored<br>"
-                else:
-                    from geojson import Polygon
+                coords, msg = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream) 
+                
+                if msg != None: # Either got a line instead of polygon or nothing good at all
+                    if coords == None: # got nothing good
+                        html += "Warning: " + kml_file.filename + " contained neither polygon nor line, falling back to area selection box.<br>"
+                    else: 
+                        html += "Warning: Using line with " + str(len(coords)) + " points in " + kml_file.filename + " as no polygon was found.<br>"
+                        geojson_polygon = Polygon([coords])  
+                else: # got polygon
                     geojson_polygon = Polygon([coords]) # coords must be [0], [1] etc. would be holes 
-                    html  += "Using polygon from kml file " + kml_file.filename + " with " + str(len(coords)) + " points<br>"
-        html += "<br>"
+                    html  += "Using polygon from kml file " + kml_file.filename + " with " + str(len(coords)) + " points.<br>"                   
         
+        html += "<br>"
         yield html
 
         #
