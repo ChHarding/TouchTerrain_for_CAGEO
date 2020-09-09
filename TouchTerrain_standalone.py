@@ -147,7 +147,7 @@ def main():
             "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
             "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
             "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-            #"poly_file": "TT_poly_test.kml"
+            #"poly_file": "idaho.kml", #TT_poly_test.kml",
         }
 
         # overwrite config settings in args
