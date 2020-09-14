@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<!--
+Terrain 3D print Touchterrain project
+-->
+<html>
+  <head>
+    <title>TouchTerrain - get files for 3D printing terrain (BUILDID)</title>
+    <meta charset="UTF-8">
+    <meta name="description" content="Application for creating 3D printable terrain models">
+    <meta property="og:image" content="/static/touchTerrain_logo.png">
+    <meta name="keywords" content="HTML,JavaScript">
+    <meta name="author" content="Chris Harding">
+    <meta name="version" content="BUILDID">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+
+   {% if GOOGLE_ANALYTICS_TRACKING_ID %}
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create',
+          '{{GOOGLE_ANALYTICS_TRACKING_ID}}',  // put your own tracking id in server/config.py
+          'auto');
+      ga('send', 'pageview');
+    </script>
+   {% endif %}
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+
+    <script type="text/javascript" async defer
+      src="https://maps.google.com/maps/api/js?key={{ google_maps_key }}">
+      <!-- key=<nothing> will give you the crappy google map background, which is still usable.
+      If you want a proper google maps version you need replace the above line with
+      one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
+      As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
+      Put this key into a text file called GoogleMapsKey.txt in the server folder
+      Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
+    </script>
+
+    <!-- <script src="/static/js/ee_api_js.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
+
+    <script type="text/javascript">
+
+    "use strict";  // http://javascript.info/strict-mode
+
+
+    // global variables
+    let rectangle = -1 // red area box
+    let map = -1      // Google map
+    let eemap = -1    // Google Earth Engine map
+    let div_lines_x = []; // internal division lines for tile boundaries
+    let div_lines_y = [];
+    let polygon = -1  // optional masking polygon
+
+
+
+    /**
+    * This page will be called from a Python script that uses
+    * Jinja templates to pass information from the script to the web page.
+    * Here we get the mapid and token for the map tiles that were generated
+    * by Earth Engine using the Python script
+    */
+    // gets values inlined from python calling the jinja template
+    let MAPID = "{{ mapid }}"; // {{ stuff }}
+    let TOKEN = "{{ token }}";
+    let map_lat = Number("{{ map_lat }}");  // center of map
+    let map_lon = Number("{{ map_lon }}");
+    let map_zoom = Number("{{ map_zoom }}"); // zoom level
+    let trlat = "{{ trlat }}"; // bounding box top right corner
+    let trlon = "{{ trlon }}";
+    let bllat = "{{ bllat }}"; // bottom left corner
+    let bllon = "{{ bllon }}";
+    let DEM_name = "{{ DEM_name }}"; // name of DEM layer
+    let printres = "{{ printres }}"; // in mm
+    let ntilesx = "{{ ntilesx }}";
+    let ntilesy = "{{ ntilesy }}";
+    let tilewidth = "{{ tilewidth }}"; // in mm
+    let basethick = "{{ basethick }}";
+    let zscale = "{{ zscale }}";
+    let fileformat = "{{ fileformat }}";
+    let manual = "{{ manual }}";
+    manual = manual.replace(/&#34;/g, '\"')
+    manual = manual.replace(/&amp;quot;/g, '\"')
+    let polyURL = "{{ polyURL }}";
+    
+    // map visualization parameters: maptype, transparency, gamma, hsazi, hzelev
+    let maptype = "{{ maptype }}";
+    let transp = "{{ transp }}";
+    let gamma = "{{ gamma }}";
+    let hsazi = "{{ hsazi }}";
+    let hselev = "{{ hselev }}";
+    
+    
+    // run this once the browser is ready
+    window.onload = function () {
+
+      // init google map
+      let myLatLng = new google.maps.LatLng( map_lat, map_lon);
+      let mapOptions = {
+          center: myLatLng,
+          zoom: map_zoom,
+          //maxZoom: 10,
+          zoomControl: true,
+          scaleControl: true,
+          streetViewControl: false,
+          mapTypeId: maptype
+      };
+      
+      map = new google.maps.Map(document.getElementById("map"), mapOptions);
+      eemap = create_overlay(MAPID, map); // hillshade overlay from google earth engine
+      init_print_options(); //update all print option values in the GUI to what was inlined by jinja
+      update_options_hidden(); // also store values in hidden ids
+      SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
+      polygon = new google.maps.Polygon({ // make empty polygon for now, will set paths later
+                    strokeColor: "#FFFF00",
+                    strokeOpacity: 1,
+                    strokeWeight: 0.75,
+                    fillColor: "#FFFF00",
+                    fillOpacity: 0.05
+                  });
+      
+      // Init map Overlay GUI settings
+      updateTransparency(transp); // set initial transparency 
+      updateGamma(gamma); // initial gamma value
+      document.getElementById('hsazi2').value = hsazi;
+      document.getElementById('hselev2').value = hselev;
+      
+      // Area selection box
+      rectangle = new google.maps.Rectangle({
+        editable: true,
+        draggable: true,
+        strokeColor: '#FF0000',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#FF0000',
+        fillOpacity: 0.01,
+        map: map
+      });
+
+
+      // if we got rectangle bounds from jinja args, draw box
+      if (trlat != "" && trlon != "" && bllat != "" && bllon != ""){
+          let tr = new google.maps.LatLng(Number(bllat),Number(trlon));
+          let bl = new google.maps.LatLng(Number(trlat), Number(bllon));
+          let initial_bounds = new google.maps.LatLngBounds();
+          initial_bounds.extend(tr);
+          initial_bounds.extend(bl);
+
+	        //alert(initial_bounds.toUrlValue(2))
+	        // draw rectangle and put coords in form
+	        rectangle.setBounds(initial_bounds);
+	        update_corners_form();
+      }
+      else{ // at this stage we don't have map bounds to make the box bounds b/c it hasn't been
+	          // drawn yet, so we need to defer that until the map bounds_changed is called.
+	          google.maps.event.addListenerOnce(map, 'bounds_changed', function(){
+	            center_rectangle();
+	          });
+      }
+      
+      // show link for current DEM source
+      let link = "https://developers.google.com/earth-engine/datasets"
+      switch(DEM_name){
+        case "USGS/NED": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_NED"; break;
+	      case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
+        case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
+	      case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
+        case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
+	      case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
+	      case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
+        case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
+      }
+      document.getElementById('DEM_link').href = link;
+
+      // 
+      // Callbacks
+      //
+      
+      // Add an event listener on the rectangle.
+      rectangle.addListener('bounds_changed', update_corners_form);
+      rectangle.addListener('dragstart', remove_divison_lines);
+      rectangle.addListener('dragend', create_divison_lines);
+
+      // Add event for when map becomes idle again after zoom or pan, saves map center and zoom in element
+      map.addListener("idle", saveMapSettings);
+
+      // add callbacks to recalc and display real world resolution when these options are changed
+      document.getElementById('options_print_resolution').addEventListener("click", setApproxDEMResolution_meters);
+      document.getElementById('options_tile_width').addEventListener("click", setApproxDEMResolution_meters);
+      document.getElementById('options_numTiles_x').addEventListener("click", setApproxDEMResolution_meters);
+
+      // add callbacks to make/change division lines when number of tiles change
+      document.getElementById('options_numTiles_x').addEventListener("click", create_divison_lines);
+      document.getElementById('options_numTiles_y').addEventListener("click", create_divison_lines);
+
+      // add change callback for kml_file button
+      let fileInput = document.getElementById('kml_file');
+      fileInput.addEventListener('change', function(e) {
+        if (fileInput.files.length) {
+            let file = fileInput.files[0];
+            let reader = new FileReader();
+            reader.onload = function(e) {
+              let s = reader.result;
+              const [bbox, latloncoords] = processKMLFile(s);
+              if(!!bbox){ // not null => valid bounding box
+                  rectangle.setBounds(bbox);
+                  update_corners_form();
+                  map.fitBounds(bbox); // makes the map fit around the box
+                  polygon.setPath(latloncoords);
+                  polygon.setMap(map);
+                }else{
+                  alert("Error: invalid KML file!");
+                }
+            }
+            reader.readAsText(file);
+        }
+      });
+
+    }; // end of onload()
+
+    // FUNCTIONS
+    
+    // Create an ImageOverlay using the MapID, which encodes all the vis params (besides opacity, which is set browser-side)
+    function create_overlay(MAPID, map){
+      const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1alpha';
+      const tileSource = new ee.layers.EarthEngineTileSource({
+							      MAPID,
+							      TOKEN,
+							      formatTileUrl: (x, y, z) =>
+								  `${EE_MAP_PATH}/${MAPID}/tiles/${z}/${x}/${y}`
+      });
+      eemap = new ee.layers.ImageOverlay(tileSource); // eemap is a global so we can change its gamma later 
+      map.overlayMapTypes.removeAt(0); // remove old overlay
+      map.overlayMapTypes.insertAt(0, eemap); // insert as index 0, use this for opacity: map.overlayMapTypes.getAt(0).setOpacity(0.25)
+      return eemap;
+    }
+    
+    // Function to return an arc-degree distance in meters at a given latitude
+    // as an array (along_east, along_north)
+    // see http://www.csgnetwork.com/degreelenllavcalc.html
+    // should conform to WGS84
+    function arcDegr_in_meter(latitude_in_degr){
+      let lat = (2.0 * Math.PI)/360.0 * latitude_in_degr; // convert lat to rads
+      let m1 = 111132.954;	// latitude calculation term 1
+      let m2 = -559.822;		// latitude calculation term 2
+      let m3 = 1.175;		// latitude calculation term 3
+      let m4 = -0.0023;		// latitude calculation term 4
+      let p1 = 111412.84;		// longitude calculation term 1
+      let p2 = -93.5;		// longitude calculation term 2
+      let p3 = 0.118;		// longitude calculation term 3
+
+      // Calculate the length of a degree of latitude and longitude in meters
+      let latlen =  m1 + (m2 * Math.cos(2 * lat)) + (m3 * Math.cos(4 * lat)) + (m4 * Math.cos(6 * lat));
+      let longlen = (p1 * Math.cos(lat)) + (p2 * Math.cos(3 * lat)) + (p3 * Math.cos(5 * lat));
+      return [latlen, longlen];
+    }
+
+
+    // create a centered LatLngBounds box
+    function make_center_box(){
+      let bounds = map.getBounds();
+      let projection = map.getProjection();
+      let topRight = bounds.getNorthEast(); // not sure if these have to be projected first ...
+      let bottomLeft = bounds.getSouthWest();
+      let c = bounds.getCenter();
+      let cx = c.lng()
+      let cy = c.lat()
+      let nex = topRight.lng()
+      let ney = topRight.lat()
+      let swx = bottomLeft.lng()
+      let swy = bottomLeft.lat()
+
+      let box_size_x = (nex - swx) / 3.0
+      let box_size_y = (ney - swy) / 3.0
+      let box = new google.maps.LatLngBounds();
+      let p = new google.maps.LatLng(cy - box_size_y, cx - box_size_x);
+      box.extend(p);
+      p = new google.maps.LatLng(cy + box_size_y, cx + box_size_x);
+      box.extend(p)
+      return(box);
+    }
+
+    // set bounding box of rectangle so it's centered
+    function center_rectangle(){
+      polygon.setMap(null); // remove polygon
+      let box = make_center_box();
+      rectangle.setBounds(box);
+      update_corners_form();
+      
+
+    }
+
+    // callback to update corner lat/lon in form to current rectangle
+    function update_corners_form(event) {
+      let b = rectangle.getBounds()
+      let trlat = b.getNorthEast().lat();
+      let trlon = b.getNorthEast().lng();
+      let bllat = b.getSouthWest().lat();
+      let bllon = b.getSouthWest().lng();
+
+      // update GUI values
+      document.getElementById('trlat2').value=trlat;
+      document.getElementById('trlon2').value=trlon;
+      document.getElementById('bllat2').value=bllat;
+      document.getElementById('bllon2').value=bllon;
+
+      // also update hidden id values
+      document.getElementById('trlat').value=trlat;
+      document.getElementById('trlon').value=trlon;
+      document.getElementById('bllat').value=bllat;
+      document.getElementById('bllon').value=bllon;
+
+      setApproxDEMResolution_meters();
+      calcTileHeight();
+
+      create_divison_lines();
+    }
+
+
+    // calculate the approximate meter resolution of each pixel at the current lat
+    // from the width (lon) of the rectangle and the print resolution
+    function setApproxDEMResolution_meters() {
+
+      let b = rectangle.getBounds();
+      let trlat = b.getNorthEast().lat();
+      let trlon = b.getNorthEast().lng();
+      let bllat = b.getSouthWest().lat();
+      let bllon = b.getSouthWest().lng();
+
+      let print_res_mm = document.getElementById('options_print_resolution').value;
+
+      // Negative print_res_mm means that "source resolution" is selected, in this case just set field to "same"
+      if(print_res_mm <= 0){
+	document.getElementById('DEMresolution').value = 'the same'
+      }
+      else{
+
+	let tw_mm = document.getElementById('options_tile_width').value;
+	let num_tiles_x = document.getElementById('options_numTiles_x').value;
+	let num_cells_per_tile = tw_mm /  print_res_mm;
+	let total_cells = num_cells_per_tile * num_tiles_x;
+
+	let lat_of_center = (trlat + bllat) / 2.0;
+	let box_width_in_degr = Math.abs(trlon - bllon);
+	let one_degr_in_m = arcDegr_in_meter(lat_of_center)[1]; // returns meters for [lat,lon] => lon = with = [1]
+	let box_width_in_m = box_width_in_degr * one_degr_in_m;
+
+	let cell_resolution_meter = box_width_in_m / total_cells;
+	//console.log(cell_resolution_meter);
+	cell_resolution_meter = Math.round( cell_resolution_meter * 100 ) / 100; // round to 2 digits
+
+	document.getElementById('DEMresolution').value = cell_resolution_meter;
+      }
+
+    }
+
+    function remove_divison_lines(){
+      for (let i = 0; i < div_lines_x.length; i++) {
+        div_lines_x[i].setMap(null) // remove from map
+      }
+      div_lines_x = [];
+
+      for (let i = 0; i < div_lines_y.length; i++) {
+        div_lines_y[i].setMap(null) // remove from map
+      }
+      div_lines_y = [];
+    }
+
+
+    function create_divison_lines(event) {
+      remove_divison_lines(); // also re-sets array to []
+
+      let bounds = rectangle.getBounds(); // bounds of red box
+      let ne = bounds.getNorthEast();
+      let sw = bounds.getSouthWest();
+      let span = rectangle.getBounds().toSpan() // height/width of box
+
+      let num_lines = document.getElementById('options_numTiles_x').value -1; //requested number of lines
+      if(num_lines > 0){
+        let width = span.lng() / (num_lines + 1) // width of a tile
+        for (let i = 0; i < num_lines; i++) {
+            let x = sw.lng() + (i+1) * width; // x-coord (lng) of  line
+            let line_coords = [{lat: ne.lat(), lng: x }, {lat: sw.lat(), lng: x }];
+            div_lines_x[i] = new google.maps.Polyline({ path: line_coords,
+                          geodesic: false, strokeColor: '#FF0000',
+                          strokeOpacity: 1.0, strokeWeight: 1 });
+            div_lines_x[i].setMap(map);
+        }
+      }
+
+      num_lines = document.getElementById('options_numTiles_y').value -1;
+      if(num_lines > 0){
+          let height = span.lat() / (num_lines + 1) // height of a tile
+          for (let i = 0; i < num_lines; i++) {
+              let y = sw.lat() + (i+1) * height; // y coord (lat) of line
+              let line_coords = [{lat: y, lng: sw.lng()},
+                             {lat: y, lng: ne.lng()}];
+              div_lines_y[i] = new google.maps.Polyline({ path: line_coords,
+                                                          geodesic: false, strokeColor: '#FF0000',
+                                                          strokeOpacity: 1.0, strokeWeight: 1 });
+              div_lines_y[i].setMap(map);
+          }
+      }
+    }
+
+    // update functions, called from HTML
+    function SetDEM_name(){
+      document.getElementById('DEM_name').value = DEM_name // hidden
+      document.getElementById('DEM_name2').value = DEM_name // GUI
+
+      let res = "unknown resolution"
+      switch(DEM_name){
+        case "USGS/NED": res = "10 m"; break;
+	      case "NRCan/CDEM": res = "20 m"; break;
+        case "USGS/SRTMGL1_003": res = "30 m"; break;
+	      case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
+        case "USGS/GMTED2010": res = "90 m"; break;
+	      case "USGS/GTOPO30" : res = "1000 m"; break;
+	      case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
+        case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
+      }
+
+      // set resolution of DEM source
+      document.getElementById('source_resolution').innerHTML = res
+    }
+
+
+    // set opacity of hillshade as inverse of transparency given
+    function updateTransparency(transparency_pct) {
+      let op = 1.0 - transparency_pct / 100.0 // opacity
+      map.overlayMapTypes.getAt(0).setOpacity(op)
+      //document.getElementById('hillshade_transparency').value=transparency_pct;
+      document.getElementById('hillshade_transparency_slider').value=transparency_pct;
+      document.getElementById('transp').value=transparency_pct; // id in hidden reload
+    }
+
+    //Update gamma in both places
+    function updateGamma(val) {
+      document.getElementById('gamma').value=val;  // id in reload form  (hidden)
+      document.getElementById('gamma2').value=val; // gui text field
+      //document.getElementById('hs_slider').value=val; // gui slider
+    }
+    
+    // update hillshade elevation(angle above horizon) and adjust gamma
+    function updateHillshadeElevation(elev) {
+      document.getElementById('hselev').value=elev;   // hidden id
+      document.getElementById('hselev2').value=elev;  // gui list
+      switch(Number(elev)) {
+        case 55: // steep
+          updateGamma(0.3); break;
+        case 45: // normal
+          updateGamma(1.0); break;
+        case 35: // somewhat flat
+          updateGamma(1.2); break;
+        case 25: // very flat
+          updateGamma(1.5); break;
+        case 10: // super flat
+         updateGamma(2.5); break;
+	 case 5: // extremely flat
+         updateGamma(4.5); break;
+        default:
+           alert(elev + "is bad!");
+      } 
+    }  
+
+    // update the hidden ids in reload form
+    function update_options_hidden(){
+      //alert("update_options_hidden")
+      document.getElementById('tilewidth').value = document.getElementById('options_tile_width').value;
+      document.getElementById('ntilesx').value = document.getElementById('options_numTiles_x').value;
+      document.getElementById('ntilesy').value = document.getElementById('options_numTiles_y').value;
+      document.getElementById('printres').value = document.getElementById('options_print_resolution').value;
+      document.getElementById('basethick').value = document.getElementById('options_base_thickness').value;
+      document.getElementById('zscale').value = document.getElementById('options_z_scale').value;
+      document.getElementById('fileformat').value= document.getElementById('options_fileformat').value;
+      document.getElementById('manual').value= document.getElementById('options_manual').value;
+      document.getElementById('polyURL').value= document.getElementById('options_polyURL').value;
+    }
+
+    // update the print option values in the GUI from the global vars
+    function init_print_options(){
+      //alert("init_print_options")
+      document.getElementById('options_tile_width').value = tilewidth;
+      document.getElementById('options_numTiles_x').value = ntilesx;
+      document.getElementById('options_numTiles_y').value = ntilesy;
+      document.getElementById('options_print_resolution').value = printres;
+      document.getElementById('options_base_thickness').value = basethick;
+      document.getElementById('options_z_scale').value = zscale;
+      document.getElementById('options_fileformat').value = fileformat;
+      document.getElementById('options_manual').value = manual;
+      document.getElementById('options_polyURL').value = polyURL; 
+    }
+
+    // called on idle (after map pan/zoom), sets current lat, lon and zoom
+    function saveMapSettings(){
+      let  c = map.getCenter();
+      let cx = c.lng();
+      let cy = c.lat();
+      
+      // hidden ids in reloadform
+      document.getElementById('map_lat').value = c.lat();
+      document.getElementById('map_lon').value = c.lng();
+      document.getElementById('map_zoom').value = map.getZoom(); 
+    }
+
+    function submit_for_reload(trans_method){
+      saveMapSettings();
+      
+      // save current settings into hidden ids
+      document.getElementById('maptype').value = map.getMapTypeId();
+      document.getElementById('hsazi').value = document.getElementById('hsazi2').value;
+      document.getElementById('hselev').value = document.getElementById('hselev2').value;
+      
+      // trigger a reload with all the vars in reloadform
+      let f = document.forms["reloadform"];
+      f.method = trans_method
+      f.submit();
+    }
+
+    // calc tile height from given mm width and red box ratio
+    // not that ratio has to be calculated from the meters, not degrees!
+    function calcTileHeight(){
+      let tw = document.getElementById('options_tile_width').value;
+      document.getElementById('tilewidth').value = tw // set hidden id for reload
+      let bounds = rectangle.getBounds(); // bounds of red box
+      let n = bounds.getNorthEast().lat();
+      let s = bounds.getSouthWest().lat();
+      let center_lat = (n + s ) / 2.0;
+      let degr_in_m  = arcDegr_in_meter(center_lat);
+      let span = rectangle.getBounds().toSpan();
+      let hm = span.lat() * degr_in_m[0]; // height in meters at center lat
+      let wm = span.lng() * degr_in_m[1]; // width
+
+      let hw_in_meter_ratio = hm / wm; // height/width of box
+      let th = tw * hw_in_meter_ratio;
+
+      //console.log(tw, span.lat(),  span.lng(), center_lat, hm, wm, hw_in_meter_ratio, );
+      let tile_height_rounded  = parseInt(th * 10) / 10;
+      document.getElementById('options_tile_height').value = th;
+      document.getElementById('options_tile_height').innerHTML = tile_height_rounded + "&nbsp mm";
+    }
+
+    // return bounds of polygon in kml file or null on parse error or if <3 coords
+    function processKMLFile(xmlfile){
+      if (xmlfile && xmlfile.length){  // file exists and is not empty
+	      // parse XML file
+	      let xmlDoc = null;
+	      try {
+	  	      xmlDoc = $.parseXML(xmlfile);
+	      }
+	      catch(e) {
+		        console.dir(e);
+	  	  return null;
+	    }
+
+      let $xml = $(xmlDoc);
+      if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
+          alert('Please upload a KML file');
+          return null;
+      }else{
+        let coords = $xml.find("coordinates").text();
+        //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
+
+        // remove tabs and newlines and trim
+        coords = coords.replace(/\t/g, '');
+        coords = coords.replace(/\n/g, '');
+        coords = coords.trim();
+        //console.dir(JSON.stringify(coords)) //"-109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0"
+
+        // split at space in array of strings with "x,y,z"
+        coords = coords.split(" ");
+        //console.dir(JSON.stringify(coords))
+
+        // if we have less than 3 coords, bail out
+        if (coords.length < 3){
+          alert("Error: KML file does not contain polygon (need >2 coordinates)!");
+          return(null);
+        }
+
+        // make arrays of x and y coords
+        let xcoords = [];
+        let ycoords = [];
+        let llcoords = []; // array of lat/lon coords, used for polygon path later
+        for (let i=0; i < coords.length; i++) {
+          let c = coords[i].split(","); // split in 3 x,y,z strings
+          //console.log(c[0], c[1]);
+          xcoords.push(c[0]);
+          ycoords.push(c[1]);
+
+          let ll = new google.maps.LatLng(c[1], c[0])
+          llcoords.push(ll)
+        }
+
+        // convert string array to number array
+        xcoords = xcoords.map(Number);
+        ycoords = ycoords.map(Number);
+
+        // get min/max of arrays
+        let xmax = Math.max(...xcoords); // ... is spread operator
+        let ymax = Math.max(...ycoords);
+        let xmin = Math.min(...xcoords);
+        let ymin = Math.min(...ycoords);
+        //console.log(xmin, xmax, ymin, ymax)
+
+        // make bounds
+        let southWest = new google.maps.LatLng(ymin, xmin);
+        let northEast = new google.maps.LatLng(ymax, xmax);
+        let bounds = new google.maps.LatLngBounds(southWest,northEast);
+        //console.log(southWest.toString(), northEast.toString(), bounds.toString());
+
+	      return [bounds, llcoords] 
+	    }
+     }
+    }
+
+  </script>
+  
+  <style>
+    #hillshade_transparency_slider {width: 150px;}
+  </style>
+  
+  </head>
+
+  <body>
+
+  <div id="title" style="clear:both;text-align:left;font-size:x-large;" >
+    <!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
+    TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
+    <a href="https://touchterrain.blogspot.com/" target="_blank">
+    What new in ver. 2.5?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+    Help</a>
+  </div>
+
+
+   <div id="content" style="width:1115px; padding-left: 0px; float:left; border: 0px solid black; ">
+
+    <div id ="left" style="background-color:#FFFFF;width:600px;float:left;margin-right: 0px; margin-left: 0px; margin-top: 0px">
+        <div id="map" style="background-color:#FFFF; position:relative; ;width:600px;height:600px"></div>
+    </div>
+
+    <div id ="right" style="background-color:#FFFF;width:505px; float:left; margin-left: 10px ">
+    
+      <form action="/" method="post" id="reloadform">
+
+        <b>Elevation Data source:</b> &nbsp 
+        <a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Info on DEM)</a>
+        <select id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')"
+         title="Switch to different Digital Elevation data source" >
+          <option value="USGS/NED"selected>USGS/NED </a>(10 m resolution, US only)</option>
+          <!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
+          <option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
+          <option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
+          <option value="USGS/GMTED2010">GMTED2010 (230m resolution, worldwide)</option>
+          <option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
+          <option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m res., Antarctica)</option>
+          <option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
+        </select>
+	
+        <!-- hidden ids so they get put into the URL on reload -->
+        <input type="hidden" name="maptype" id="maptype" value="NULL">
+        <input type="hidden" name="gamma" id="gamma" value="NULL">
+        <input type="hidden" name="transp" id="transp" value="NULL">
+        <input type="hidden" name="hsazi" id="hsazi" value="NULL">
+        <input type="hidden" name="hselev" id="hselev" value="NULL">
+        <input type="hidden" name="map_lat" id="map_lat" value="NULL">
+        <input type="hidden" name="map_lon" id="map_lon" value="NULL">
+        <input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
+        <input type="hidden" id="trlat" name="trlat" value="NULL" >
+        <input type="hidden" id="trlon" name="trlon" value="NULL" >
+        <input type="hidden" id="bllat" name="bllat" value="NULL" >
+        <input type="hidden" id="bllon" name="bllon" value="NULL" >
+        <input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
+        <input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
+        <input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
+        <input type="hidden" id="printres" name="printres" value="NULL" >
+        <input type="hidden" id="basethick" name="basethick" value="NULL" >
+        <input type="hidden" id="zscale" name="zscale" value="NULL" >
+        <input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+        <input type="hidden" id="manual" name="manual" value="NULL" >
+        <input type="hidden" id="polyURL" name="polyURL" value="NULL" >
+      </form>
+      
+      <br>
+      <b>Hillshade layer (Terrain relief overlay):</b> <br>
+      Transparency(%):
+      <input type="range" id="hillshade_transparency_slider" min="0" max="100" value=""
+	    title="Changes the hillshade transparentcy from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
+	    list="tickmarks"
+	    step="1" oninput="updateTransparency(this.value);">
+	    <datalist id="tickmarks">
+        <option value="0"></option>
+        <option value="10"></option>
+        <option value="20"></option>
+        <option value="30"></option>
+        <option value="40"></option>
+        <option value="50"></option>
+        <option value="60"></option>
+        <option value="70"></option>
+        <option value="80"></option>
+        <option value="90"></option>
+        <option value="100"></option>
+	      </datalist>
+      &nbspGamma:
+      <!-- <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
+             oninput="updateGamma(this.value)" onmouseup="submit_for_reload('GET')"> -->
+      <input type="text" id="gamma2"  maxlength="4" size="2" value="1.0" 
+	    title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+            onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload('GET');}"> 
+      <br>
+      
+      Sun direction:
+      <select title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
+	    id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');">
+	    <option value="270">West</option>
+	    <option value="315" selected>North-West</option>
+	    <option value="360">North</option>
+	    <option value="45">North-East</option>
+	    <option value="90">East</option>
+	    <option value="180">South</option>
+      </select>
+      
+       &nbspSun angle: 
+      <select title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
+	    id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
+	    <option value="55">steep</option> 
+	    <option value="45" selected >normal</option>
+	    <option value="35">bit flat </option>
+	    <option value="25">flat </option>
+	    <option value="10">very flat </option>
+	    <option value="5">extremely flat</option>
+      </select>
+      </br></br>
+      
+      
+
+      <b>Area Selection Box:</b>
+      <input id="recenter-box-button" type="button"
+        title="re-centers the red Area Selection box insides the currently viewed map"
+        onclick="center_rectangle()"
+        value="Re-center box in current map view">
+
+      <!-- Test for uploading a kml file style="display: none;"
+        <label id="kml_file_name"></label> style="display: none;
+      <input type="button" value="Use polygon from uploaded kml file"
+              title="Sets the area box as a bounding box around a polygon stored in a Google Earth KML file and will use the polygon as a mask when creating the model"
+              onclick="document.getElementById('kml_file').click();" />
+      <form action = "/kml_upload" method=post enctype=multipart/form-data>
+        <input type=file name=file id=kml_filename>
+        <input type=submit value="Upload kml polygon file">
+      </form> -->
+     
+
+      <form action="/export" method="post" enctype=multipart/form-data>
+
+        Use polygon from KML file <input type="file" id="kml_file" name="kml_file"  />
+        <!--
+        <input type="button" value="Set box from polygon in KML file"
+        title="set box from polygon in kml file"
+        onclick="document.getElementById('kml_file').click();" /> -->
+        </br> 
+
+        <input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
+        <input type="hidden" id="options_polyURL" name="polyURL" size="0"
+            title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+        > 
+        <!--
+        <input type="text" id="options_polyURL" name="polyURL" size="16"
+            title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+        > URL to cloud KML polygon file</br>
+        -->
+
+        <!-- Put the box corner coords here so they get transmitted with get -->
+        <input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
+        <input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
+
+        <input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
+        <input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
+        <br>
+
+        <div id='options_container'>
+          <b> 3D Printer Options: </b><br>
+          <select title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
+                  id="options_tile_width"  name="tilewidth"  onchange="calcTileHeight(); ">
+            <option value="50">20 mm</option>
+            <option value="50">30 mm</option>
+            <option value="50">40 mm</option>
+            <option value="50">50 mm</option>
+            <option value="60">60 mm</option>
+            <option value="70">70 mm</option>
+            <option value="80" selected >80 mm</option>
+            <option value="90">90 mm</option>
+            <option value="100">100 mm</option>
+            <option value="110">110 mm</option>
+            <option value="120">120 mm</option>
+            <option value="140">140 mm</option>
+            <option value="160">160 mm</option>
+            <option value="180">180 mm</option>
+            <option value="200">200 mm</option>
+            <option value="225">225 mm</option>
+            <option value="250">250 mm</option>
+            <option value="275">275 mm</option>
+            <option value="300">300 mm</option>
+
+          </select> Tile width, <b id="options_tile_height"></b> Tile height<br>
+
+          <select title="(printres) Should be about the same as your extruder diameter. Smaller numbers result in more details and longer print times"
+              id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
+            <!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
+            <option value="0.2">0.2 mm</option>
+            <option value="0.25">0.25 mm</option>
+            <option value="0.3">0.3 mm</option>
+            <option value="0.35">0.35 mm</option>
+            <option value="0.4" selected >0.4 mm</option>
+            <option value="0.45">0.45 mm</option>
+            <option value="0.5">0.5 mm</option>
+
+        </select> Resolution for 3D Print (Extruder width)<br>
+
+        <select title="(ntilesx) The number of tiles in x direction"
+          id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
+            <option value="1" selected >1 by</option>
+            <option value="2" >2 by</option>
+            <option value="3">3 by</option>
+            <option value="4">4 by</option>
+            <option value="5">5 by</option>
+            <option value="6">6 by</option>
+            <option value="7">7 by</option>
+            <option value="8">8 by</option>
+        </select>
+
+        <select title="(ntilesy) The number of tiles in y direction"
+          id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
+            <option value="1" selected >1  </option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+        </select> Tiles to print (X by Y)<br>
+
+        <!-- Approximate DEM resolution given box and tile parameters -->
+        Re-scaling <b id="source_resolution"></b> resolution to about
+        <input type="text" id="DEMresolution"
+              title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
+              name="DEMresolution" maxlength="4" size="6" value="NULL" readonly>m
+        <br>
+
+        <select title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
+          id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
+            <option value="0">0 mm</option>
+            <option value="0.5">0.5 mm</option>
+            <option value="1" selected >1 mm</option>
+            <option value="2">2 mm</option>
+            <option value="3">3 mm</option>
+            <option value="4">4 mm</option>
+            <option value="5">5 mm</option>
+        </select> Model Base thickness<br>
+
+        <select title="(zscale) The DEM's elevation is multiplied by this number"
+          id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
+            <option value="0.5">x 0.5</option>
+            <option value="1.0" selected>x 1.0 (none)</option>
+            <option value="1.25">x 1.25</option>
+            <option value="1.5">x 1.5</option>
+            <option value="2">x 2</option>
+            <option value="2.5">x 2.5</option>
+            <option value="3">x 3</option>
+            <option value="3.5">x 3.5</option>
+            <option value="4">x 4</option>
+            <option value="4.5">x 4.5</option>
+            <option value="5">x 5</option>
+            <option value="7.5">x 7.5</option>
+            <option value="10">x 10</option>
+            <option value="15">x 15</option>
+            <option value="20">x 20</option>
+        </select> Vertical Exaggeration (Z-scale)<br>
+
+        <select id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
+          title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
+            <option value="obj" > Obj</option>
+            <option value="STLb" selected> STL binary</option>
+            <option value="STLa"> STL ascii</option>
+            <option value="GeoTiff"> GeoTiff</option>
+        </select> File format<br>
+
+
+        <input type="text" id="options_manual"
+            title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot ...  For more info see standalone on github"
+              name="manual" size="40" value="" > Manual settings
+        <br><br>
+        
+        <!--
+        <input type="button"
+          title="Puts your current settings into the URL and refreshes"
+          onclick="update_options_hidden(); submit_for_reload('GET');"
+          value="1) Save options to URL">  -->
+        <!-- <br>Optional KML file: <input type="file" name="kml_file" /> -->
+        
+        <input type="submit" value="Export to file and Download"
+          onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
+          title="Converts area inside the box into file(s) for 3D printing."  
+          onchange="update_options_hidden(); submit_for_reload('POST');">
+          
+       </div>
+      </form>
+
+
+      <h5>
+      Developed by Chris Harding and Franek Hasiuk, <a href="http://www.public.iastate.edu/~franek/gfl/gfl.html" target="_blank">GeoFabLab.</a>
+      <br>Dept. of Geological and Atmospheric Sciences, Iowa State University
+      <br>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com">Send Email</a>
+      <br>Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
+      </h5>
+
+
+      <h6>
+      <a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
+            TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a><br>
+            (published in: Computers & Geosciences Volume 109, December 2017, Pages 25-31)
+      </h6>
+
+    </div>
+   </div>
+  </body>
+</html>

@@ -213,7 +213,7 @@ def main_page():
    
 
     # string with index.html "file" with mapid, token, etc. inlined
-    html_str = render_template("index_bootstrap.html", **args)
+    html_str = render_template("index.html", **args)
     return html_str
 
 # @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
