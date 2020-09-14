@@ -94,26 +94,7 @@ GA_script = """
 
 @app.route("/", methods=['GET', 'POST'])
 def main_page():
-    # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
-
-    '''
-    # try both ways of authenticating
-    try:
-        ee.Initialize() # uses .config/earthengine/credentials
-    except Exception as e:
-        print("EE init() error (with .config/earthengine/credentials),", e, ", trying .pem file", file=sys.stderr)
-
-        try:
-            # try authenticating with a .pem file
-            from oauth2client.service_account import ServiceAccountCredentials
-            from ee import oauth
-            credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
-            ee.Initialize(credentials, config.EE_URL)
-        except Exception as e:
-            print("EE init() error with .pem file", e, file=sys.stderr)
-    else:
-        print("EE init() worked (with .config/earthengine/credentials)", file=sys.stderr)
-    '''
+    
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
         'DEM_name': 'USGS/NED',
@@ -199,7 +180,7 @@ def main_page():
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
 
-    # work around getattr throwing an exeption if name is not in module
+    # work around getattr throwing an exception if name is not in module
     def mygetattr(mod, name):
         try:
             r = getattr(mod, name)
@@ -211,12 +192,11 @@ def main_page():
     # add any vars from server/config.py that may need to be inlined
     args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(config, "GOOGLE_ANALYTICS_TRACKING_ID")
    
-
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index_bootstrap.html", **args)
     return html_str
 
-# @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
+
 
 
 
