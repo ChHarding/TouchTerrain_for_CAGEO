@@ -359,9 +359,6 @@ def export():
 
     def preflight_generator():
 
-        # CH test 9-14-2020: Re-init before processing
-        ee.Initialize() # uses .config/earthengine/credentials
-
         # create html string
         html = '<html>'
         html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
