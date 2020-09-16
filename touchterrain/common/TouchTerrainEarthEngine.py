@@ -407,8 +407,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive,
-    returns the total size of the zip file in Mb
     - poly_file: local KML file to use as mask
+    
+    returns the total size of the zip file in Mb
 
     """
     # Sanity checks:   TODO: use better exit on error instead of throwing an assert exception

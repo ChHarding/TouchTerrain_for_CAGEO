@@ -105,12 +105,24 @@ Note that for Python, None and True/False need to be different:
 
 
  * `basethick`: (in mm) A layer of material this thick will be added below the entire
- model, i.e. its thickness is counted down from the lowest elevation of the entire model. This is particularly important for models with long, deep valleys, which can cause the modelto shine through if the base is not thick enough. A base thickness of at least twice the filament thickness is recommended.
+ model, i.e. its thickness is counted down from the lowest elevation of the entire model. This is particularly important for models with long, deep valleys, which can cause the model to shine through if the base is not thick enough. A base thickness of at least twice the filament thickness is recommended.
 
  * `bllat`:         Bottom-left latitude of area to be printed
  * `bllon`:         Bottom-left longitude
  * `trlat`:         Top-right latitude
  * `trlon`:         Top-right longitude
+
+    **New in 2.6**: Polygon to define the area
+    The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings. 
+    The standalone version can read a kml file using the `poly_file` or `polyURL` parameters. For both, the first polygon found will be used as a mask, i.e. the model will only cover terrain inside the polygon. If no polygon is found, the first polyline is used instead. (Holes in polygons are ignored).
+
+    * `poly_file` : path to a local kml file
+    * `polyURL` : URL to a publicly readable(!) kml file on Google Drive
+    * `poly` : string containing a GeoJSON polygon, for example:
+        ```
+        {"type": "Polygon", 
+        "coordinates": [ [[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}
+        ```
 
 
  * `fileformat`: file format for 3D model file.
@@ -132,11 +144,9 @@ Note that for Python, None and True/False need to be different:
  __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED).  
  It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. You can set printres to be whatever the original (source) resolution of the DEM is by setting it to -1 (i.e. 10 m in this example). However, with a 0.4 mm nozzle this only makes sense if your area is more than 80 mm wide otherwise you're again only wasting time and disk space.
 
-
  * `tile_centered`:  default: false
     - false: All tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab
     - true:  each tile is centered around 0/0
-
 
  * `zip_file_name`: default: "terrain" Prefix of output filename. (.zip is added)
 
