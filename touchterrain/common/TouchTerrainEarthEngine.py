@@ -375,8 +375,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - DEM_name:  name of DEM layer used in Google Earth Engine, see DEM_sources
     - trlat, trlon: lat/lon of top right corner of bounding box
     - bllat, bllon: lat/lon of bottom left corner of bounding box
-    - polygon: optional geoJSON polygon, within the bounding box
-    - importedDEM: None (means get DEM from GEE) or local file name with DEM to be used instead
+    - polygon: optional geoJSON polygon
+    - importedDEM: None (means: get the DEM from GEE) or local file name with DEM to be used instead
     - printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
     - ntilesx, ntilesy: number of tiles in x and y
     - tilewidth: width of each tile in mm (<- !!!!!), tile height is calculated automatically
