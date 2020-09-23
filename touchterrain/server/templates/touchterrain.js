@@ -273,6 +273,28 @@ function update_corners_form(event) {
     create_divison_lines();
 }
 
+function update_box(event){
+
+    // read values from GUI
+    trlat = document.getElementById('trlat2').value;
+    trlon = document.getElementById('trlon2').value;
+    bllat = document.getElementById('bllat2').value;
+    bllon = document.getElementById('bllon2').value;
+
+    // update hidden id values
+    document.getElementById('trlat').value=trlat;
+    document.getElementById('trlon').value=trlon;
+    document.getElementById('bllat').value=bllat;
+    document.getElementById('bllon').value=bllon;
+
+    // make and new bounds
+    var newbounds = new google.maps.LatLngBounds(
+        new google.maps.LatLng(bllat,bllon), // sw
+        new google.maps.LatLng(trlat, trlon) // ne
+    );
+    rectangle.setBounds(newbounds);
+}
+
 
 // calculate the approximate meter resolution of each pixel at the current lat
 // from the width (lon) of the rectangle and the print resolution

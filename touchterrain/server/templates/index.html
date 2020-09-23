@@ -1,17 +1,25 @@
 <html>
 	<head>
-		<title>TouchTerrain Bootstrap test</title>
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models</title>
 
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-  		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-  		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-		
-		<script src="https://cdn.theme.iastate.edu/fontawesome/5.0/js/all.min.js"></script>
+		<meta name="viewport" content="width=device-width, initial-scale=0.8">
+
+		 <!-- Latest compiled and minified CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+		<!-- jQuery library -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+		<!-- Popper JS -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+
+		<!-- Latest compiled JavaScript -->
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> 
+
 		<link href="https://cdn.theme.iastate.edu/nimbus-sans/css/nimbus-sans.css" rel="stylesheet">
 		<link href="https://cdn.theme.iastate.edu/merriweather/css/merriweather.css" rel="stylesheet">
-		<link rel="stylesheet" href="static/css/iastate.css">
+		<!-- <link rel="stylesheet" href="static/css/iastate.css"> -->
+		
 
 		<!--
 	    <script src="static/js/vendor/bootstrap.min.js"></script>
@@ -43,247 +51,397 @@
 			ga('send', 'pageview');
 			</script>
 		{% endif %}
-		
-		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
 
+
+		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
+		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
 		
 	</head>
 	<body>
 		<div class="container-fluid">
 			<div class="page-header">
-			  <h3>
+			  <h4>
 				<!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
-				<small> 
+				<small class="float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
-					What new in ver. 2.5?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+					What new in ver. 3.0?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
 					Help</a>
 				</small>
-			  </h3>
+			  </h4>
 			</div>
 			<div class="row">
-				<div class="col-md-8"><div style="height:75%" id="map">Map didn't load</div></div>
-				<div class="col-md-4" id="controlbox">
+				<div class="col-sm-8">
+					<div style="height:730px" id="map">Map didn't load</div>
+				</div>
+				<div class="col-sm-4 form-control-sm" >
+					<form action="/" class="form-horizontal" method="post" id="reloadform"> 
+						<div class="card">
+							<div class="card-header">
+								<a class="card-link" data-toggle="collapse" href="#terrain_settings_panel">
+					          Terrain Settings:
+					      </a>
+							</div>
+							<div id="terrain_settings_panel" class="collapse show">
+								<div class="card-body">
+									<div class="form-inline">
+    								<div class="form-group">
+											<label for="DEM_name">Elevation Data source:</label>
+											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" 
+											   target="_blank">&nbsp(DEM Info)&nbsp&nbsp</a>
+											<select class="form-control custom-select-sm text-truncate" style="max-width: 180px;" 
+															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" 
+															title="Switch to different Digital Elevation data source" >
+												<option value="USGS/NED" selected>USGS/NED (10m resolution, US only)</option>
+												<option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
+												<option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
+												<option value="USGS/GMTED2010">GMTED2010 (230m resolution, worldwide)</option>
+												<option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
+												<option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m resolution, Antarctica only)</option>
+												<option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
+											</select
+										</div>
+									</div>
+									 
+									<div class="form-horizontal form-inline">
+										<div class="form-group">
+											<label for="hillshade_transparency_slider">Transparency(%) &nbsp </label>
+											<input type="range" class="slider" id="hillshade_transparency_slider" min="0" max="100" value=""
+												title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
+												list="tickmarks" step="1" oninput="updateTransparency(this.value);">
+												<datalist id="tickmarks">
+													<option value="0"></option>
+													<option value="10"></option>
+													<option value="20"></option>
+													<option value="30"></option>
+													<option value="40"></option>
+													<option value="50"></option>
+													<option value="60"></option>
+													<option value="70"></option>
+													<option value="80"></option>
+													<option value="90"></option>
+													<option value="100"></option>
+												</datalist>
+											<label for="gamma2">&nbsp Gamma</label>
+											<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
+												title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+												onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
 
-					<form action="/" method="post" id="reloadform" class="form-horizontal">
-						<div class="form-group">
-						  <label for="DEM_name">Elevation Data source:</label>
-						  <a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(Info on DEM)</a>
-						  <select class="form-control" id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" title="Switch to different Digital Elevation data source" >
-							<option value="USGS/NED" selected>USGS/NED </a>(10 m resolution, US only)</option>
-							<!--<option value="NRCan/CDEM">NRCan/CDEM (20 m resolution, Canada only)</option>-->
-							<option value="JAXA/ALOS/AW3D30/V2_2" >AW3D30 (30m resolution, worldwide, good quality)</option>
-							<option value="USGS/SRTMGL1_003">SRTM GL1 (30m resolution, worldwide-ish, less good)</option>
-							<option value="USGS/GMTED2010">GMTED2010 (230m resolution, worldwide)</option>
-							<option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
-							<option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m resolution, Antarctica only)</option>
-							<option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
-						  </select>
-						</div> 
+										</div>
+									</div>
 
-						<!-- hidden ids so they get put into the URL on reload -->
-						<input type="hidden" name="maptype" id="maptype" value="NULL">
-						<input type="hidden" name="gamma" id="gamma" value="NULL">
-						<input type="hidden" name="transp" id="transp" value="NULL">
-						<input type="hidden" name="hsazi" id="hsazi" value="NULL">
-						<input type="hidden" name="hselev" id="hselev" value="NULL">
-						<input type="hidden" name="map_lat" id="map_lat" value="NULL">
-						<input type="hidden" name="map_lon" id="map_lon" value="NULL">
-						<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
-						<input type="hidden" id="trlat" name="trlat" value="NULL" >
-						<input type="hidden" id="trlon" name="trlon" value="NULL" >
-						<input type="hidden" id="bllat" name="bllat" value="NULL" >
-						<input type="hidden" id="bllon" name="bllon" value="NULL" >
-						<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
-						<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
-						<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
-						<input type="hidden" id="printres" name="printres" value="NULL" >
-						<input type="hidden" id="basethick" name="basethick" value="NULL" >
-						<input type="hidden" id="zscale" name="zscale" value="NULL" >
-						<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
-						<input type="hidden" id="manual" name="manual" value="NULL" >
-						<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
+									<div class="row text-truncate">
+										<div class="col-sm-6"> 
+												<div class="form-group">
+													<label for="hsazi2">&nbsp Sun direction</label>
+													<select class="form-control custom-select-sm"  
+														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
+														id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');"
+													>
+														<option value="270">West (270 degr.)</option>
+														<option value="315" selected>North-West (315 degr.)</option>
+														<option value="360">North (0  degr.)</option>
+														<option value="45">North-East (45 degr.)</option>
+														<option value="90">East (90 degr.)</option>
+														<option value="180">South (180 degr.)</option>
+													</select>
+											</div>
+										</div>
+										<div class="col-sm-6">
+											<div class="form-group">
+												<label for="hselev2">&nbsp Sun angle</label>
+												<select class="form-control custom-select-sm"  
+													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
+													id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
+													<option value="55">steep (55 degr.)</option> 
+													<option value="45" selected >normal (45 degr.)</option>
+													<option value="35">kinda flat (35 degr.)</option>
+													<option value="25">flat (25 degr.)</option>
+													<option value="10">very flat (10 degr.)</option>
+													<option value="5">extremely flat (5 degr.)</option>
+												</select>
+										</div>
+									</div>
+								</div>
+									 
+									<!-- hidden ids so they get put into the URL on reload -->
+									<input type="hidden" name="maptype" id="maptype" value="NULL">
+									<input type="hidden" name="gamma" id="gamma" value="NULL">
+									<input type="hidden" name="transp" id="transp" value="NULL">
+									<input type="hidden" name="hsazi" id="hsazi" value="NULL">
+									<input type="hidden" name="hselev" id="hselev" value="NULL">
+									<input type="hidden" name="map_lat" id="map_lat" value="NULL">
+									<input type="hidden" name="map_lon" id="map_lon" value="NULL">
+									<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
+									<input type="hidden" id="trlat" name="trlat" value="NULL" >
+									<input type="hidden" id="trlon" name="trlon" value="NULL" >
+									<input type="hidden" id="bllat" name="bllat" value="NULL" >
+									<input type="hidden" id="bllon" name="bllon" value="NULL" >
+									<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
+									<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
+									<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
+									<input type="hidden" id="printres" name="printres" value="NULL" >
+									<input type="hidden" id="basethick" name="basethick" value="NULL" >
+									<input type="hidden" id="zscale" name="zscale" value="NULL" >
+									<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+									<input type="hidden" id="manual" name="manual" value="NULL" >
+									<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
+								</div>	
+							</div>
+						</div>
 					</form>
 
-
-					<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-					  <div class="panel panel-default">
-					    <div class="panel-heading" role="tab" id="headingOne">
-					      <h4 class="panel-title">
-					        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#hillshade_panel" aria-expanded="true" aria-controls="hillshade_panel">
-					          Terrain relief (hillshade) settings:
-					        </a>
-					      </h4>
-					    </div>
-					    <div id="hillshade_panel" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingZero">
-						  <div class="panel-body">
-							Transparency(%):
-							<input type="range" id="hillshade_transparency_slider" min="0" max="100" value=""
-								title="Changes the hillshade transparentcy from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
-								list="tickmarks"
-								step="1" oninput="updateTransparency(this.value);">
-								<datalist id="tickmarks">
-								<option value="0"></option>
-								<option value="10"></option>
-								<option value="20"></option>
-								<option value="30"></option>
-								<option value="40"></option>
-								<option value="50"></option>
-								<option value="60"></option>
-								<option value="70"></option>
-								<option value="80"></option>
-								<option value="90"></option>
-								<option value="100"></option>
-								</datalist>
-							Gamma:
-							<!-- <input type="range" id="hs_slider" min="0.1" max="2.0" value="0" step="0.05"
-									oninput="updateGamma(this.value)" onmouseup="submit_for_reload('GET')"> -->
-							<input type="text" id="gamma2"  maxlength="4" size="2" value="1.0" 
-								title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
-									onkeydown="if (event.keyCode == 13) { updateGamma(this.value); submit_for_reload('GET');}"> 
-							<br>
-							Sun direction:
-							<select title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
-								id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');">
-								<option value="270">West</option>
-								<option value="315" selected>North-West</option>
-								<option value="360">North</option>
-								<option value="45">North-East</option>
-								<option value="90">East</option>
-								<option value="180">South</option>
-							</select><br>
-							
-							Sun angle: 
-							<select title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
-								id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
-								<option value="55">steep</option> 
-								<option value="45" selected >normal</option>
-								<option value="35">bit flat </option>
-								<option value="25">flat </option>
-								<option value="10">very flat </option>
-								<option value="5">extremely flat</option>
-							</select>
-						  </div>
-					    </div>
-					  </div>
-
-					  <label>Area Selection Box:</label> 
-						<input id="recenter-box-button" type="button"  class="btn btn-small"
-							title="re-centers the red Area Selection box insides the currently viewed map"
-							onclick="center_rectangle()"
-							value="Re-center box on map">
-						<br>
-					  	<!-- Put the box corner coords here so they get transmitted with get -->
-						<input type="text" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" title="(trlat)" readonly> N
-						<input type="text" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" title="(trlon)" readonly> E (Top right corner)<br>
-
-						<input type="text" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" title="(bllat)" readonly> N
-						<input type="text" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" title="(bllon)" readonly> E (Lower left corner) <br>
-
-
-					  <div class="panel panel-default">
-					    <div class="panel-heading" role="tab" id="headingOne">
-					      <h4 class="panel-title">
-					        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#printOptionPanel" aria-expanded="true" aria-controls="printOptionPanel">
+					<form class="form-horizontal" id="accordion" action="/export" method="post" enctype=multipart/form-data>
+						<div class="card">
+							<div class="card-header">
+							<a class="card-link" data-toggle="collapse" href="#area_box_panel">
+									Area Selection Box: &nbsp &nbsp &nbsp
+							</a>
+							<input id="recenter-box-button" type="button" class="btn btn-primary float-right"
+								title="re-centers the red Area Selection box inside the current map view"
+								onclick="center_rectangle()"
+								value="Re-center box on map">
+							</div>
+						
+							<div id="area_box_panel" class="collapse">
+								<div class="card-body ">
+									<div class="form-inline">
+										<div class="form-group ">
+											<!-- Put the box corner coords here so they get transmitted with get -->
+											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" 
+												title="(trlat) Top Right Lat" onkeyup="update_box()">
+											<label for="trlat2">N &nbsp</label>
+											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" 
+												title="(trlon) Top Right Long" onkeyup="update_box()">
+												<label for="trlon2">E &nbsp (Top right corner)</label>
+										</div>
+										<div class="form-group " >
+											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" 
+												title="(bllat) Bottom Left Lat" onkeyup="update_box()">
+												<label for="bllat2">N &nbsp</label>
+											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" 
+												title="(bllon) Bottom Left Long" onkeyup="update_box()">
+												<label for="bllon2">E &nbsp (Lower left corner)</label 
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-header">
+								<div class="panel-title">
+									<a class="card-link" data-toggle="collapse" href="#printOptionPanel">
 					          3D Printer Options:
 					        </a>
-					      </h4>
-					    </div>
-					    <div id="printOptionPanel" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
-					      <div class="panel-body">
-							<form action="/export" method="post" enctype=multipart/form-data>
-								Use polygon from KML file <input type="file" id="kml_file" name="kml_file"/>
-							</br> 
-							<input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
-							<input type="hidden" id="options_polyURL" name="polyURL" size="0"
-								title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
-							> 
-
 					      </div>
-					    </div>
-					  </div>
+							</div>
+							<div id="printOptionPanel" class="collapse show">
+								<div class="card-body">
 
-						<div class="panel panel-default">
-					    <div class="panel-heading" role="tab" id="headingFive">
-					      <h4 class="panel-title">
-					        <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
-					          Water and Base Settings
-					        </a>
-					      </h4>
-					    </div>
-							<div id="collapseFive" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingFive">
-					      <div class="panel-body">
-									<div class="form-group">
-										<label class="control-label col-sm-6">Water Drop (mm):</label>
-										<div class="col-sm-4">
-											<input name="waterDrop" type="range" min="0" max="5" step="1" value="0"  onchange="changeWaterDrop()">
+									<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
+												<input type="file" class="custom-file-input" id="kml_file"
+												onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name) ">
+												<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
+									</div>
+ 
+									<!-- hook for polyURL, currently hidden but may become an input field (like kml_file) in the future -->
+									<input type="hidden" id="options_polyURL" name="polyURL" size="0"
+            					title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+									> 
+									<!--
+									<input type="text" id="options_polyURL" name="polyURL" size="16"
+											title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+									> URL to cloud KML polygon file</br>
+									-->
+
+									<!- hidden input that needs to go into the form ... -->
+									<input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
+
+									<div class="form-inline">
+										<div class="form-group">
+											<select class="form-control custom-select-sm"
+															title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
+															id="options_tile_width" name="tilewidth" onchange="calcTileHeight(); ">
+												<option value="50">20 mm</option>
+												<option value="50">30 mm</option>
+												<option value="50">40 mm</option>
+												<option value="50">50 mm</option>
+												<option value="60">60 mm</option>
+												<option value="70">70 mm</option>
+												<option value="80" selected >80 mm</option>
+												<option value="90">90 mm</option>
+												<option value="100">100 mm</option>
+												<option value="110">110 mm</option>
+												<option value="120">120 mm</option>
+												<option value="140">140 mm</option>
+												<option value="160">160 mm</option>
+												<option value="180">180 mm</option>
+												<option value="200">200 mm</option>
+												<option value="225">225 mm</option>
+												<option value="250">250 mm</option>
+												<option value="275">275 mm</option>
+												<option value="300">300 mm</option>
+											</select> 
+											<label for="options_tile_width"> &nbsp Tile width, &nbsp &nbsp </label> 
+											<b id="options_tile_height"></b>
+											<label for="options_tile_width"> &nbsp Tile height</label> 
 										</div>
-										<div class="col-sm-2" id="waterDropLabel">0</div>
 									</div>
+
+									<div class="form-inline">
+										<div class="form-group">
+											<select  class="form-control custom-select-sm"
+													title="(printres) Should be about the same as your nozzle diameter. Smaller numbers result in more details and longer print times"
+													id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
+												<!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
+												<option value="0.2">0.2 mm</option>
+												<option value="0.25">0.25 mm</option>
+												<option value="0.3">0.3 mm</option>
+												<option value="0.35">0.35 mm</option>
+												<option value="0.4" selected >0.4 mm</option>
+												<option value="0.45">0.45 mm</option>
+												<option value="0.5">0.5 mm</option>
+										</select> 
+										<label for="options_print_resolution"> &nbsp 3D print Resolution (~ nozzle diameter)</label>
+									</div>
+								</div>
+
+								<div class="form-inline">
+										<div class="form-group">
+										<select class="form-control custom-select-sm"
+											title="(ntilesx) The number of tiles in x direction"
+											id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
+												<option value="1" selected >1 by</option>
+												<option value="2" >2 by</option>
+												<option value="3">3 by</option>
+												<option value="4">4 by</option>
+												<option value="5">5 by</option>
+												<option value="6">6 by</option>
+												<option value="7">7 by</option>
+												<option value="8">8 by</option>
+										</select>
+										<select  class="form-control custom-select-sm"
+											title="(ntilesy) The number of tiles in y direction"
+											id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
+												<option value="1" selected >1  </option>
+												<option value="2">2</option>
+												<option value="3">3</option>
+												<option value="4">4</option>
+												<option value="5">5</option>
+												<option value="6">6</option>
+												<option value="7">7</option>
+												<option value="8">8</option>
+										</select> 
+										<label for="options_numTiles_y"> &nbsp Tiles to print (X by Y)</label>
+									</div>
+								</div>
+
+								<!-- Approximate DEM resolution given box and tile parameters -->
+								<div class="form-inline">
 									<div class="form-group">
-										<label class="control-label col-sm-6">Base Height (mm):</label>
-										<div class="col-sm-4">
-											<input name="baseHeight" type="range" min="1" max="10" step="1" value="1"  onchange="changeBaseHeight()">
-										</div>
-										<div class="col-sm-2" id="baseHeightLabel">2</div>
+										<label for="DEMresolution">Current DEM resolution:</label>
+										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
+													title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
+													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
+										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
 									</div>
-					      </div>
-					    </div>
-					  </div>
+								</div>
 
-						<div class="panel panel-default">
-					    <div class="panel-heading" role="tab" id="headingThree">
-					      <h4 class="panel-title">
-					        <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
-					          Instructions
-					        </a>
-					      </h4>
-					    </div>
-							<div id="collapseFour" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
-					      <div class="panel-body">
-
-									<div id="inst">
-										<h2 align='center' style="margin-top:-10">Instructions</h2></br>
-										<ul style="margin-top:-20">
-											<li>Select the area you want an STL of using the red box</li>
-											<li>'Center to View' will move the box. It's also draggable</li>
-											<li>Rotate and resize the box as needed</li>
-											<li>Z-Scale exaggerates the vertical scale of models</li>
-											<li>Water drop lowers the height of the oceans for emphasis</li>
-											<li>Don't worry about the box skewing with rotations - the model will be accurate to the real terrain</li>
-										</ul>
+								<div class="form-inline">
+										<div class="form-group">
+										<select class="form-control custom-select-sm"
+											title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
+											id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
+												<option value="0">0 mm</option>
+												<option value="0.5">0.5 mm</option>
+												<option value="1" selected >1 mm</option>
+												<option value="2">2 mm</option>
+												<option value="3">3 mm</option>
+												<option value="4">4 mm</option>
+												<option value="5">5 mm</option>
+										</select>  
+										<label for="options_base_thickness"> &nbsp Model Base thickness</label>
 									</div>
+								</div>
 
-					      </div>
-					    </div>
-					  </div>
+								<div class="form-inline">
+										<div class="form-group">
+										<select class="form-control custom-select-sm"
+											title="(zscale) The DEM's elevation is multiplied by this number"
+											id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
+												<option value="0.5">x 0.5</option>
+												<option value="1.0" selected>x 1.0 (none)</option>
+												<option value="1.25">x 1.25</option>
+												<option value="1.5">x 1.5</option>
+												<option value="2">x 2</option>
+												<option value="2.5">x 2.5</option>
+												<option value="3">x 3</option>
+												<option value="3.5">x 3.5</option>
+												<option value="4">x 4</option>
+												<option value="4.5">x 4.5</option>
+												<option value="5">x 5</option>
+												<option value="7.5">x 7.5</option>
+												<option value="10">x 10</option>
+												<option value="15">x 15</option>
+												<option value="20">x 20</option>
+										</select> 
+										<label for="options_z_scale"> &nbsp Vertical Exaggeration (Z-scale)</label>
+									</div>
+								</div>
+
+								<div class="form-inline">
+										<div class="form-group">
+										<select class="form-control custom-select-sm"
+											id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
+											title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
+												<option value="obj" > Obj</option>
+												<option value="STLb" selected> STL binary</option>
+												<option value="STLa"> STL ascii</option>
+												<option value="GeoTiff"> GeoTiff</option>
+										</select>
+										<label for="options_fileformat"> &nbsp File format </label>
+									</div>
+								</div>
+
+								<input class="form-control" size="80" type="text" placeholder="Manual settings:"
+										id="options_manual" value="" name="manual"
+										title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot ...  For more info see standalone on github"
+								>
+								
+					    	</div>
+					  	</div>
+						</div>
+						<input type="submit" class="btn btn-success" value="Export Selected Area and Download File"
+							onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
+							title="Converts area inside the box into file(s) for 3D printing."  
+							onchange="update_options_hidden(); submit_for_reload('POST');">
+					</form>		
+
+					<div class="card">
+						<div class="text-left">
+							<small>
+							</br>
+								Developed by Chris Harding
+								<a href="https://ge-at.iastate.edu/" target="_blank"> Dept. of Geological and Atmospheric Sciences, Iowa State University</a>
+								and Franek Hasiuk, <a href="http://www.kgs.ku.edu/index.html" target="_blank">Kansas Geological Survey.</a>
+								</br>
+								<b>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com" target="_blank">Send Email!</a> </b> 
+								&nbsp  &nbspVisit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
+								</br>
+								More details in:
+								<a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
+											TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a> 
+											Computers & Geosciences Volume 109, December 2017, Pages 25-31
+							</small>
+						</div>
 					</div>
 
-					<button type="submit" id="genButton" class="btn btn-default">Generate Model</button>
-					<a id="downloadbtn" style="visibility:hidden" role="button" class="btn btn-default" href="stls/rawmodel-0.stl">Download</a>
-				</form>
-				<center><small>Terrain2STL is a free-to-use service, but if you want to help <a href="/support.html">support</a> the site, donations are welcome.</small></center>
-				</div>
+			  </div>
 			</div>
-			<div class="row">
-	      </br>
-	      <center>
-	        <small><i>
-	          Terrain2STL creates STL files using the <a href='http://www.cgiar-csi.org/data/srtm-90m-digital-elevation-database-v4-1'>SRTM3 dataset</a> from 2000,
-	          which has a resolution of about 90 meters on the equator.
-	        </i></small>
-	      </center>
-	    </div>
-	    <div class="row">
-	      </br>
-	      <center>
-	        <small>
-	          <a href="/">Home</a> | Terrain2STL | <a href="mailto:j.thatcher.c+t2s@gmail.com">Contact</a></br>
-	        </small>
-	      </center>
-	    </div>
-
 		</div>
 
+		
+
+	
 	</body>
 </html>
