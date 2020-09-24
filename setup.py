@@ -24,6 +24,7 @@ setup(
         'kml2geojson>=4.0.2', # for reading polygon coords from kml
         'geojson>=2.5', # for wrapping polygon data
         'defusedxml>=0.6', # safe minidom for parsing kml
+        'six>=1.13.0', # openshift says: google-api-python-client 1.12.2 has requirement six<2dev,>=1.13.0,
 
     ],
     
