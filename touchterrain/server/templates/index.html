@@ -84,12 +84,14 @@
 							</div>
 							<div id="terrain_settings_panel" class="collapse show">
 								<div class="card-body">
-									<div class="form-inline">
-    								<div class="form-group">
+									<div class="row text-truncate">
+										<div class="col-sm-6" form-inline>
 											<label for="DEM_name">Elevation Data source:</label>
 											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" 
-											   target="_blank">&nbsp(DEM Info)&nbsp&nbsp</a>
-											<select class="form-control custom-select-sm text-truncate" style="max-width: 180px;" 
+												 target="_blank">(DEM Info)</a>
+											</div>
+										<div class="col-sm-6" form-inline>
+											<select class="form-control custom-select-sm text-truncate" 
 															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" 
 															title="Switch to different Digital Elevation data source" >
 												<option value="USGS/NED" selected>USGS/NED (10m resolution, US only)</option>
@@ -99,41 +101,46 @@
 												<option value="USGS/GTOPO30">GTOPO30 (1000m resolution, worldwide, no bathymetry)</option>
 												<option value="CPOM/CryoSat2/ANTARCTICA_DEM">ANTARCTICA_DEM (1000m resolution, Antarctica only)</option>
 												<option value="NOAA/NGDC/ETOPO1">ETOPO1 (2000m resolution, worldwide, with bathymetry)</option>
-											</select
+											</select>
 										</div>
 									</div>
 									 
-									<div class="form-horizontal form-inline">
-										<div class="form-group">
-											<label for="hillshade_transparency_slider">Transparency(%) &nbsp </label>
-											<input type="range" class="slider" id="hillshade_transparency_slider" min="0" max="100" value=""
-												title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
-												list="tickmarks" step="1" oninput="updateTransparency(this.value);">
-												<datalist id="tickmarks">
-													<option value="0"></option>
-													<option value="10"></option>
-													<option value="20"></option>
-													<option value="30"></option>
-													<option value="40"></option>
-													<option value="50"></option>
-													<option value="60"></option>
-													<option value="70"></option>
-													<option value="80"></option>
-													<option value="90"></option>
-													<option value="100"></option>
-												</datalist>
-											<label for="gamma2">&nbsp Gamma</label>
-											<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
-												title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
-												onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
-
+									<div class="row text-truncate">
+										<div class="col-sm-6">
+											<div class="form-inline">
+												<label for="hillshade_transparency_slider" style="max-width: 100px;">Transparency(%):</label>
+												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 100px;"
+													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
+													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
+													<datalist id="tickmarks">
+														<option value="0"></option>
+														<option value="10"></option>
+														<option value="20"></option>
+														<option value="30"></option>
+														<option value="40"></option>
+														<option value="50"></option>
+														<option value="60"></option>
+														<option value="70"></option>
+														<option value="80"></option>
+														<option value="90"></option>
+														<option value="100"></option>
+													</datalist>
+											</div>
+										</div>
+										<div class="col-sm-6">
+											<div class="form-inline ">
+												<label for="gamma2">Gamma:</label>
+												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
+													title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
+											</div>
 										</div>
 									</div>
 
 									<div class="row text-truncate">
 										<div class="col-sm-6"> 
-												<div class="form-group">
-													<label for="hsazi2">&nbsp Sun direction</label>
+												<div class="form-horizontal form-group">
+													<label for="hsazi2">Sun direction:</label>
 													<select class="form-control custom-select-sm"  
 														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
 														id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');"
@@ -148,11 +155,12 @@
 											</div>
 										</div>
 										<div class="col-sm-6">
-											<div class="form-group">
-												<label for="hselev2">&nbsp Sun angle</label>
+											<div class="form-horizontal form-group">
+												<label for="hselev2">Sun angle:</label>
 												<select class="form-control custom-select-sm"  
 													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
-													id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
+													id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
+												>
 													<option value="55">steep (55 degr.)</option> 
 													<option value="45" selected >normal (45 degr.)</option>
 													<option value="35">kinda flat (35 degr.)</option>
@@ -160,32 +168,32 @@
 													<option value="10">very flat (10 degr.)</option>
 													<option value="5">extremely flat (5 degr.)</option>
 												</select>
+											</div>
 										</div>
-									</div>
 								</div>
 									 
-									<!-- hidden ids so they get put into the URL on reload -->
-									<input type="hidden" name="maptype" id="maptype" value="NULL">
-									<input type="hidden" name="gamma" id="gamma" value="NULL">
-									<input type="hidden" name="transp" id="transp" value="NULL">
-									<input type="hidden" name="hsazi" id="hsazi" value="NULL">
-									<input type="hidden" name="hselev" id="hselev" value="NULL">
-									<input type="hidden" name="map_lat" id="map_lat" value="NULL">
-									<input type="hidden" name="map_lon" id="map_lon" value="NULL">
-									<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
-									<input type="hidden" id="trlat" name="trlat" value="NULL" >
-									<input type="hidden" id="trlon" name="trlon" value="NULL" >
-									<input type="hidden" id="bllat" name="bllat" value="NULL" >
-									<input type="hidden" id="bllon" name="bllon" value="NULL" >
-									<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
-									<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
-									<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
-									<input type="hidden" id="printres" name="printres" value="NULL" >
-									<input type="hidden" id="basethick" name="basethick" value="NULL" >
-									<input type="hidden" id="zscale" name="zscale" value="NULL" >
-									<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
-									<input type="hidden" id="manual" name="manual" value="NULL" >
-									<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
+								<!-- hidden ids so they get put into the URL on reload -->
+								<input type="hidden" name="maptype" id="maptype" value="NULL">
+								<input type="hidden" name="gamma" id="gamma" value="NULL">
+								<input type="hidden" name="transp" id="transp" value="NULL">
+								<input type="hidden" name="hsazi" id="hsazi" value="NULL">
+								<input type="hidden" name="hselev" id="hselev" value="NULL">
+								<input type="hidden" name="map_lat" id="map_lat" value="NULL">
+								<input type="hidden" name="map_lon" id="map_lon" value="NULL">
+								<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
+								<input type="hidden" id="trlat" name="trlat" value="NULL" >
+								<input type="hidden" id="trlon" name="trlon" value="NULL" >
+								<input type="hidden" id="bllat" name="bllat" value="NULL" >
+								<input type="hidden" id="bllon" name="bllon" value="NULL" >
+								<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
+								<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
+								<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
+								<input type="hidden" id="printres" name="printres" value="NULL" >
+								<input type="hidden" id="basethick" name="basethick" value="NULL" >
+								<input type="hidden" id="zscale" name="zscale" value="NULL" >
+								<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+								<input type="hidden" id="manual" name="manual" value="NULL" >
+								<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
 								</div>	
 							</div>
 						</div>
@@ -208,18 +216,18 @@
 									<div class="form-inline">
 										<div class="form-group ">
 											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" 
-												title="(trlat) Top Right Lat" onkeyup="update_box()">
+												title="(trlat) Top Right Lat" onkeydown="if(event.keyCode == 13){update_box()}">
 											<label for="trlat2">N &nbsp</label>
 											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" 
-												title="(trlon) Top Right Long" onkeyup="update_box()">
+												title="(trlon) Top Right Long"onkeydown="if(event.keyCode == 13){update_box()}"">
 												<label for="trlon2">E &nbsp (Top right corner)</label>
 										</div>
 										<div class="form-group " >
 											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" 
-												title="(bllat) Bottom Left Lat" onkeyup="update_box()">
+												title="(bllat) Bottom Left Lat" onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="bllat2">N &nbsp</label>
 											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" 
-												title="(bllon) Bottom Left Long" onkeyup="update_box()">
+												title="(bllon) Bottom Left Long" onkeydown="if(event.keyCode == 13){update_box()}"">
 												<label for="bllon2">E &nbsp (Lower left corner)</label 
 										</div>
 									</div>
@@ -256,7 +264,7 @@
 									<!- hidden input that needs to go into the form ... -->
 									<input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
 
-									<div class="form-inline">
+									<div class="form-inline text-truncate">
 										<div class="form-group">
 											<select class="form-control custom-select-sm"
 															title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
@@ -287,7 +295,7 @@
 										</div>
 									</div>
 
-									<div class="form-inline">
+									<div class="form-inline text-truncate">
 										<div class="form-group">
 											<select  class="form-control custom-select-sm"
 													title="(printres) Should be about the same as your nozzle diameter. Smaller numbers result in more details and longer print times"
@@ -305,7 +313,7 @@
 									</div>
 								</div>
 
-								<div class="form-inline">
+								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(ntilesx) The number of tiles in x direction"
@@ -336,7 +344,7 @@
 								</div>
 
 								<!-- Approximate DEM resolution given box and tile parameters -->
-								<div class="form-inline">
+								<div class="form-inline text-truncate">
 									<div class="form-group">
 										<label for="DEMresolution">Current DEM resolution:</label>
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
@@ -346,7 +354,7 @@
 									</div>
 								</div>
 
-								<div class="form-inline">
+								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
@@ -363,7 +371,7 @@
 									</div>
 								</div>
 
-								<div class="form-inline">
+								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(zscale) The DEM's elevation is multiplied by this number"
@@ -388,7 +396,7 @@
 									</div>
 								</div>
 
-								<div class="form-inline">
+								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
@@ -410,10 +418,15 @@
 					    	</div>
 					  	</div>
 						</div>
-						<input type="submit" class="btn btn-success" value="Export Selected Area and Download File"
+						<!-- hidden submit so it fires (instead of real submit) when Enter is hit in any text inside the form -->
+						<button type="submit" disabled style="display: none" aria-hidden="true"></button>
+
+						<button type="submit" class="btn btn-success"  
 							onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
 							title="Converts area inside the box into file(s) for 3D printing."  
 							onchange="update_options_hidden(); submit_for_reload('POST');">
+							Export Selected Area and Download File
+						</button>
 					</form>		
 
 					<div class="card">
