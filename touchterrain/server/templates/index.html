@@ -105,10 +105,10 @@
 										</div>
 									</div>
 									 
-									<div class="row text-truncate">
-										<div class="col-sm-6">
-											<div class="form-inline">
-												<label for="hillshade_transparency_slider" style="max-width: 100px;">Transparency(%):</label>
+									<div class="row style="max-width: 100px;"">
+										<div class="col-sm-8">
+											<div class="form-inline  text-truncate">
+												<label for="hillshade_transparency_slider"  >Transparency:</label>
 												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 100px;"
 													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
@@ -127,11 +127,12 @@
 													</datalist>
 											</div>
 										</div>
-										<div class="col-sm-6">
-											<div class="form-inline ">
+										<div class="col-sm-4">
+											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
 													title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+													style="max-width: 40px;"
 													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
 											</div>
 										</div>
