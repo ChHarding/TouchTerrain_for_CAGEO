@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models</title>
+		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.x)</title>
 
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -18,15 +18,15 @@
 
 		<link href="https://cdn.theme.iastate.edu/nimbus-sans/css/nimbus-sans.css" rel="stylesheet">
 		<link href="https://cdn.theme.iastate.edu/merriweather/css/merriweather.css" rel="stylesheet">
-		<link rel="stylesheet" href="static/css/iastate.legacy.css">
+		<!--<link rel="stylesheet" href="static/css/iastate.legacy.css"> -->
 		
 		
 		<script type="text/javascript" async defer
-			src="https://maps.google.com/maps/api/js?key={{ google_maps_key }}">
+			src="https://maps.google.com/maps/api/js?libraries=places&key={{ google_maps_key }}">
 			<!-- key=<nothing> will give you the crappy google map background, which is still usable.
 			If you want a proper google maps version you need replace the above line with
-			one that uses your API key, which you will need to get from Google:  https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
-			As his app uses a simple embedded map it should still be free for < 25,000 requests (?)
+			one that uses your API key, which you will need to get from Google: https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
+			As this app uses a simple embedded map, it should still be free for < 25,000 requests (?)
 			Put this key into a text file called GoogleMapsKey.txt in the server folder
 			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
 		</script>
@@ -56,15 +56,22 @@
 			  <h4>
 				<!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
-				<div class="float-right"> 
+				<div class=" float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
-					What new in ver. 3.0?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
+					Whats new in ver. 3.0?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
 					Help</a>
 				</div>
 			  </h4>
 			</div>
 			<div class="row">
 				<div class="col-sm-8">
+					
+						<!-- search bar, will be positioned on map via JS later -->
+						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" 
+						  style="max-width: 420px;"
+							type="text" placeholder="Search for a place" aria-label="Search for a place"
+						>
+
 					<div style="height:730px" id="map">Map didn't load</div>
 				</div>
 				<div class="col-sm-4 form-control-sm" >
@@ -83,7 +90,7 @@
 											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" 
 												 target="_blank">(DEM Info)</a>
 											</div>
-										<div class="col-sm-6" form-inline>
+										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
 															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" 
 															title="Switch to different Digital Elevation data source" >
@@ -98,11 +105,11 @@
 										</div>
 									</div>
 									 
-									<div class="row style="max-width: 100px;"">
-										<div class="col-sm-8">
+									<div class="row">
+										<div class="col-sm-7">
 											<div class="form-inline  text-truncate">
 												<label for="hillshade_transparency_slider"  >Transparency:</label>
-												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 100px;"
+												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 80px;"
 													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
 													<datalist id="tickmarks">
@@ -120,7 +127,7 @@
 													</datalist>
 											</div>
 										</div>
-										<div class="col-sm-4">
+										<div class="col-sm-5">
 											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
