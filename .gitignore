@@ -6,6 +6,9 @@
 # CH: don't put debug server script on github
 Run_TouchTerrain_debug_server_app.py
 
+# my private API key for testing
+touchterrain/server/GoogleMapsKey.txt
+
 # auto generated json
 example_config.json 
 
