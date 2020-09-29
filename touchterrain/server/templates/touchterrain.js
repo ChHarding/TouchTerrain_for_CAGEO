@@ -108,11 +108,13 @@ window.onload = function () {
         rectangle.setBounds(initial_bounds);
         update_corners_form();
     }
-    else{ // at this stage we don't have map bounds to make the box bounds b/c it hasn't been
-            // drawn yet, so we need to defer that until the map bounds_changed is called.
-            google.maps.event.addListenerOnce(map, 'bounds_changed', function(){
-            center_rectangle();
-            });
+    else{// at this stage we don't have map bounds to make the box bounds b/c it hasn't been
+        // drawn yet, so we need to defer that until the map bounds_changed is called.
+        google.maps.event.addListenerOnce(map, 'bounds_changed', 
+            function(){
+                center_rectangle();
+            }
+        );
     }
     
     // show link for current DEM source
@@ -133,7 +135,7 @@ window.onload = function () {
     // Callbacks
     //
     
-    // Add an event listener on the rectangle.
+    // Add an event listener on the rectangle (red box).
     rectangle.addListener('bounds_changed', update_corners_form);
     rectangle.addListener('dragstart', remove_divison_lines);
     rectangle.addListener('dragend', create_divison_lines);
@@ -218,8 +220,7 @@ function arcDegr_in_meter(latitude_in_degr){
 // create a centered LatLngBounds box
 function make_center_box(){
     let bounds = map.getBounds();
-    let projection = map.getProjection();
-    let topRight = bounds.getNorthEast(); // not sure if these have to be projected first ...
+    let topRight = bounds.getNorthEast();  
     let bottomLeft = bounds.getSouthWest();
     let c = bounds.getCenter();
     let cx = c.lng()
@@ -242,6 +243,7 @@ function make_center_box(){
 // set bounding box of rectangle so it's centered
 function center_rectangle(){
     polygon.setMap(null); // remove polygon
+    $('#kml_file_name').html('Optional Polygon KML file: ')
     let box = make_center_box();
     rectangle.setBounds(box);
     update_corners_form();
@@ -269,8 +271,8 @@ function update_corners_form(event) {
 
     setApproxDEMResolution_meters();
     calcTileHeight();
-
     create_divison_lines();
+    polygon.setMap(null); // remove polygon
 }
 
 function update_box(event){
@@ -293,6 +295,8 @@ function update_box(event){
         new google.maps.LatLng(trlat, trlon) // ne
     );
     rectangle.setBounds(newbounds);
+    polygon.setMap(null); // remove polygon
+  
 }
 
 
@@ -384,14 +388,14 @@ function SetDEM_name(){
 
     let res = "unknown resolution"
     switch(DEM_name){
-    case "USGS/NED": res = "10 m"; break;
+        case "USGS/NED": res = "10 m"; break;
         case "NRCan/CDEM": res = "20 m"; break;
-    case "USGS/SRTMGL1_003": res = "30 m"; break;
+        case "USGS/SRTMGL1_003": res = "30 m"; break;
         case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
-    case "USGS/GMTED2010": res = "90 m"; break;
+        case "USGS/GMTED2010": res = "90 m"; break;
         case "USGS/GTOPO30" : res = "1000 m"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
-    case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
+        case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
     }
 
     // set resolution of DEM source
@@ -403,7 +407,6 @@ function SetDEM_name(){
 function updateTransparency(transparency_pct) {
     let op = 1.0 - transparency_pct / 100.0 // opacity
     map.overlayMapTypes.getAt(0).setOpacity(op)
-    //document.getElementById('hillshade_transparency').value=transparency_pct;
     document.getElementById('hillshade_transparency_slider').value=transparency_pct;
     document.getElementById('transp').value=transparency_pct; // id in hidden reload
 }
@@ -412,7 +415,6 @@ function updateTransparency(transparency_pct) {
 function updateGamma(val) {
     document.getElementById('gamma').value=val;  // id in reload form  (hidden)
     document.getElementById('gamma2').value=val; // gui text field
-    //document.getElementById('hs_slider').value=val; // gui slider
 }
 
 // update hillshade elevation(angle above horizon) and adjust gamma
@@ -468,8 +470,6 @@ function init_print_options(){
 // called on idle (after map pan/zoom), sets current lat, lon and zoom
 function saveMapSettings(){
     let  c = map.getCenter();
-    let cx = c.lng();
-    let cy = c.lat();
     
     // hidden ids in reloadform
     document.getElementById('map_lat').value = c.lat();
