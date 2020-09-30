@@ -1,3 +1,7 @@
+Sep. 30, 2020 (3.0.0 alpha)
+	- Rewrote GUI to use Bootstrap 4
+	- Added place search bar
+
 Sep. 7, 2020 (2.5.2)
 	- Added upload of kml file with masking polygon to server version 
 	- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used. they are also shown on the geemap
