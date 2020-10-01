@@ -1,4 +1,4 @@
-import unittest
+import unittest 
 '''test standalone mode '''
 # Note that the cwd when running the test will be project root, NOT the test folder in it!
 
@@ -10,7 +10,7 @@ if args["importedDEM"] != None:
     args["importedDEM"]= abspath(args["importedDEM"]) 
     print("reading in local DEM:", args["importedDEM"])
 '''
-
+# function which print zipped file title
 def run_get_zipped_tiles(args):
     '''utility to actually run get_zipped_tiles()'''
     
@@ -33,7 +33,7 @@ def run_get_zipped_tiles(args):
     zip_ref.extractall(folder)
     zip_ref.close()
     print("unzipped STL file into", folder)
-
+# class which does testing using various methods
 class TestStringMethods(unittest.TestCase):
 
     def test_get_zipped_tiles_gpx(self):
@@ -109,6 +109,6 @@ class TestStringMethods(unittest.TestCase):
         with self.assertRaises(TypeError):
             s.split(2)
     '''
-
+# main method program starts here
 if __name__ == '__main__':
     unittest.main(verbosity=2)
