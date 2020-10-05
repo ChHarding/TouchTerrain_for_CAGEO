@@ -66,6 +66,7 @@ window.onload = function () {
     
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
 
+    
     // Create the search box and link it to the UI element.
     //https://developers.google.com/maps/documentation/javascript/examples/places-searchbox#maps_places_searchbox-html
     const input = document.getElementById("pac-input");
@@ -81,7 +82,7 @@ window.onload = function () {
     searchBox.addListener("places_changed", () => {
         const places = searchBox.getPlaces();
         if (places.length == 0) {return}
-        
+
         // Clear out the old markers.
         markers.forEach((marker) => {
             marker.setMap(null);
@@ -135,6 +136,56 @@ window.onload = function () {
         map.fitBounds(bounds);
     });
 
+    // Drawing manager  (for later)
+    /*
+    const drawingManager = new google.maps.drawing.DrawingManager({
+        drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+        drawingControl: true,
+        drawingControlOptions: {
+          position: google.maps.ControlPosition.TOP_RIGHT,
+          drawingModes: [
+            google.maps.drawing.OverlayType.RECTANGLE,
+            google.maps.drawing.OverlayType.POLYGON,
+            google.maps.drawing.OverlayType.CIRCLE,
+          ],
+        },
+        circleOptions: {
+            editable: true,
+            draggable: true,
+            strokeColor: '#FF0000',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#FF0000',
+            fillOpacity: 0.02,
+        },
+        rectangleOptions: {
+            editable: true,
+            draggable: true,
+            strokeColor: '#FF0000',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#FF0000',
+            fillOpacity: 0.02,
+        },
+        polygonOptions: {
+            editable: true,
+            draggable: true,
+            strokeColor: '#FF0000',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#FF0000',
+            fillOpacity: 0.02,
+        },
+      
+      });
+      drawingManager.setMap(map);
+      
+      google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+        if (event.type == 'rectangle') {
+          rectangle = event.overlay;
+        }
+      });
+    */
 
     eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
@@ -180,7 +231,7 @@ window.onload = function () {
         update_corners_form();
     }
     else{// at this stage we don't have map bounds to make the box bounds b/c it hasn't been
-        // drawn yet, so we need to defer that until the map bounds_changed is called.
+        // drawn yet, so we need to defer that until the map's bounds_changed is called.
         google.maps.event.addListenerOnce(map, 'bounds_changed', 
             function(){
                 center_rectangle();
