@@ -1,5 +1,6 @@
 Sep. 30, 2020 (3.0.0 alpha)
 	- Rewrote GUI to use Bootstrap 4
+	- area box can now be set via coordinate text entries
 	- Added place search bar
 
 Sep. 7, 2020 (2.5.2)
