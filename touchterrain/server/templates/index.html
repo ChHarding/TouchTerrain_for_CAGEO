@@ -1,8 +1,14 @@
 <html>
 	<head>
 		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.x)</title>
-
+		<meta charset="UTF-8">
+		<meta name="description" content="Application for creating 3D printable terrain models">
+		<meta property="og:image" content="/static/touchTerrain_logo.png">
+		<meta name="keywords" content="HTML,JavaScript">
+		<meta name="author" content="Chris Harding">
+		<meta name="version" content="BUILDID">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
 		 <!-- Latest compiled and minified CSS -->
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
@@ -30,20 +36,19 @@
 			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
 		</script>
 		  
-		{% if GOOGLE_ANALYTICS_TRACKING_ID %}
-			<script>
-			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-			(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-			m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-			})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	{% if GOOGLE_ANALYTICS_TRACKING_ID %}
+		<script>
+		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+		m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+		})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
-			ga('create',
-				'{{GOOGLE_ANALYTICS_TRACKING_ID}}',  // put your own tracking id in server/config.py
-				'auto');
-			ga('send', 'pageview');
-			</script>
-		{% endif %}
-
+		ga('create',
+			'{{GOOGLE_ANALYTICS_TRACKING_ID}}',  // put your own tracking id in server/config.py
+			'auto');
+		ga('send', 'pageview');
+		</script>
+	{% endif %}
 
 		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
 		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
@@ -57,8 +62,9 @@
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
 				<div class=" float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
-					What's new in version 3.0?</a> &nbsp <a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" target="_blank">
-					Help</a>
+						What's new in version 3.0?</a> 
+					<a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" 
+						target="_blank"> &nbsp &nbsp &nbsp Help</a>
 				</div>
 			  </h4>
 			</div>
@@ -71,10 +77,13 @@
 							type="text" placeholder="Search for a place" aria-label="Search for a place"
 						>
 
-					<div style="height:730px" id="map">Map didn't load</div>
+					<div style="position: relative; overflow: hidden;margin-top: 5px;" id="map">
+						Map didn't load
+					</div>
 				</div>
 				<div class="col-sm-4 form-control-sm" >
-					<form action="/" class="form-horizontal" method="post" id="reloadform"> 
+					<form action="/" class="form-horizontal" method="post" 
+					  id="reloadform" style="margin-bottom: 0px;"> 
 						<div class="card">
 							<div class="card-header">
 								<a class="card-link" data-toggle="collapse" href="#terrain_settings_panel">
@@ -247,8 +256,8 @@
 
 									<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
 												<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
-													title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box of hitting the re-center botton after a polygon upload will clear the polygon"
-													onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name) ">
+													title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center botton after a polygon upload will clear the polygon"
+													onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); kml_name_was_just_set=true; ">
 												<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 									</div>
  
@@ -439,7 +448,8 @@
 								and Franek Hasiuk, <a href="http://www.kgs.ku.edu/index.html" target="_blank">Kansas Geological Survey.</a>
 								</br>
 								<b>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com" target="_blank">Send Email!</a> </b> 
-								&nbsp  &nbspVisit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
+								</br>
+								Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
 								</br>
 								More details in:
 								<a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">

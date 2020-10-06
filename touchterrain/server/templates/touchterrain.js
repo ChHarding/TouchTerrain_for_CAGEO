@@ -48,6 +48,11 @@ let gamma = "{{ gamma }}";
 let hsazi = "{{ hsazi }}";
 let hselev = "{{ hselev }}";
 
+// flag for re-setting the kml file field when the box is manually moved. This is tricky b/c
+// when the name is set it will typically move the box, so this flag catches
+// the case where the move comes from setting the name, in which the filed must NOT
+// be reset. Only subsequent (i.e. manual moves) will reset the field.
+let kml_name_was_just_set = false;
 
 // run this once the browser is ready
 window.onload = function () {
@@ -65,7 +70,8 @@ window.onload = function () {
     };
     
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
-
+    let map_width = document.getElementById("map").getBoundingClientRect().width
+    document.getElementById("map").style.height = map_width; // make square map
     
     // Create the search box and link it to the UI element.
     //https://developers.google.com/maps/documentation/javascript/examples/places-searchbox#maps_places_searchbox-html
@@ -114,6 +120,13 @@ window.onload = function () {
                 animation: google.maps.Animation.BOUNCE,
                 })
             );
+            
+            // switch bounce off after 2 secs
+            setTimeout(
+                function() {
+                    markers[markers.length-1].setAnimation(null);
+                }, 2000);
+
             // add a callback for bounce on/off
             markers[markers.length-1].addListener("click", toggleMarkerBounce);
 
@@ -137,9 +150,9 @@ window.onload = function () {
     });
 
     // Drawing manager  (for later)
-    /*
+    
     const drawingManager = new google.maps.drawing.DrawingManager({
-        drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+        drawingMode: null, //google.maps.drawing.OverlayType.RECTANGLE,
         drawingControl: true,
         drawingControlOptions: {
           position: google.maps.ControlPosition.TOP_RIGHT,
@@ -185,7 +198,7 @@ window.onload = function () {
           rectangle = event.overlay;
         }
       });
-    */
+    
 
     eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
@@ -285,6 +298,7 @@ window.onload = function () {
             const [bbox, latloncoords] = processKMLFile(s);
             if(!!bbox){ // not null => valid bounding box
                 rectangle.setBounds(bbox);
+                kml_name_was_just_set = true; // to prevent resetting the file name text
                 update_corners_form();
                 map.fitBounds(bbox); // makes the map fit around the box
                 polygon.setPath(latloncoords);
@@ -395,6 +409,15 @@ function update_corners_form(event) {
     calcTileHeight();
     create_divison_lines();
     polygon.setMap(null); // remove polygon
+
+    // reset file name only if it was NOT just set
+    if(kml_name_was_just_set == true){
+        kml_name_was_just_set = false; // so the next move will reset the file name!
+    }
+    else{ // false
+        $('#kml_file_name').html('Optional Polygon KML file: '); // empty filename
+        document.getElementById('kml_file').value = ""; // remove prev. given upload path
+    }
 }
 
 function update_box(event){

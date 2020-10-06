@@ -57,34 +57,36 @@ except:
 
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
-GA_script = """
-<head>
- <script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+def make_GA_script(page_title):
+    return """
+    <head>
+    <title>""" + page_title + """</title>
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
-  ga('create',
-      '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
-      'auto');
-  ga('send', 'pageview');
-  
-  //fire off several messages to GA when download button is clicked
-  function onclick_for_dl(){
-  		ga('send', 'event', 'Download', 'Click', 'direct', '1');
-  		let comment_text=document.getElementById('comment').value;
-  		//console.log(comment_text) 
-  		ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
-  		//console.log('done comment1') 
-  		//ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true}); // works
-  		//console.log('done comment2') 
-  		//ga('set', 'dimension3', 'example of text for dimension3 using set'); /// doesn't work
-  		//console.log('done comment3') 
-  }
- </script>
-</head>
-"""
+    ga('create',
+        '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
+        'auto');
+    ga('send', 'pageview');
+    
+    //fire off several messages to GA when download button is clicked
+    function onclick_for_dl(){
+            ga('send', 'event', 'Download', 'Click', 'direct', '1');
+            let comment_text=document.getElementById('comment').value;
+            //console.log(comment_text) 
+            ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
+            //console.log('done comment1') 
+            //ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true}); // works
+            //console.log('done comment2') 
+            //ga('set', 'dimension3', 'example of text for dimension3 using set'); /// doesn't work
+            //console.log('done comment3') 
+    }
+    </script>
+    </head>
+    """
 
 
 
@@ -199,17 +201,13 @@ def main_page():
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
 
-    # work around getattr throwing an exeption if name is not in module
-    def mygetattr(mod, name):
-        try:
-            r = getattr(mod, name)
-        except:
-            r = "" # name not found
-        else:
-            return r
+ 
 
-    # add any vars from server/config.py that may need to be inlined
-    args["GOOGLE_ANALYTICS_TRACKING_ID"] = mygetattr(config, "GOOGLE_ANALYTICS_TRACKING_ID")
+    # add google analytics id (should have been imported from server/config.py
+    try:
+        args["GOOGLE_ANALYTICS_TRACKING_ID"] = GOOGLE_ANALYTICS_TRACKING_ID
+    except:
+        pass
    
 
     # string with index.html "file" with mapid, token, etc. inlined
@@ -229,7 +227,7 @@ def preview(zip_file):
         # create html string
         html = '<html>'
 
-        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
+        html += make_GA_script("TouchTerrain preview") # <head> with script that inits GA with my tracking id and calls send pageview
 
         # onload event will only be triggered once </body> is given
         html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
@@ -350,6 +348,17 @@ def preview_file(zip_file, filename):
                                filename, as_attachment=True)
 
 
+def make_current_URL(query_string_names_and_values_list):
+    '''Assembles a string from a lsit query names and value tuples:
+    [('trlat', '12.34'), ('trlon', '-56,78')] 
+    into
+    "?trlat=12.34&trlon=-56,78"'''
+    from urllib.parse import quote
+    query = '?'
+    for kv in query_string_names_and_values_list: 
+        if kv[1] != '': # skip empty
+            query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
+    return query[:-1] # omit last &
 
 
 # Page that creates the 3D models (tiles) in a zip file, stores it in tmp with
@@ -359,9 +368,13 @@ def export():
 
     def preflight_generator():
 
+        # header info is stringified query parameters (to encode the GUI parameters via GA)
+        query_list = list(request.form.items()) 
+        header = make_current_URL(query_list)[1:] # skip leading ? 
+
         # create html string
         html = '<html>'
-        html += GA_script # <head> with script that inits GA with my tracking id and calls send pageview
+        html += make_GA_script(header) # <head> with script that inits GA with my tracking id and calls send pageview
         
         # onload event will only be triggered once </body> is given
         html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
@@ -600,18 +613,14 @@ def export():
             html += "   <br>To return to the selection map, click the back button in your browser once.\n"
             html += '</form>\n'
 
-            # print out the query parameters
-            html += "To have somebody else generate the same model, have them copy&paste this URL into a browser:<br>https://touchterrain.geol.iastate.edu/?"
-            query = ''
-            from urllib.parse import quote
-            for kv in list(request.form.items()):
-                if kv[1] != '': # skip empty
-                    query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
-            html += query[:-1] + "<br>"
+            # print out the query parameters (note hardcoded server name!)
+            html += "To have somebody else generate the same model, have them copy&paste this URL into a browser:<br>https://touchterrain.geol.iastate.edu/" 
+            query_list = list(request.form.items())
+            query_str = make_current_URL(query_list) 
+            html += query_str + "<br>"
 
             html +=  '</body></html>'
             yield html
-
 
     r =  Response(stream_with_context(preflight_generator()), mimetype='text/html')
     return r
