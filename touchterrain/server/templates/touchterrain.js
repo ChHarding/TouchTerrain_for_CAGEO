@@ -71,6 +71,7 @@ window.onload = function () {
     
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
     let map_width = document.getElementById("map").getBoundingClientRect().width
+    if(map_width > 900){ map_width = 900} // for very wide screens, setting height to a very large number (>900) doesn't seem to work(?)
     document.getElementById("map").style.height = map_width; // make square map
     
     // Create the search box and link it to the UI element.
@@ -82,6 +83,9 @@ window.onload = function () {
     map.addListener("bounds_changed", () => {
         searchBox.setBounds(map.getBounds());
     });
+    // Note: if we need to ever disable this we could remove the :
+    //document.getElementById("searchbar_div").remove()
+
     let markers = [];
     // Listen for the event fired when the user selects a prediction and retrieve
     // more details for that place.
@@ -150,7 +154,7 @@ window.onload = function () {
     });
 
     // Drawing manager  (for later)
-    
+    /*
     const drawingManager = new google.maps.drawing.DrawingManager({
         drawingMode: null, //google.maps.drawing.OverlayType.RECTANGLE,
         drawingControl: true,
@@ -198,6 +202,7 @@ window.onload = function () {
           rectangle = event.overlay;
         }
       });
+      */
     
 
     eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine

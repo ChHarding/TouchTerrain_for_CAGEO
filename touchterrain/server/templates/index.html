@@ -56,11 +56,11 @@
 	</head>
 	<body>
 		<div class="container-fluid">
-			<div class="page-header text-truncate" style="min-width: 500px;">
-			  <h4>
+			<div class="page-header text-truncate" style="min-width: 635px;">
+			  <h4 class="text-truncate">
 				<!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
-				<div class=" float-right"> 
+				<div class="text-truncate float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
 						What's new in version 3.0?</a> 
 					<a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" 
@@ -69,15 +69,15 @@
 			  </h4>
 			</div>
 			<div class="row">
-				<div class="col-sm-8">
-					
-						<!-- search bar, will be positioned on map via JS later -->
+				<div class="col-sm-8" ">
+					<div id="searchbar_div"> <!-- search bar stuff start, will be positioned on map via JS later -->
 						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" 
 						  style="max-width: 420px;"
 							type="text" placeholder="Search for a place" aria-label="Search for a place"
 						>
+					</div> <!-- search bar stuff end  -->
 
-					<div style="position: relative; overflow: hidden;margin-top: 4px;" id="map">
+					<div style="height: 730; position: relative; overflow: hidden; margin-top: 4px;" id="map">
 						Map didn't load
 					</div>
 				</div>
@@ -115,7 +115,7 @@
 									 
 									<div class="row">
 										<div class="col-sm-7">
-											<div class="form-inline  text-truncate">
+											<div class="form-inline text-truncate">
 												<label for="hillshade_transparency_slider"  >Transparency:</label>
 												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 80px;"
 													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
@@ -139,7 +139,7 @@
 											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
-													title="To change the hillshade gamma value, enter the value and hit Enter. Will reload the map." 
+													title="Gamma values > 1.0 make your hillshade appear lighter, values < 1.0 make it darker. To change this, enter a new value and hit Enter. Will reload the map." 
 													style="max-width: 40px;"
 													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
 											</div>
