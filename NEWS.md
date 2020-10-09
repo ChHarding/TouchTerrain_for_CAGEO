@@ -5,7 +5,7 @@ Sep. 30, 2020 (3.0.0 alpha)
 
 Sep. 7, 2020 (2.5.2)
 	- Added upload of kml file with masking polygon to server version 
-	- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used. they are also shown on the geemap
+	- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used, they are also shown on the geemap
 
 Aug. 28, 2020
 	- Thanks to github.com/KohlhardtC, who added a module to drape GPX path lines over the terrain
