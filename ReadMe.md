@@ -23,12 +23,12 @@ TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded 
 The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
 
 
-TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: 'pip install .' in the same folder as the setup.py file (
+TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: 'pip install .' in the same folder as the setup.py file.
 
 
- If you want to process DEM data curated by Earth Engine you will need request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account) EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain can use.
+ If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
 
- (TODO: add something more about how to get the Earth Engine account set up!)
+To learn more about how to set up a Earth Engine account, refer to the jupyter notebook _TouchTerrain_standalone_jupyter_notebook.ipynb_ or [TouchTerrain_standalone_jupyter_notebook.html](https://chharding.github.io/TouchTerrain_for_CAGEO/TouchTerrain_standalone_jupyter_notebook.html) (which is the notebook rendered into html).
 
 
 ## Standalone mode
@@ -189,7 +189,6 @@ tiles will fit together without overlaps if tile_centered was false.
 
 * `projection`: default: null . By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), may work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
     - Be aware, however, that  Earth Engine __does not support all possible EPSG codes__. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives the error message: *The CRS of a map projection could not be parsed*. I can't find a list of EPSG code supported by EE so you'll need to use trial and error ...
-
       
     - A note on distances: Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area.
 
@@ -213,10 +212,10 @@ All server related files are in `touchterrain/server`
 
 Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want a dockerized Gunicorn version). The server creates a webpage, through which the user inputs the area selection and print parameters.
 
-The server presents users with `index.html` (in templates), which can be styled to suit your needs, provided the various input dialogs and JavaScript remain.
+The server presents users with `index.html` (in templates), which can be styled to suit your needs, provided the various input dialogs and JavaScript remain. Starting with version 3, it is based on Bootstrap 4.
 
-config.py contains server specific config settings:
-- NUM_CORES:  0 means: use all cores, 1 means: use only 1 core (usefull for debugging)
+The config.py file inside the server folder contains server specific config settings:
+- NUM_CORES: 0 means: use all cores, 1 means: use only 1 core (useful for debugging)
 - MAX_CELLS: if the raster has more cells than this number, tempfiles are used instead of memory during the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
 - MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
 - GOOGLE_ANALYTICS_TRACKING_ID is the Google Analytics tracking id that gets inlined into index.html. By default it's our GA id, so be sure to change this to yours or set it to 'UA-XXXXXXXX' to disable tracking.
