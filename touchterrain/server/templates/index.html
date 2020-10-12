@@ -150,7 +150,7 @@
 												<div class="form-horizontal form-group">
 													<label for="hsazi2">Sun direction:</label>
 													<select class="form-control custom-select-sm"  
-														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception!"
+														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception! Will reload the map."
 														id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');"
 													>
 														<option value="270">West (270 degr.)</option>
@@ -166,7 +166,7 @@
 											<div class="form-horizontal form-group">
 												<label for="hselev2">Sun angle:</label>
 												<select class="form-control custom-select-sm"  
-													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma"
+													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma and will reload the map."
 													id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
 												>
 													<option value="55">steep (55 degr.)</option> 

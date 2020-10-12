@@ -237,7 +237,7 @@ window.onload = function () {
 
     // if we got rectangle bounds from jinja args, draw box
     if (trlat != "" && trlon != "" && bllat != "" && bllon != ""){
-        let tr = new google.maps.LatLng(Number(bllat),Number(trlon));
+        let tr = new google.maps.LatLng(Number(bllat), Number(trlon));
         let bl = new google.maps.LatLng(Number(trlat), Number(bllon));
         let initial_bounds = new google.maps.LatLngBounds();
         initial_bounds.extend(tr);
@@ -373,6 +373,7 @@ function make_center_box(){
 
     let box_size_x = (nex - swx) / 3.0
     let box_size_y = (ney - swy) / 3.0
+
     let box = new google.maps.LatLngBounds();
     let p = new google.maps.LatLng(cy - box_size_y, cx - box_size_x);
     box.extend(p);
