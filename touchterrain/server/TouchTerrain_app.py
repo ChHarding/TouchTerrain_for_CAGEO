@@ -1,4 +1,4 @@
-"""TouchTerrain-app - a server module"""
+"""TouchTerrain-app - flask server module"""
 
 '''
 @author:     Chris Harding
@@ -24,7 +24,6 @@ import json
 import ee
 import sys
 
-
 from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
@@ -32,17 +31,15 @@ from touchterrain.server import app
 from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template, flash, redirect
 app = Flask(__name__)
 
-
 # import modules from common
 from touchterrain.common import TouchTerrainEarthEngine # will also init EE
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import logging
 import time
-
 from zipfile import ZipFile
 
-# Google Maps key file: must be called GoogleMapsKey.txt and contain a single string
+# Google Maps key file: must be called GoogleMapsKey.txt and contain key as a single string
 google_maps_key = ""
 try:
     with open(GOOGLE_MAPS_KEY_FILE) as f:
@@ -51,10 +48,9 @@ try:
             google_maps_key = ""
         else:
             print("Google Maps key is:", google_maps_key)
-            pass
 except:
-    pass # file does not exist - will show the ugly Google map version
-
+     # file does not exist - will show the ugly Google map version
+     logging.warning("Problem with Google Maps key file - you will only get the ugly Google Map!")
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
@@ -70,7 +66,7 @@ def make_GA_script(page_title):
     ga('create',
         '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
         'auto');
-    ga('send', 'pageview');
+    ga('send', 'pageview', 'location'); // location = URL
     
     //fire off several messages to GA when download button is clicked
     function onclick_for_dl(){
@@ -88,34 +84,13 @@ def make_GA_script(page_title):
     </head>
     """
 
-
-
 #
 # The page for selecting the ROI and putting in printer parameters
 #
-
 @app.route("/", methods=['GET', 'POST'])
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
-    '''
-    # try both ways of authenticating
-    try:
-        ee.Initialize() # uses .config/earthengine/credentials
-    except Exception as e:
-        print("EE init() error (with .config/earthengine/credentials),", e, ", trying .pem file", file=sys.stderr)
-
-        try:
-            # try authenticating with a .pem file
-            from oauth2client.service_account import ServiceAccountCredentials
-            from ee import oauth
-            credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
-            ee.Initialize(credentials, config.EE_URL)
-        except Exception as e:
-            print("EE init() error with .pem file", e, file=sys.stderr)
-    else:
-        print("EE init() worked (with .config/earthengine/credentials)", file=sys.stderr)
-    '''
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
         'DEM_name': 'USGS/NED',
