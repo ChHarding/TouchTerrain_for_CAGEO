@@ -1,14 +1,14 @@
-# TouchTerrain
+# TouchTerrain (version 3.0)
 
-TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as both as a standalone version  and as a server version for a web application. To see the server version in action, go to
+TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as both as a standalone version and as a server version for a web application. To see the server version in action, go to [touchterrain.org](http://touchterrain.org)  or
 [touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu)
 
 
 TouchTerrain is developed by Chris Harding (Iowa State University) and Franek Hasiuk (Kansas Geological Survey). For questions email `Geofablab AT gmail DOT com`.
 
 
-For more in-depth information, read our paper in Computers & Geosciences: TouchTerrain: A simple
-web-tool for creating 3D-printable topographic models, Volume 109, December 2017, Pages 25-31,
+For more in-depth information, read our paper in Computers & Geosciences: *TouchTerrain: A simple
+web-tool for creating 3D-printable topographic models*, Volume 109, December 2017, Pages 25-31,
 https://doi.org/10.1016/j.cageo.2017.07.005
 
 
@@ -17,16 +17,17 @@ https://doi.org/10.1016/j.cageo.2017.07.005
 TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded from Earth Engine or from a local raster file) and from it creates a 3D model suitable for 3D printing. Online data from EE is automatically UTM projected and usually downsampled. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a zip file along with a log file with details about the process steps.
 
 
- For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. However, there is no graphical (map) interface for easily requesting a certain area from EE, the geographical extent of the request has to be given in lat/long coordinates as text. (Note: this might change in the future, I'm looking into using geemap inside jupyter ...)
+ For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. (*New in version 3*) The jupyter notebook version of standalone also offers a graphical (map) interface for digitizing the area of the  model, either as box, circle or polygon. 
 
 
 The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
 
 
-TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: 'pip install .' in the same folder as the setup.py file.
+TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: run 'pip install .' in the same folder as the setup.py file.
 
 
  If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
+
 
 To learn more about how to set up a Earth Engine account, refer to the jupyter notebook _TouchTerrain_standalone_jupyter_notebook.ipynb_ or [TouchTerrain_standalone_jupyter_notebook.html](https://chharding.github.io/TouchTerrain_for_CAGEO/TouchTerrain_standalone_jupyter_notebook.html) (which is the notebook rendered into html).
 
