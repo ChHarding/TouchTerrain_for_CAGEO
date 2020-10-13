@@ -53,25 +53,14 @@ logger.setLevel(logging.INFO)
 
 # CH test Aug 18: do EE init here only  
 # this seems to prevent the file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
-# crap from happening and assumes that any "main" file imports TouchTerrainEarthEngine anyway.
+# crap from happening. It assumes that any "main" file imports TouchTerrainEarthEngine anyway.
 # But, as this could als be run in a standalone scenario where EE should not be involved,
 # the failed to EE init messages are just warnings 
 try:
     import ee
     ee.Initialize() # uses .config/earthengine/credentials
 except Exception as e:
-    logging.warning("EE init() error (with .config/earthengine/credentials) " + str(e) + " (This is OK if you don't use EE!)")
-    try:
-        # try authenticating with a .pem file
-        from oauth2client.service_account import ServiceAccountCredentials
-        from ee import oauth
-        from touchterrain.server.config import * # server only settings
-        credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
-        ee.Initialize(credentials, config.EE_URL)
-    except Exception as e:
-        logging.warning("EE init() error with .pem file " + str(e) + " (This is OK if you don't use EE!)")
-    else:
-        logging.info("EE init() worked with .pem file")
+    logging.warning("EE init() error (with .config/earthengine/credentials) " + str(e) + " (This is OK if you don't use earthengine anyway!)")
 else:
     logging.info("EE init() worked with .config/earthengine/credentials")
 
@@ -645,45 +634,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Get a download URL for DEM from Earth Engine
         #
-
-        '''
-        #
-        # June 15, 2020
-        # disabling the re-init for now as it seems to create a weird error in the log
-        # file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
-        #
-
-
-        # CH: re-init should not be needed, but without it we seem to get a 404 from GEE once in a while ...
-        # Try both ways of authenticating
-        try:
-            ee.Initialize() # uses .config/earthengine/credentials
-        except Exception as e:
-            pr("EE init() error (with .config/earthengine/credentials), trying .pem file ...", e, file=sys.stderr)
-
-            try:
-                # try authenticating with a .pem file
-                from touchterrain.common import config  # sets location of .pem file, config.py must be in this folder
-                from oauth2client.service_account import ServiceAccountCredentials
-                from ee import oauth
-                credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
-                ee.Initialize(credentials, config.EE_URL)
-            except Exception as e:
-                pr("EE init() error (with config.py and .pem file)", e, file=sys.stderr)
-
-        # TODO: this can probably go, the exception was prb always caused by ee not staying inited
-        got_eeImage = False
-        while not got_eeImage:
-            try:
-                image1 = ee.Image(DEM_name)
-            except Exception as e:
-                print(e)
-                logger.error("ee.Image(DEM_name) failed: " + str(e))
-                time.sleep(random.randint(1,10))
-            else:
-                break
-        '''
-
         image1 = ee.Image(DEM_name)
         info = image1.getInfo() # this can go wrong and return nothing for some sources, but we don't really need the info as long as we get the actual data
 

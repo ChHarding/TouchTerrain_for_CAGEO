@@ -198,38 +198,9 @@ def main():
     for k in sorted(args.keys()):
         print("%s = %s" % (k, str(args[k])))
     
-    # No DEM file given, use Google Earth Engine
-    if args["importedDEM"] == None:
-        pass
-        ''' #not needed anymore? EE init is now done on TouchTerrainEarthEngine import
-        # drawback: local geotiff users will get init warnings/fails#
-
-        # initialize ee - needs a google earth engine account! See TouchTerrain_standalone_installation.pdf
-        try:
-            import ee
-        except Exception as e:
-            print("Google Earth Engine module not installed", e, file=sys.stderr)
-        
-        # try both ways of authenticating
-        try:
-            ee.Initialize() # uses .config/earthengine/credentials
-        except Exception as e:
-            print("EE init() error (with .config/earthengine/credentials)", e, file=sys.stderr)
-     
-            try:
-                # try authenticating with a .pem file
-                from touchterrain.common import config  # sets location of .pem file, config.py must be in this folder
-                from oauth2client.service_account import ServiceAccountCredentials
-                from ee import oauth
-                credentials = ServiceAccountCredentials.from_p12_keyfile(config.EE_ACCOUNT, config.EE_PRIVATE_KEY_FILE, scopes=oauth.SCOPES)
-                ee.Initialize(credentials, config.EE_URL)
-            except Exception as e:
-                print("EE init() error (with config.py and .pem file)", e, file=sys.stderr)          
-        '''
-    else:
+    # for local DEM, get the full path to it
+    if not args["importedDEM"] == None:
         args["importedDEM"] = abspath(args["importedDEM"])
-
-
 
     # Give all config values to get_zipped_tiles for processing:
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
