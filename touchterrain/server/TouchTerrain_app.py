@@ -583,7 +583,7 @@ def export():
             html += '<a href = "'
             query_list = list(request.form.items())
             server = "https://touchterrain.geol.iastate.edu/"
-            server = "https://touchterrain-beta.geol.iastate.edu/"
+            #server = "https://touchterrain-beta.geol.iastate.edu/"
             query_str = server + make_current_URL(query_list) 
             html += query_str + '">' + query_str + "</a><br>"
             html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
