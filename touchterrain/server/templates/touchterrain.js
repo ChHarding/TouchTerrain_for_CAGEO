@@ -160,7 +160,7 @@ window.onload = function () {
             document.getElementById("pac-input").value , {nonInteraction: true});
         
         // Update place id in form 2
-        document.getElementById("place").value = places[0].name;
+        document.getElementById("place").value = document.getElementById("pac-input").value;
     });
 
     // Drawing manager  (for later)
@@ -667,6 +667,10 @@ function saveMapSettings(){
 function submit_for_reload(trans_method){
     saveMapSettings();       // saves map stuff into hidden ids
     update_options_hidden(); // saves more hidden settings
+
+    if(trans_method == "POST"){  
+        document.getElementById("pac-input").value = "DELETED";
+    }
     
     // trigger a reload with all the vars in reloadform
     let f = document.forms["reloadform"];
