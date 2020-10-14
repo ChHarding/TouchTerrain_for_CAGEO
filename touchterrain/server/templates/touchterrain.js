@@ -160,7 +160,7 @@ window.onload = function () {
             document.getElementById("pac-input").value , {nonInteraction: true});
         
         // Update place id in form 2
-        document.getElementById("place").value = document.getElementById("pac-input").value;
+        document.getElementById("place").value = places[0].name;
     });
 
     // Drawing manager  (for later)
