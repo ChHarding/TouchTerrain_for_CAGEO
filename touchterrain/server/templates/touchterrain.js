@@ -667,10 +667,6 @@ function saveMapSettings(){
 function submit_for_reload(trans_method){
     saveMapSettings();       // saves map stuff into hidden ids
     update_options_hidden(); // saves more hidden settings
-
-    if(trans_method == "POST"){  
-        document.getElementById("pac-input").value = "DELETED";
-    }
     
     // trigger a reload with all the vars in reloadform
     let f = document.forms["reloadform"];

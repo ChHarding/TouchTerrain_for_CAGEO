@@ -126,6 +126,7 @@ def main_page():
         # defines optional polygon (currently not used)
         'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
 
+        "place": "", # search result, will be set in JS if search was used
 
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
     }
