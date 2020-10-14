@@ -158,7 +158,9 @@ window.onload = function () {
         ga('send', 'event', 'placename', 'SearchResultName', places[0].name , {nonInteraction: true});
         ga('send', 'event', 'placename', 'SearchBoxText', 
             document.getElementById("pac-input").value , {nonInteraction: true});
-
+        
+        // Update place id in form 2
+        document.getElementById("place").value = document.getElementById("pac-input").value;
     });
 
     // Drawing manager  (for later)
