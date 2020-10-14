@@ -399,6 +399,7 @@ function make_center_box(){
 // set bounding box of rectangle so it's centered
 function center_rectangle(){
     polygon.setMap(null); // remove polygon
+    document.getElementById("place").value = "";
     $('#kml_file_name').html('Optional Polygon KML file: ')
     let box = make_center_box();
     rectangle.setBounds(box);
@@ -461,6 +462,7 @@ function update_box(event){
     );
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
+    document.getElementById("place").value = "";
   
 }
 
