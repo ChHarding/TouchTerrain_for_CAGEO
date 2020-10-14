@@ -79,7 +79,7 @@ window.onload = function () {
     // Create the search box and link it to the UI element.
     //https://developers.google.com/maps/documentation/javascript/examples/places-searchbox#maps_places_searchbox-html
     const input = document.getElementById("pac-input");
-    search_as_typed = input.value;
+    let search_term = input.value;
     const searchBox = new google.maps.places.SearchBox(input);
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
     // Bias the SearchBox results towards current map's viewport.
@@ -157,7 +157,7 @@ window.onload = function () {
 
         // throw (1.) selected place search result at ga
         ga('send', 'event', 'placename', 'SearchResult', places[0].name , {nonInteraction: true});
-        ga('send', 'event', 'placename', 'SearchTerm', search_as_typed , {nonInteraction: true});
+        ga('send', 'event', 'placename', 'SearchTerm',  search_term , {nonInteraction: true});
 
     });
 
