@@ -161,8 +161,9 @@ window.onload = function () {
         
         // Update place id in form 2
         document.getElementById("place").value = document.getElementById("pac-input").value;
-        document.getElementById("pac-input").value = "DELETED";
+        
     });
+    document.getElementById("pac-input").value = "DELETED";
 
     // Drawing manager  (for later)
     /*
