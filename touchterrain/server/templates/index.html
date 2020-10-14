@@ -151,7 +151,7 @@
 													<label for="hsazi2">Sun direction:</label>
 													<select class="form-control custom-select-sm"  
 														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception! Will reload the map."
-														id="hsazi2" name="Sun Direction" onchange="submit_for_reload('GET');"
+														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
 													>
 														<option value="270">West (270 degr.)</option>
 														<option value="315" selected>North-West (315 degr.)</option>
@@ -167,7 +167,7 @@
 												<label for="hselev2">Sun angle:</label>
 												<select class="form-control custom-select-sm"  
 													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma and will reload the map."
-													id="hselev2" name="Sun Elevation" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
+													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
 												>
 													<option value="55">steep (55 degr.)</option> 
 													<option value="45" selected >normal (45 degr.)</option>
@@ -180,7 +180,7 @@
 										</div>
 								</div>
 									 
-								<!-- hidden ids so they get put into the URL on reload -->
+								<!-- form 1 hidden ids so they get put into the URL on reload -->
 								<input type="hidden" name="maptype" id="maptype" value="NULL">
 								<input type="hidden" name="gamma" id="gamma" value="NULL">
 								<input type="hidden" name="transp" id="transp" value="NULL">
@@ -308,7 +308,7 @@
 										<div class="form-group">
 											<select  class="form-control custom-select-sm"
 													title="(printres) Should be about the same as your nozzle diameter. Smaller numbers result in more details and longer print times"
-													id="options_print_resolution" name="printres"  onchange="update_options_hidden();">
+													id="options_print_resolution" name="printres" onchange="update_options_hidden();">
 												<!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
 												<option value="0.2">0.2 mm</option>
 												<option value="0.25">0.25 mm</option>
@@ -326,7 +326,7 @@
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(ntilesx) The number of tiles in x direction"
-											id="options_numTiles_x" name="ntilesx"  onchange="update_options_hidden();">
+											id="options_numTiles_x" name="ntilesx" onchange="update_options_hidden();">
 												<option value="1" selected >1 by</option>
 												<option value="2" >2 by</option>
 												<option value="3">3 by</option>
@@ -338,7 +338,7 @@
 										</select>
 										<select  class="form-control custom-select-sm"
 											title="(ntilesy) The number of tiles in y direction"
-											id="options_numTiles_y"  name="ntilesy"  onchange="update_options_hidden();">
+											id="options_numTiles_y" name="ntilesy" onchange="update_options_hidden();">
 												<option value="1" selected >1  </option>
 												<option value="2">2</option>
 												<option value="3">3</option>
@@ -367,7 +367,7 @@
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
-											id="options_base_thickness" name="basethick"  onchange="update_options_hidden();">
+											id="options_base_thickness" name="basethick" onchange="update_options_hidden();">
 												<option value="0">0 mm</option>
 												<option value="0.5">0.5 mm</option>
 												<option value="1" selected >1 mm</option>
@@ -384,7 +384,7 @@
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											title="(zscale) The DEM's elevation is multiplied by this number"
-											id="options_z_scale" name="zscale"  onchange="update_options_hidden();">
+											id="options_z_scale" name="zscale" onchange="update_options_hidden();">
 												<option value="0.5">x 0.5</option>
 												<option value="1.0" selected>x 1.0 (none)</option>
 												<option value="1.25">x 1.25</option>
@@ -408,7 +408,7 @@
 								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
-											id="options_fileformat"  name="fileformat"  onchange="update_options_hidden();"
+											id="options_fileformat" name="fileformat" onchange="update_options_hidden();"
 											title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
 												<option value="obj" > Obj</option>
 												<option value="STLb" selected> STL binary</option>
@@ -427,13 +427,24 @@
 					    	</div>
 					  	</div>
 						</div>
+
+						<!-- duplicating these hidden ids from the first form here, so they also get submittend in this form -->
+						<input type="hidden" name="maptype" id="maptype3" value="NULL">
+						<input type="hidden" name="gamma" id="gamma3" value="NULL">
+						<input type="hidden" name="transp" id="transp3" value="NULL">
+						<input type="hidden" name="hsazi" id="hsazi3" value="NULL">
+						<input type="hidden" name="hselev" id="hselev3" value="NULL">
+						<input type="hidden" name="map_lat" id="map_lat3" value="NULL">
+						<input type="hidden" name="map_lon" id="map_lon3" value="NULL">
+						<input type="hidden" name="map_zoom" id="map_zoom3" value="NULL">
+
 						<!-- hidden submit so it fires (instead of real submit) when Enter is hit in any text inside the form -->
 						<button type="submit" disabled style="display: none" aria-hidden="true"></button>
 
 						<button type="submit" class="btn btn-success"  
 							onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
 							title="Converts area inside the box into file(s) for 3D printing."  
-							onchange="update_options_hidden(); submit_for_reload('POST');">
+							onchange="submit_for_reload('POST');">
 							Export Selected Area and Download File
 						</button>
 					</form>		

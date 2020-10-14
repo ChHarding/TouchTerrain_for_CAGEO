@@ -70,6 +70,8 @@ window.onload = function () {
     };
     
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
+    document.getElementById("maptype").value = maptype
+    document.getElementById("maptype3").value = maptype
     let map_width = document.getElementById("map").getBoundingClientRect().width
     if(map_width > 900){ map_width = 900} // for very wide screens, setting height to a very large number (>900) doesn't seem to work(?)
     document.getElementById("map").style.height = map_width; // make square map
@@ -222,6 +224,8 @@ window.onload = function () {
     updateGamma(gamma); // initial gamma value
     document.getElementById('hsazi2').value = hsazi;
     document.getElementById('hselev2').value = hselev;
+    document.getElementById('hsazi3').value = hsazi;
+    document.getElementById('hselev3').value = hselev;
     
     // Area selection box
     rectangle = new google.maps.Rectangle({
@@ -559,13 +563,15 @@ function updateTransparency(transparency_pct) {
     let op = 1.0 - transparency_pct / 100.0 // opacity
     map.overlayMapTypes.getAt(0).setOpacity(op)
     document.getElementById('hillshade_transparency_slider').value=transparency_pct;
-    document.getElementById('transp').value=transparency_pct; // id in hidden reload
+    document.getElementById('transp').value=transparency_pct; // id in hidden reload 1
+    document.getElementById('transp3').value=transparency_pct; // id in hidden reload 2
 }
 
 //Update gamma in both places
 function updateGamma(val) {
-    document.getElementById('gamma').value=val;  // id in reload form  (hidden)
+    document.getElementById('gamma').value=val;  // id in reload form 1 (hidden)
     document.getElementById('gamma2').value=val; // gui text field
+    document.getElementById('gamma3').value=val; // id in reload form 2 (hidden)
 }
 
 // update hillshade elevation(angle above horizon) and adjust gamma
@@ -592,7 +598,8 @@ function updateHillshadeElevation(elev) {
 
 // update the hidden ids in reload form
 function update_options_hidden(){
-    //alert("update_options_hidden")
+
+    // in hidden form 2
     document.getElementById('tilewidth').value = document.getElementById('options_tile_width').value;
     document.getElementById('ntilesx').value = document.getElementById('options_numTiles_x').value;
     document.getElementById('ntilesy').value = document.getElementById('options_numTiles_y').value;
@@ -602,6 +609,19 @@ function update_options_hidden(){
     document.getElementById('fileformat').value= document.getElementById('options_fileformat').value;
     document.getElementById('manual').value= document.getElementById('options_manual').value;
     document.getElementById('polyURL').value= document.getElementById('options_polyURL').value;
+
+    document.getElementById('maptype3').value = map.getMapTypeId();
+    document.getElementById('hsazi3').value = document.getElementById('hsazi2').value;
+    document.getElementById('hselev3').value = document.getElementById('hselev2').value;
+
+    // in hidden form 1
+    //console.log(map.getMapTypeId());
+    //console.log(document.getElementById('hsazi2').value);
+    //console.log(document.getElementById('hselev2').value);
+    //document.getElementById('maptype').value = map.getMapTypeId();
+    document.getElementById('hsazi').value = document.getElementById('hsazi2').value;
+    document.getElementById('hselev').value = document.getElementById('hselev2').value;
+
 }
 
 // update the print option values in the GUI from the global vars
@@ -622,23 +642,27 @@ function init_print_options(){
 function saveMapSettings(){
     let  c = map.getCenter();
     
-    // hidden ids in reloadform
+    // hidden ids in reloadform 1
     document.getElementById('map_lat').value = c.lat();
     document.getElementById('map_lon').value = c.lng();
     document.getElementById('map_zoom').value = map.getZoom(); 
+
+    // hidden ids in reloadform 1
+    document.getElementById('map_lat3').value = c.lat();
+    document.getElementById('map_lon3').value = c.lng();
+    document.getElementById('map_zoom3').value = map.getZoom(); 
 }
 
+// updates hidden fields and submits a form (1 or 2) to the server
+// for form 1, trans_method is GET, for form 2 it's POST b/c of the
+// file upload, which can't be done via get.
 function submit_for_reload(trans_method){
-    saveMapSettings();
-    
-    // save current settings into hidden ids
-    document.getElementById('maptype').value = map.getMapTypeId();
-    document.getElementById('hsazi').value = document.getElementById('hsazi2').value;
-    document.getElementById('hselev').value = document.getElementById('hselev2').value;
+    saveMapSettings();       // saves map stuff into hidden ids
+    update_options_hidden(); // saves more hidden settings
     
     // trigger a reload with all the vars in reloadform
     let f = document.forms["reloadform"];
-    f.method = trans_method
+    f.method = trans_method;
     f.submit();
 }
 

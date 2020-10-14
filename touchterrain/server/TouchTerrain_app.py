@@ -56,7 +56,7 @@ except:
 def make_GA_script(page_title):
     return """
     <head>
-    <title>""" + page_title + """</title>
+    <title>TouchTerrain: processing finished. Settings used:""" + page_title + """</title>
     <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -572,28 +572,22 @@ def export():
             html += '  <input type="submit" value="Download zip File " \n'
             #https://stackoverflow.com/questions/57499732/google-analytics-events-present-in-console-but-no-more-in-api-v4-results
             html += '''  onclick=onclick_for_dl();\n'''
-            
-            
-            #html += '''  onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0');\n
-                                  #ga('send', 'event', 'Comment1', 'Click', document.getElementById('comment') , 1);"\n '''
-                                  #{
-                                       #'dimension1': document.getElementById('comment').value,
-                                       #'dimension2': 'Test for setting dimension2 from download button click'
-                                       #'dimension03': 'Test for setting dimension03 from download button click'
-                                      #},
-                                      #1);" \n
-
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
-            html += "   <br>To return to the selection map, click the back button in your browser once.\n"
             html += '</form>\n'
 
-            # print out the query parameters (note hardcoded server name!)
-            html += "To have somebody else generate the same model, have them copy&paste this URL into a browser:<br>https://touchterrain.geol.iastate.edu/" 
-            query_list = list(request.form.items())
-            query_str = make_current_URL(query_list) 
-            html += query_str + "<br>"
+            html += "   <br>To return to the selection map, click on the back button in your browser once, or on the link below:<br>"
+            #html += "<br>Click on the URL below to return to the selection map:<br>"
 
+            # print out the query parameters (note hardcoded server name!)
+            html += '<a href = "'
+            query_list = list(request.form.items())
+            server = "https://touchterrain.geol.iastate.edu/"
+            server = "https://touchterrain-beta.geol.iastate.edu/"
+            query_str = server + make_current_URL(query_list) 
+            html += query_str + '">' + query_str + "</a><br>"
+            html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
+ 
             html +=  '</body></html>'
             yield html
 
