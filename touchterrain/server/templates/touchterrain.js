@@ -163,7 +163,7 @@ window.onload = function () {
         document.getElementById("place").value = document.getElementById("pac-input").value;
         
     });
-    document.getElementById("pac-input").value = "DELETED";
+    document.getElementById("pac-input").value = "";
 
     // Drawing manager  (for later)
     /*
