@@ -223,7 +223,6 @@
 								onclick="center_rectangle()"
 								value="Re-center box on map">
 							</div>
-						
 							<div id="area_box_panel" class="collapse">
 								<div class="card-body ">
 									<div class="form-inline">
@@ -247,16 +246,14 @@
 								</div>
 								<br>
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
-													<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
-														title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center botton after a polygon upload will clear the polygon"
-														onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); kml_name_was_just_set=true; ">
-													<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
+										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
+											title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
+											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); kml_name_was_just_set=true; ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
+										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 								</div>
 							</div>
-
-
-
 						</div>
+
 						<div class="card">
 							<div class="card-header">
 								<div class="panel-title">
@@ -268,8 +265,6 @@
 							<div id="printOptionPanel" class="collapse show">
 								<div class="card-body">
 
-
- 
 									<!-- hook for polyURL, currently hidden but may become an input field (like kml_file) in the future -->
 									<input type="hidden" id="options_polyURL" name="polyURL" size="0"
             					title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
