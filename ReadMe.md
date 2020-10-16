@@ -168,7 +168,7 @@ Note that for Python, None and True/False need to be different:
 the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid
 printed bottom (tested in Cura 3.6)
 
-* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false.
+* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false. (Contributed by idenc)
 
 * `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
 
@@ -197,7 +197,7 @@ tiles will fit together without overlaps if tile_centered was false.
 
 * `use_geo_coords`: default: null.
     - with null (or if not given), x/y coordinates are in mm and refer to the buildplate
-    - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background).
+    - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background.
     - "centered" will set the UTM origin to the center of the full tile, this is make it work togther with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
