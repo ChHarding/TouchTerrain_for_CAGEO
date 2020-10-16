@@ -195,15 +195,15 @@ tiles will fit together without overlaps if tile_centered was false.
 
     - Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
-* "use_geo_coords": default: null.
+* `use_geo_coords`: default: null.
     - with null (or if not given), x/y coordinates are in mm and refer to the buildplate
     - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background).
     - "centered" will set the UTM origin to the center of the full tile, this is make it work togther with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
-* importedGPX: list of GPX file paths that are to be plotted on the model (default: null)
-* gpxPathHeight: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
-* gpxPixelsBetweenPoints:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
-* gpxPathThickness: (default: 5) Stacks that number of parallel lines on either side of primary line to create thickness.  
+* `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
+* `gpxPathHeight`: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
+* `gpxPixelsBetweenPoints`:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
+* `gpxPathThickness`: (default: 5) Stacks that number of parallel lines on either side of primary line to create thickness.  
 
 
 
