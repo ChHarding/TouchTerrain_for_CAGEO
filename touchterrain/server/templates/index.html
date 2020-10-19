@@ -289,9 +289,9 @@
 												<option value="50">50 mm</option>
 												<option value="60">60 mm</option>
 												<option value="70">70 mm</option>
-												<option value="80" selected >80 mm</option>
+												<option value="80">80 mm</option>
 												<option value="90">90 mm</option>
-												<option value="100">100 mm</option>
+												<option value="100" selected >100 mm</option>
 												<option value="110">110 mm</option>
 												<option value="120">120 mm</option>
 												<option value="140">140 mm</option>
@@ -362,7 +362,7 @@
 									<div class="form-group">
 										<label for="DEMresolution">Current DEM resolution:</label>
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
-													title="To print each tile at the given width at this mm resolution, the DEM will be resampled to approx. this meter value. Keep this above the original DEM resolution."
+													title="To print tiles at the given width with this mm resolution, the DEM will be resampled from the source to approx. this meter value. If this is below the source DEM resolution (yellow), you're attempting to sample at a higher level of detail than the source actually provides. This has no improvement over the source resolution and will instead only make your file needlessly big!"
 													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
 										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
 									</div>

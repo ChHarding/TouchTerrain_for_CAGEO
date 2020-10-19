@@ -476,6 +476,7 @@ function setApproxDEMResolution_meters() {
     let print_res_mm = document.getElementById('options_print_resolution').value;
 
     // Negative print_res_mm means that "source resolution" is selected, in this case just set field to "same"
+    // -1 print res was removed in 2.5 (as google doesn't let us d/l large geotiffs!) but it could still be come up as a manual option
     if(print_res_mm <= 0){
         document.getElementById('DEMresolution').value = 'the same'
     }
@@ -494,6 +495,15 @@ function setApproxDEMResolution_meters() {
         //console.log(cell_resolution_meter);
         cell_resolution_meter = Math.round( cell_resolution_meter * 100 ) / 100; // round to 2 digits
         document.getElementById('DEMresolution').value = cell_resolution_meter;
+
+        // warn if current resolution is SMALLER than source resolution
+        if(cell_resolution_meter < document.getElementById('source_resolution').value){
+            document.getElementById('DEMresolution').style.background = "yellow";
+        }
+        else{
+            document.getElementById('DEMresolution').style.background = ""; // default bg
+        }
+        
     }
 }
 
@@ -553,18 +563,19 @@ function SetDEM_name(){
 
     let res = "unknown resolution"
     switch(DEM_name){
-        case "USGS/NED": res = "10 m"; break;
-        case "NRCan/CDEM": res = "20 m"; break;
-        case "USGS/SRTMGL1_003": res = "30 m"; break;
-        case "JAXA/ALOS/AW3D30/V2_2": res = "30 m"; break;
-        case "USGS/GMTED2010": res = "90 m"; break;
-        case "USGS/GTOPO30" : res = "1000 m"; break;
-        case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000 m"; break;
-        case "NOAA/NGDC/ETOPO1": res = "2000 m"; break;
+        case "USGS/NED": res = "10"; break;
+        case "NRCan/CDEM": res = "20"; break;
+        case "USGS/SRTMGL1_003": res = "30"; break;
+        case "JAXA/ALOS/AW3D30/V2_2": res = "30"; break;
+        case "USGS/GMTED2010": res = "90"; break;
+        case "USGS/GTOPO30" : res = "1000"; break;
+        case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
+        case "NOAA/NGDC/ETOPO1": res = "2000"; break;
     }
 
     // set resolution of DEM source
-    document.getElementById('source_resolution').innerHTML = res
+    document.getElementById('source_resolution').value = parseInt(res);
+    document.getElementById('source_resolution').innerHTML = res + " m";
 }
 
 
