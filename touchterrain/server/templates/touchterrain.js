@@ -277,6 +277,7 @@ window.onload = function () {
         case "USGS/NED": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_NED"; break;
         case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
         case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
+        case "MERIT/DEM/v1_0_3": link = "https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3"; break;
         case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
         case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
         case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
@@ -566,6 +567,7 @@ function SetDEM_name(){
         case "USGS/NED": res = "10"; break;
         case "NRCan/CDEM": res = "20"; break;
         case "USGS/SRTMGL1_003": res = "30"; break;
+        case "MERIT/DEM/v1_0_3": res= "90"; break;
         case "JAXA/ALOS/AW3D30/V2_2": res = "30"; break;
         case "USGS/GMTED2010": res = "90"; break;
         case "USGS/GTOPO30" : res = "1000"; break;

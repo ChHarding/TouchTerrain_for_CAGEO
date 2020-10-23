@@ -474,7 +474,7 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cell is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/NED":1/9.0, "USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+            cell_width_arcsecs = {"USGS/NED":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
                                   "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75,} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])

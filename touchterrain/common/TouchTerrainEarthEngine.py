@@ -85,6 +85,7 @@ DEM_sources = ["USGS/NED",
                "NRCan/CDEM",
                "USGS/GTOPO30",
                "CPOM/CryoSat2/ANTARCTICA_DEM",
+               "MERIT/DEM/v1_0_3"
               ]
 
 def make_bottom_raster(image_file_name, shape):
