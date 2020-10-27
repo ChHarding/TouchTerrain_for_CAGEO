@@ -54,6 +54,24 @@ let hselev = "{{ hselev }}";
 // be reset. Only subsequent (i.e. manual moves) will reset the field.
 let kml_name_was_just_set = false;
 
+
+// Make an icon and a marker for showing result of place search
+const icon = {
+    url: "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/geocode-71.png",
+    size: new google.maps.Size(71, 71),
+    origin: new google.maps.Point(0, 0),
+    anchor: new google.maps.Point(17, 34),
+    scaledSize: new google.maps.Size(25, 25),
+};
+const marker = new google.maps.Marker({
+    map,
+    icon,
+    //title: place.name,
+    //position: place.geometry.location,
+    //animation: google.maps.Animation.DROP,
+    //animation: google.maps.Animation.BOUNCE,
+});
+
 // run this once the browser is ready
 window.onload = function () {
 
@@ -75,20 +93,48 @@ window.onload = function () {
     let map_width = document.getElementById("map").getBoundingClientRect().width
     if(map_width > 900){ map_width = 900} // for very wide screens, setting height to a very large number (>900) doesn't seem to work(?)
     document.getElementById("map").style.height = map_width; // make square map
+
     
-    /* disable search for now ....
     // Create the search box and link it to the UI element.
-    //https://developers.google.com/maps/documentation/javascript/examples/places-searchbox#maps_places_searchbox-html
+    // https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete
     const input = document.getElementById("pac-input");
-    const searchBox = new google.maps.places.SearchBox(input);
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
-    // Bias the SearchBox results towards current map's viewport.
-    map.addListener("bounds_changed", () => {
-        searchBox.setBounds(map.getBounds());
-    });
-    // Note: To not have a searchbar appear, remove this div : searchbar_div
+
+    const autocomplete = new google.maps.places.Autocomplete(input);
+
+    autocomplete.bindTo("bounds", map); // bias results to current viewport
+    autocomplete.setOptions({ strictBounds: false }); //false: do NOT restrict, just bias
+  
+    // Set the data fields to return when the user selects a place. 
+    autocomplete.setFields(["geometry"]); // "icon", "name"
+  
+    autocomplete.addListener("place_changed", () => {
+
+        const place = autocomplete.getPlace();
+        marker.setVisible(false);
+        
+        if (!place.geometry) {
+          // User entered the name of a Place that was not suggested and
+          // pressed the Enter key, or the Place Details request failed.
+          window.alert("No details available for input: '" + place.name + "'");
+          return;
+        }
+    
+        // If the place has a geometry, then present it on a map.
+        if (place.geometry.viewport) {
+          map.fitBounds(place.geometry.viewport);
+        } else {
+          map.setCenter(place.geometry.location);
+          map.setZoom(17); // Why 17? Because it looks good.
+        }
+        marker.setPosition(place.geometry.location);
+        marker.setVisible(true);
+    }
 
 
+
+
+    /*
     let markers = [];
     // Listen for the event fired when the user selects a prediction and retrieve
     // more details for that place.
@@ -164,8 +210,9 @@ window.onload = function () {
         document.getElementById("place").value = document.getElementById("pac-input").value;
         
     });
-    document.getElementById("pac-input").value = "";
     */
+    document.getElementById("pac-input").value = "";
+    
 
     // Drawing manager  (for later)
     /*
