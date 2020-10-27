@@ -129,7 +129,17 @@ window.onload = function () {
         }
         marker.setPosition(place.geometry.location);
         marker.setVisible(true);
-    }
+
+        // throw (1.) selected place search result at ga
+        //ga('send', 'event', 'placename', 'SearchResultName', place.name , {nonInteraction: true});
+        ga('send', 'event', 'placename', 'SearchBoxText', 
+            document.getElementById("pac-input").value , {nonInteraction: true});
+        
+        // Update place id in form 2
+        document.getElementById("place").value = document.getElementById("pac-input").value;
+
+
+    });
 
 
 
