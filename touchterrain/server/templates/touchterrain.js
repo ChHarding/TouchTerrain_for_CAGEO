@@ -76,7 +76,7 @@ window.onload = function () {
     if(map_width > 900){ map_width = 900} // for very wide screens, setting height to a very large number (>900) doesn't seem to work(?)
     document.getElementById("map").style.height = map_width; // make square map
     
-    /*
+    /* disable search for now ....
     // Create the search box and link it to the UI element.
     //https://developers.google.com/maps/documentation/javascript/examples/places-searchbox#maps_places_searchbox-html
     const input = document.getElementById("pac-input");
