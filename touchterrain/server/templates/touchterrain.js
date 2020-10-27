@@ -85,8 +85,8 @@ window.onload = function () {
     map.addListener("bounds_changed", () => {
         searchBox.setBounds(map.getBounds());
     });
-    // Note: if we need to ever disable this we could remove this div :
-    //document.getElementById("searchbar_div").remove()
+    // Note: To not have a searchbar appear, remove this div : searchbar_div
+
 
     let markers = [];
     // Listen for the event fired when the user selects a prediction and retrieve
