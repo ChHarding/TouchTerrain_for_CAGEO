@@ -100,17 +100,16 @@ window.onload = function () {
         //animation: google.maps.Animation.BOUNCE,
     });
    
-   
-   
     const input = document.getElementById("pac-input");
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
 
+    /*
     const autocomplete = new google.maps.places.Autocomplete(input);
 
     autocomplete.bindTo("bounds", map); // bias results to current viewport
     autocomplete.setOptions({ strictBounds: false }); //false: do NOT restrict, just bias
   
-    // Set the data fields to return when the user selects a place. 
+    // Restrict what type of info a result shall return  
     autocomplete.setFields(["geometry"]); // "icon", "name"
   
     autocomplete.addListener("place_changed", () => {
@@ -121,7 +120,7 @@ window.onload = function () {
         if (!place.geometry) {
           // User entered the name of a Place that was not suggested and
           // pressed the Enter key, or the Place Details request failed.
-          window.alert("No details available for input: '" + place.name + "'");
+          window.alert("Please pick one of the five suggested locations");
           return;
         }
     
@@ -142,92 +141,8 @@ window.onload = function () {
         
         // Update place id in form 2
         document.getElementById("place").value = document.getElementById("pac-input").value;
-
-
-    });
-
-
-
-
-    /*
-    let markers = [];
-    // Listen for the event fired when the user selects a prediction and retrieve
-    // more details for that place.
-    searchBox.addListener("places_changed", () => {
-        const places = searchBox.getPlaces();
-        if (places.length == 0) {return}
-
-        // Clear out the old markers.
-        markers.forEach((marker) => {
-            marker.setMap(null);
-        });
-        markers = [];
-
-        // For each place, get the icon, name and location.
-        const bounds = new google.maps.LatLngBounds();
-        places.forEach((place) => {
-            if (!place.geometry) {
-                console.log("Returned place contains no geometry");
-                return;
-            }
-            const icon = {
-                url: place.icon,
-                size: new google.maps.Size(71, 71),
-                origin: new google.maps.Point(0, 0),
-                anchor: new google.maps.Point(17, 34),
-                scaledSize: new google.maps.Size(25, 25),
-            };
-            // Create a marker for each place.
-            markers.push(
-                new google.maps.Marker({
-                map,
-                icon,
-                title: place.name,
-                position: place.geometry.location,
-                animation: google.maps.Animation.DROP,
-                animation: google.maps.Animation.BOUNCE,
-                })
-            );
-            
-            // switch bounce off after 2 secs
-            setTimeout(
-                function() {
-                    markers[markers.length-1].setAnimation(null);
-                }, 2000);
-
-            // add a callback for bounce on/off
-            markers[markers.length-1].addListener("click", toggleMarkerBounce);
-
-            function toggleMarkerBounce(){
-                if (markers[markers.length-1].getAnimation() !== null) {
-                    markers[markers.length-1].setAnimation(null);
-                } else {
-                    markers[markers.length-1].setAnimation(google.maps.Animation.BOUNCE);
-                }
-            }
-              
-            if (place.geometry.viewport) {
-                // Only geocodes have viewport.
-                bounds.union(place.geometry.viewport);
-            } else {
-                bounds.extend(place.geometry.location);
-            }
-            });
-
-        map.fitBounds(bounds);
-
-        // throw (1.) selected place search result at ga
-        ga('send', 'event', 'placename', 'SearchResultName', places[0].name , {nonInteraction: true});
-        ga('send', 'event', 'placename', 'SearchBoxText', 
-            document.getElementById("pac-input").value , {nonInteraction: true});
-        
-        // Update place id in form 2
-        document.getElementById("place").value = document.getElementById("pac-input").value;
-        
     });
     */
-    document.getElementById("pac-input").value = "";
-    
 
     // Drawing manager  (for later)
     /*
@@ -393,6 +308,41 @@ window.onload = function () {
         }
         reader.readAsText(file);
     }
+    });
+
+    // Super simplistic place search - no autocomplete
+    document.getElementById("pac-input").addEventListener("keydown", function(e){
+      if (e.key === "Enter") {  // checks whether the pressed key is "Enter"
+    
+        const search_term = document.getElementById("pac-input").value;
+        const request = {
+            query: search_term,
+            fields: ["geometry"], // "name", 
+        };
+        const service = new google.maps.places.PlacesService(map);
+        service.findPlaceFromQuery(request, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                place = results[0];
+                marker.setVisible(false);
+                
+                if (!place.geometry) {
+                    window.alert("No results for " + search_term + ", please try again.");
+                    return;
+                }
+            
+                // If the place has a geometry, then present it on a map.
+                if (place.geometry.viewport) {
+                    map.fitBounds(place.geometry.viewport);
+                } else {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(17); // Why 17? Because it looks good.
+                }
+                marker.setPosition(place.geometry.location);
+                marker.setVisible(true);
+                document.getElementById("pac-input").value = "";
+            }
+        });
+      }
     });
 
 }; // end of onload()
