@@ -338,9 +338,10 @@ window.onload = function () {
                     map.setZoom(17); // Why 17? Because it looks good.
                 }
                 marker.setPosition(place.geometry.location);
-                marker.setTitle(place.formatted_address);
+                marker.setTitle(place.name + "\n" + place.formatted_address);
                 marker.setVisible(true);
                 document.getElementById("pac-input").value = "";
+                document.getElementById("pac-input").placeholder = "last search found: " + place.name;
             } else {
                 window.alert("No results for " + search_term + ", please try a different search. (" + status + ")");
                 return;
