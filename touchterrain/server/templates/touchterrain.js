@@ -317,7 +317,7 @@ window.onload = function () {
         const search_term = document.getElementById("pac-input").value;
         const request = {
             query: search_term,
-            fields: ["geometry", "name", "formatted_address"] 
+            fields: ["geometry", "name", "formatted_address", "types"] 
         };
         const service = new google.maps.places.PlacesService(map);
         service.findPlaceFromQuery(request, (results, status) => {
@@ -338,10 +338,10 @@ window.onload = function () {
                     map.setZoom(17); // Why 17? Because it looks good.
                 }
                 marker.setPosition(place.geometry.location);
-                marker.setTitle(place.name + "\n" + place.formatted_address);
+                marker.setTitle(place.name + "\n" + place.types + "\n" + place.formatted_address);
                 marker.setVisible(true);
                 document.getElementById("pac-input").value = "";
-                document.getElementById("pac-input").placeholder = "last search found: " + place.name;
+                document.getElementById("pac-input").placeholder = "last search result: " + place.name;
             } else {
                 window.alert("No results for " + search_term + ", please try a different search. (" + status + ")");
                 return;
