@@ -302,7 +302,7 @@ window.onload = function () {
                 map.fitBounds(bbox); // makes the map fit around the box
                 polygon.setPath(latloncoords);
                 polygon.setMap(map);
-            }else{
+            } else{
                 alert("Error: invalid KML file!");
             }
         }
@@ -310,38 +310,49 @@ window.onload = function () {
     }
     });
 
-    // Super simplistic place search - no autocomplete
+    // Super simplistic place search
+    // no autocomplete, uses FindPlace with ONLY the Place id (free) and uses
+    // the cheaper Geocoding API to look up info on that Place id
     document.getElementById("pac-input").addEventListener("keydown", function(e){
       if (e.key === "Enter") {  // checks whether the pressed key is "Enter"
     
         const search_term = document.getElementById("pac-input").value;
         const request = {
             query: search_term,
-            fields: ["geometry", "name", "formatted_address", "types"] 
+            fields: ["place_id"] //"geometry", "name", "formatted_address", "types"] 
         };
         const service = new google.maps.places.PlacesService(map);
         service.findPlaceFromQuery(request, (results, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK) {
-                place = results[0];
+                const place_id = results[0].place_id;
                 marker.setVisible(false);
+
+                // Look up info on place_id
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({placeId: place_id}, (results, status) => {
+                    if (status !== "OK") {
+                      window.alert("Geocoder failed due to: " + status);
+                      return;
+                    }
+                    place = results[0]
+                    if (!place.geometry) {
+                        window.alert("No results for " + search_term + ", please try a different search.")
+                        return;
+                    }
                 
-                if (!place.geometry) {
-                    window.alert("No results for " + search_term + ", please try a different search.")
-                    return;
-                }
-            
-                // If the place has a geometry, then present it on a map.
-                if (place.geometry.viewport) {
-                    map.fitBounds(place.geometry.viewport);
-                } else {
-                    map.setCenter(place.geometry.location);
-                    map.setZoom(17); // Why 17? Because it looks good.
-                }
-                marker.setPosition(place.geometry.location);
-                marker.setTitle(place.name + "\n" + place.types + "\n" + place.formatted_address);
-                marker.setVisible(true);
-                document.getElementById("pac-input").value = "";
-                document.getElementById("pac-input").placeholder = "last search result: " + place.name;
+                    // If the place has a geometry, then present it on a map.
+                    if (place.geometry.viewport) {
+                        map.fitBounds(place.geometry.viewport);
+                    } else {
+                        map.setCenter(place.geometry.location);
+                        map.setZoom(17); // Why 17? Because it looks good.
+                    }
+                    marker.setPosition(place.geometry.location);
+                    marker.setTitle(place.name + "\n" + place.types + "\n" + place.formatted_address);
+                    marker.setVisible(true);
+                    document.getElementById("pac-input").value = "";
+                    document.getElementById("pac-input").placeholder = "last search result: " + place.name;
+                });
             } else {
                 window.alert("No results for " + search_term + ", please try a different search. (" + status + ")");
                 return;
@@ -349,7 +360,6 @@ window.onload = function () {
         });
       }
     });
-
 }; // end of onload()
 
 //
