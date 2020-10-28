@@ -55,22 +55,7 @@ let hselev = "{{ hselev }}";
 let kml_name_was_just_set = false;
 
 
-// Make an icon and a marker for showing result of place search
-const icon = {
-    url: "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/geocode-71.png",
-    size: new google.maps.Size(71, 71),
-    origin: new google.maps.Point(0, 0),
-    anchor: new google.maps.Point(17, 34),
-    scaledSize: new google.maps.Size(25, 25),
-};
-const marker = new google.maps.Marker({
-    map,
-    icon,
-    //title: place.name,
-    //position: place.geometry.location,
-    //animation: google.maps.Animation.DROP,
-    //animation: google.maps.Animation.BOUNCE,
-});
+
 
 // run this once the browser is ready
 window.onload = function () {
@@ -97,6 +82,26 @@ window.onload = function () {
     
     // Create the search box and link it to the UI element.
     // https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete
+    
+    // Make an icon and a marker for showing result of place search
+    const icon = {
+        url: "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/geocode-71.png",
+        size: new google.maps.Size(71, 71),
+        origin: new google.maps.Point(0, 0),
+        anchor: new google.maps.Point(17, 34),
+        scaledSize: new google.maps.Size(25, 25),
+    };
+    let marker = new google.maps.Marker({
+        map,
+        icon,
+        //title: place.name,
+        //position: place.geometry.location,
+        //animation: google.maps.Animation.DROP,
+        //animation: google.maps.Animation.BOUNCE,
+    });
+   
+   
+   
     const input = document.getElementById("pac-input");
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
 
