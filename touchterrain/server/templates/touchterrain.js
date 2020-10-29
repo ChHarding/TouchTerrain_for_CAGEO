@@ -348,8 +348,11 @@ window.onload = function () {
                         map.setZoom(17); // Why 17? Because it looks good.
                     }
                     marker.setPosition(place.geometry.location);
-                    var name = place.name;
-                    if(place.name == "undefined"){ name = place.formatted_address };
+                    var name = "";
+                    if(place.name == "undefined"){ 
+                        name = place.formatted_address }
+                    else {
+                        name = place.name};
                     marker.setTitle(name + "\n" + place.types + "\n" + place.formatted_address);
                     marker.setVisible(true);
                     document.getElementById("pac-input").value = "";
