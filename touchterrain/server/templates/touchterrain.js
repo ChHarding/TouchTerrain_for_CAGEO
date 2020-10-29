@@ -334,7 +334,7 @@ window.onload = function () {
                       window.alert("Geocoder failed due to: " + status);
                       return;
                     }
-                    place = results[0]
+                    const place = results[0];
                     if (!place.geometry) {
                         window.alert("No results for " + search_term + ", please try a different search.")
                         return;
