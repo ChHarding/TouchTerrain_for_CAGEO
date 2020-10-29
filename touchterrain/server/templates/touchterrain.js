@@ -334,7 +334,7 @@ window.onload = function () {
                       window.alert("Geocoder failed due to: " + status);
                       return;
                     }
-                    if (results.length < 1 || ! results[0].geometry) {
+                    if (results.length < 1 || !results[0].geometry) {
                         window.alert("No results for " + search_term + ", please try a different search.")
                         return;
                     }
