@@ -356,10 +356,10 @@ window.onload = function () {
                     marker.setTitle(name + "\n" + place.types + "\n" + place.formatted_address);
                     marker.setVisible(true);
                     document.getElementById("pac-input").value = "";
-                    document.getElementById("pac-input").placeholder = "last search result: " + name;
+                    document.getElementById("pac-input").placeholder = "Search for a place (last search result: " + name + ")";
                 });
             } else {
-                window.alert("No results for " + search_term + ", please try a different search. (" + status + ")");
+                window.alert("No results for " + search_term + ", please try a different search.");
                 return;
             }
         });
