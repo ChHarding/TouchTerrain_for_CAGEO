@@ -349,7 +349,7 @@ window.onload = function () {
                     }
                     marker.setPosition(place.geometry.location);
                     var name = "";
-                    if(place.name == "undefined"){ 
+                    if(typeof place.name == "undefined"){ // FU JS! 
                         name = place.formatted_address }
                     else {
                         name = place.name};
