@@ -334,11 +334,11 @@ window.onload = function () {
                       window.alert("Geocoder failed due to: " + status);
                       return;
                     }
-                    const place = results[0];
-                    if (!place.geometry) {
+                    if (results.length < 1 || ! results[0].geometry) {
                         window.alert("No results for " + search_term + ", please try a different search.")
                         return;
                     }
+                    const place = results[0];
                 
                     // If the place has a geometry, then present it on a map.
                     if (place.geometry.viewport) {
@@ -348,10 +348,12 @@ window.onload = function () {
                         map.setZoom(17); // Why 17? Because it looks good.
                     }
                     marker.setPosition(place.geometry.location);
-                    marker.setTitle(place.name + "\n" + place.types + "\n" + place.formatted_address);
+                    var name = place.name;
+                    if(place.name == "undefined"){ name = place.formatted_address };
+                    marker.setTitle(name + "\n" + place.types + "\n" + place.formatted_address);
                     marker.setVisible(true);
                     document.getElementById("pac-input").value = "";
-                    document.getElementById("pac-input").placeholder = "last search result: " + place.name;
+                    document.getElementById("pac-input").placeholder = "last search result: " + name;
                 });
             } else {
                 window.alert("No results for " + search_term + ", please try a different search. (" + status + ")");
