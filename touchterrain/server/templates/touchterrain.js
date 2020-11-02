@@ -100,50 +100,6 @@ window.onload = function () {
         //animation: google.maps.Animation.BOUNCE,
     });
    
-    const input = document.getElementById("pac-input");
-    map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
-
-    /*
-    const autocomplete = new google.maps.places.Autocomplete(input);
-
-    autocomplete.bindTo("bounds", map); // bias results to current viewport
-    autocomplete.setOptions({ strictBounds: false }); //false: do NOT restrict, just bias
-  
-    // Restrict what type of info a result shall return  
-    autocomplete.setFields(["geometry"]); // "icon", "name"
-  
-    autocomplete.addListener("place_changed", () => {
-
-        const place = autocomplete.getPlace();
-        marker.setVisible(false);
-        
-        if (!place.geometry) {
-          // User entered the name of a Place that was not suggested and
-          // pressed the Enter key, or the Place Details request failed.
-          window.alert("Please pick one of the five suggested locations");
-          return;
-        }
-    
-        // If the place has a geometry, then present it on a map.
-        if (place.geometry.viewport) {
-          map.fitBounds(place.geometry.viewport);
-        } else {
-          map.setCenter(place.geometry.location);
-          map.setZoom(17); // Why 17? Because it looks good.
-        }
-        marker.setPosition(place.geometry.location);
-        marker.setVisible(true);
-
-        // throw (1.) selected place search result at ga
-        //ga('send', 'event', 'placename', 'SearchResultName', place.name , {nonInteraction: true});
-        ga('send', 'event', 'placename', 'SearchBoxText', 
-            document.getElementById("pac-input").value , {nonInteraction: true});
-        
-        // Update place id in form 2
-        document.getElementById("place").value = document.getElementById("pac-input").value;
-    });
-    */
-
     // Drawing manager  (for later)
     /*
     const drawingManager = new google.maps.drawing.DrawingManager({
@@ -310,8 +266,54 @@ window.onload = function () {
     }
     });
 
-    // Super simplistic place search
-    // no autocomplete, uses FindPlace with ONLY the Place id (free) and uses
+    // Place Search
+    const input = document.getElementById("pac-input");
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+    
+    // Version A: Autocomplete and FindPlace but only gets back the geometry
+    const autocomplete = new google.maps.places.Autocomplete(input);
+    autocomplete.bindTo("bounds", map); // bias results to current viewport
+    autocomplete.setOptions({ strictBounds: false }); //false: do NOT restrict, just bias
+
+    // Set the data fields to return when the user selects a place.
+    autocomplete.setFields(["geometry"]); // "icon", "name"
+
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        marker.setVisible(false);
+
+        if (!place.geometry) {
+          // User entered the name of a Place that was not suggested and
+          // pressed the Enter key, or the Place Details request failed.
+          window.alert("No details available for input: " + 
+                        document.getElementById("pac-input").value);
+          return;
+        }
+
+        // If the place has a geometry, then present it on a map.
+        if (place.geometry.viewport) {
+          map.fitBounds(place.geometry.viewport);
+        } else {
+          map.setCenter(place.geometry.location);
+          map.setZoom(17); // Why 17? Because it looks good.
+        }
+        marker.setPosition(place.geometry.location);
+        marker.setTitle(place.name)
+        marker.setVisible(true);
+
+        // throw auto found place name (from search box) at GA
+        ga('send', 'event', 'placename', 'SearchBoxText',
+            document.getElementById("pac-input").value , {nonInteraction: true});
+
+        // Update place id in form 2
+        document.getElementById("place").value = document.getElementById("pac-input").value;
+
+    }); // end version A
+    
+
+    /*
+    // Version B: no autocomplete, uses FindPlace with ONLY the Place id (free) and uses
     // the cheaper Geocoding API to look up info on that Place id
     document.getElementById("pac-input").addEventListener("keydown", function(e){
       if (e.key === "Enter") {  // checks whether the pressed key is "Enter"
@@ -335,18 +337,20 @@ window.onload = function () {
                       return;
                     }
                     if (results.length < 1 || !results[0].geometry) {
-                        window.alert("No results for " + search_term + ", please try a different search.")
+                        window.alert("No results for " + search_term + ", please try a different search (be more specific?)")
                         return;
                     }
                     const place = results[0];
                 
-                    // If the place has a geometry, then present it on a map.
+                    // Fly to place
                     if (place.geometry.viewport) {
                         map.fitBounds(place.geometry.viewport);
                     } else {
                         map.setCenter(place.geometry.location);
                         map.setZoom(17); // Why 17? Because it looks good.
                     }
+
+                    // Create marker
                     marker.setPosition(place.geometry.location);
                     var name = "";
                     if(typeof place.name == "undefined"){ // FU JS! 
@@ -355,16 +359,27 @@ window.onload = function () {
                         name = place.name};
                     marker.setTitle(name + "\n" + place.types + "\n" + place.formatted_address);
                     marker.setVisible(true);
+
+                    // Update search field
                     document.getElementById("pac-input").value = "";
                     document.getElementById("pac-input").placeholder = "Search for a place (last search result: " + name + ")";
+
+                    // throw place name at GA
+                    ga('send', 'event', 'placename', 'SearchBoxText',name , {nonInteraction: true});
+
+                    // Update place id in form 2
+                    document.getElementById("place").value = name;
                 });
             } else {
-                window.alert("No results for " + search_term + ", please try a different search.");
+                window.alert("No results for " + search_term + ", please try a different search (be more specific?)");
                 return;
             }
         });
       }
-    });
+    }); // end version B
+    */
+
+
 }; // end of onload()
 
 //
