@@ -286,20 +286,22 @@ window.onload = function () {
         if (!place.geometry) {
           // User entered the name of a Place that was not suggested and
           // pressed the Enter key, or the Place Details request failed.
-          window.alert("No details available for input: " + 
+          window.alert("Nothing found for input: " + 
                         document.getElementById("pac-input").value);
           return;
         }
 
-        // If the place has a geometry, then present it on a map.
+        // Jump to place
         if (place.geometry.viewport) {
           map.fitBounds(place.geometry.viewport);
         } else {
           map.setCenter(place.geometry.location);
           map.setZoom(17); // Why 17? Because it looks good.
         }
+
+        // Configure marker
         marker.setPosition(place.geometry.location);
-        marker.setTitle(place.name)
+        marker.setTitle(document.getElementById("pac-input").value);
         marker.setVisible(true);
 
         // throw auto found place name (from search box) at GA
