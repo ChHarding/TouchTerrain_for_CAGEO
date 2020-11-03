@@ -270,7 +270,7 @@ window.onload = function () {
     const input = document.getElementById("pac-input");
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
 
-    
+    /*
     // Version A: Autocomplete and FindPlace but only gets back the geometry
     const autocomplete = new google.maps.places.Autocomplete(input);
     autocomplete.bindTo("bounds", map); // bias results to current viewport
@@ -312,9 +312,9 @@ window.onload = function () {
         document.getElementById("place").value = document.getElementById("pac-input").value;
 
     }); // end version A
-    
+    */
 
-    /*
+    
     // Version B: no autocomplete, uses FindPlace with ONLY the Place id (free) and uses
     // the cheaper Geocoding API to look up info on that Place id
     document.getElementById("pac-input").addEventListener("keydown", function(e){
@@ -379,7 +379,7 @@ window.onload = function () {
         });
       }
     }); // end version B
-    */
+    
 
 
 }; // end of onload()
