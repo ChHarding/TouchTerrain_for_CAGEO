@@ -340,6 +340,9 @@ def make_current_URL(query_string_names_and_values_list):
 @app.route("/export", methods=["POST"])
 def export():
 
+    # clean up old exports
+    os.system('tmpwatch --mtime 6h {} {} {}'.format(DOWNLOADS_FOLDER, PREVIEWS_FOLDER, TMP_FOLDER))
+
     def preflight_generator():
 
         # header info is stringified query parameters (to encode the GUI parameters via GA)
