@@ -1197,7 +1197,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # b/c the default on unix is fork not spawn which starts faster but can also 
             # be problematic so now we're using the slower stating spawn
             mp = multiprocessing.get_context('spawn') 
-            pool = mp.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
+            pool = mp.Pool(processes=CPU_cores_to_use, maxtasksperchild=1) # processes=None means use all available cores
             
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
             try:
