@@ -183,6 +183,10 @@ def main_page():
     except:
         pass
    
+   
+    # in manual, replace " with \" ""ignore_leq":123" -> "\"ignore_leq\":123"
+    # so that it's a valid JS string after it's been inlined
+    args["manual"] = args["manual"].replace('"', chr(92)+chr(34))  # \ + "
 
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
@@ -323,7 +327,7 @@ def preview_file(zip_file, filename):
 
 
 def make_current_URL(query_string_names_and_values_list):
-    '''Assembles a string from a lsit query names and value tuples:
+    '''Assembles a string from a list of query names and value tuples:
     [('trlat', '12.34'), ('trlon', '-56,78')] 
     into
     "?trlat=12.34&trlon=-56,78"'''
