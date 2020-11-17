@@ -1192,8 +1192,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("using multi-core (no logging info available while processing)  ...")
             import multiprocessing
             #import dill as pickle
-            pool = multiprocessing.Pool(processes=num_cores, maxtasksperchild=1) # processes=None means use all available cores
 
+            # As per Nick this is needed to make MP work with gnunicon on linux
+            # b/c the default on unix is fork not spawn which starts faster but can also 
+            # be problematic so now we're using the slower stating spawn
+            mp = multiprocessing.get_context('spawn') 
+            pool = mp.Pool(processes=None, maxtasksperchild=1) # processes=None means use all available cores
+            
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
             try:
                 processed_list = pool.map(process_tile, tile_list)
