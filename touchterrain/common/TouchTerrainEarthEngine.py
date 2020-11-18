@@ -1184,12 +1184,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #if CPU_cores_to_use is 0(!) us all cores, otherwise use that number
             if CPU_cores_to_use == 0:
                 num_cores = None
+                num_core_str = "all"
             else:
                 num_cores = CPU_cores_to_use
+                num_core_str = str(num_cores)
             # TODO: Using 0 here that needs to become None is confusing, but too esoteric to clean up ..
             # Better: make default 1, else use MP with None (meaning all)
 
-            pr("using multi-core (no logging info available while processing)  ...")
+            pr("Multiprocessing: using " + num_core_str + " cores (no logging info available while processing)  ...")
             import multiprocessing
             #import dill as pickle
 
