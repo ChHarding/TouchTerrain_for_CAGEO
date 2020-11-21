@@ -31,7 +31,7 @@ import numpy as np
 import copy   # to copy objects
 import warnings # for muting warnings about nan in e.g. nanmean()
 import struct # for making binary STL
-from collections import OrderedDict # for vertex indices dict
+#from collections import OrderedDict # for vertex indices dict
 import sys
 import multiprocessing
 import tempfile
@@ -52,34 +52,14 @@ ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
  endfacet"""
 ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
-# turns out vectormath is about 10 times slower than vector :(
-'''
-#https://pypi.python.org/pypi/vectormath/
-import vectormath as vmath
+# TODO: this is still pretty slow (takes as long as the first processing step!), 
+# maybe have a nonormals setting which uses 0,0,0 ?
+from touchterrain.common.vectors import Vector, Point  # local copy of vectors package
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
-
-    """in: 3 verts, out normal (nx, ny,nz) with length 1
-    """
-
-    v_ar = vmath.Vector3Array([tri[0].get(), tri[1].get(), tri[2].get()])
-
-
-    a = v_ar[1] - v_ar[0]
-    b = v_ar[2] - v_ar[1]
-    c = a.cross(b)
-    n = c.normalize()
-
-    return list(n) # convert Vector3 to list
-'''
-# TODO: this is still pretty slow (takes as long as the first processing step!), maybe have a nonormals setting which uses 0,0,0 ?
-from touchterrain.common.vectors import Vector, Point  #
-
-# function to calculate the normal for a triangle
-def get_normal(tri):
-    """in: 3 verts, out normal (nx, ny,nz) with length 1
-    """
+    "in: 3 verts, out normal (nx, ny,nz) with length 1"
+    
     (v0, v1, v2) = tri
     p0 = Point.from_list(v0.get())
     p1 = Point.from_list(v1.get())
@@ -97,21 +77,22 @@ def get_normal(tri):
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
 
-def dist(v1,v2):
-    ''' distance between 2 vertices'''
-    p1 = vmath.Vector3(v1.get())
-    p2 = vmath.Vector3(v2.get())
-    v = p1 - p2
-    m = v.magnitude()
-    return v
 
 class vertex(object):
     def __init__(self, x,y,z, vertex_idx_from_grid):
         self.coords = [x,y,z] # needs to be a list for zigzag magic to be able to change coords
-        self.vert_idx = vertex_idx_from_grid
+        self.vert_idx = vertex_idx_from_grid # list of indices kept by grid (class attribute)
 
         # for non obj file this is set to -1, and there's no need to deal with vertex indices
         if self.vert_idx != -1:
+            # This creates a  dict (a grid class attribute) with a tuple of the
+            # 3 coords as key and a int as value. The int is a running index i.e. for each new
+            # (not yet hashed) vertex this index just increases by 1, based the number of dict
+            # entries. If a vertex has coords that already exist in the dict, nothing needs to be done.
+            # This ensures that each index number is unique but can be shared by multiple indices
+            # (e.g. when 2 triangles have vertices at exactly the same coords)
+
+
             # if key does not yet exist ...
             if tuple(self.coords) not in self.vert_idx: # can't hash lists
                 # hash with 3D coords with a running number as Id
@@ -125,29 +106,49 @@ class vertex(object):
         i = self.vert_idx[tuple(self.coords)]
         return i
 
-
     def get(self):
         "returns [x,y,z] list of vertex"
         return self.coords
 
+    def get_copy(self):
+        "returns copy of vertex"
+        x,y,z = self.coords[:] # get copy and unroll
+        # vert_idx must NOT be a copy b/c this dict is a pointer to the grid object
+        # i.e. it's "global" (class attribute) and shared by all vertices 
+        vert_idx = self.vert_idx         
+        cp = vertex(x,y,z, vert_idx) # make new vertex from copied coords
+        return cp
+
     def __str__(self):
         return "%.2f %.2f %.2f " % (self.coords[0], self.coords[1], self.coords[2])
 
-    def __getitem__(self, index):
+    def __getitem__(self, index): 
+        "enables use of index brackets for vertex objects: v[0] returns coords[0]"
         return self.coords[index]
+
+
 
 
 class quad(object):
     """return list of 2 triangles (counterclockwise) per quad
        wall quads will NOT subdivide their quad into subquads if they are too skinny
-       as this would require to re-index the entire mesh
+       as this would require to re-index the entire mesh. However, I left the subdive
+       stuff in in case we want to re-visit it later.
     """
     # class attribute, use quad.too_skinny_ratio
     too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
 
-    def __init__(self, v0, v1, v2, v3):
+    # order is NE, NW, SW, SE
+    # can be just a triangle, if it just any 3 ccw consecutive corners 
+    def __init__(self, v0, v1, v2, v3=None): 
         self.vl = [v0, v1, v2, v3]
         self.subdivide_by = None # if not None, we need to subdivide the quad into that many subquads
+
+    def get_copy(self):
+        ''' returns a copy of the quad'''
+        vl = self.vl[:]
+        cp = quad(vl[0].get_copy(), vl[1].get_copy(), vl[2].get_copy(), vl[3].get_copy())
+        return cp
 
     def check_if_too_skinny(self, direction):
         '''if a border quad is too skinny it will to be subdivided into multiple quads'''
@@ -176,21 +177,31 @@ class quad(object):
         "return list of 2 triangles (counterclockwise)"
         v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
         t0 = (v0, v1, v2)  # verts of first triangle
-        t1 = (v0, v2, v3)  # verts of second triangle
-        return (t0,t1)
+
+        # if v3 is None, we only return t0
+        if v3 != None:
+            t1 = (v0, v2, v3)  # verts of second triangle
+            return (t0,t1)
+        else:
+            return(t0, None)
 
     def get_triangles_with_indexed_verts(self):
         "return list of 2 triangles (counterclockwise) as vertex indices"
 
         vertidx = [] # list of the 4 verts as index
-        for v in self.vl: # quad as list of 4 verts, seach as (x,y,z)
-            vi = v.get_id()
-            vertidx.append(vi)
+        for v in self.vl: # quad as list of 4 verts, each as (x,y,z)
+            if v != None: # v3 could be None
+                vi = v.get_id()
+                vertidx.append(vi)
             #print v,vi
 
         t0 = (vertidx[0], vertidx[1], vertidx[2])  # verts of first triangle
-        t1 = (vertidx[0], vertidx[2], vertidx[3])  # verts of second triangle
-        return (t0,t1)
+        # if v3 is None(i.e. we didn't get a 4. index), we only return t0
+        if len(vertidx) > 3:
+            t1 = (vertidx[0], vertidx[2], vertidx[3])  # verts of second triangle
+            return (t0,t1)
+        else:
+            return(t0, None)
 
     '''
     # splits skinny triangles
@@ -281,8 +292,6 @@ class quad(object):
             return tl
     '''
 
-
-
     def __str__(self):
         rs ="  "
         for n,v in enumerate(self.vl):
@@ -291,17 +300,88 @@ class quad(object):
 
 
 class cell(object):
-    "a cell with a top and bottom quad, constructor: uses refs and does NOT copy"
-    def __init__(self, topquad, bottomquad, borders):
+    '''a cell with a top and bottom quad, constructor: uses refs and does NOT copy ...
+       except for triangle cells
+       '''
+    def __init__(self, topquad, bottomquad, borders, is_tri_cell=False):
         self.topquad = topquad
         self.bottomquad = bottomquad
         self.borders = borders
+        self.is_tri_cell = is_tri_cell
+
     def __str__(self):
         r = hex(id(self)) + "\n top:" + str(self.topquad) + "\n btm:" + str(self.bottomquad) + "\n borders:\n"
         for d in ["N", "S", "E", "W"]:
             if self.borders[d] != False:
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
+
+    def check_for_tri_cell(self):
+        """Returns True if cell has borders on 2 consecutive sides False otherwise.
+           Returns False is cell is already a tri-cell""" 
+        if self.is_tri_cell == True: return None
+        b = self.borders
+
+        # Count borders (non-False will be a pointer to a wall quad, i.e. True is not used here!
+        num_borders = 0
+        for d in ["N", "S", "E", "W"]:
+            if b[d] != False: num_borders += 1
+
+        if num_borders == 2:
+            if b["N"] != False and b["S"] != False: return False
+            if b["E"] != False and b["W"] != False: return False
+        else: 
+            return False # cannot be triangelized
+
+        #print("tricell:", num_borders, b)
+        return True # 2 touching sides
+    
+    def convert_to_tri_cell(self):
+        """Collapses the top and bottom quad into a triangle based on its 2 border walls,
+        replaces one of the 2 border walls with a diagonal wall and the other with False.
+        returns None, sets is_tri_cell to True"""
+        if self.is_tri_cell == True: return None
+
+        b = self.borders    
+        tq =  self.topquad.get_copy()
+        bq =  self.bottomquad.get_copy()     # NW SE SW NE
+        tvl = tq.vl #                           0  1  2  3
+        bvl = bq.vl # vertex order in quad is   0  3  2  1
+        
+        # Collapse the quad into a triangle depending on where the 2 borders are
+        # In addition we need to get rid of one wall and overwrite the other
+        # with a new diagonal wall 
+        
+        if b["N"] != False and b["W"] != False:
+            self.topquad = quad(tvl[3], tvl[1], tvl[2], None) # ccw, order doesn't matter
+            self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) # cw!
+            b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3]) # diagonal wall (ccw!)
+            b["W"] = False # no used anymore
+        elif b["N"] != False and b["E"] != False: 
+            self.topquad = quad(tvl[0], tvl[1], tvl[2], None)
+            self.bottomquad = quad(bvl[0], bvl[2], bvl[3], None) 
+            b["N"] = quad(tvl[0], tvl[2], bvl[2], bvl[0])
+            b["E"] = False 
+        elif b["S"] != False and b["E"] != False: 
+            self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
+            self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
+            b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
+            b["E"] = False
+        elif b["S"]!= False and b["W"] != False: 
+            self.topquad = quad(tvl[2], tvl[3], tvl[0], None)
+            self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
+            b["S"] = quad(tvl[2], tvl[0], bvl[0], bvl[2])
+            b["W"] = False
+        else:
+            print("convert_to_tri_cell() got invalid border config:", (self.borders), " - aborting")
+            sys.exit() 
+            
+        self.is_tri_cell = True
+
+        return None
+
+
+
 #profiling decorator
 # https://medium.com/fintechexplained/advanced-python-learn-how-to-profile-python-code-1068055460f9
 import cProfile
@@ -334,7 +414,7 @@ class grid(object):
          tile_info: dict with info about the current tile + some tile global settings"
 
         if tile_info["fileformat"] == 'obj':
-            self.vi = OrderedDict() # set class attrib to empty dict, will be filled with vertex indices
+            self.vi = {} #OrderedDict() # set class attrib to empty dict, will be filled with vertex indices
         else:
             self.vi = -1 # means: don't use vertex indices
         self.cells = None # stores the cells, for now a 2D array of cells, but could also be a list of cells (later)
@@ -476,7 +556,7 @@ class grid(object):
                 #print "y=",j," x=",i, " elev=",top[j,i]
 
                 # if center elevation of current cell is NaN, set it to None and skip the rest
-                if np.isnan(top[j,i]):
+                if have_nan and np.isnan(top[j,i]):
                     self.cells[j-1,i-1] = None
                     continue
 
@@ -490,13 +570,23 @@ class grid(object):
 
 
                 ## Which directions will need to have a wall?
-                # True means we have an adjacent cell and need a wall in that direction
-                borders =   dict([[drct,False] for drct in ["N", "S", "E", "W"]]) # init
+                # True means: we have an adjacent cell and need a wall in that direction
+                borders =   dict([[drct,False] for drct in ["N", "S", "E", "W"]]) # init                    
+                
+                
+                # set walls for fringe cells
                 if j == 1        : borders["N"] = True
                 if j == ymaxidx  : borders["S"] = True
                 if i == 1        : borders["W"] = True
                 if i == xmaxidx  : borders["E"] = True
-                if have_nan: #  if we have nan cells, check for walls facing an adjacent NaN cell
+
+                if not have_nan:
+                    # interpolate elevation of four corners (array order is top[y,x]!!!!)
+                    NEelev = (top[j+0,i+0] + top[j-1,i-0] + top[j-1,i+1] + top[j-0,i+1]) / 4.0
+                    NWelev = (top[j+0,i+0] + top[j+0,i-1] + top[j-1,i-1] + top[j-1,i+0]) / 4.0
+                    SEelev = (top[j+0,i+0] + top[j-0,i+1] + top[j+1,i+1] + top[j+1,i+0]) / 4.0
+                    SWelev = (top[j+0,i+0] + top[j+1,i+0] + top[j+1,i-1] + top[j+0,i-1]) / 4.0
+                else:
                     #print "NSWE", top[j-1,i], top[j+1,i], top[j,i-1], top[j,i+1]
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
@@ -508,13 +598,7 @@ class grid(object):
                         except RuntimeWarning:
                             pass # nothing wrong - just here to ignore the warning
 
-                # get elevation of four corners (array order is top[y,x]!!!!)
-                if not have_nan:
-                    NEelev = (top[j+0,i+0] + top[j-1,i-0] + top[j-1,i+1] + top[j-0,i+1]) / 4.0
-                    NWelev = (top[j+0,i+0] + top[j+0,i-1] + top[j-1,i-1] + top[j-1,i+0]) / 4.0
-                    SEelev = (top[j+0,i+0] + top[j-0,i+1] + top[j+1,i+1] + top[j+1,i+0]) / 4.0
-                    SWelev = (top[j+0,i+0] + top[j+1,i+0] + top[j+1,i-1] + top[j+0,i-1]) / 4.0
-                else:
+
                     # interpolate each corner with possible NaNs, using mean()
                     # Note: if we have 1 or more NaNs, we get a warning: warnings.warn("Mean of empty slice", RuntimeWarning)
                     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
@@ -532,7 +616,7 @@ class grid(object):
                             SWelev = np.nanmean(SWar) if np.isnan(np.sum(SWar)) else (top[j+0,i+0] + top[j+1,i+0] + top[j+1,i-1] + top[j+0,i-1]) / 4.0
 
                         except RuntimeWarning: #  corner is surrounded by NaN eleveations - skip this cell
-                            print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
+                            #print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
                             #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
                             num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
                             if num_nans > 0: # yes, set cell to None and skip it ...
@@ -557,7 +641,7 @@ class grid(object):
 
                 # make bottom quad (x,y,z)
 
-                # if bottom is not None, interpolate bottom from the given array
+                # if bottom array is not None, interpolate bottom from the given array
                 # (NaN should never occur here!)
                 if hasattr(bottom, "__len__"):#
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
@@ -577,7 +661,6 @@ class grid(object):
                 # in borders dict, replace any True with a quad of that wall
                 if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)
                 if borders["S"] == True: borders["S"] = quad(SWb, SWt, SEt, SEb)
-                # E W needed to be flipped
                 if borders["E"] == True: borders["E"] = quad(NWt, SWt, SWb, NWb)
                 if borders["W"] == True: borders["W"] = quad(SEt, NEt, NEb, SEb)
 
@@ -585,11 +668,19 @@ class grid(object):
                 c = cell(topq, botq, borders)
                 #print c
 
-
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
+
+                # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
+                # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
+                # are flagged as is_tri_cell = True, have only v0, v1 and v2. One border is deleted, the other
+                # is set as a diagonal wall
+                if have_nan:
+                    #print(i,j, c.borders)
+                    if c.check_for_tri_cell():
+                        c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make digonal wall
 
                 # put cell into array of cells (self.cells is NOT padded, => -1)
                 self.cells[j-1,i-1] = c
@@ -792,7 +883,9 @@ class grid(object):
                 progress += 10
                 print(progress, "%", file=sys.stderr, end=", ")
 
-            # start with x,y,z for normal
+            # with "tri quads" it's now possible to have None in the list, ignore those
+            if t == None: continue
+
             tl = get_normal(t) if no_normals == False else [0,0,0]
 
             for v in t:
@@ -815,11 +908,14 @@ class grid(object):
         pc_step = int(len(tris)/10) + 1
         progress = 0
         print("assembling binary stl from", len(tris), "triangles", file=sys.stderr)
-        for i,t  in enumerate(tris):
+        for i,t  in enumerate(tris): # go through list of triangles
 
             if i % pc_step == 0:
                 progress += 10
                 print(progress, "%", file=sys.stderr, end=", ")
+
+            # with "tri quads" it's now possible to have None in the list, ignore those
+            if t == None: continue
 
             # start with x,y,z for normal
             tl = get_normal(t) if no_normals == False else [0,0,0]
@@ -926,8 +1022,6 @@ class grid(object):
             fo.close()
             return temp_file
 
-
-
     def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None, no_normals=False):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
@@ -955,7 +1049,7 @@ class grid(object):
         for ix in range(0, ncells_x):
           for iy in range(0, ncells_y):
             cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
-
+        
             if cell != None:
                 # list of quads for this cell,
                 if no_bottom == False:
@@ -963,14 +1057,17 @@ class grid(object):
                 else:
                     quads = [cell.topquad] # no bottom quads, only top
 
-                for k in list(cell.borders.keys()): # plus get border quads if we have any
+                # add border quads if we have any
+                for k in list(cell.borders.keys()): 
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                     # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
+                
                 for q in quads:
                     t0,t1 = q.get_triangles()
                     triangles.append(t0)
-                    triangles.append(t1)
-                del cell
+                    if t1  != None: # for a tri quadcell t1 is None
+                        triangles.append(t1)
+                
 
         #for t in triangles: print t
 
@@ -1037,7 +1134,7 @@ class grid(object):
         buf_as_list.append("g vert")    # header for vertex indexing section
         for v in list(self.vi.keys()): # self.vi is a dict of vertex indices
             #vstr = "v %f %f %f #%d" % (v[0], v[1], v[2], i+1) # putting the vert index behind a comment makes some programs crash when loading the obj file!
-            vstr = "v %f %f %f" % (v[0], v[1], v[2])
+            vstr = f"v {v[0]}, {v[1]}, {v[2]}"
             buf_as_list.append(vstr)
 
         buf_as_list.append("g tris")
@@ -1064,6 +1161,7 @@ class grid(object):
                     t0,t1 = q.get_triangles_with_indexed_verts()
 
                     for f in (t0,t1): # output the 2 facets (triangles)
+                        if f == None: continue # for "tri quads" one tri is None
                         fstr = "f %d %d %d" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indices start at 1!
                         buf_as_list.append(fstr)
                 del cell
@@ -1110,13 +1208,22 @@ if __name__ == "__main__":
                     [1.5,2.6, 1.0],
                     [1.2,1.6, 1.7],
                    ])
-
-    top =  np.array([[11, 11, 12, 13, 14, 15],
-                     [11, 11, 12, 13, 14, 15],
-               [np.nan,np.nan,22, 23, 24, 25],
-               [np.nan,np.nan,32, 33, 34, 35],
-                     [41, 41, 42, 43, 44, 45]])
+    
+    top =  np.array([
+                        [nn, nn, nn, 11, 11, nn, 11],
+                        [nn, nn, 17, 22, 24, nn, nn],
+                        [nn, 13, 33, 44, 33, nn, nn],                     
+                        [11, 22, 55, 70, 40, nn, nn],
+                        [14, 17, 33, 39, 22, nn, nn],
+                        [nn, 10, 23, 10, nn, nn, nn],   
+                        [nn, nn, 11,  6, nn, nn, nn],                     
+                     ])
     """
+    top =  np.array([ [nn, nn, 11],
+                      [11, nn, nn],
+                      [11, 11, nn],
+                 ])
+    '''
     top =  np.array([
                          [ 1, 5, 10, 50, 20, 10, 1],
                          [ 1, 10, 10, 50, 20, 10, 2],
@@ -1125,6 +1232,7 @@ if __name__ == "__main__":
                          [ 1, 50, 10, 10, 20, 10 , 1 ],
 
                    ])
+    '''
 
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
@@ -1149,18 +1257,20 @@ if __name__ == "__main__":
 
     tile_info_dict = {
         "scale"  : 10000, # horizontal scale number, defines the size of the model (= 3D map): 1000 => 1m (real) = 1000m in model
-        "pixel_mm" : 0.5, # lateral (x/y) size of a pixel in mm
+        "pixel_mm" : 1, # lateral (x/y) size of a pixel in mm
         "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
         "min_elev" : np.nanmin(top),
-        "z_scale" :  0.1,     # z (vertical) scale (elevation exageration) factor, float
+        "z_scale" :  0.4,     # z (vertical) scale (elevation exageration) factor, float
         "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,
         "ntilesx": 1,
         "ntilesy": 1,
-        "tile_centered" : True, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-        "fileformat": "STLa",  # folder/zip file name for all tiles
-        "base_thickness_mm": 10, # thickness between bottom and lowest elevation, NOT including the bottom relief.
+        "tile_centered" : False, # True: each tile's center is 0/0, False: global (all-tile) 0/0
+        "fileformat": "stlb",  # folder/zip file name for all tiles
+        "base_thickness_mm": 0.1, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
+        "use_geo_coords": None,
+        
     }
 
     whratio = top.shape[0] / float(top.shape[1])
@@ -1171,9 +1281,9 @@ if __name__ == "__main__":
 
 
 
-    #b = g.make_STLfile_buffer(ascii=True)
-    b = g.make_STLfile_buffer(ascii=False)
-    f = open("STLtest.stl", 'wb');f.write(b);f.close()
+    #b = g.make_STLfile_buffer(ascii=True, no_normals=True)
+    b = g.make_STLfile_buffer(ascii=False, no_normals=False)
+    f = open("STLtest1.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
