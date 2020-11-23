@@ -1,4 +1,9 @@
-Sep. 30, 2020 (3.0.0 alpha)
+Nov. 20, 2020 (3.1)
+	- optimized wall border outline for models made from polygon
+
+Oct. 23, 2020 (3.0.3)
+	- added MERIT/DEM/v1_0_3 as DEM source
+Sep. 30, 2020 (3.0.0)
 	- Rewrote GUI to use Bootstrap 4
 	- area box can now be set via coordinate text entries
 	- Added place search bar
