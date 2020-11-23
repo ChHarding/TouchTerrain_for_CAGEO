@@ -184,7 +184,7 @@ def main_page():
         pass
    
    
-    # in manual, replace " with \" ""ignore_leq":123" -> "\"ignore_leq\":123"
+    # in manual, replace " with \" i.e. ""ignore_leq":123" -> "\"ignore_leq\":123"
     # so that it's a valid JS string after it's been inlined
     args["manual"] = args["manual"].replace('"', chr(92)+chr(34))  # \ + "
 
