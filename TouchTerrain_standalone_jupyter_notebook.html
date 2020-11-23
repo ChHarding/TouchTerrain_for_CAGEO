@@ -13116,7 +13116,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="TouchTerrain-standalone-in-a-jupyter-notebook">TouchTerrain standalone in a jupyter notebook<a class="anchor-link" href="#TouchTerrain-standalone-in-a-jupyter-notebook">&#182;</a></h1><p>Chris Harding, Sep 7, 2020 (<a href="mailto:charding@iastate.edu">charding@iastate.edu</a>)</p>
+<h1 id="TouchTerrain-standalone-in-a-jupyter-notebook">TouchTerrain standalone in a jupyter notebook<a class="anchor-link" href="#TouchTerrain-standalone-in-a-jupyter-notebook">&#182;</a></h1><p>Chris Harding, Nov. 20, 2020 (<a href="mailto:charding@iastate.edu">charding@iastate.edu</a>)</p>
 <ul>
 <li>this jupyter notebook runs a standalone version of TouchTerrain, similar to <code>TouchTerrain_standalone.py</code></li>
 <li>this notebook needs to be run in Python <strong>3.x</strong>  (I'm using 3.7)</li>
@@ -13168,7 +13168,7 @@ div#notebook {
 <li>You don't need this if you only want to import terrain from locally stored raster files (geotiffs)!</li>
 <li>TouchTerrain can use DEM data from Google Earth Engine (given the corners of the area), but you need to first request a developer account and set up an authentication file</li>
 <li>(This dev account is different from your standard Google (Gmail, etc.) account!)</li>
-<li>Getting the account is free and entitles you to a modest number of requests (4 per seconds), which are also free. To request got to <a href="https://signup.earthengine.google.com/">https://signup.earthengine.google.com/</a>, you'll get and email with a file. </li>
+<li>Getting the account is free and entitles you to a modest number of requests (4 per seconds), which are also free. Go to <a href="https://signup.earthengine.google.com/">https://signup.earthengine.google.com/</a>, you'll get an email with a file. </li>
 <li>refer to the part <strong>Setting Up Authentication Credentials</strong> <a href="https://developers.google.com/earth-engine/python_install">https://developers.google.com/earth-engine/python_install</a> (ignore the stuff above it, as you should already have installed all the needed packages when you installed the earthengine-api package ...)</li>
 </ul>
 <ul>
@@ -13186,7 +13186,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">ee</span> <span class="c1"># earthengine-api should have been installed via pip ealier</span>
@@ -13239,7 +13239,7 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[2]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># import packages</span>
@@ -13257,10 +13257,28 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 </div>
 
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root:EE init() worked with .config/earthengine/credentials
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">args</span> <span class="o">=</span> <span class="p">{</span>
@@ -13279,7 +13297,7 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
     <span class="s2">&quot;trlon&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">107.97962089843747</span><span class="p">,</span> <span class="c1"># top right corner long</span>
 
     <span class="c1"># 3D print parameters</span>
-    <span class="s2">&quot;tilewidth&quot;</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>  <span class="c1"># width of each tile in mm, (tile height will be auto calculated)</span>
+    <span class="s2">&quot;tilewidth&quot;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>  <span class="c1"># width of each tile in mm, (tile height will be auto calculated)</span>
     <span class="s2">&quot;printres&quot;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span>  <span class="c1"># resolution (horizontal) of 3D printer in mm, should be your NOZZLE size or just a bit less! </span>
                       <span class="c1"># Using something like 0.01 will NOT print out a super detailed version as you slicer will remove</span>
                       <span class="c1"># super fine details anyway! You&#39;ll just wait a long time and get a super large STL file!</span>
@@ -13327,6 +13345,24 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </pre></div>
 
     </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>settings stored, ready to process
+</pre>
+</div>
+</div>
+
 </div>
 </div>
 
@@ -13489,7 +13525,7 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">totalsize</span><span class="p">,</span> <span class="n">full_zip_file_name</span> <span class="o">=</span> <span class="n">TouchTerrain</span><span class="o">.</span><span class="n">get_zipped_tiles</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)</span> <span class="c1"># args are in a dict</span>
@@ -13497,6 +13533,253 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </pre></div>
 
     </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root:Log for creating 3D model tile(s) for  NED_-108.12_44.60 
+ 
+INFO:root:DEM_name = USGS/NED 
+INFO:root:trlat = 44.69741706507476 
+INFO:root:trlon = -107.97962089843747 
+INFO:root:bllat = 44.50185267072875 
+INFO:root:bllon = -108.25427910156247 
+INFO:root:printres = 0.4 
+INFO:root:ntilesx = 1 
+INFO:root:ntilesy = 1 
+INFO:root:tilewidth = 120 
+INFO:root:basethick = 0 
+INFO:root:zscale = 1 
+INFO:root:fileformat = STLb 
+INFO:root:no_bottom = False 
+INFO:root:unprojected = False 
+INFO:root:no_normals = True 
+INFO:root:
+process started: 18:32:11.025034 
+INFO:root:
+Region (lat/lon):
+   44.69741706507476 -107.97962089843747 (top right)
+   44.50185267072875 -108.25427910156247 (bottom left) 
+INFO:root:center at [-108.11694999999997, 44.599634867901756]  UTM 13 N ,  EPSG:32613 
+INFO:root:lon/lat size in degrees: [0.274658203125, 0.19556439434600748] 
+INFO:root:Earth Engine raster: USGS/NED 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Log for creating 3D model tile(s) for  NED_-108.12_44.60 
+ 
+DEM_name = USGS/NED 
+trlat = 44.69741706507476 
+trlon = -107.97962089843747 
+bllat = 44.50185267072875 
+bllon = -108.25427910156247 
+printres = 0.4 
+ntilesx = 1 
+ntilesy = 1 
+tilewidth = 120 
+basethick = 0 
+zscale = 1 
+fileformat = STLb 
+no_bottom = False 
+unprojected = False 
+no_normals = True 
+
+process started: 18:32:11.025034 
+
+Region (lat/lon):
+   44.69741706507476 -107.97962089843747 (top right)
+   44.50185267072875 -108.25427910156247 (bottom left) 
+center at [-108.11694999999997, 44.599634867901756]  UTM 13 N ,  EPSG:32613 
+lon/lat size in degrees: [0.274658203125, 0.19556439434600748] 
+requesting 72.68735070561117 m resolution from EarthEngine
+Earth Engine raster: USGS/NED 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root: USGS National Elevation Dataset 1/3 arc-second 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre> USGS National Elevation Dataset 1/3 arc-second 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root:URL for geotiff is:  https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/thumbnails/e1e4aeee377812eb77e3a4005dc3f8e6-99d87c821e4214a8cf098f6990c3ec47:getPixels 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>URL for geotiff is:  https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/thumbnails/e1e4aeee377812eb77e3a4005dc3f8e6-99d87c821e4214a8cf098f6990c3ec47:getPixels 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root: geotiff size: 0.29921722412109375 Mb 
+INFO:root: cell size 72.68735070561117 m, upper left corner (x/y):  241249.31699192346 4954515.198795868 
+INFO:root:Time to add GPX paths:0.01196742057800293 
+INFO:root:full (untiled) raster (height,width)  (311, 312) float64 elev. min/max: 1125.3890380859375 1582.0689697265625 
+INFO:root:cell size: 72.68735070561117 m  
+INFO:root:adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
+INFO:root:total model size in mm: 120 x 119.61538461538461 
+INFO:root:map scale is 1 : 188987.11183458904 
+INFO:root:Cells per tile (x/y) 312 x 311 
+INFO:root:using single-core only 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre> geotiff size: 0.29921722412109375 Mb 
+ cell size 72.68735070561117 m, upper left corner (x/y):  241249.31699192346 4954515.198795868 
+Time to add GPX paths:0.01196742057800293 
+full (untiled) raster (height,width)  (311, 312) float64 elev. min/max: 1125.3890380859375 1582.0689697265625 
+cell size: 72.68735070561117 m  
+adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
+total model size in mm: 120 x 119.61538461538461 
+map scale is 1 : 188987.11183458904 
+elev min/max : 1125.39 to 1582.07
+Cells per tile (x/y) 312 x 311 
+using single-core only 
+processing tile: 1 1
+top min/max: 0.5 2.9164607163282863
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>creating internal triangle data structure for &lt;_MainProcess(MainProcess, started)&gt;
+10 % &lt;_MainProcess(MainProcess, started)&gt;
+20 % &lt;_MainProcess(MainProcess, started)&gt;
+30 % &lt;_MainProcess(MainProcess, started)&gt;
+40 % &lt;_MainProcess(MainProcess, started)&gt;
+50 % &lt;_MainProcess(MainProcess, started)&gt;
+60 % &lt;_MainProcess(MainProcess, started)&gt;
+70 % &lt;_MainProcess(MainProcess, started)&gt;
+80 % &lt;_MainProcess(MainProcess, started)&gt;
+90 % &lt;_MainProcess(MainProcess, started)&gt;
+100% &lt;_MainProcess(MainProcess, started)&gt; 
+
+Writing tile into temp. file C:\Users\charding\Box\TouchTerrain\TouchTerrain_for_CAGEO\tmp\myterrain11.tmp
+assembling binary stl from 390620 triangles
+10 %, 20 %, 30 %, 40 %, 50 %, 60 %, 70 %, 80 %, 90 %, 100 %, 
+
+tile 1 1 STLb 18.626293182373047 Mb 
+INFO:root:
+1 x 1 tiles, tile size 120.00 x 119.62 mm
+ 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+1 x 1 tiles, tile size 120.00 x 119.62 mm
+ 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root:tile 1 1 : height:  0.5 - 2.9164607163282863 mm , file size: 19 Mb 
+INFO:root:
+total size for all tiles: 19 Mb 
+INFO:root:added full geotiff as NED_-108.12_44.60.tif 
+INFO:root:
+processing finished: 18:32:17.068419 
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+    <div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>tile 1 1 : height:  0.5 - 2.9164607163282863 mm , file size: 19 Mb 
+
+total size for all tiles: 19 Mb 
+zip finished: 18:32:17.057447
+added full geotiff as NED_-108.12_44.60.tif 
+
+processing finished: 18:32:17.068419 
+
+DONE!
+
+Created zip file tmp\myterrain.zip 18.93 Mb
+</pre>
+</div>
+</div>
+
 </div>
 </div>
 
