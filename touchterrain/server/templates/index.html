@@ -327,7 +327,7 @@
 												<option value="0.45">0.45 mm</option>
 												<option value="0.5">0.5 mm</option>
 										</select> 
-										<label for="options_print_resolution"> &nbsp 3D print Resolution (~ nozzle diameter)</label>
+										<label for="options_print_resolution"> &nbsp Nozzle diameter)</label>
 									</div>
 								</div>
 
@@ -364,9 +364,9 @@
 								<!-- Approximate DEM resolution given box and tile parameters -->
 								<div class="form-inline text-truncate">
 									<div class="form-group">
-										<label for="DEMresolution">Current DEM resolution:</label>
+										<label for="DEMresolution">Effective DEM resolution:</label>
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
-													title="To print tiles at the given width with this mm resolution, the DEM will be resampled from the source to approx. this meter value. If this is below the source DEM resolution (yellow), you're attempting to sample at a higher level of detail than the source actually provides. This has no improvement over the source resolution and will instead only make your file needlessly big!"
+													title="To print tiles at the given width with this nozzle, the DEM will be resampled from the source to approx. this meter value. If this is below the source DEM resolution (yellow), you're attempting to sample at a higher level of detail than the source actually provides. This has no improvement over the source resolution and will instead only make your file needlessly big!"
 													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
 										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
 									</div>
