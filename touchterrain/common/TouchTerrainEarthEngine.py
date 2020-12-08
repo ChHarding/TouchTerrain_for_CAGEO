@@ -155,7 +155,8 @@ def process_tile(tile_tuple):
     else:
         bottom_raster = None # None means Bottom is flat
 
-
+    # create a grid object containing cells, each cell has a top/bottom and maybe wall quad(s)
+    # each quad is 2 triangles with 3 vertices
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     printres = tile_info["pixel_mm"]
 
@@ -333,7 +334,7 @@ def get_bounding_box(coords):
     trlon += width/100
     bllon -= width/100
     return trlat, trlon, bllat, bllon
-        
+
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None, 
                          polyURL=None,
@@ -359,6 +360,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          gpxPathHeight=25,
                          gpxPixelsBetweenPoints=10,
                          gpxPathThickness=1, 
+                         map_img_filename=None,
                          **otherargs):
     """
     args:
@@ -398,6 +400,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive,
     - poly_file: local KML file to use as mask
+    - map_image_filename: image with a map of the area
     
     returns the total size of the zip file in Mb
 
@@ -785,6 +788,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
             min_elev = numpy.nanmin(npim)
+
+            # Do a quick check if all the values are the same, which happens if we didn't get
+            # any actual elevation data i.e. the area was not covered by the DEM
+            if numpy.all(npim == npim[0,0]): # compare to first cell value
+                s = "All(!) elevation values are " + str(npim[0,0]) + "! "
+                s += "This may happen if the DEM source does not cover the selected area.\n"
+                s += "For the web app, ensure that your red selection box is at least partially covered by the grey hillshade overlay "
+                s += "or try using AW3D30 as DEM source."
+                assert False, s # bail out
 
             # Add GPX points to the model (thanks KohlhardtC!)
             if importedGPX != None:
@@ -1269,6 +1281,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
 
+    # add png from Google Maps static 
+    if map_img_filename != None:
+        zip_file.write(map_img_filename, DEM_title + ".jpg")
+        pr("added map of area as " + DEM_title + ".jpg")
 
     pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
 
@@ -1286,12 +1302,19 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         except Exception as e:
              print("Error removing " + str(GEE_dem_filename) + " " + str(e), file=sys.stderr)
 
-
     # remove logfile
     try:
         os.remove(log_file_name)
     except Exception as e:
          print("Error removing logfile " + str(log_file_name) + " " + str(e), file=sys.stderr)
+
+    # remove map image
+    if map_img_filename != None:
+        try:
+            os.remove(map_img_filename)
+        except Exception as e:
+            print("Error removing map image " + str(map_img_filename) + " " + str(e), file=sys.stderr)
+
 
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
