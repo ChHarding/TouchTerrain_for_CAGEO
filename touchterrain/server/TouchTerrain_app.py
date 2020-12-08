@@ -560,7 +560,6 @@ def export():
         yield html
 
         # Grab a 640 x 640 Terrain Google map of the area 
-        google_maps_key="AIzaSyDkaGtIfh1H1a83-gRDGWlU46wAxGvRVWo"
         map_img_filename = store_static_Google_map(bllon, trlon, bllat, trlat, 
                                     google_maps_key, args["temp_folder"], args["zip_file_name"])
         if map_img_filename != None:
