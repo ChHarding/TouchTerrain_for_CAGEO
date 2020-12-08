@@ -677,10 +677,12 @@ class grid(object):
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
                 # are flagged as is_tri_cell = True, have only v0, v1 and v2. One border is deleted, the other
                 # is set as a diagonal wall
+                
                 if have_nan:
                     #print(i,j, c.borders)
                     if c.check_for_tri_cell():
-                        c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make digonal wall
+                        c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make diagonal wall
+                
 
                 # put cell into array of cells (self.cells is NOT padded, => -1)
                 self.cells[j-1,i-1] = c
@@ -1208,22 +1210,22 @@ if __name__ == "__main__":
                     [1.5,2.6, 1.0],
                     [1.2,1.6, 1.7],
                    ])
-    
+    """
     top =  np.array([
-                        [nn, nn, nn, 11, 11, nn, 11],
+                        [nn, nn, nn, 11, 11, nn, nn],
                         [nn, nn, 17, 22, 24, nn, nn],
-                        [nn, 13, 33, 44, 33, nn, nn],                     
-                        [11, 22, 55, 70, 40, nn, nn],
-                        [14, 17, 33, 39, 22, nn, nn],
-                        [nn, 10, 23, 10, nn, nn, nn],   
+                        [nn, 13, 33, 44, 33, 24, nn],                     
+                        [11, 22, 55, 70, 25, 30, nn],
+                        [14, 17, 33, 39, nn, 22, 12],
+                        [nn, 10, 23, 10, nn, 10, nn],   
                         [nn, nn, 11,  6, nn, nn, nn],                     
                      ])
-    """
+    '''
     top =  np.array([ [nn, nn, 11],
                       [11, nn, nn],
                       [11, 11, nn],
                  ])
-    '''
+    
     top =  np.array([
                          [ 1, 5, 10, 50, 20, 10, 1],
                          [ 1, 10, 10, 50, 20, 10, 2],
@@ -1283,7 +1285,7 @@ if __name__ == "__main__":
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True)
     b = g.make_STLfile_buffer(ascii=False, no_normals=False)
-    f = open("STLtest1.stl", 'wb');f.write(b);f.close()
+    f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
