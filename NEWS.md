@@ -1,3 +1,6 @@
+Dec. 9, 2020
+	- added check to bail out if the entier Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
+
 Nov. 20, 2020 (3.1)
 	- optimized wall border outline for models made from polygon
 
