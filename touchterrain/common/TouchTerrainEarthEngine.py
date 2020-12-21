@@ -548,10 +548,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pr(k, "=", v)
                 dict_for_url[k] = v
 
-        # print full query string:
-        # TODO: would not actually work as a URL b/c it misses the google map data!
-        #from urllib import urlencode  #from urllib.parse import urlencode <- python 3
-        #print "\n", urlencode(dict_for_url),"\n"
 
         pr("\nprocess started: " + datetime.datetime.now().time().isoformat())
 
