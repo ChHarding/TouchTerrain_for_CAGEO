@@ -9,6 +9,10 @@ Run_TouchTerrain_debug_server_app.py
 # my private API key for testing
 touchterrain/server/GoogleMapsKey.txt
 
+# any images
+*.png
+*.jpg
+
 # auto generated json
 example_config.json 
 
@@ -24,6 +28,7 @@ test/*
 # default folder for stand alone
 terrain  
 
+# polygon files
 *.kml
 *.kmz
 
@@ -184,4 +189,5 @@ dmypy.json
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 
-touchterrain/server/GoogleMapsKey.txt
+
+
