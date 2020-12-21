@@ -457,8 +457,9 @@ class grid(object):
         ro_top = top
         top = ro_top.copy() # writeable
 
-        # if bottom is None, we don't have a bottom raster, so the bottom is a constant
-        if bottom == None: bottom = 0
+        # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant
+        if not isinstance(bottom,np.ndarray):  
+            bottom = 0
 
         # Coordinates are in mm (for 3D printing on a buildplate)
         if tile_info["use_geo_coords"] == None:
