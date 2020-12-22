@@ -39,7 +39,13 @@ from touchterrain.common.Coordinate_system_conv import * # arc to meters convers
 
 import numpy
 from PIL import Image
-import gdal # for reading/writing geotiffs
+
+# for reading/writing geotiffs
+# Later versions of gdal may be bundled into osgeo so check there as well.
+try:
+    import gdal
+except ImportError as err:
+    from osgeo import gdal
 
 import time
 import random

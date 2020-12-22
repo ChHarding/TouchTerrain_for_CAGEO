@@ -183,7 +183,12 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
 
     """ 
     import xml.etree.ElementTree as ET 
-    import osr 
+
+    # Later versions of osr may be bundled into osgeo so check there as well.
+    try:
+        import osr
+    except ImportError as err:
+        from osgeo import osr
     import time 
     import math
 
