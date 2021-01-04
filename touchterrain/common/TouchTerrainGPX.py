@@ -220,7 +220,7 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
             
             #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
             transform = osr.CoordinateTransformation(source,target ) 
-            projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon) 
+            projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon, 0.0) 
  
             rasterX = int( (projectedPoints[1] - uly) / yres )   
             rasterY = int( (projectedPoints[0] - ulx) / xres )   
