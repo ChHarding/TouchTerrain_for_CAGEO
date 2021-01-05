@@ -184,6 +184,34 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
     """ 
     import xml.etree.ElementTree as ET 
 
+    # check if we have to explicitly override the PROJ_LIB folder so osr has access to
+    # the projection database proj.db. Otherwise  source.ImportFromEPSG(4326) (setting up WGS84)
+    # won't work and you'll get this: 
+    # ERROR 1: PROJ: proj_create_from_database: Cannot find proj.db
+    # ERROR 1: PROJ: proj_create: unrecognized format / unknown name
+    # ERROR 6: Cannot find coordinate operations from `' to `PROJCRS["WGS 84 / .... (your DEM SRS which did work b/c it used a different call ...)
+    # however this is just printed out somewhere (stderr?) and doesn't generate an exception! (Super helpful ...)
+
+    # Confusingly, what really bombs is transform.TransformPoint(gpx_lat, gpx_lon) later, when
+    # it can't transform into the non-existing target SRS and, even more "helpfully" then complains
+    # about a missing signature for the underlying C++ method: 
+    #   NotImplementedError: Wrong number or type of arguments for overloaded function 'CoordinateTransformation_TransformPoint'. 
+    #   Wrong number or type of arguments for overloaded function 'CoordinateTransformation_TransformPoint'.
+    #       Possible C/C++ prototypes are:
+    #       OSRCoordinateTransformationShadow::TransformPoint(double [3])
+    #       OSRCoordinateTransformationShadow::TransformPoint(double [4])
+    #       OSRCoordinateTransformationShadow::TransformPoint(double [3],double,double,double)
+    #       OSRCoordinateTransformationShadow::TransformPoint(double [4],double,double,double,double)
+    # In my case (Win10) the proj folder had been installed but the PROJ_LIB env var didn't point to it for some reason.
+    # If this happens to you, figure out which folder proj.db is in (for me it's anaconda3\Lib\site-packages\osgeo\data\proj) and
+    # put it into common/config.py under PROJ_DIR
+
+    from touchterrain.common import config # non-server config settings
+    if config.PROJ_DIR != None: # we got an override setting!
+        import os
+        os.environ['PROJ_LIB'] = config.PROJ_DIR
+        print("PROJ_LIB OSGEO projection folder was set to", os.environ['PROJ_LIB'])    
+
     # Later versions of osr may be bundled into osgeo so check there as well.
     try:
         import osr
@@ -198,9 +226,11 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
     # Parse GPX file
     ulx, xres, xskew, uly, yskew, yres  = dem.GetGeoTransform()   
     target = osr.SpatialReference()
-    target.ImportFromWkt(dem.GetProjection()) 
+    t_res = target.ImportFromWkt(dem.GetProjection()) # return of 0 => OK
+    if t_res != 0: assert False, "addGPXToMode(): target.ImportFromWkt() returned error" + str(t_res)
     source = osr.SpatialReference()
-    source.ImportFromEPSG(4326) # This is WGS84
+    s_res = source.ImportFromEPSG(4326) # This is WGS84, return of 0 => OK
+    if s_res != 0: assert False, "addGPXToMode(): source.ImportFromEPSG(4326) returned error" + str(s_res)
 
     for gpxFile in importedGPX:
         pr("process gpx file: {0}".format( gpxFile ) )
@@ -214,14 +244,14 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
         
         for trkpt in points:
             count = count + 1
-            gpx_lat = float( trkpt.attrib['lat'] )
-            gpx_lon = float( trkpt.attrib['lon'] ) 
+            gpx_lat = float(trkpt.attrib['lat'])
+            gpx_lon = float(trkpt.attrib['lon']) 
             #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
             
             #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
             transform = osr.CoordinateTransformation(source,target ) 
-            projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon, 0.0) 
- 
+            projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon)
+
             rasterX = int( (projectedPoints[1] - uly) / yres )   
             rasterY = int( (projectedPoints[0] - ulx) / xres )   
             

@@ -12,3 +12,11 @@ EE_URL = os.getenv('TOUCHTERRAIN_EE_URL', 'https://earthengine.googleapis.com')
 # Set up a service account as described here:
 # https://sites.google.com/site/earthengineapidocs/creating-oauth2-service-account
 EE_ACCOUNT = os.getenv('TOUCHTERRAIN_EE_ACCOUNT', 'earthengine@touchterrain.iam.gserviceaccount.com')
+
+
+# OSGeo/GDAL PROJ variable override (folder that contains proj.db, used for projections)
+# see addGPXToModel in TouchTerrainGPX.py for more on that unholy mess ...
+PROJ_DIR = None # None => don't override or something like r"C:\Users\charding\anaconda3_3.7\Lib\site-packages\osgeo\data\proj"
+                # make sure to use a raw (r"...") string on Windows!
+
+#PROJ_DIR = r"C:\Users\charding\anaconda3_3.7\Lib\site-packages\osgeo\data\proj"
