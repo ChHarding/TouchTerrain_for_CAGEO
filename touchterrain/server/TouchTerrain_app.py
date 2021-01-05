@@ -85,7 +85,6 @@ def store_static_Google_map(bllon, trlon, bllat, trlat, google_maps_key, temp_fo
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
     return """
-    <head>
     <title>TouchTerrain: processing finished. Settings used:""" + page_title + """</title>
     <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -98,20 +97,14 @@ def make_GA_script(page_title):
         'auto');
     ga('send', 'pageview', 'location'); // location = URL
     
-    //fire off several messages to GA when download button is clicked
+    //fire off events to GA when download button is clicked
     function onclick_for_dl(){
             ga('send', 'event', 'Download', 'Click', 'direct', '1');
             let comment_text=document.getElementById('comment').value;
             //console.log(comment_text) 
             ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
-            //console.log('done comment1') 
-            //ga('send', 'event', 'Comment2', 'Click', "this is comment 2", {nonInteraction: true}); // works
-            //console.log('done comment2') 
-            //ga('set', 'dimension3', 'example of text for dimension3 using set'); /// doesn't work
-            //console.log('done comment3') 
     }
     </script>
-    </head>
     """
 
 #
@@ -155,8 +148,9 @@ def main_page():
 
         # defines optional polygon (currently not used)
         'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
-
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
+
+        'warning':"",
     }
         
     # re-assemble the URL query string and store it , so we can put it into the log file
@@ -172,17 +166,6 @@ def main_page():
         args[key] = request.args[key]
         #print(key, request.args[key])
 
-    '''
-    # for ETOPO1 we need to first select one of the two bands as elevation
-    if args["DEM_name"] == """NOAA/NGDC/ETOPO1""":
-        img = ee.Image(args["DEM_name"])
-        elev = img.select('bedrock') # or ice_surface
-        terrain = ee.Terrain.products(elev)
-    else:
-        terrain = ee.Algorithms.Terrain(ee.Image(args["DEM_name"]))
-
-    hs = terrain.select('hillshade')
-    '''
     # get hillshade for elevation
     if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
         dataset = ee.ImageCollection('NRCan/CDEM')
@@ -199,13 +182,8 @@ def main_page():
     mapid = hs.getMapId( {'gamma':gamma}) # request map from EE, transparency will be set in JS
 
     # these have to be added to the args so they end up in the template
-    # 'mapid': mapid['mapid'],
-    # 'token': mapid['token'],
-
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
-
- 
 
     # add google analytics id (should have been imported from server/config.py
     try:
@@ -383,16 +361,43 @@ def export():
         query_list = list(request.form.items()) 
         header = make_current_URL(query_list)[1:] # skip leading ? 
 
+        # make a URL with full query parameters to repeat this job later
+        query_list = list(request.form.items())
+        server = "https://touchterrain.geol.iastate.edu/"
+        #server = "https://touchterrain-beta.geol.iastate.edu/"
+        URL_query_str = server + make_current_URL(query_list) 
+
         # create html string
         html = '<html>'
+
+        ## make head
+        html += '<head>'
         html += make_GA_script(header) # <head> with script that inits GA with my tracking id and calls send pageview
         
+        # script to set a very long timeout to deliver a message should
+        # the server get stuck. pageLoadedSuccessfully will be set to true once processing has been
+        # done successfully. (Thanks to Nick Booher)
+        timeout_msg =  "Sorry, the server timed out. It not clear how and why, but your processing job did not finish. This is sad.<br>"
+        timeout_msg += "Your only option is to run the job again and hope for better luck.<br>"
+        
+        html += '''
+            <script type="text/javascript">
+            var pageLoadedSuccessfully = false;
+            setTimeout(function(){ 
+                if(!pageLoadedSuccessfully){'''
+        html += '    document.write("' + timeout_msg + '"); }\n'
+        html += '  }, 5 * 60 * 1000);\n' # 5 * 60 * 1000 = 5 mins
+        html += '</script>\n'
+
+        html += '</head>\n' # end head
+
+        ## start body 
+        # with the setTimeout the onerror should not be needed anymore, leaving it in just in case
+        html += '''<body onerror="document.getElementById('error').innerHTML=\'''' + 'onerror: ' + timeout_msg + ''''"\n'''
         # onload event will only be triggered once </body> is given
-        html +=  '''<body onerror="document.getElementById('error').innerHTML='Error (non-python), possibly the server timed out ...'"\n onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '''      onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
         html += 'Once the animation stops, you can preview and download your file.</h2>\n'
-        
-        
         
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
@@ -420,7 +425,7 @@ def export():
 
         # decode any extra (manual) args and put them in the args dict as
         # separate args as the are needed in that form for processing
-        # Note: the type of each arg is decided by  json.loads(), so 1.0 will be a float, etc.
+        # Note: the type of each arg is decided by json.loads(), so 1.0 will be a float, etc.
         manual = args.get("manual", None)
         extra_args={}
         if manual != None:
@@ -432,7 +437,7 @@ def export():
                 s = "JSON decode Error for manual: " + manual + "   " + str(e)
                 logging.warning(s)
                 print(e)
-                yield "Warning: " + s + "<br>"
+                yield "Warning: " + s + " (ignored)<br>"
             else:
                 for k in extra_args:
                     args[k] = extra_args[k] # append/overwrite
@@ -503,8 +508,8 @@ def export():
 
         # pr <= 0 means: use source resolution
         if pr > 0: # print res given by user (width and height are in mm)
-            height = width * (dlat / float(dlon))
-            pix_per_tile = (width / float(pr)) * (height / float(pr))
+            height = width * (dlat / dlon)
+            pix_per_tile = (width / pr) * (height / pr)
             tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
             print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
         else:
@@ -529,7 +534,6 @@ def export():
             return "bailing out!"
 
         args["CPU_cores_to_use"] = NUM_CORES
-
 
         # check if we have a valid temp folder
         args["temp_folder"] = TMP_FOLDER
@@ -559,10 +563,10 @@ def export():
         html += '<p id="error"> </p>\n'
         yield html
 
-        # Grab a 640 x 640 Terrain Google map of the area 
+        # Grab a 640 x 640 Terrain Google map of the area, store and return path to it 
         map_img_filename = store_static_Google_map(bllon, trlon, bllat, trlat, 
                                     google_maps_key, args["temp_folder"], args["zip_file_name"])
-        if map_img_filename != None:
+        if map_img_filename != None: # None means the call to GM static didn't work
             args["map_img_filename"] = map_img_filename
         
 
@@ -623,15 +627,17 @@ def export():
             html += "   <br>To return to the selection map, click on the back button in your browser once, or on the link below:<br>"
             #html += "<br>Click on the URL below to return to the selection map:<br>"
 
-            # print out the query parameters (note hardcoded server name!)
+            # print out the query parameter URL 
             html += '<a href = "'
-            query_list = list(request.form.items())
-            server = "https://touchterrain.geol.iastate.edu/"
-            #server = "https://touchterrain-beta.geol.iastate.edu/"
-            query_str = server + make_current_URL(query_list) 
-            html += query_str + '">' + query_str + "</a><br>"
+            html += URL_query_str + '">' + URL_query_str + "</a><br>"
             html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
  
+            # set timout flag to true, so the timeout script doesn't fire
+            html += '''\n
+                <script type="text/javascript">
+                    pageLoadedSuccessfully = true;
+                </script>'''
+
             html +=  '</body></html>'
             yield html
 
