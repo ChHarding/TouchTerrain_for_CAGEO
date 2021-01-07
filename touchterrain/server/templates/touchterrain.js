@@ -40,6 +40,7 @@ let manual = "{{ manual }}";
 manual = manual.replace(/&#34;/g, '\"')
 manual = manual.replace(/&amp;quot;/g, '\"')
 let polyURL = "{{ polyURL }}";
+let warning = "{{ warning }}";
 
 // map visualization parameters: maptype, transparency, gamma, hsazi, hzelev
 let maptype = "{{ maptype }}";
@@ -710,6 +711,7 @@ function init_print_options(){
     document.getElementById('options_fileformat').value = fileformat;
     document.getElementById('options_manual').value = manual;
     document.getElementById('options_polyURL').value = polyURL; 
+    document.getElementById('warning').value = warning; 
 }
 
 // called on idle (after map pan/zoom), sets current lat, lon and zoom
@@ -731,12 +733,33 @@ function saveMapSettings(){
 // for form 1, trans_method is GET, for form 2 it's POST b/c of the
 // file upload, which can't be done via get.
 function submit_for_reload(trans_method){
+
+    // check that red box is at least partially visiable, otherwise warn
+    const viewport = map.getBounds(); //sw and ne corners
+    const vpne = viewport.getNorthEast();
+    const vpsw = viewport.getSouthWest();
+    const bounds = rectangle.getBounds(); // bounds of red box
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    if(ne.lat() < vpne.lat() && ne.lng() < vpne.lng() &&
+       sw.lat() > vpsw.lat() && sw.lng() > vpsw.lng()){
+        // fully inside
+    }
+    else{
+        document.getElementById('warning').value = 
+                  "Warning: your red area selection box was at least partially outside the \
+                  Google Map viewport when you click on Export. This could be OK but maybe \
+                  you forgot to click on the Re-center box button?" ;
+    }
+
     saveMapSettings();       // saves map stuff into hidden ids
     update_options_hidden(); // saves more hidden settings
 
     // trigger a reload with all the vars in reloadform
     let f = document.forms["reloadform"];
     f.method = trans_method;
+    
     f.submit();
 }
 
