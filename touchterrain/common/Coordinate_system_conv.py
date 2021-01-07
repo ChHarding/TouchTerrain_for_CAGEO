@@ -45,8 +45,8 @@ def LatLon_to_UTM(arg1, arg2=None):
         northing = arg2
         
     
-    if not -180.0 <= easting <= 180.0 and -90.0 <= nothing <= 90.0: return -1
-    utm_zone = int(easting) // 6 + 31 # whole number divison
+    if not -180.0 <= easting <= 180.0 and -90.0 <= northing <= 90.0: return -1
+    utm_zone = int(easting) // 6 + 31 # whole number division
     if northing >= 0: return (utm_zone, "N")
     else: return (utm_zone, "S")
 
