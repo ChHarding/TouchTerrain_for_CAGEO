@@ -99,6 +99,7 @@ Note that for Python, None and True/False need to be different:
     - USGS/NED: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
     - ALOS DSM: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2)
     - USGS/SRTMGL1_003: 30 m, "worldwide", but not very far north (lower quality and older than ALOS!). [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
+    - MERIT/DEM/v1_0_3: 90 m, worldwide, with less error in low relief areas. [link](https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3)
     - USGS/GMTED2010: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
     - GTOPO30: 30 Arc-Second, 1000 m, 1996, worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30)
     - CryoSat-2 Antarctica: 1000 m, antarctica only. [link](https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM)
@@ -113,7 +114,7 @@ Note that for Python, None and True/False need to be different:
  * `trlat`:         Top-right latitude
  * `trlon`:         Top-right longitude
 
-    **New in 2.6**: _Polygon to define the area:_
+* Polygon to define the area:
     The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings. 
 
     The standalone version can read a kml file using the `poly_file` or `polyURL` parameters. For both, the first polygon found will be used as a mask, i.e. the model will only cover terrain inside the polygon. If no polygon is found, the first polyline is used instead. (Holes in polygons are ignored). kmz files are __not__ supported at this time. To convert kmz to kml, unzip it (will be doc.kml) and rename doc to the (pre-dot) name of the kmz file.
@@ -132,7 +133,7 @@ Note that for Python, None and True/False need to be different:
     - obj: wavefront obj (ascii)  
     - STLa: ascii STL  
     - STLb: binary STL  (__preferred mesh format__)
-    - __GeoTiff__: while all formats also store the raster used for making the mesh files in the zip file as a GeoTiff, this option ONLY stores the GeoTiff. This is much, much faster and permits downloading  much larger areas without running into the server limit.    Note that this will save a projected raster (unless unprojected is true) at the equivalent of the printres resolution (which can be set to the source resolution with -1) but will ignore all other settings, such as z-scale, etc.
+    - __GeoTiff__: while all formats also store the raster used for making the mesh files in the zip file as a GeoTiff, this option ONLY stores the GeoTiff. This is much, much faster and permits downloading  much larger areas without running into the server limit.  Note that this will save a projected raster (unless unprojected is true) at the equivalent of the printres resolution but will ignore all other settings, such as z-scale, etc.
 
  * `ntilesx`:       Divide the x axis evenly among this many tiles. This is useful if the area being printed would be too large to fit in the printer's bed.
  * `ntilesy`: See `ntilesx`, above.
@@ -141,8 +142,8 @@ Note that for Python, None and True/False need to be different:
 
  * `printres`:  (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:    
 
-    - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED).  
-    It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. You can set printres to be whatever the original (source) resolution of the DEM is by setting it to -1 (i.e. 10 m in this example). However, with a 0.4 mm nozzle this only makes sense if your area is more than 80 mm wide otherwise you're again only wasting time and disk space.
+    - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED). It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. 
+    - Note: setting printres to -1 will set it to the equivalent of the DEM sources _original_ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
 
  * `tile_centered`:  default: false
     - false: All tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab or Meshmixer.
@@ -160,44 +161,46 @@ Note that for Python, None and True/False need to be different:
  bigger than this number, temp files are used in the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone. If your machine runs out of memory, lowering this may help.
 
  * `importedDEM`: default: null. If `null` a geotiff is fetched from Earth Engine as detailed above. If it is set to a filename, this file is used as DEM. In this case, DEM_name, bllat, bllon, trlat and trlon are ignored, but all other parameters are still used.
- You can test this with pyramid.tif (in the standalone folder) which has an elevation of 0 to 255, so probably will need a z-scale of 0.5 on a width of 100 mm. Any GDAL raster file format
- (http://www.gdal.org/frmt_various.html) should be readable. Non-georef'ed rasters (images) are assumed to have a "real-world" cell size of 1.
- The file can contain cells that are officially undefined. These masked cells will be omitted in the STL/OBJ file, allowing you to create 3D prints with "round" borders instead of rectangular borders. Unrealistically low or high elevations (e.g.  -9999999) will also be treated as undefined.
+ You can test this with pyramid.tif (in the stuff folder) which has an elevation of 0 to 255, so probably will need a z-scale of 0.5 on a width of 100 mm. Any GDAL raster file format
+ (http://www.gdal.org/frmt_various.html) should be readable. 
+Set printres to -1 to prevent downsampling and instead use the file's intrinsic resolution. Non-georef'ed rasters (i.e., regular images) are assumed to have a "real-world" cell size of 1.
+ The file can contain cells that are officially undefined. These undefined cells will be omitted in the STL/OBJ file, allowing you to create 3D prints with "organic" boundaries instead of rectangular ones. Unrealistically low or high elevations (e.g. -9999999) will be treated as undefined.
 
-* `no_bottom`: default: false . Will omit any bottom triangles i.e. only stores the top surface and
+* `no_bottom`: default: false. Will omit any bottom triangles i.e. only stores the top surface and
 the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid
-printed bottom (tested in Cura 3.6)
+printed bottom (tested in Cura >3.6)
 
-* `no_normals`: default: true . Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate the normal for each triangle (via cross product) anyway. However, if you require properly calculated normals, set this to false. (Contributed by idenc)
+* `no_normals`: default: true. Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate a normal for each triangle (via cross product) anyway. However, if you require properly calculated normals to be stored in the STL file, set this to false. (Contributed by idenc)
 
-* `ignore_leq`: default: null . Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
+* `ignore_leq`: default: null. Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
 
 * `lower_leq`: default: null. An alternative to ignore_leq. Given a list in the format [threshold, offset], all cells less than or equal to threshold will be lowered by the offset. This helps with giving emphasis to coastlines. The offset is in mm with respect to the final mesh size. Unaffected by zscale.
 
-* `unprojected`: default: false . (Works only for exporting GeoTiffs, not for meshes) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
+* `unprojected`: default: false. (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
-* `bottom_image`: default: null . If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
-and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect  bed adhesion and will certainly make the first few layers considerably slower to print!
+* `bottom_image`: default: null. If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
+and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
 
-* `only`: default: null . If given a list [x,y] will only process that tile index ([1,1] is upper
+* `only`: default: null. If given a list [x,y], will only process that tile index ([1,1] is upper
 left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).  
 
     _Example_: only:[1,1] (JSON) or only = [1,1] (python) will d/l only the tile with index 1,1
-Once this tile was downloaded, using only with [1,2], but otherwise repeating the request, will d/l tile 1,2
+Once this tile was downloaded, using _only with [1,2]_, but otherwise repeating the request, will d/l tile 1,2
     Although each tile will be in a new zip, unzipping them and putting all tiles in a common folder will
 create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the
 tiles will fit together without overlaps if tile_centered was false.
 
 * `projection`: default: null . By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), may work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
-    - Be aware, however, that  Earth Engine __does not support all possible EPSG codes__. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives the error message: *The CRS of a map projection could not be parsed*. I can't find a list of EPSG code supported by EE so you'll need to use trial and error ...
+
+    - Be aware, however, that  Earth Engine __does not support all possible EPSG codes__. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives the error message: *The CRS of a map projection could not be parsed*. I can't find a list of EPSG codes that _are_ supported by EE, so you'll need to use trial and error ...
       
     - A note on distances: Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area.
 
     - Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
 * `use_geo_coords`: default: null.
-    - with null (or if not given), x/y coordinates are in mm and refer to the buildplate
-    - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background.
+    - with null (or if not given at all), x/y coordinates are in mm and refer to the buildplate
+    - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background. This is useful to import the mesh file into a 3D GIS, such as ArcGIS Pro. Note that, once imported, you will have to set the coordinate system of the mesh manually, b/c the mesh model file can't contain that information. Unless overwritten, this will be a UTM zone with WGS84. The TouchTerrain log file will contain the equivalent EPSG code.
     - "centered" will set the UTM origin to the center of the full tile, this is make it work togther with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
@@ -205,13 +208,15 @@ tiles will fit together without overlaps if tile_centered was false.
 * `gpxPixelsBetweenPoints`:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
 * `gpxPathThickness`: (default: 5) Stacks that number of parallel lines on either side of primary line to create thickness.  
 
+Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (non-90 deg.) walls that are more noticeable when 3D printed.
+
 
 
 ## Server version
 
 All server related files are in `touchterrain/server`
 
-Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want a dockerized Gunicorn version). The server creates a webpage, through which the user inputs the area selection and print parameters.
+Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want to know about the dockerized Gunicorn version we run at ISU. The server creates a webpage, through which the user inputs the area selection and print parameters.
 
 The server presents users with `index.html` (in templates), which can be styled to suit your needs, provided the various input dialogs and JavaScript remain. Starting with version 3, it is based on Bootstrap 4.
 
@@ -220,6 +225,10 @@ The config.py file inside the server folder contains server specific config sett
 - MAX_CELLS: if the raster has more cells than this number, tempfiles are used instead of memory during the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
 - MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
 - GOOGLE_ANALYTICS_TRACKING_ID is the Google Analytics tracking id that gets inlined into index.html. By default it's our GA id, so be sure to change this to yours or set it to 'UA-XXXXXXXX' to disable tracking.
+- PROJ_DIR: (default: None). Workaround for a OSgeo/GDAL problem with projecting points. This will only matter if you a) run standalone and b) use the GPX path option. Will set the path to a folder that must contain the proj.db database that the point projection needs and store it in an environment variable (PROJ).  In some installations, PROJ points to a folder that doesn’t contain proj.db, so use this override to current this issue.
 
 
 The `touchterrain/common` directory contains files used by both, the standalone and server versions.
+
+`touchterrain/stuff` contains, well, stuff, such as pdfs and example data files.
+
