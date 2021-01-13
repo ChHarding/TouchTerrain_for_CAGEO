@@ -1,3 +1,10 @@
+Jan. 10, 2021
+	- per request, added a requirements.txt file
+	- added script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
+
+Jan. 5, 2021
+	- added 5 min server timeout message
+
 Dec. 9, 2020
 	- added check to bail out if the entier Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
 
