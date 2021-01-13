@@ -143,7 +143,7 @@ Note that for Python, None and True/False need to be different:
  * `printres`:  (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:    
 
     - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED). It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. 
-    - Note: setting printres to -1 will set it to the equivalent of the DEM sources _original_ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
+    - Note: setting printres to -1 will set it to the equivalent of the DEM sources _original_ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. An example script is given in the appendix. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
 
  * `tile_centered`:  default: false
     - false: All tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab or Meshmixer.
@@ -231,4 +231,74 @@ The config.py file inside the server folder contains server specific config sett
 The `touchterrain/common` directory contains files used by both, the standalone and server versions.
 
 `touchterrain/stuff` contains, well, stuff, such as pdfs and example data files.
+
+## Appendix
+
+### Getting large geotiffs from Google Earth Engine
+- The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around the 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the stand alone version of TouchTerrain.
+- The example area will only create a 1 Mb geotiff but has been shown to work for larger areas. **Be warned that exporting large areas to a Google Drive can potentially take hours(!).**
+
+- To run this code, you'll need a Google Earth Engine account. Then, go to [https://code.earthengine.google.com/](https://code.earthengine.google.com/), create a new Script (left side) and copy/paste the code below into it. 
+- You will need to know the designation for the DEM source (e.g. `JAXA/ALOS/AW3D30/V2_2`) and what the elevation band is called (e.g. `AVE_DSM`) which you can get from  the Explore in Earth Engine code snippet you get from DEM info link on the web app [example](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2). This will also tells you the meter resolution of the DEM, which is the smallest number you can put into the scale parameter of the Export routine.
+- To get the lat/long coordinates of the top right and bottom left corner of your print area box, use the web app and look at the coordinate info in the Area selection box.
+- Finally you'll need to know the EPSG code for the coordinate system to use. For UTM, just export a low res version of the are you want with the web app and look into the log file (search for EPSG).
+- When you run the script you'll get a simple map visualization and a new Task will be created in the Tasks tab (right). `RUN` this task to have Google save the geotiff into your Google Drive. If you want, you can still change the file name and the resolution at this stage. Hit Run one more to start the job. Again, this job may take a long time when exporting large areas.
+- When the job is done, you'll see a check mark for your task. Click on the question mark and a popup will appear, hit `Open in Drive`. In Google Drive, download the geotiff.
+
+
+```
+// Example of exporting a raster from EE to Google Drive (Jan. 2021)
+
+// You will need the corner coords, which you can get from the Area Selection Box display
+// on the web app and the EPSG code for whatever projection you want to use. If you want
+// to use a UTM zon, look at the log file from the web app.
+// You also should know the source resolution of your DEM so you can set the scale parameter
+// of the export to it.
+
+
+// Set DEM source  
+var dataset = ee.Image('JAXA/ALOS/AW3D30/V2_2');
+var elevation = dataset.select('AVE_DSM');
+print(elevation); // print some metadata into console
+
+// make a spectral color scheme for elevation data layer
+var elevationVis = { 
+  min: 0,
+  max: 4000,
+  palette: ['0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff'],
+  opacity: 0.5,
+};
+Map.addLayer(elevation, elevationVis, 'Elevation');
+
+// define area to export and show as box layer
+var trlat = 46.78374215384358
+var trlon = 8.071201291153262
+var bllat = 46.63448889213306
+var bllon = 7.574375128591488
+var geometry = ee.Geometry.Rectangle([ trlon, trlat, bllon, bllat ]);
+Map.addLayer(geometry, {'opacity': 0.5}, 'box');  
+
+// Fly to center of Box
+Map.setCenter(
+  trlon - ((trlon - bllon) / 2), 
+  trlat - ((trlat - bllat) / 2), 
+  8 // zoomlevel
+);
+
+// Export the image, specifying scale and region.
+// https://developers.google.com/earth-engine/guides/exporting
+Export.image.toDrive({
+  image: elevation,
+  description: 'EE_to_Google_Drive_example', // name of geotiff (.tif will be added)
+  fileFormat: 'GeoTIFF',
+  scale: 30, // resolution in meters
+  maxPixels: 1e12, // overwrites the default of 1e08
+  region: geometry,
+  crs: "EPSG:32632" // EPSG code for the UTM zone or whatever coordinate system you want to use
+});
+
+// When this code is run, an export task will be created in the Code Editor Tasks tab. 
+// Click the Run button next to the task to start it. 
+// The image will be created in your Drive account with the specified fileFormat.
+```
 
