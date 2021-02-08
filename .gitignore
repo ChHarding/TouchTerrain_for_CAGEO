@@ -36,7 +36,7 @@ terrain
 !.gitignore
 !README.md
 !test/test_TouchTerrain_standalone.py
-!stuff  # anything in the stuff folder
+!stuff/TouchTerrain_bottom_example.png 
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
