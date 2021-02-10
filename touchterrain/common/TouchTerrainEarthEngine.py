@@ -94,6 +94,40 @@ DEM_sources = ["USGS/NED",
                "MERIT/DEM/v1_0_3"
               ]
 
+
+# Define default parameters
+# Print settings that can be used to initalize the actual args
+initial_args = {
+    "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+    "bllat": 39.32205105794382,   # bottom left corner lat
+    "bllon": -120.37497608519418, # bottom left corner long
+    "trlat": 39.45763749030933,   # top right corner lat
+    "trlon": -120.2002248034559, # top right corner long
+    "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+    "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+    "ntilesx": 1,      # number of tiles in x and y
+    "ntilesy": 1,
+    "tilewidth": 120, # width of each tile in mm (<- !!!!!), tile height is calculated
+    "basethick": 0.6, # thickness (in mm) of printed base
+    "zscale": 2.0,      # elevation (vertical) scaling
+    "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+    "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
+    "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
+    "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
+    "max_cells_for_memory_only" : 5000 * 5000, # if raster is bigger, use temp_files instead of memory
+    "zip_file_name": "myterrain",   # base name of zipfile, .zip will be added
+    # these are the args that could be given "manually" via the web UI
+    "no_bottom": False, # omit bottom triangles?
+    #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
+    "bottom_image": None,  # 1 band greyscale image used for bottom relief
+    "ignore_leq": None, # set values <= this to NaN, so they are ignored
+    "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
+    "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
+    "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
+    "importedGPX": [], # list of gpx path file(s) to be use  
+}
+
+
 def make_bottom_raster(image_file_name, shape):
     """ Make a bottom image (numpy array) to be used in the stl model
 
@@ -404,7 +438,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the mdoel 
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
     - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
-    - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive,
+    - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive)
     - poly_file: local KML file to use as mask
     - map_image_filename: image with a map of the area
     
@@ -463,7 +497,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polygon + ")"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
         logging.info("Using GeoJSON polygon for masking with " + str(len(clip_poly_coords)) + " points")
-    
+        
     # Get poly from a KML file via google drive URL
     #TODO: TEST THIS!!!!!!
     elif polyURL != None and polyURL != '':
@@ -504,7 +538,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # overwrite trlat, trlon, bllat, bllon with bounding box around 
     if clip_poly_coords != None: 
         trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
-    
+
+        # Hack: If we only have 5 points forming a rectangle just use the bounding box and forget about the polyon
+        # Otherwise a rectangle digitized via gee ends up as a slightly sheared rectangle
+        # This does assume a certain order, which seems to be the same for gee rectangles no matter how they are digitized:
+        #[[-111.895752, 42.530947], p0
+        # [-111.895752, 42.820084], p1
+        # [-111.533203, 42.820084], p2
+        # [-111.533203, 42.530947], p3
+        # [-111.895752, 42.530947]]
+        if len(clip_poly_coords) == 5: # 4 points + overlap with first
+            cp = clip_poly_coords
+            if cp[0][0] == cp[1][0] and cp[0][1] == cp[3][1]: # 0 matches with 1 and 3
+                if cp[2][0] == cp[3][0] and cp[2][1] == cp[1][1]: # 2 also matches with 1 and 3
+                    clip_poly_coords = None
+
     # end of polygon stuff
 
 
@@ -1211,7 +1259,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # As per Nick this is needed to make MP work with gnunicon on linux
             # b/c the default on unix is fork not spawn which starts faster but can also 
-            # be problematic so now we're using the slower stating spawn
+            # be problematic so now we're using the slower starting spawn
             mp = multiprocessing.get_context('spawn') 
             pool = mp.Pool(processes=num_cores, maxtasksperchild=1) # processes=None means use all available cores
             
@@ -1265,8 +1313,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                    ", file size:", round(tile_info["file_size"]), "Mb")
 
         pr("\ntotal size for all tiles:", round(total_size), "Mb")
-
-
 
         # delete all the GDAL geotiff stuff
         del npim
@@ -1328,6 +1374,8 @@ if __name__ == "__main__":
     # Grand Canyon: -109.947664, 37.173425  -> -109.905481, 37.151472
     #r = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=1, ntilesy=1,printres=1.0,
     #                     tilewidth=120, basethick=2, zscale=1.0)
+
+
 
     # test for importing dem raster files
     '''
