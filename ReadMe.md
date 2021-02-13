@@ -7,9 +7,11 @@ TouchTerrain converts digital elevation data into digital model files (STL or OB
 TouchTerrain is developed by Chris Harding (Iowa State University) and Franek Hasiuk (Kansas Geological Survey). For questions email `Geofablab AT gmail DOT com`.
 
 
-For more in-depth information, read our paper in Computers & Geosciences: *TouchTerrain: A simple
+For more in-depth information:
+- read our paper in Computers & Geosciences: *TouchTerrain: A simple
 web-tool for creating 3D-printable topographic models*, Volume 109, December 2017, Pages 25-31,
 https://doi.org/10.1016/j.cageo.2017.07.005
+- look at our [AGU 2020 conference poster](https://public.vrac.iastate.edu/~charding/TouchTerrain%20AGU%202020%20poster.htm)
 
 
 ## Getting Started
@@ -17,7 +19,7 @@ https://doi.org/10.1016/j.cageo.2017.07.005
 TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded from Earth Engine or from a local raster file) and from it creates a 3D model suitable for 3D printing. Online data from EE is automatically UTM projected and usually downsampled. The 3D model (STL or OBJ format), possibly consisting of several files (tiles), is saved in a zip file along with a log file with details about the process steps.
 
 
- For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. (*New in version 3*) The jupyter notebook version of standalone also offers a graphical (map) interface for digitizing the area of the  model, either as box, circle or polygon. 
+ For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. The jupyter notebook version of standalone also offers a graphical (map) interface for digitizing the area of the  model, either as box, circle or polygon. The recommended way to run the standalone version is to use our [touchterrain_jupyter docker container](https://github.com/ChHarding/TouchTerrain_jupyter_docker).
 
 
 The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
@@ -39,6 +41,8 @@ To use touchterrain in standalone mode (i.e. not via a web server), either run `
 The preferred way to run the standalone version of TouchTerrain is via the jupyter notebook file __TouchTerrain_standalone_jupyter_notebook.ipnb__. Inside the notebook, the processing parameters are given as a python dictionary. The parameters are explained below for the JSON file version but the python syntax is very similar to JSON. After processing the DEM and saving the model(s) in a zip file, it can also unzip it for you and visualize the model(s) in a 3D viewer inside the browser (using the `k3d` package).You can see a web view version of the note book [here](https://htmlpreview.github.io/?https://github.com/ChHarding/TouchTerrain_for_CAGEO/blob/master/stuff/TouchTerrain_standalone_jupyter_notebook.html)
 
 For more details see this: [touchterrain jupyter notebook - get started](https://docs.google.com/document/d/1bS-N7elMMWU44LctQpMPbbNSurftY3fRealTwOK-5ME/edit?usp=sharing)
+
+A beginner friendly jupyter note book (TouchTerrain_jupyter_for_starters.ipynb) is also available, which required little to no jupyter knowledge.
 
 
 ### Simple python version
