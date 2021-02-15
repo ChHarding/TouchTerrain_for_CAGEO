@@ -1,0 +1,55 @@
+Log for creating 3D model tile(s) for  NED_-120.29_39.39 
+ 
+DEM_name = USGS/NED 
+trlat = 39.45763749030933 
+trlon = -120.2002248034559 
+bllat = 39.32205105794382 
+bllon = -120.37497608519418 
+printres = 0.4 
+ntilesx = 1 
+ntilesy = 1 
+tilewidth = 120 
+basethick = 0 
+zscale = 1.5 
+fileformat = STLb 
+no_bottom = False 
+unprojected = False 
+no_normals = True 
+
+process started: 18:28:53.916558 
+
+Region (lat/lon):
+   39.45763749030933 -120.2002248034559 (top right)
+   39.32205105794382 -120.37497608519418 (bottom left) 
+center at [-120.28760044432504, 39.389844274126574]  UTM 11 N ,  EPSG:32611 
+lon/lat size in degrees: [0.17475128173828125, 0.13558643236551404] 
+Earth Engine raster: USGS/NED 
+ USGS National Elevation Dataset 1/3 arc-second 
+URL for geotiff is:  https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/thumbnails/bd2525d06d32778c08bec4ffdebeba2c-d410ef69b6ed3edf45f09d713daf19ca:getPixels 
+ geotiff size: 0.30786609649658203 Mb 
+ cell size 50.182161793902424 m, upper left corner (x/y):  209008.7038716036 4373024.125206039 
+process gpx file: stuff/gpx-test/DLRTnML.gpx 
+process gpx file: stuff/gpx-test/DonnerToFrog.gpx 
+process gpx file: stuff/gpx-test/CinTwistToFrog.gpx 
+process gpx file: stuff/gpx-test/sagehen.gpx 
+process gpx file: stuff/gpx-test/dd-to-prosser.gpx 
+process gpx file: stuff/gpx-test/alder-creek-to-crabtree-canyon.gpx 
+process gpx file: stuff/gpx-test/ugly-pop-without-solvang.gpx 
+process gpx file: stuff/gpx-test/tomstrail.gpx 
+Time to add GPX paths:50.18976354598999 
+full (untiled) raster (height,width)  (312, 312) float64 elev. min/max: 1776.163818359375 2834.4404296875 
+cell size: 50.182161793902424 m  
+adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
+total model size in mm: 120 x 120.0 
+map scale is 1 : 130473.6206641463 
+Cells per tile (x/y) 312 x 312 
+using single-core only 
+
+1 x 1 tiles, tile size 120.00 x 120.00 mm
+ 
+tile 1 1 : height:  0.5 - 18.749837502536675 mm , file size: 19 Mb 
+
+total size for all tiles: 19 Mb 
+added full geotiff as NED_-120.29_39.39.tif 
+
+processing finished: 18:30:04.774082 
