@@ -65,6 +65,8 @@ def main():
         "trlon": -107.97962089843747,
         "bllat": 44.50185267072875,        # lat/lon of bottom left corner
         "bllon": -108.25427910156247,
+        "poly_file": None, # path to a local kml file
+        "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
         "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
         "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
         "ntilesx": 1,      # number of tiles in x and y
@@ -86,6 +88,12 @@ def main():
         "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
         "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
         "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
+        "importedGPX": None, # Plot GPX paths from files onto the model.
+        "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
+                               # therefore this is in meters. Negative numbers are ok and put a dent in the mdoel
+        "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
+                                       # on the model and can have the effect of making the paths look a bit cleaner
+        "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
     }
 
     # write an example json file, in case it gets deleted ...
@@ -99,7 +107,7 @@ def main():
     if len(sys.argv) > 1:  # sys.argv are the CLI args
         json_fname = sys.argv[1]
         try:
-            fp = open(json_fname, "rU")
+            fp = open(json_fname, "r")
         except Exception as e:
             sys.exit("Error: can't find " + json_fname + ": " + str(e))
     
