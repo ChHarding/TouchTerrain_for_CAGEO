@@ -21,16 +21,12 @@ TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded 
 
  For the standalone version the processing parameters are given directly in the code (hardcoded) or read from a JSON config file. You can use the stand-alone version to process local DEM raster file (see `importedDEM`) or get online DEM data from Earth Engine (provided you have a account with them). After processing the resulting zip file is stored locally. The jupyter notebook version of standalone also offers a graphical (map) interface for digitizing the area of the  model, either as box, circle or polygon. The recommended way to run the standalone version is to use our [touchterrain_jupyter docker container](https://github.com/ChHarding/TouchTerrain_jupyter_docker).
 
-
 The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
-
 
 TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: run 'pip install .' in the same folder as the setup.py file.
 
-
- If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations (which is sort of a pun considering its mainly used for Remote Sensing data ...) via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
-
-
+__ Unclear if the dev license is still needed __
+ If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations  via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
 To learn more about how to set up a Earth Engine account, refer to the jupyter notebook _TouchTerrain_standalone_jupyter_notebook.ipynb_ or [TouchTerrain_standalone_jupyter_notebook.html](https://chharding.github.io/TouchTerrain_for_CAGEO/TouchTerrain_standalone_jupyter_notebook.html) (which is the notebook rendered into html).
 
 
