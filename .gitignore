@@ -21,6 +21,11 @@ touchterrain/server/tmp/??*
 touchterrain/server/downloads/??*
 touchterrain/server/previews/??*
 
+# some folder I'm experimenting with
+terrain_braille
+terrain2
+test_get_zipped_tiles
+
 tmp/*
 .vscode
 test/*
