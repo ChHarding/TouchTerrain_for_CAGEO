@@ -25,7 +25,7 @@ The server version offers a Google Map interface to select the area and a simple
 
 TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: run 'pip install .' in the same folder as the setup.py file.
 
-__ Unclear if the dev license is still needed __
+__Unclear if the dev license is still needed__
  If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations  via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
 To learn more about how to set up a Earth Engine account, refer to the jupyter notebook _TouchTerrain_standalone_jupyter_notebook.ipynb_ or [TouchTerrain_standalone_jupyter_notebook.html](https://chharding.github.io/TouchTerrain_for_CAGEO/TouchTerrain_standalone_jupyter_notebook.html) (which is the notebook rendered into html).
 
