@@ -96,7 +96,7 @@ DEM_sources = ["USGS/NED",
 
 
 # Define default parameters
-# Print settings that can be used to initalize the actual args
+# Print settings that can be used to initialize the actual args
 initial_args = {
     "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
     "bllat": 39.32205105794382,   # bottom left corner lat

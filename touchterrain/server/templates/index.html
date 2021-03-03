@@ -271,11 +271,11 @@
 
 									<!-- hook for polyURL, currently hidden but may become an input field (like kml_file) in the future -->
 									<input type="hidden" id="options_polyURL" name="polyURL" size="0"
-            					title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+            							title="URL to a KML file with a polygon. Must be a publicly read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
 									> 
 									<!--
 									<input type="text" id="options_polyURL" name="polyURL" size="16"
-											title="URL to a KML file with a polygon. Must be a publically read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
+											title="URL to a KML file with a polygon. Must be a publicly read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
 									> URL to cloud KML polygon file</br>
 									-->
 
@@ -326,6 +326,11 @@
 												<option value="0.4" selected >0.4 mm</option>
 												<option value="0.45">0.45 mm</option>
 												<option value="0.5">0.5 mm</option>
+												<option value="0.6">0.6 mm</option>
+												<option value="0.7">0.7 mm</option>
+												<option value="0.8">0.8 mm</option>
+												<option value="0.9">0.9 mm</option>
+												<option value="1.0">1.0 mm</option>
 										</select> 
 										<label for="options_print_resolution"> &nbsp Nozzle diameter</label>
 									</div>
@@ -344,6 +349,8 @@
 												<option value="6">6 by</option>
 												<option value="7">7 by</option>
 												<option value="8">8 by</option>
+												<option value="9">9 by</option>
+												<option value="10">10 by</option>
 										</select>
 										<select  class="form-control custom-select-sm"
 											title="(ntilesy) The number of tiles in y direction"
@@ -356,6 +363,8 @@
 												<option value="6">6</option>
 												<option value="7">7</option>
 												<option value="8">8</option>
+												<option value="9">9</option>
+												<option value="10">10</option>
 										</select> 
 										<label for="options_numTiles_y"> &nbsp Tiles to print (X by Y)</label>
 									</div>
@@ -471,15 +480,20 @@
 								</br>
 								<b>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com" target="_blank">Send Email!</a> </b> 
 								</br>
-								Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
+								Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a> 
+								or get the 
+								<a href="https://github.com/ChHarding/TouchTerrain_jupyter_docker" target="_blank"> Docker Image </a> of the standalone version.
 								</br>
 								More details in:
+								
+								<a href="https://doi.org/10.3390/ijgi10030108"  target="_blank">
+								TouchTerrain - 3D Printable Terrain Models</a>, Intern. Journal of Geo-Information, Feb. 2021 ;
 
 								<a href="https://public.vrac.iastate.edu/~charding/TouchTerrain%20AGU%202020%20poster.htm" target="_blank">
-											AGU 2020 conference poster</a>, 
+											AGU 2020 conference poster</a>; 
 								<a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
 											TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a> 
-											Computers & Geosciences, Volume 109, December 2017, Pages 25-31
+											Computers & Geosciences, Volume 109, Dec. 2017, Pages 25-31
 							</small>
 						</div>
 					</div>
