@@ -309,7 +309,7 @@ def get_KML_poly_geometry(kml_doc):
             - list of double floats: [[-112.0, 36.1], [-113.0, 36.0], [-113.5, 36.5]] or None on Error/Warning
             - Error/Warning string (or None if OK)
         
-        Note: that KML has 3D points, so I discard z
+        Note that KML uses 3D points, so I discard z
 
         Setup:
         layers: just a list at root: [<layer0>, <layer1>, ... ]
@@ -529,11 +529,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         except Exception as e:
             pr("Read Error with kml file", poly_file, ":", e, " - falling back to region box", trlat, trlon, bllat, bllon)
         else:
-            clip_poly_coords, msg = get_KML_poly_geometry(poly_file_str)     
-            if msg != None: # Either go a line instead of polygon (take but warn) or nothing (ignore)
+            clip_poly_coords, msg = get_KML_poly_geometry(poly_file_str)  
+            if msg != None: # Either got a line instead of polygon (take but warn) or nothing (ignore)
                 logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
             else:
-                logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + polyURL)
+                logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + poly_file)
         
     # overwrite trlat, trlon, bllat, bllon with bounding box around 
     if clip_poly_coords != None: 
