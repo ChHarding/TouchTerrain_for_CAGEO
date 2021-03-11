@@ -1,3 +1,5 @@
+Mar. 11, 2021
+	- temporary fix for bad google-api-python-client version
 Jan. 10, 2021
 	- per request, added a requirements.txt file
 	- added script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
