@@ -16,6 +16,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'Pillow>=6.0.0',
+        'google-api-python-client==1.12.8', # Mar 11, 2021: use pre 2.0 version until that's fixed
         'earthengine-api>=0.1.232', # 1.232 is required after Aug 19, 2020
         'Flask>=1.0.2',
         #'vectors==99.0.0',  # is now part of common folder
