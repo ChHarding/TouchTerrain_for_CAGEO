@@ -1,3 +1,7 @@
+Mar. 12, 2021
+- added Canadian 20m NRCan/CDEM and Australian AU/GA/AUSTRALIA_5M_DEM
+- made version 3.2
+
 Mar. 11, 2021
 	- temporary fix for bad google-api-python-client version
 Jan. 10, 2021

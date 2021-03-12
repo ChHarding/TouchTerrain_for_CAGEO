@@ -89,6 +89,7 @@ DEM_sources = ["USGS/NED",
                "USGS/SRTMGL1_003",
                "JAXA/ALOS/AW3D30/V2_2",
                "NRCan/CDEM",
+               "AU/GA/AUSTRALIA_5M_DEM",
                "USGS/GTOPO30",
                "CPOM/CryoSat2/ANTARCTICA_DEM",
                "MERIT/DEM/v1_0_3"
@@ -688,8 +689,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Get a download URL for DEM from Earth Engine
         #
-        image1 = ee.Image(DEM_name)
-        info = image1.getInfo() # this can go wrong and return nothing for some sources, but we don't really need the info as long as we get the actual data
+        if DEM_name in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
+            coll = ee.ImageCollection(DEM_name)
+            info = coll.getInfo()
+            elev = coll.select('elevation')
+            proj = elev.first().select(0).projection() # must use common projection(?)
+            image1 = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+        else:
+            image1 = ee.Image(DEM_name)
+            info = image1.getInfo() 
+        
 
         pr("Earth Engine raster:", info["id"])
         try:#
@@ -847,6 +856,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 s += "For the web app, ensure that your red selection box is at least partially covered by the grey hillshade overlay "
                 s += "or try using AW3D30 as DEM source."
                 assert False, s # bail out
+
+            # For AU/GA/AUSTRALIA_5M_DEM, replace all exact 0 value with NaN
+            # b/c there are spots on land that have no pixels, but these are encoded as 0 and 
+            # need to be marked as NaN otherwise they screw up the thickness of the base
+            if DEM_name == "AU/GA/AUSTRALIA_5M_DEM":
+                npim = numpy.where(npim == 0.0, numpy.nan, npim)
 
             # Add GPX points to the model (thanks KohlhardtC!)
             if importedGPX != None:

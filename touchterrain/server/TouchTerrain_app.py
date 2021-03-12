@@ -144,12 +144,13 @@ def main_page():
 
     # get hillshade for elevation
     if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
-        dataset = ee.ImageCollection('NRCan/CDEM')
+        dataset = ee.ImageCollection(args["DEM_name"])
         elev = dataset.select('elevation')
+        proj = elev.first().select(0).projection() # must use common projection(?)
+        elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
     else:
         elev = ee.Image(args["DEM_name"])
-    
-    
+
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
     hs = ee.Terrain.hillshade(elev, hsazi, hselev)
@@ -490,11 +491,12 @@ def export():
             print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
         else:
             # estimates the total number of cells from area and arc sec resolution of source
-            # this is done for the entire area, so number of cell is irrelevant
+            # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
             cell_width_arcsecs = {"USGS/NED":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
-                                  "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75,} # in arcseconds!
+                                  "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75, 
+                                  "AU/GA/AUSTRALIA_5M_DEM": 1/18.0} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
             tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)

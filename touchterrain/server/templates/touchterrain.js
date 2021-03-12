@@ -248,22 +248,25 @@ window.onload = function () {
     fileInput.addEventListener('change', function(e) {
     if (fileInput.files.length) {
         let file = fileInput.files[0];
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let s = reader.result;
-            const [bbox, latloncoords] = processKMLFile(s);
-            if(!!bbox){ // not null => valid bounding box
-                rectangle.setBounds(bbox);
-                kml_name_was_just_set = true; // to prevent resetting the file name text
-                update_corners_form();
-                map.fitBounds(bbox); // makes the map fit around the box
-                polygon.setPath(latloncoords);
-                polygon.setMap(map);
-            } else{
-                alert("Error: invalid KML file!");
+        if(file.name.endsWith(".kml")){
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let s = reader.result;
+                const [bbox, latloncoords] = processKMLFile(s);
+                if(!!bbox){ // not null => valid bounding box
+                    rectangle.setBounds(bbox);
+                    kml_name_was_just_set = true; // to prevent resetting the file name text
+                    update_corners_form();
+                    map.fitBounds(bbox); // makes the map fit around the box
+                    polygon.setPath(latloncoords);
+                    polygon.setMap(map);
+                    fileInput.name = "Using Polygon KML file:" + file.name; // TODO: make this work!
+                }
             }
+            reader.readAsText(file);
+        }else{
+            fileInput.name = "Error: " + file.name + " is not a valid kml file!"
         }
-        reader.readAsText(file);
     }
     });
 
@@ -618,6 +621,7 @@ function SetDEM_name(){
     switch(DEM_name){
         case "USGS/NED": res = "10"; break;
         case "NRCan/CDEM": res = "20"; break;
+        case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
         case "USGS/SRTMGL1_003": res = "30"; break;
         case "MERIT/DEM/v1_0_3": res= "90"; break;
         case "JAXA/ALOS/AW3D30/V2_2": res = "30"; break;
@@ -626,7 +630,7 @@ function SetDEM_name(){
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
     }
-
+    
     // set resolution of DEM source
     document.getElementById('source_resolution').value = parseInt(res);
     document.getElementById('source_resolution').innerHTML = res + " m";
