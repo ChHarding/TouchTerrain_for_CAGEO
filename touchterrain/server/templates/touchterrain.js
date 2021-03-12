@@ -212,6 +212,7 @@ window.onload = function () {
     switch(DEM_name){
         case "USGS/NED": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_NED"; break;
         case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
+        case "AU/GA/AUSTRALIA_5M_DEM": link = "https://developers.google.com/earth-engine/datasets/catalog/AU_GA_AUSTRALIA_5M_DEM"; break;
         case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
         case "MERIT/DEM/v1_0_3": link = "https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3"; break;
         case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
