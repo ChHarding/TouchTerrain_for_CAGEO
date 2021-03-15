@@ -98,6 +98,8 @@ Note that for Python, None and True/False need to be different:
  * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!)
     - USGS/NED: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
     - ALOS DSM: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2)
+    - NRCan/CDEM: 20 m, Canada only [link](https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM)
+    - AU/GA/AUSTRALIA_5M_DEM: 5m, downsampled from Lidar data, onyl some parts on Australia [link](https://developers.google.com/earth-engine/datasets/catalog/AU_GA_AUSTRALIA_5M_DEM)
     - USGS/SRTMGL1_003: 30 m, "worldwide", but not very far north (lower quality and older than ALOS!). [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
     - MERIT/DEM/v1_0_3: 90 m, worldwide, with less error in low relief areas. [link](https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3)
     - USGS/GMTED2010: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
