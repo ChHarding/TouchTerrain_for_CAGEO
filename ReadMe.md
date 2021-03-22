@@ -176,7 +176,7 @@ printed bottom (tested in Cura >3.6)
 
 * `lower_leq`: default: null. An alternative to ignore_leq. Given a list in the format [threshold, offset], all cells less than or equal to threshold will be lowered by the offset. This helps with giving emphasis to coastlines. The offset is in mm with respect to the final mesh size. Unaffected by zscale.
 
-* `unprojected`: default: false. (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polarstereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
+* `unprojected`: default: false. (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polar-stereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
 * `bottom_image`: default: null. If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
 and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
