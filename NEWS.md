@@ -4,6 +4,7 @@ Mar. 12, 2021
 
 Mar. 11, 2021
 	- temporary fix for bad google-api-python-client version
+	
 Jan. 10, 2021
 	- per request, added a requirements.txt file
 	- added script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
@@ -12,13 +13,14 @@ Jan. 5, 2021
 	- added 5 min server timeout message
 
 Dec. 9, 2020
-	- added check to bail out if the entier Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
+	- added check to bail out if the entire Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
 
 Nov. 20, 2020 (3.1)
 	- optimized wall border outline for models made from polygon
 
 Oct. 23, 2020 (3.0.3)
 	- added MERIT/DEM/v1_0_3 as DEM source
+
 Sep. 30, 2020 (3.0.0)
 	- Rewrote GUI to use Bootstrap 4
 	- area box can now be set via coordinate text entries

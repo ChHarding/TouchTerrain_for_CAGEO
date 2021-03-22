@@ -97,7 +97,7 @@ Note that for Python, None and True/False need to be different:
 
  * `DEM_name`:     (resolutions are approximate and strictly true only at the equator!)
     - USGS/NED: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
-    - ALOS DSM: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2)
+    - JAXA/ALOS/AW3D30/V2_2: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2)
     - USGS/SRTMGL1_003: 30 m, "worldwide", but not very far north (lower quality and older than ALOS!). [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
     - MERIT/DEM/v1_0_3: 90 m, worldwide, with less error in low relief areas. [link](https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3)
     - USGS/GMTED2010: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
@@ -201,7 +201,7 @@ tiles will fit together without overlaps if tile_centered was false.
 * `use_geo_coords`: default: null.
     - with null (or if not given at all), x/y coordinates are in mm and refer to the buildplate
     - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background. This is useful to import the mesh file into a 3D GIS, such as ArcGIS Pro. Note that, once imported, you will have to set the coordinate system of the mesh manually, b/c the mesh model file can't contain that information. Unless overwritten, this will be a UTM zone with WGS84. The TouchTerrain log file will contain the equivalent EPSG code.
-    - "centered" will set the UTM origin to the center of the full tile, this is make it work togther with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
+    - "centered" will set the UTM origin to the center of the full tile, this is make it work together with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
 * `gpxPathHeight`: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
