@@ -1098,10 +1098,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim = numpy.where(npim > threshold, npim + offset, npim)
             pr("Lowering elevations <= ", threshold, " by ", offset, "m, equiv. to", lower_leq[1],  "mm at map scale")  
 
-        # apply z-scaling
-        if zscale != 1.0:
-            npim *= zscale
-            #print "elev min/max after x%.2f z-scaling: %.2f to %.2f" % (zscale, numpy.nanmin(npim), numpy.nanmax(npim))
+        # Ch Mar 30, 2021: removed z-scaling here as it's actully supposed to be done when the grid is created!
 
         """
         # plot dem
@@ -1393,39 +1390,42 @@ if __name__ == "__main__":
 
 
     # test for importing dem raster files
+    
     '''
     #fname = "Oso_after_5m_cropped.tif"
-    fname = "pyramid_wide.tif" # pyramid with height values 0-255
+    fname = "const100.tif"  
     r = get_zipped_tiles(importedDEM=fname,
                          ntilesx=1, ntilesy=1,
-                         printres=0.5,
+                         printres=-1,
                          tilewidth=100,
-                         basethick=0.5,
-                         zscale=0.5,
+                         basethick=50,
+                         zscale=1,
                          CPU_cores_to_use=1,
                          tile_centered=False,
                          fileformat="STLb",
                          max_cells_for_memory_only=0,
-                         zip_file_name="pyramid")
+                         zip_file_name="const100")
     '''
-    args = {"DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+    args = {"DEM_name": 'USGS/GMTED2010',# DEM_name:    name of DEM source used in Google Earth Engine
                                    # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-            "trlat": 39.6849,        # lat/lon of top right corner
-            "trlon": -104.6451,
-            "bllat": 37.6447,        # lat/lon of bottom left corner
-            "bllon": -106.6694,
+            "trlat": 48.1,        # lat/lon of top right corner
+            "trlon": 16.2,
+            "bllat": 43.5,        # lat/lon of bottom left corner
+            "bllon": 5.1,
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
             "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
             "ntilesx": 1,      # number of tiles in x and y
             "ntilesy": 1,
-            "tilewidth": 160, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "basethick": 1, # thickness (in mm) of printed base
-            "zscale": 2.0,      # elevation (vertical) scaling
+            "tilewidth": 100, # width of each tile in mm (<- !!!!!), tile height is calculated
+            "basethick": 0, # thickness (in mm) of printed base
+            "zscale": 5,      # elevation (vertical) scaling
             "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-            "polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
-            }   
+            #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
+            } 
+    
     r = get_zipped_tiles(**args)
+    
     zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
     with open(fname+".zip", "w+") as f:
         f.write(zip_string)

@@ -409,9 +409,9 @@ class grid(object):
     
     #@profile_me
     def __init__(self, top, bottom, tile_info):
-        "top: top elevation raster, must hang over by 1 row/column on each side (be already padded)\
-         bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size\
-         tile_info: dict with info about the current tile + some tile global settings"
+        '''top: top elevation raster, must hang over by 1 row/column on each side (be already padded)
+        bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size
+        tile_info: dict with info about the current tile + some tile global settings'''
 
         if tile_info["fileformat"] == 'obj':
             self.vi = {} #OrderedDict() # set class attrib to empty dict, will be filled with vertex indices
@@ -431,7 +431,7 @@ class grid(object):
         # [41  42 43]]
         # i.e. height (y) is encoded in the first (0) dimension, width in the second (1),
         # the 'edge" padded version for a top left tile might be this, the right and bottom fringe
-        # are part of the adjecent tiles, which must be used in the interpolation to result in no-seam edges
+        # are part of the adjacent tiles, which must be used in the interpolation to result in no-seam edges
         #      [[11, 11, 12, 13, 14],
                #[11, 11, 12, 13, 14],
                #[Nan,Nan,22, 23, 24],
@@ -1211,7 +1211,7 @@ if __name__ == "__main__":
                     [1.5,2.6, 1.0],
                     [1.2,1.6, 1.7],
                    ])
-    """
+    
     top =  np.array([
                         [nn, nn, nn, 11, 11, nn, nn],
                         [nn, nn, 17, 22, 24, nn, nn],
@@ -1221,6 +1221,16 @@ if __name__ == "__main__":
                         [nn, 10, 23, 10, nn, 10, nn],   
                         [nn, nn, 11,  6, nn, nn, nn],                     
                      ])
+    """
+    top =  np.array([
+                    [10, 10, 10, 10, 10, 10, 10],
+                    [10, 10, 10, 10, 10, 10, 10],
+                    [10, 10, 10, 10, 10, 10, 10],                     
+                    [10, 10, 10, 100, 10, 10, 10],
+                    [10, 10, 10, 10, 10, 10, 10],
+                    [10, 10, 10, 10, 10, 10, 10],  
+                    [10, 10, 10, 10, 10, 10, 10],                    
+                    ])
     '''
     top =  np.array([ [nn, nn, 11],
                       [11, nn, nn],
@@ -1263,14 +1273,14 @@ if __name__ == "__main__":
         "pixel_mm" : 1, # lateral (x/y) size of a pixel in mm
         "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
         "min_elev" : np.nanmin(top),
-        "z_scale" :  0.4,     # z (vertical) scale (elevation exageration) factor, float
+        "z_scale" :  2,     # z (vertical) scale (elevation exageration) factor, float
         "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,
         "ntilesx": 1,
         "ntilesy": 1,
         "tile_centered" : False, # True: each tile's center is 0/0, False: global (all-tile) 0/0
         "fileformat": "stlb",  # folder/zip file name for all tiles
-        "base_thickness_mm": 0.1, # thickness between bottom and lowest elevation, NOT including the bottom relief.
+        "base_thickness_mm": 0, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
         "use_geo_coords": None,
         
