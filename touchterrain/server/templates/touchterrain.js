@@ -626,7 +626,7 @@ function SetDEM_name(){
         case "USGS/SRTMGL1_003": res = "30"; break;
         case "MERIT/DEM/v1_0_3": res= "90"; break;
         case "JAXA/ALOS/AW3D30/V2_2": res = "30"; break;
-        case "USGS/GMTED2010": res = "90"; break;
+        case "USGS/GMTED2010": res = "230"; break;
         case "USGS/GTOPO30" : res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
