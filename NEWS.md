@@ -1,3 +1,8 @@
+Mar. 30, 2021
+	- fixed double application of z-scale (thanks to Simon Scherrer!)
+	made version 3.2.1
+
+
 Mar. 12, 2021
 - added Canadian 20m NRCan/CDEM and Australian AU/GA/AUSTRALIA_5M_DEM
 - made version 3.2
