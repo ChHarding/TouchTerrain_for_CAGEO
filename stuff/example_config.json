@@ -21,6 +21,7 @@
 "polyURL": null,
 "poly_file": null,
 "printres": 0.5,
+"smooth_borders": true,
 "tile_centered": false,
 "tilewidth": 80,
 "trlat": 44.69741706507476,

@@ -94,6 +94,7 @@ def main():
         "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
                                        # on the model and can have the effect of making the paths look a bit cleaner
         "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
+        "smooth_borders": True, # smooth borders
     }
 
     # write an example json file, in case it gets deleted ...
