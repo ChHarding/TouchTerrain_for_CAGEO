@@ -1,3 +1,6 @@
+Apr. 9, 2021
+	- added a manual option to switch border optimization on/off (smooth_borders)
+
 Mar. 30, 2021
 	- fixed double application of z-scale (thanks to Simon Scherrer!)
 	made version 3.2.1

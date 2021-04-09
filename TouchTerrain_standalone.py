@@ -155,7 +155,8 @@ def main():
             "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
             "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
             "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-            #"poly_file": "idaho.kml", #TT_poly_test.kml",
+            "poly_file": None, #"idaho.kml", #TT_poly_test.kml",
+            "smooth_borders": True, # smooth borders
         }
 
         # overwrite config settings in args
@@ -196,6 +197,7 @@ def main():
                                                 # on the model and can have the effect of making the paths look a bit cleaner 
                 "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness. 
                                         # A setting of 1 probably looks the best 
+                "smooth_borders": True, # smooth borders
     }
     
     ml = convert_to_GeoJSON(args["importedGPX"])

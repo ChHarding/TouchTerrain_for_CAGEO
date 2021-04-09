@@ -126,6 +126,7 @@ initial_args = {
     "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
     "importedGPX": [], # list of gpx path file(s) to be use  
+    "smooth_borders": True, # smooth borders
 }
 
 
@@ -181,7 +182,7 @@ def make_bottom_raster(image_file_name, shape):
 # the tile info dict (with the file/buffer size) and the buffer (or the file's name) are returns as a tuple
 def process_tile(tile_tuple):
     tile_info = tile_tuple[0] # has info for this individual tile
-    tile_elev_raster = tile_tuple[1]
+    tile_elev_raster = tile_tuple[1] # the actual raster
 
     print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -402,6 +403,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          gpxPixelsBetweenPoints=10,
                          gpxPathThickness=1, 
                          map_img_filename=None,
+                         smooth_borders=True,
                          **otherargs):
     """
     args:
@@ -442,6 +444,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive)
     - poly_file: local KML file to use as mask
     - map_image_filename: image with a map of the area
+    - smooth_borders: should borders be optimized (smoothed) by removing triangles
     
     returns the total size of the zip file in Mb
 
@@ -1163,6 +1166,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "no_normals": no_normals,
             "geo_transform": geo_transform, # GeoTransform of geotiff
             "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
+            "smooth_borders": smooth_borders, # optimize borders?
         }
 
         #

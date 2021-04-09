@@ -679,7 +679,7 @@ class grid(object):
                 # are flagged as is_tri_cell = True, have only v0, v1 and v2. One border is deleted, the other
                 # is set as a diagonal wall
                 
-                if have_nan:
+                if have_nan == True and tile_info["smooth_borders"] == True:
                     #print(i,j, c.borders)
                     if c.check_for_tri_cell():
                         c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make diagonal wall
