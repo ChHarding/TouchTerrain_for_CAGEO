@@ -198,10 +198,13 @@ tiles will fit together without overlaps if tile_centered was false.
 
     - Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
-* `use_geo_coords`: default: null.
+* `use_geo_coords`: default: true. On DEM's with NWill smooth out
     - with null (or if not given at all), x/y coordinates are in mm and refer to the buildplate
     - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background. This is useful to import the mesh file into a 3D GIS, such as ArcGIS Pro. Note that, once imported, you will have to set the coordinate system of the mesh manually, b/c the mesh model file can't contain that information. Unless overwritten, this will be a UTM zone with WGS84. The TouchTerrain log file will contain the equivalent EPSG code.
     - "centered" will set the UTM origin to the center of the full tile, this is make it work together with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
+
+* `smooth_borders`: default: true. For rasters with NoData cells, determines if the borders of "islands" should be smoothed by selectively removing
+                    certain outer triangles. This makes printing the easier and puts less "rattle" in the motion system. However, if adjacent areas are printed this option should be set to false to prevent gaps between the areas.    
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
 * `gpxPathHeight`: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
