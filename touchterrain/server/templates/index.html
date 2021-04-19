@@ -256,11 +256,16 @@
 									<!--
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
-											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); kml_name_was_just_set=true; ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
+											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
-									-->
+									
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name) ">
+										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
+									-->	
+										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
+										onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});"
+										>
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 								</div>
 							</div>
@@ -426,6 +431,12 @@
 												<option value="10">x 10</option>
 												<option value="15">x 15</option>
 												<option value="20">x 20</option>
+												<option value="30">x 30</option>
+												<option value="40">x 40</option>
+												<option value="50">x 50</option>
+												<option value="60">x 65</option>
+												<option value="80">x 80</option>
+												<option value="100">x 100</option>
 										</select> 
 										<label for="options_z_scale"> &nbsp Vertical Exaggeration (Z-scale)</label>
 									</div>
@@ -447,7 +458,7 @@
 
 								<input class="form-control" size="80" type="text" placeholder="Manual settings:"
 										id="options_manual" value="" name="manual"
-										title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot,   &quot;smooth_borders&quot:true  For more info see standalone on github"
+										title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot,   &quot;smooth_borders&quot:true,  For more info see standalone on github"
 								>
 								
 					    	</div>
