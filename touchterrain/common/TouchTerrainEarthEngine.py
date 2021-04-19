@@ -1427,7 +1427,7 @@ if __name__ == "__main__":
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             } 
-    
+    fname = "test"
     r = get_zipped_tiles(**args)
     
     zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
