@@ -437,7 +437,7 @@ def export():
         if 'kml_file' in request.files:
             kml_file = request.files['kml_file']
             
-            if kml_file.filename != '':
+            if kml_file.filename != '':  # '' happens when kml file was invalidated
                 from geojson import Polygon
                 
                 # process kml file

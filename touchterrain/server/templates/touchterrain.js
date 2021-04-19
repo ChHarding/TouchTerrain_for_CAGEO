@@ -252,7 +252,7 @@ window.onload = function () {
                     polygon.setPath(latloncoords); // make polygon ...
                     polygon.setMap(map); // and draw
                     fileInput.name = "kml_file"; // will be a key in response.files dict
-                    $('#kml_file_name').html(file.name); // show valid filename in text box
+                    $('#kml_file_name').html(file.name); // show valid filename in label
                 }
             }
             reader.readAsText(file);
@@ -480,6 +480,7 @@ function update_corners_form(event) {
     create_divison_lines();
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
+    document.getElementById('kml_file').value = null // invalidate previous kml file
 }
 
 function update_box(event){
@@ -504,6 +505,7 @@ function update_box(event){
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
+    document.getElementById('kml_file').value = null // invalidate previous kml file
   
 }
 
