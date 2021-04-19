@@ -49,14 +49,6 @@ let gamma = "{{ gamma }}";
 let hsazi = "{{ hsazi }}";
 let hselev = "{{ hselev }}";
 
-// flag for re-setting the kml file field when the box is manually moved. This is tricky b/c
-// when the name is set it will typically move the box, so this flag catches
-// the case where the move comes from setting the name, in which the filed must NOT
-// be reset. Only subsequent (i.e. manual moves) will reset the field.
-let kml_name_was_just_set = false;
-
-
-
 
 // run this once the browser is ready
 window.onload = function () {
@@ -101,7 +93,7 @@ window.onload = function () {
         //animation: google.maps.Animation.BOUNCE,
     });
    
-    // Drawing manager  (for later)
+    // Drawing manager  (for later?)
     /*
     const drawingManager = new google.maps.drawing.DrawingManager({
         drawingMode: null, //google.maps.drawing.OverlayType.RECTANGLE,
@@ -152,7 +144,6 @@ window.onload = function () {
       });
       */
     
-
     eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
     update_options_hidden(); // also store values in hidden ids
@@ -255,22 +246,25 @@ window.onload = function () {
                 let s = reader.result;
                 const [bbox, latloncoords] = processKMLFile(s);
                 if(!!bbox){ // not null => valid bounding box
-                    rectangle.setBounds(bbox);
-                    kml_name_was_just_set = true; // to prevent resetting the file name text
+                    rectangle.setBounds(bbox); 
                     update_corners_form();
                     map.fitBounds(bbox); // makes the map fit around the box
-                    polygon.setPath(latloncoords);
-                    polygon.setMap(map);
-                    fileInput.name = "Using Polygon KML file:" + file.name; // TODO: make this work!
+                    polygon.setPath(latloncoords); // make polygon ...
+                    polygon.setMap(map); // and draw
+                    fileInput.name = "kml_file"; // will be a key in response.files dict
+                    $('#kml_file_name').html(file.name); // show valid filename in text box
                 }
             }
             reader.readAsText(file);
         }else{
-            fileInput.name = "Error: " + file.name + " is not a valid kml file!"
+            $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
+            polygon.setMap(null); // remove polygon
+            // bad file will be read-in in Python and generate a warning there
         }
     }
     });
 
+    
     // Place Search
     const input = document.getElementById("pac-input");
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
@@ -486,15 +480,7 @@ function update_corners_form(event) {
     calcTileHeight();
     create_divison_lines();
     polygon.setMap(null); // remove polygon
-
-    // reset file name only if it was NOT just set
-    if(kml_name_was_just_set == true){
-        kml_name_was_just_set = false; // so the next move will reset the file name!
-    }
-    else{ // false
-        $('#kml_file_name').html('Optional Polygon KML file: '); // empty filename
-        document.getElementById('kml_file').value = ""; // remove prev. given upload path
-    }
+    $('#kml_file_name').html('Optional Polygon KML file: ') // default string
 }
 
 function update_box(event){
@@ -518,6 +504,7 @@ function update_box(event){
     );
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
+    $('#kml_file_name').html('Optional Polygon KML file: ') // default string
   
 }
 

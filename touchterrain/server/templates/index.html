@@ -251,10 +251,16 @@
 									</div>
 								</div>
 								<br>
+
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
+									<!--
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
 											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); kml_name_was_just_set=true; ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
+										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
+									-->
+										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
+											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name) ">
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 								</div>
 							</div>
