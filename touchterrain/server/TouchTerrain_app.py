@@ -445,7 +445,7 @@ def export():
                 try:
                     coords, msg = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream) 
                 except:
-                    html += "Warning: " + kml_file.filename + "is not a valid kml polygon file! (Ignored)\n"
+                    html += "Warning: " + kml_file.filename + " is not a valid kml polygon file! (falling back to area selection box.)\n"
                 else:
                     if msg != None: # Either got a line instead of polygon or nothing good at all
                         if coords == None: # got nothing good
