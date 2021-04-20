@@ -8,10 +8,13 @@ TouchTerrain is developed by Chris Harding (Iowa State University) and Franek Ha
 
 
 For more in-depth information:
-- read our paper in Computers & Geosciences: *TouchTerrain: A simple
+- TouchTerrain — 3D Printable Terrain Models, Intern. Journal of Geo-Information, Feb. 2021, [https://doi.org/10.3390/ijgi10030108](https://doi.org/10.3390/ijgi10030108) (open access)
+- [ESRI Story Map](https://arcg.is/iz5H9)
+- [AGU 2020 conference poster](https://public.vrac.iastate.edu/~charding/TouchTerrain%20AGU%202020%20poster.htm)
+- Computers & Geosciences: *TouchTerrain: A simple
 web-tool for creating 3D-printable topographic models*, Volume 109, December 2017, Pages 25-31,
 https://doi.org/10.1016/j.cageo.2017.07.005
-- look at our [AGU 2020 conference poster](https://public.vrac.iastate.edu/~charding/TouchTerrain%20AGU%202020%20poster.htm)
+
 
 
 ## Getting Started
