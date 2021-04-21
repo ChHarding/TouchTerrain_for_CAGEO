@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bootstrap Popover Example</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+	<!-- jQuery library -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+	<!-- Popper JS -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+
+	<!-- Latest compiled JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> 
+
+
+
+    <button type="button" id="help1" class="btn btn-secondary" data-bs-container="body" data-bs-toggle="popover" 
+            data-bs-placement="right" data-bs-content="Right popover">
+            Help1
+    </button>
+    
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $('#help_test').popover({
+                //title: '<h5>Help Box</h4>',
+                content: 'Here is some help and also a <a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">Link to video</a>',
+                html: true,
+                trigger: 'click'
+            });
+        });
+    </script>
+</body>
+</html>
