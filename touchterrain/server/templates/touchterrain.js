@@ -370,6 +370,9 @@ window.onload = function () {
 
                     // Update place id in form 2
                     document.getElementById("place").value = name;
+
+                    // center print area box
+                    center_rectangle();
                 });
             } else {
                 window.alert("No results for " + search_term + ", please try a different search (be more specific?)");
@@ -379,7 +382,56 @@ window.onload = function () {
       }
     }); // end version B
     
+    // help popovers
+    $('#Whats_new__popover').popover({
+        content: '<ul><li>Help popups: will explain what the different options and settings mean</li>\
+                      <li>Better z-scaling: will let you define how tall you want your printed model to be (model height)\
+                        and let TouchTerrain calculate the z-scale required to get that model height.</ul>',
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
 
+    $('#terrain_settings_popover').popover({
+        //title: '<h6>Help for Terrain settings:</h6>',
+        content: 'Click on the Terrain settings label to expand or compact this section. <br> \
+                  Terrain settings define the type and appearance of the gray hillshade overlay.\
+                  You can change the type of the Google map (Streetmap, Terrain, Satellite) at the upper left corner.<br>\
+                  Examples of a <a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">link</a>\
+                  and of an image:<br>  <img src="static/touchTerrain_logo.png"  width="300"> ',
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+    $('#elevation_data_source_popover').popover({
+        //title: '<h6>Help for Elevation data source:</h6>',
+        content: ' Elevation data source defines which DEM (Digital Elevation Model) will be used and at what resolution.\
+                   The highest resolution DEM, the 10m USGS/NED DEM, is only available for the lower 48 US states. Outside the US,\
+                   use AW3D30 (30m resolution). For more info on the current DEM source, click on the (DEM info) link.\
+                   The current DEM will appear as a gray hillshade (relief) layer overlaying the Google Map.',
+        html: true,
+        trigger: 'click',
+        placement: 'left'
+    });
+    $('#transparency_popover').popover({
+        //title: '<h6>Help for Transparency:</h6>',
+        content: 'This slider sets the transparency of the gray hillshade overlay. Full transparency (full right) completely hides the hillshade,\
+                  completely to the left, completely hides the Google Map.',
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+ 
+    $('#gamma_popover').popover({
+        content: 'Type in a search term for a place you want to print. This can be a city, a state, a national part or a landmark.\
+                 Hit Enter to fly to this location, then click on the blue Re-center map button on the right to place the red\
+                 print area selection box. Drag the box or its corners until you\'re happy with out print area selection.<br>\
+                 After a search, the search box will show you the exact place that was found.',  
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+    
 
 }; // end of onload()
 

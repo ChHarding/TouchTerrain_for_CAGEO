@@ -26,6 +26,10 @@
 		<link href="https://cdn.theme.iastate.edu/merriweather/css/merriweather.css" rel="stylesheet">
 		<!--<link rel="stylesheet" href="static/css/iastate.legacy.css"> -->
 
+		<!-- for icons -->
+		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" crossorigin="anonymous"
+		      integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/">
+
 		<script type="text/javascript" async defer
 			src="https://maps.google.com/maps/api/js?libraries=places,drawing&key={{ google_maps_key }}">
 			<!-- key=<nothing> will give you the crappy google map background, which is still usable.
@@ -55,7 +59,7 @@
 	</head>
 
 	<body>
-		<div class="container-fluid">
+		<div class="container-fluid" id="outermost_div">
 			<div class="page-header text-truncate" style="min-width: 635px;">
 			  <h4 class="text-truncate">
 				<!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
@@ -63,6 +67,10 @@
 				<div class="text-truncate float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
 						What's new in version 3.2.1?</a> 
+					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
+							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+								<i class="fas fa-question"></i>
+						</button>
 					<a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" 
 						target="_blank"> &nbsp &nbsp &nbsp Help</a>
 				</div>
@@ -75,9 +83,7 @@
 					</div>
 					<!-- search bar stuff start, will be positioned inside map via JS later -->
 					<div id="searchbar_div"> 
-						
-						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" 
-						  style="max-width: 420px;"
+						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" style="max-width: 420px;"
 							type="text" placeholder="Search for a place" aria-label="Search for a place"
 						>
 					</div> 
@@ -90,8 +96,12 @@
 						<div class="card">
 							<div class="card-header">
 								<a class="card-link" data-toggle="collapse" href="#terrain_settings_panel">
-					          Terrain Settings:
-					      </a>
+					            Terrain Settings:
+					      		</a>
+								<button type="button" id="terrain_settings_popover" class="btn btn-outline-info btn-sm" 
+									data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+            		 					<i class="fas fa-question"></i>
+    							</button>
 							</div>
 							<div id="terrain_settings_panel" class="collapse show">
 								<div class="card-body">
@@ -100,6 +110,10 @@
 											<label for="DEM_name">Elevation Data source:</label>
 											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" 
 												 target="_blank">(DEM Info)</a>
+												 <button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm" 
+														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+            		 									<i class="fas fa-question"></i>
+    											</button>
 											</div>
 										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
@@ -122,23 +136,27 @@
 									<div class="row">
 										<div class="col-sm-7">
 											<div class="form-inline text-truncate">
-												<label for="hillshade_transparency_slider"  >Transparency:</label>
+												<label for="hillshade_transparency_slider">Transparency:</label>
 												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 80px;"
 													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
-													<datalist id="tickmarks">
-														<option value="0"></option>
-														<option value="10"></option>
-														<option value="20"></option>
-														<option value="30"></option>
-														<option value="40"></option>
-														<option value="50"></option>
-														<option value="60"></option>
-														<option value="70"></option>
-														<option value="80"></option>
-														<option value="90"></option>
-														<option value="100"></option>
-													</datalist>
+												<datalist id="tickmarks">
+													<option value="0"></option>
+													<option value="10"></option>
+													<option value="20"></option>
+													<option value="30"></option>
+													<option value="40"></option>
+													<option value="50"></option>
+													<option value="60"></option>
+													<option value="70"></option>
+													<option value="80"></option>
+													<option value="90"></option>
+													<option value="100"></option>
+												</datalist>
+												<button type="button" id="transparency_popover" class="btn btn-outline-info btn-sm" 
+														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+														<i class="fas fa-question"></i>
+												</button>
 											</div>
 										</div>
 										<div class="col-sm-5">
@@ -148,6 +166,10 @@
 													title="Gamma values > 1.0 make your hillshade appear lighter, values < 1.0 make it darker. To change this, enter a new value and hit Enter. Will reload the map." 
 													style="max-width: 40px;"
 													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
+												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+													<i class="fas fa-question"></i>
+												</button>
 											</div>
 										</div>
 									</div>
@@ -264,6 +286,7 @@
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 									-->	
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
+										title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
 										onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});"
 										>
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
@@ -504,7 +527,8 @@
 								<a href="https://github.com/ChHarding/TouchTerrain_jupyter_docker" target="_blank"> Docker Image </a> of the standalone version.
 								</br>
 								More details in:
-								
+								<a href="https://arcg.is/11Cv5D"  target="_blank"> ESRI Story map </a>; 		
+													
 								<a href="https://doi.org/10.3390/ijgi10030108"  target="_blank">
 								TouchTerrain - 3D Printable Terrain Models</a>, Intern. Journal of Geo-Information, Feb. 2021 ;
 
@@ -512,7 +536,7 @@
 											AGU 2020 conference poster</a>; 
 								<a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
 											TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a> 
-											Computers & Geosciences, Volume 109, Dec. 2017, Pages 25-31
+											, Computers & Geosciences, Volume 109, Dec. 2017, Pages 25-31
 							</small>
 						</div>
 					</div>
@@ -522,7 +546,7 @@
 		</div>
 
 		
-
+		
 	
 	</body>
 </html>
