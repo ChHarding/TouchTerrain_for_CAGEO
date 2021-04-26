@@ -178,6 +178,10 @@
 										<div class="col-sm-6"> 
 												<div class="form-horizontal form-group">
 													<label for="hsazi2">Sun direction:</label>
+													<button type="button" id="sun_direction_popover" class="btn btn-outline-info btn-sm" 
+														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+														<i class="fas fa-question"></i>
+													</button>
 													<select class="form-control custom-select-sm"  
 														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception! Will reload the map."
 														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
@@ -194,6 +198,10 @@
 										<div class="col-sm-6">
 											<div class="form-horizontal form-group">
 												<label for="hselev2">Sun angle:</label>
+												<button type="button" id="sun_angle_popover" class="btn btn-outline-info btn-sm" 
+														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+														<i class="fas fa-question"></i>
+												</button>
 												<select class="form-control custom-select-sm"  
 													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma and will reload the map."
 													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
@@ -207,30 +215,30 @@
 												</select>
 											</div>
 										</div>
-								</div>
+									</div>
 									 
-								<!-- form 1 hidden ids so they get put into the URL on reload -->
-								<input type="hidden" name="maptype" id="maptype" value="NULL">
-								<input type="hidden" name="gamma" id="gamma" value="NULL">
-								<input type="hidden" name="transp" id="transp" value="NULL">
-								<input type="hidden" name="hsazi" id="hsazi" value="NULL">
-								<input type="hidden" name="hselev" id="hselev" value="NULL">
-								<input type="hidden" name="map_lat" id="map_lat" value="NULL">
-								<input type="hidden" name="map_lon" id="map_lon" value="NULL">
-								<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
-								<input type="hidden" id="trlat" name="trlat" value="NULL" >
-								<input type="hidden" id="trlon" name="trlon" value="NULL" >
-								<input type="hidden" id="bllat" name="bllat" value="NULL" >
-								<input type="hidden" id="bllon" name="bllon" value="NULL" >
-								<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
-								<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
-								<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
-								<input type="hidden" id="printres" name="printres" value="NULL" >
-								<input type="hidden" id="basethick" name="basethick" value="NULL" >
-								<input type="hidden" id="zscale" name="zscale" value="NULL" >
-								<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
-								<input type="hidden" id="manual" name="manual" value="NULL" >
-								<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
+									<!-- form 1 hidden ids so they get put into the URL on reload -->
+									<input type="hidden" name="maptype" id="maptype" value="NULL">
+									<input type="hidden" name="gamma" id="gamma" value="NULL">
+									<input type="hidden" name="transp" id="transp" value="NULL">
+									<input type="hidden" name="hsazi" id="hsazi" value="NULL">
+									<input type="hidden" name="hselev" id="hselev" value="NULL">
+									<input type="hidden" name="map_lat" id="map_lat" value="NULL">
+									<input type="hidden" name="map_lon" id="map_lon" value="NULL">
+									<input type="hidden" name="map_zoom" id="map_zoom" value="NULL">
+									<input type="hidden" id="trlat" name="trlat" value="NULL" >
+									<input type="hidden" id="trlon" name="trlon" value="NULL" >
+									<input type="hidden" id="bllat" name="bllat" value="NULL" >
+									<input type="hidden" id="bllon" name="bllon" value="NULL" >
+									<input type="hidden" id="tilewidth" name="tilewidth" value="NULL" >
+									<input type="hidden" id="ntilesx" name="ntilesx" value="NULL" >
+									<input type="hidden" id="ntilesy" name="ntilesy" value="NULL" >
+									<input type="hidden" id="printres" name="printres" value="NULL" >
+									<input type="hidden" id="basethick" name="basethick" value="NULL" >
+									<input type="hidden" id="zscale" name="zscale" value="NULL" >
+									<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
+									<input type="hidden" id="manual" name="manual" value="NULL" >
+									<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
 								</div>	
 							</div>
 						</div>
@@ -246,6 +254,10 @@
 							<a class="card-link" data-toggle="collapse" href="#area_box_panel">
 									Area Selection Box:  
 							</a>
+							<button type="button" id="area_selection_box_popover" class="btn btn-outline-info btn-sm" 
+								data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+								<i class="fas fa-question"></i>
+							</button>
 							<input id="recenter-box-button" type="button" class="btn btn-primary float-right"
 								title="re-centers the red Area Selection box inside the current map view"
 								onclick="center_rectangle()"

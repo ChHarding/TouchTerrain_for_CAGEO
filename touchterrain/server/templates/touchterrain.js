@@ -396,7 +396,7 @@ window.onload = function () {
         //title: '<h6>Help for Terrain settings:</h6>',
         content: 'Click on the Terrain settings label to expand or compact this section. <br> \
                   Terrain settings define the type and appearance of the gray hillshade overlay.\
-                  You can change the type of the Google map (Streetmap, Terrain, Satellite) at the upper left corner.<br>\
+                  You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>\
                   Examples of a <a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">link</a>\
                   and of an image:<br>  <img src="static/touchTerrain_logo.png"  width="300"> ',
         html: true,
@@ -423,15 +423,45 @@ window.onload = function () {
     });
  
     $('#gamma_popover').popover({
-        content: 'Type in a search term for a place you want to print. This can be a city, a state, a national part or a landmark.\
-                 Hit Enter to fly to this location, then click on the blue Re-center map button on the right to place the red\
-                 print area selection box. Drag the box or its corners until you\'re happy with out print area selection.<br>\
-                 After a search, the search box will show you the exact place that was found.',  
+        content: 'Change the gamma value to correct the contrast and brightness of the hillshade overlay to better bring out certain details. \
+                  Gamma > 1.0 will brighten, Gamma < 1.0 will darken the overlay. To set the gamma value directly, \
+                  type in your new value and hit Enter. Note, however, that setting a sun angle will automatically set a gamma value in order\
+                  to account for illumination differences.',  
         html: true,
         trigger: 'click',
         placement: 'auto'
     });
     
+    $('#sun_direction_popover').popover({
+        content: 'Hillshading is based on rays from a virtual sun illuminating the terrain. Sun direction defines at which compass heading (0 - 360) the sun sits\
+                  on the horizon (default: North-West). Changing the direction can be useful to better illuminate directional slope patterns\
+                  e.g. sun shining from the North will accentuate East-West stretching hills. Note that some directions, especially sun from the South,\
+                  can lead to hills and valleys appearing inverted!',  
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+
+    $('#sun_angle_popover').popover({
+        content: 'Hillshading is based on rays from a virtual sun illuminating the terrain. Sun angle defines the vertical angle of the sun above the horizon \
+                  (default: 45 degr.). Lower sun angles can be useful to better illuminate low relief areas, such as river deltas. \
+                  Note changing sun angles also affects the gamma value, in order to counteract the darkening effect of lower angles.',  
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+\
+    $('#area_selection_box_popover').popover({
+        content: 'Click on the Area Selection Box label to expand or compact this section. <br> \
+                  This section deals with selecting the area to be printed, typically defined by a red box within the Google Map.\
+                  If you don\'t see a red box, click on the blue button to the right (Re-center box on map). Drag the box around and\
+                  adjust the sides and corners to your liking.<br>You can also type in lat./long. coordinates of the top-right and\
+                  bottom-left corner of the box or use a ',  
+        html: true,
+        trigger: 'click',
+        placement: 'auto'
+    });
+
 
 }; // end of onload()
 
