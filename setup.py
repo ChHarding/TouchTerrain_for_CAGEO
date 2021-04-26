@@ -16,8 +16,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'Pillow>=6.0.0',
-        'google-api-python-client', # no need to force 1.12.8 usage anymore
-        'earthengine-api>=0.1.256', # 0.1.256 fixes google-api-python-client bug
+        'google-api-python-client=1.12.8', # util fix in 2.x use 1.12.8
+        'earthengine-api>=0.1.256', # 0.1.256 fixes google-api-python-client 2.x bug by forcing it back to 1.12.8
         'Flask>=1.0.2',
         #'vectors==99.0.0',  # is now part of common folder
         'oauth2client>=4.1.3',
