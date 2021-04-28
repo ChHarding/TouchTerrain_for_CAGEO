@@ -2,7 +2,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='touchterrain',
-    version='3.2.1',
+    version='3.3',
     description='Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)',
 	url='https://github.com/ChHarding/TouchTerrain_for_CAGEO',
 	license='GPL',
@@ -16,8 +16,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'Pillow>=6.0.0',
-        'google-api-python-client=1.12.8', # util fix in 2.x use 1.12.8
-        'earthengine-api>=0.1.256', # 0.1.256 fixes google-api-python-client 2.x bug by forcing it back to 1.12.8
+        'google-api-python-client==1.12.8', # Mar 11, 2021: use pre 2.0 version until that's fixed
+        'earthengine-api>=0.1.232', # 1.232 is required after Aug 19, 2020
         'Flask>=1.0.2',
         #'vectors==99.0.0',  # is now part of common folder
         'oauth2client>=4.1.3',
