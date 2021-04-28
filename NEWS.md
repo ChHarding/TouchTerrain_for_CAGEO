@@ -1,3 +1,9 @@
+Apr. 29, 2021 (version 3.3)
+	- added auto z-scale to scale up to a given height
+	- default width is 100 mm
+	- added help bubbles. including tips for CNC users
+	- added re-center box after each search
+
 Apr. 9, 2021
 	- added a manual option to switch border optimization on/off (smooth_borders)
 
@@ -15,7 +21,7 @@ Mar. 11, 2021
 	
 Jan. 10, 2021
 	- per request, added a requirements.txt file
-	- added script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
+	- added JS script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
 
 Jan. 5, 2021
 	- added 5 min server timeout message

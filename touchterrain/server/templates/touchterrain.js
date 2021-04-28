@@ -238,7 +238,7 @@ window.onload = function () {
     // add change callback for kml_file button
     let fileInput = document.getElementById('kml_file');
     fileInput.addEventListener('change', function(e) {
-    if (fileInput.files.length) {
+      if (fileInput.files.length) {
         let file = fileInput.files[0];
         if(file.name.endsWith(".kml")){
             let reader = new FileReader();
@@ -261,7 +261,38 @@ window.onload = function () {
             polygon.setMap(null); // remove polygon
             // bad file will be read-in in Python and generate a warning there
         }
-    }
+      
+
+      
+        // unzip kmz file into kml first
+        if(file.name.endsWith(".kmz")){
+            // create a BlobReader to read with a ZipReader the zip from a file object
+            const reader = new zip.ZipReader(new zip.BlobReader(file));
+            const entries =  reader.getEntries(); // get all entries from the zip
+            if (entries.length) {
+                // get first entry content as text by using a TextWriter
+                const text =  entries[0].getData(
+                    new zip.TextWriter(),
+                    { // options
+                        onprogress: (index, max) => {
+                            // onprogress callback
+                        }
+                    }
+                );
+                // text contains the entry data as a String
+                console.log(text);
+
+            }
+             reader.close();  // close the ZipReader
+
+        }else{
+            $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
+            polygon.setMap(null); // remove polygon
+            // bad file will be read-in in Python and generate a warning there
+        }
+
+
+      }
     });
 
     
@@ -384,11 +415,13 @@ window.onload = function () {
     
     // help popovers
     $('#Whats_new__popover').popover({
-        content: '<ul><li>Help popups: will explain what the different options and settings mean</li>\
+        content: '<ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height)\
-                        and let TouchTerrain calculate the z-scale required to get that model height.</ul>',
+                        and will automatically use the required z-scale value.</li>\
+                      <li>Help hints for CNC users.</li>\
+                  </ul>',
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
 
@@ -396,13 +429,12 @@ window.onload = function () {
         //title: '<h6>Help for Terrain settings:</h6>',
         content: 'Click on the Terrain settings label to expand or compact this section. <br> \
                   Terrain settings define the type and appearance of the gray hillshade overlay.\
-                  You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>\
-                  Examples of a <a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">link</a>\
-                  and of an image:<br>  <img src="static/touchTerrain_logo.png"  width="300"> ',
+                  You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>',
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
+
     $('#elevation_data_source_popover').popover({
         //title: '<h6>Help for Elevation data source:</h6>',
         content: ' Elevation data source defines which DEM (Digital Elevation Model) will be used and at what resolution.\
@@ -410,7 +442,7 @@ window.onload = function () {
                    use AW3D30 (30m resolution). For more info on the current DEM source, click on the (DEM info) link.\
                    The current DEM will appear as a gray hillshade (relief) layer overlaying the Google Map.',
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'left'
     });
     $('#transparency_popover').popover({
@@ -418,17 +450,17 @@ window.onload = function () {
         content: 'This slider sets the transparency of the gray hillshade overlay. Full transparency (full right) completely hides the hillshade,\
                   completely to the left, completely hides the Google Map.',
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
  
     $('#gamma_popover').popover({
-        content: 'Change the gamma value to correct the contrast and brightness of the hillshade overlay to better bring out certain details. \
+        content: 'Gamma (default 1.0) can be used to change contrast and brightness of the hillshade overlay \
                   Gamma > 1.0 will brighten, Gamma < 1.0 will darken the overlay. To set the gamma value directly, \
                   type in your new value and hit Enter. Note, however, that setting a sun angle will automatically set a gamma value in order\
                   to account for illumination differences.',  
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
     
@@ -438,31 +470,131 @@ window.onload = function () {
                   e.g. sun shining from the North will accentuate East-West stretching hills. Note that some directions, especially sun from the South,\
                   can lead to hills and valleys appearing inverted!',  
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
 
     $('#sun_angle_popover').popover({
         content: 'Hillshading is based on rays from a virtual sun illuminating the terrain. Sun angle defines the vertical angle of the sun above the horizon \
                   (default: 45 degr.). Lower sun angles can be useful to better illuminate low relief areas, such as river deltas. \
-                  Note changing sun angles also affects the gamma value, in order to counteract the darkening effect of lower angles.',  
+                  Note that changing sun angle adjusts the gamma value to counteract the darkening effect of lower angles.',  
         html: true,
-        trigger: 'click',
+        trigger: 'focus',
         placement: 'auto'
     });
-\
+
     $('#area_selection_box_popover').popover({
         content: 'Click on the Area Selection Box label to expand or compact this section. <br> \
-                  This section deals with selecting the area to be printed, typically defined by a red box within the Google Map.\
-                  If you don\'t see a red box, click on the blue button to the right (Re-center box on map). Drag the box around and\
-                  adjust the sides and corners to your liking.<br>You can also type in lat./long. coordinates of the top-right and\
-                  bottom-left corner of the box or use a ',  
+                  This section deals with selecting the area to be printed, shown by the red box inside the Google Map.\
+                  <br>If you don\'t see a red box, click on the blue button to the right (Re-center box on map).<br> Drag the box around and\
+                  adjust the sides and corners to your liking.<a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">(video)</a><br>\
+                  You can also type in the lat./long. coordinates of the top-right and\
+                  bottom-left corners of the box.<a href="https://iastate.box.com/s/pg6xwp92jynvhb439vevi4he0cminom6" target="_blank">(video)</a><br>\
+                  Or, you can upload a Google Earth kml file with a single polygon to define the boundary of your print area. \
+                  The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',  
         html: true,
-        trigger: 'click',
-        placement: 'auto'
+        trigger: 'focus',
+        placement: 'right'
     });
 
+    $('#3D_printer_options_popover').popover({
+        content: 'Click on the 3D printer options label to expand or compact this section. <br> \
+                  This section defines specific parameters for your model, such as its  physical dimensions.\
+                  This works best if you know a bit about the 3D printer, such as the width and height of the printer\'s\
+                  buildplate to help you decide the maximum size of the terrain model it can print.<br>\
+                  A a minimum you only need to set the size, however, you should also look at the z-scale.<br>\
+                  Once values are set, hit the green Export button below to download your model.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'right'
+    });
 
+    $('#3D_printer_CNC_options_popover').popover({
+        content: 'Some tips for CNC users: <br> \
+                  For model size (Width, Height) and Nozzle diameter (below), select from the CNC presets.\
+                  These should give you a reasonable overall level of detail for your model, but verify this with the Preview.<br>\
+                  If the Effective DEM Resolution field turn yellow, lower either your size or detail.<br>\
+                  Leave all other 3D printer options at their defaults.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'right'
+    });
+
+    $('#tile_width_popover').popover({
+        content: 'This defines the desired size for your 3D terrain model in mm. <a href="https://iastate.box.com/s/0gid32di66grinm85pj2733fnmx16f5l" target="_blank">(video)</a>\
+                  You only need to set the width (corresponding to the East/West\
+                  extent of your box), the height (North-South extent) will be calculated automatically. Ensure that your model fits within the dimensions of\
+                  your 3D printer\'s buildplate. If you are subdividing your model into multiple tiles, each tile will be of the size set here.<br>',  
+        html: true,
+        trigger: 'focus',
+        placement: 'right'
+    });
+
+    $('#print_resolution_popover').popover({
+        content: 'This value defines how much detail your terrain model can contain. 3D printed terrain models are essentially limited by the size of the\
+                  nozzle used by your 3D printer (typically 0.4 mm diameter). Adjust this value if you are using a different nozzle size. \
+                  Setting it to an artificially smaller value may improve some prints marginally. If you run into server limitations, \
+                  increase the nozzle size.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+
+    $('#tile_config_popover').popover({
+        content: 'If you want to print out a terrain model at a larger size than your buildplate permits, you can subdivide it into smaller parts (tiles)\
+                  <a href="https://iastate.box.com/s/ccem0equbdmzvz1v9oimujqa7c7cfv1el" target="_blank">(video)</a>. Set the number of subdivions\
+                  in the x and y direction here, which will be shown inside your box.<br>\
+                  Each tile will be of the size defined under Width/Height (see above).',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+    
+    $('#effective_resolution_popover').popover({
+        content: 'This value indicates to which (effective) resolution the DEM will be down-sampled to from it\'s original resolution. Depending\
+                  on the width and nozzle size values, this value will typically be considerably larger than the original resolution.<br>\
+                  However, if this field turns yellow, you should increase the nozzle size a bit, otherwise you\'re oversampling the DEM\
+                  which is pointless.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+
+    $('#base_thickness_popover').popover({
+        content: 'This value defines how thick a base will be placed beneath the actual terrain model.\
+                  <a href="https://iastate.box.com/s/rcg8b1ttsjy09tdoe3hxxk1tc9q8oi22" target="_blank">(video)</a>',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+    
+    $('#zscale_popover').popover({
+        content: 'This value defines if the terrain should be artificially exaggerated (scaled). The default (x 1.0) performs no exaggeration and is\
+                  fine for mountainous terrain. Larger z-scale values are recommended if the terrain does not have a lot of relief. \
+                  <a href="https://iastate.box.com/s/vakstntrd80oxmgfa83mq0tjg52kgbsg" target="_blank">(video)</a>.<br>\
+                  Instead of setting an explicit z-scale value, you can also request your model to be scaled automatically to a certain\
+                  height ("tallness"), which is the z-distance (in mm or inches) from the lowest to the highest elevation on you model.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+    
+    $('#fileformat_popover').popover({
+        content: 'This selects the mesh file format (type) in which you model will be saved as. STLb (binary STL) is recommended.\
+                  Use OBJ if you plan to use the terrain with 3D modeling software.',  
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
+
+    $('#manual_settings_popover').popover({
+        content: 'This field can be used to enter\
+                  <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO#processing-parameters" target="_blank">manual options</a> \
+                  (or override GUI settings) via JSON format.<br>Examples: \"tile_centered\":false, \"zscale\":3.14, \"only\":[1,1]',
+        html: true,
+        trigger: 'focus',
+        placement: 'top'
+    });
 }; // end of onload()
 
 //

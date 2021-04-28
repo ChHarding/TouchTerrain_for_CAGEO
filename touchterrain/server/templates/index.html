@@ -55,6 +55,7 @@
 	{% endif %}
 
 		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
+		<script type="text/javascript" src="/static/js/zip-no-worker-inflate.min.js"></script>
 		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
 	</head>
 
@@ -66,7 +67,7 @@
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
 				<div class="text-truncate float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank">
-						What's new in version 3.2.1?</a> 
+						What's new in version 3.3?</a> 
 					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
 							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
@@ -108,13 +109,12 @@
 									<div class="row text-truncate">
 										<div class="col-sm-6" form-inline>
 											<label for="DEM_name">Elevation Data source:</label>
-											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" 
-												 target="_blank">(DEM Info)</a>
-												 <button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm" 
+											<button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm" 
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
             		 									<i class="fas fa-question"></i>
-    											</button>
-											</div>
+    										</button>
+											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(DEM Info)</a>
+										</div>
 										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
 															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" 
@@ -298,9 +298,7 @@
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 									-->	
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
-										title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
-										onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});"
-										>
+											onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
 								</div>
 							</div>
@@ -309,10 +307,16 @@
 						<div class="card">
 							<div class="card-header">
 								<div class="panel-title">
-									<a class="card-link" data-toggle="collapse" href="#printOptionPanel">
-					          3D Printer Options:
-					        </a>
-					      </div>
+									<a class="card-link" data-toggle="collapse" href="#printOptionPanel">3D Printer Options:</a>
+									<button type="button" id="3D_printer_options_popover" class="btn btn-outline-info btn-sm" 
+										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+										<i class="fas fa-question"></i>
+									</button>
+									<button type="button" id="3D_printer_CNC_options_popover" class="btn btn-outline-secondary btn-sm" 
+										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+										CNC<i class="fas fa-question"></i>
+									</button>
+					      		</div>
 							</div>
 							<div id="printOptionPanel" class="collapse show">
 								<div class="card-body">
@@ -333,8 +337,10 @@
 									<div class="form-inline text-truncate">
 										<div class="form-group">
 											<select class="form-control custom-select-sm"
-															title="(tilewidth) Width of each tile in mm, tile height will be calculated based on number of tiles in x and y"
 															id="options_tile_width" name="tilewidth" onchange="calcTileHeight(); ">
+												<option value="190.99">CNC large size</option>
+												<option value="145.99">CNC medium size</option>
+												<option value="85.99">CNC small size</option>
 												<option value="50">20 mm</option>
 												<option value="50">30 mm</option>
 												<option value="50">40 mm</option>
@@ -355,32 +361,39 @@
 												<option value="275">275 mm</option>
 												<option value="300">300 mm</option>
 											</select> 
-											<label for="options_tile_width"> &nbsp Tile width, &nbsp &nbsp </label> 
+											<label for="options_tile_width"> &nbsp Width, &nbsp &nbsp </label> 
 											<b id="options_tile_height"></b>
-											<label for="options_tile_width"> &nbsp Tile height</label> 
+											<label for="options_tile_width"> &nbsp Height</label>
+											<button type="button" id="tile_width_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+											</button> 
 										</div>
 									</div>
 
 									<div class="form-inline text-truncate">
 										<div class="form-group">
 											<select  class="form-control custom-select-sm"
-													title="(printres) Should be about the same as your nozzle diameter. Smaller numbers result in more details and longer print times"
 													id="options_print_resolution" name="printres" onchange="update_options_hidden();">
 												<!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
+												<option value="0.199">CNC high detail</option>
+												<option value="0.3499">CNC medium detail</option>
+												<option value="0.499">CNC low detail</option>
 												<option value="0.2">0.2 mm</option>
 												<option value="0.25">0.25 mm</option>
 												<option value="0.3">0.3 mm</option>
 												<option value="0.35">0.35 mm</option>
 												<option value="0.4" selected >0.4 mm</option>
 												<option value="0.45">0.45 mm</option>
-												<option value="0.5">0.5 mm</option>
 												<option value="0.6">0.6 mm</option>
-												<option value="0.7">0.7 mm</option>
 												<option value="0.8">0.8 mm</option>
-												<option value="0.9">0.9 mm</option>
 												<option value="1.0">1.0 mm</option>
 										</select> 
 										<label for="options_print_resolution"> &nbsp Nozzle diameter</label>
+										<button type="button" id="print_resolution_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 									</div>
 								</div>
 
@@ -414,7 +427,12 @@
 												<option value="9">9</option>
 												<option value="10">10</option>
 										</select> 
+
 										<label for="options_numTiles_y"> &nbsp Tiles to print (X by Y)</label>
+										<button type="button" id="tile_config_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 									</div>
 								</div>
 
@@ -422,6 +440,10 @@
 								<div class="form-inline text-truncate">
 									<div class="form-group">
 										<label for="DEMresolution">Effective DEM resolution:</label>
+										<button type="button" id="effective_resolution_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
 													title="To print tiles at the given width with this nozzle, the DEM will be resampled from the source to approx. this meter value. If this is below the source DEM resolution (yellow), you're attempting to sample at a higher level of detail than the source actually provides. This has no improvement over the source resolution and will instead only make your file needlessly big!"
 													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
@@ -443,6 +465,10 @@
 												<option value="5">5 mm</option>
 										</select>  
 										<label for="options_base_thickness"> &nbsp Model Base thickness</label>
+										<button type="button" id="base_thickness_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 									</div>
 								</div>
 
@@ -451,7 +477,11 @@
 										<select class="form-control custom-select-sm"
 											title="(zscale) The DEM's elevation is multiplied by this number"
 											id="options_z_scale" name="zscale" onchange="update_options_hidden();">
-												<option value="0.5">x 0.5</option>
+												<option value="-30">30 mm tall</option>
+												<option value="-25.4">1 inch tall</option>
+												<option value="-20">20 mm tall</option>
+												<option value="-15">15 mm tall</option>
+												<option value="-12.7">1/2 inch tall</option>
 												<option value="1.0" selected>x 1.0 (none)</option>
 												<option value="1.25">x 1.25</option>
 												<option value="1.5">x 1.5</option>
@@ -474,6 +504,10 @@
 												<option value="100">x 100</option>
 										</select> 
 										<label for="options_z_scale"> &nbsp Vertical Exaggeration (Z-scale)</label>
+										<button type="button" id="zscale_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 									</div>
 								</div>
 
@@ -488,13 +522,25 @@
 												<option value="GeoTiff"> GeoTiff</option>
 										</select>
 										<label for="options_fileformat"> &nbsp File format </label>
+										<button type="button" id="fileformat_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+										</button> 
 									</div>
 								</div>
 
-								<input class="form-control" size="80" type="text" placeholder="Manual settings:"
-										id="options_manual" value="" name="manual"
-										title="Other settings, JSON style separated by commas e.g.: &quot;tile_centered&quot:true, &quot;no_bottom&quot:true, &quot;ignore_leq&quot:0.0, &quot;lower_leq&quot: [0.0, 2.0] &quot;unprojected&quot:true, &quot;only&quot:[1,1], &quot;no_normals&quot:true,  &quot;projection&quot:32613, &quot;use_geo_coords&quot:&quot;centered&quot,   &quot;smooth_borders&quot:true,  For more info see standalone on github"
-								>
+								<div class="btn-toolbar justify-content-between" role="toolbar" aria-label="Toolbar with button groups">
+									<div class="input-group">
+										<input class="form-control"  size="80" type="text" placeholder="Manual settings:"
+											id="options_manual" value="" name="manual">
+										<div class="input-group-append">
+											<button type="button" id="manual_settings_popover" class="btn btn-outline-info btn-sm" 
+													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
+												<i class="fas fa-question"></i>
+											</button> 
+										</div>
+									</div>
+								</div>
 								
 					    	</div>
 					  	</div>
