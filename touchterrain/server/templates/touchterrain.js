@@ -415,7 +415,9 @@ window.onload = function () {
     
     // help popovers
     $('#Whats_new__popover').popover({
-        content: '<ul><li>Help popups explain the different options and settings.</li>\
+        content: 'This is a popover - mouse over it to see the text or click the question mark to toggle it on/off<br><br>\
+                  New stuff:<br>\
+                  <ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
                         automatically calculates the required z-scale value.</li>\
                       <li>Help hints for CNC users.</li>\
@@ -432,6 +434,7 @@ window.onload = function () {
                   You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>',
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
 
@@ -443,6 +446,7 @@ window.onload = function () {
                    The current DEM will appear as a gray hillshade (relief) layer overlaying the Google Map.',
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'left'
     });
     $('#transparency_popover').popover({
@@ -451,6 +455,7 @@ window.onload = function () {
                   completely to the left, completely hides the Google Map.',
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
  
@@ -461,6 +466,7 @@ window.onload = function () {
                   to account for illumination differences.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
     
@@ -471,6 +477,7 @@ window.onload = function () {
                   can lead to hills and valleys appearing inverted!',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
 
@@ -480,6 +487,7 @@ window.onload = function () {
                   Note that changing sun angle adjusts the gamma value to counteract the darkening effect of lower angles.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
 
@@ -494,6 +502,7 @@ window.onload = function () {
                   The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'right'
     });
 
@@ -506,6 +515,7 @@ window.onload = function () {
                   Once values are set, hit the green Export button below to download your model.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'right'
     });
 
@@ -517,6 +527,7 @@ window.onload = function () {
                   Leave all other 3D printer options at their defaults.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'right'
     });
 
@@ -527,6 +538,7 @@ window.onload = function () {
                   your 3D printer\'s buildplate. If you are subdividing your model into multiple tiles, each tile will be of the size set here.<br>',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'right'
     });
 
@@ -537,6 +549,7 @@ window.onload = function () {
                   increase the nozzle size.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
 
@@ -547,6 +560,7 @@ window.onload = function () {
                   Each tile will be of the size defined under Width/Height (see above).',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
     
@@ -557,6 +571,7 @@ window.onload = function () {
                   which is pointless.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
 
@@ -565,6 +580,7 @@ window.onload = function () {
                   <a href="https://iastate.box.com/s/rcg8b1ttsjy09tdoe3hxxk1tc9q8oi22" target="_blank">(video)</a>',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
     
@@ -576,6 +592,7 @@ window.onload = function () {
                   height ("tallness"), which is the z-distance (in mm or inches) from the lowest to the highest elevation on you model.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
     
@@ -584,6 +601,7 @@ window.onload = function () {
                   Use OBJ if you plan to use the terrain with 3D modeling software.',  
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
 
@@ -593,6 +611,7 @@ window.onload = function () {
                   (or override GUI settings) via JSON format.<br>Examples: \"tile_centered\":false, \"zscale\":3.14, \"only\":[1,1]',
         html: true,
         trigger: 'click hover',
+        delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
 
@@ -600,14 +619,8 @@ window.onload = function () {
         content: 'Will place the red print area box at the center of the Google Map',
         html: true,
         trigger: 'hover',
-        placement: 'auto'
-    });
-
-    $('#pac-input').popover({
-        content: 'Will search for a place and fly you to its location',
-        html: true,
-        trigger: 'hover',
-        placement: 'right'
+        placement: 'auto',
+        delay: { "show": 500, "hide": 0 },
     });
 }; // end of onload()
 
