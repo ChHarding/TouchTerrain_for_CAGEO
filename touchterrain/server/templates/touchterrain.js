@@ -415,7 +415,7 @@ window.onload = function () {
     
     // help popovers
     $('#Whats_new__popover').popover({
-        content: 'This is a popover - mouse over it to see the text or click the question mark to toggle it on/off<br><br>\
+        content: 'Mouse over the question mark to see the help text or click it to toggle the text on/off<br><br>\
                   New stuff:<br>\
                   <ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
@@ -566,8 +566,8 @@ window.onload = function () {
     
     $('#effective_resolution_popover').popover({
         content: 'This value indicates to which (effective) resolution the DEM will be down-sampled to from it\'s original resolution. Depending\
-                  on the width and nozzle size values, this value will typically be considerably larger than the original resolution.<br>\
-                  However, if this field turns yellow, you should increase the nozzle size a bit, otherwise you\'re oversampling the DEM\
+                  on the width and nozzle size, this value will typically be considerably larger than the original resolution.<br>\
+                  However, if this field turns yellow, you should increase the nozzle size a bit, otherwise you\'re oversampling the DEM, \
                   which is pointless.',  
         html: true,
         trigger: 'click hover',
