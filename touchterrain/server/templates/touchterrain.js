@@ -421,7 +421,7 @@ window.onload = function () {
                       <li>Help hints for CNC users.</li>\
                   </ul>',
         html: true,
-        trigger: 'focus',
+        trigger: 'click hover',
         placement: 'auto'
     });
 
@@ -431,7 +431,7 @@ window.onload = function () {
                   Terrain settings define the type and appearance of the gray hillshade overlay.\
                   You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>',
         html: true,
-        trigger: 'focus',
+        trigger: 'manual',
         placement: 'auto'
     });
 
