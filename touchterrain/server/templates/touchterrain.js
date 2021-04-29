@@ -416,8 +416,8 @@ window.onload = function () {
     // help popovers
     $('#Whats_new__popover').popover({
         content: '<ul><li>Help popups explain the different options and settings.</li>\
-                      <li>Better z-scaling: will let you define how tall you want your printed model to be (model height)\
-                        and will automatically use the required z-scale value.</li>\
+                      <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
+                        automatically calculates the required z-scale value.</li>\
                       <li>Help hints for CNC users.</li>\
                   </ul>',
         html: true,
@@ -595,7 +595,16 @@ window.onload = function () {
         trigger: 'click hover',
         placement: 'top'
     });
+
+    $('#recenter-box-button').popover({
+        content: 'Will place the red print area box at the center of the Google Map',
+        html: true,
+        trigger: 'hover',
+        placement: 'auto'
+    });
 }; // end of onload()
+
+
 
 //
 // FUNCTIONS

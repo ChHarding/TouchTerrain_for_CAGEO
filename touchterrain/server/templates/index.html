@@ -63,17 +63,14 @@
 		<div class="container-fluid" id="outermost_div">
 			<div class="page-header text-truncate" style="min-width: 635px;">
 			  <h4 class="text-truncate">
-				<!-- TouchTerrain is currently NOT working, sorry!  &nbsp -->
-				TouchTerrain: Easily Create 3D-Printable Terrain Models (BUILDID)  &nbsp
+				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
+				TouchTerrain: Easily Create 3D-Printable Terrain Models (ver. BUILDID) &nbsp
 				<div class="text-truncate float-right"> 
-					<a href="https://touchterrain.blogspot.com/" target="_blank">
-						What's new in version 3.3?</a> 
+					<a href="https://touchterrain.blogspot.com/" target="_blank"> What's new in version 3.3?</a> 
 					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
 							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
 						</button>
-					<a href="https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub" 
-						target="_blank"> &nbsp &nbsp &nbsp Help</a>
 				</div>
 			  </h4>
 			</div>
@@ -117,8 +114,7 @@
 										</div>
 										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
-															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')" 
-															title="Switch to different Digital Elevation data source" >
+															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')">
 												<option value="USGS/NED" selected>USGS/NED (10m resolution, US only)</option>
 												<option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
 												<option value="NRCan/CDEM">NRCan/CDEM (20+m resolution, Canada only)</option>
@@ -138,7 +134,6 @@
 											<div class="form-inline text-truncate">
 												<label for="hillshade_transparency_slider">Transparency:</label>
 												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" max="100"  style="max-width: 80px;"
-													title="Changes the hillshade transparency from 0% (left, no google map, only hillshading) to 100% (right, no hillshading, only google map)"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
 												<datalist id="tickmarks">
 													<option value="0"></option>
@@ -163,7 +158,6 @@
 											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
-													title="Gamma values > 1.0 make your hillshade appear lighter, values < 1.0 make it darker. To change this, enter a new value and hit Enter. Will reload the map." 
 													style="max-width: 40px;"
 													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET');}"> 
 												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm" 
@@ -183,7 +177,6 @@
 														<i class="fas fa-question"></i>
 													</button>
 													<select class="form-control custom-select-sm"  
-														title="Defines the direction (compass heading) from which the Sun shines to create the hillshade relief. Note that South will typically result in a flipped relief perception! Will reload the map."
 														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
 													>
 														<option value="270">West (270 degr.)</option>
@@ -203,9 +196,7 @@
 														<i class="fas fa-question"></i>
 												</button>
 												<select class="form-control custom-select-sm"  
-													title="Defines the vertical Sun angle, i.e. how high the Sun is above the horizon. Use it to enhance detail for different types of terrain. Will also adjust gamma and will reload the map."
-													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');"
-												>
+													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
 													<option value="55">steep (55 degr.)</option> 
 													<option value="45" selected >normal (45 degr.)</option>
 													<option value="35">kinda flat (35 degr.)</option>
@@ -259,7 +250,7 @@
 								<i class="fas fa-question"></i>
 							</button>
 							<input id="recenter-box-button" type="button" class="btn btn-primary float-right"
-								title="re-centers the red Area Selection box inside the current map view"
+							    data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto"
 								onclick="center_rectangle()"
 								value="Re-center box on map">
 							</div>
@@ -268,18 +259,18 @@
 									<div class="form-inline">
 										<div class="form-group ">
 											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="7" size="7" value="NULL" 
-												title="(trlat) Top Right Lat" onkeydown="if(event.keyCode == 13){update_box()}">
+												 onkeydown="if(event.keyCode == 13){update_box()}">
 											<label for="trlat2">N &nbsp</label>
 											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="8" size="8" value="NULL" 
-												title="(trlon) Top Right Long"onkeydown="if(event.keyCode == 13){update_box()}"">
+												onkeydown="if(event.keyCode == 13){update_box()}"">
 												<label for="trlon2">E &nbsp (Top right corner)</label>
 										</div>
 										<div class="form-group " >
 											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="7" size="7" value="NULL" 
-												title="(bllat) Bottom Left Lat" onkeydown="if(event.keyCode == 13){update_box()}">
+												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="bllat2">N &nbsp</label>
 											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="8" size="8" value="NULL" 
-												title="(bllon) Bottom Left Long" onkeydown="if(event.keyCode == 13){update_box()}"">
+												onkeydown="if(event.keyCode == 13){update_box()}"">
 												<label for="bllon2">E &nbsp (Lower left corner)</label 
 										</div>
 									</div>
@@ -287,16 +278,6 @@
 								<br>
 
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
-									<!--
-										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
-											title="Upload a kml file with a polygon to define the area for your model. Will initially re-position the red box. Moving the red box or hitting the re-center button after a polygon upload will clear the polygon"
-											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name); ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
-										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
-									
-										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
-											onchange="$('#kml_file_name').html('Optional Polygon KML file: '+this.files[0].name) ">
-										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
-									-->	
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
 										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
@@ -323,12 +304,9 @@
 
 									<!-- hook for polyURL, currently hidden but may become an input field (like kml_file) in the future -->
 									<input type="hidden" id="options_polyURL" name="polyURL" size="0"
-            							title="URL to a KML file with a polygon. Must be a publicly read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
 									> 
 									<!--
-									<input type="text" id="options_polyURL" name="polyURL" size="16"
-											title="URL to a KML file with a polygon. Must be a publicly read-able cloud file. Used as outline for the 3D print. Supersedes the Area Selection box"
-									> URL to cloud KML polygon file</br>
+									<input type="text" id="options_polyURL" name="polyURL" size="16"> URL to cloud KML polygon file</br>
 									-->
 
 									<!- hidden input that needs to go into the form ... -->
@@ -400,7 +378,6 @@
 								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
-											title="(ntilesx) The number of tiles in x direction"
 											id="options_numTiles_x" name="ntilesx" onchange="update_options_hidden();">
 												<option value="1" selected >1 by</option>
 												<option value="2" >2 by</option>
@@ -414,7 +391,6 @@
 												<option value="10">10 by</option>
 										</select>
 										<select  class="form-control custom-select-sm"
-											title="(ntilesy) The number of tiles in y direction"
 											id="options_numTiles_y" name="ntilesy" onchange="update_options_hidden();">
 												<option value="1" selected >1  </option>
 												<option value="2">2</option>
@@ -445,7 +421,6 @@
 												<i class="fas fa-question"></i>
 										</button> 
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
-													title="To print tiles at the given width with this nozzle, the DEM will be resampled from the source to approx. this meter value. If this is below the source DEM resolution (yellow), you're attempting to sample at a higher level of detail than the source actually provides. This has no improvement over the source resolution and will instead only make your file needlessly big!"
 													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
 										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
 									</div>
@@ -454,7 +429,6 @@
 								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
-											title="(basethick) The thickness in mm, the 3D model will have at the lowest elevation."
 											id="options_base_thickness" name="basethick" onchange="update_options_hidden();">
 												<option value="0">0 mm</option>
 												<option value="0.5">0.5 mm</option>
@@ -475,7 +449,6 @@
 								<div class="form-inline text-truncate">
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
-											title="(zscale) The DEM's elevation is multiplied by this number"
 											id="options_z_scale" name="zscale" onchange="update_options_hidden();">
 												<option value="-30">30 mm tall</option>
 												<option value="-25.4">1 inch tall</option>
@@ -515,7 +488,6 @@
 										<div class="form-group">
 										<select class="form-control custom-select-sm"
 											id="options_fileformat" name="fileformat" onchange="update_options_hidden();"
-											title="The format of the 3D model file(s) to be exported. Select GeoTiff if you ONLY want a GeoTiff.">
 												<option value="obj" > Obj</option>
 												<option value="STLb" selected> STL binary</option>
 												<option value="STLa"> STL ascii</option>
@@ -563,8 +535,7 @@
 						<button type="submit" disabled style="display: none" aria-hidden="true"></button>
 
 						<button type="submit" class="btn btn-success"  
-							onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')"
-							title="Converts area inside the box into file(s) for 3D printing."  
+							onclick="ga('send', 'event', 'Export', 'Click', 'export', '0')" 
 							onchange="submit_for_reload('POST');">
 							Export Selected Area and Download File
 						</button>
