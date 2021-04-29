@@ -421,7 +421,7 @@ window.onload = function () {
                       <li>Help hints for CNC users.</li>\
                   </ul>',
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
 
@@ -431,7 +431,7 @@ window.onload = function () {
                   Terrain settings define the type and appearance of the gray hillshade overlay.\
                   You can change the type of the Google map (Streetmap, Terrain, Satellite) via its upper left corner.<br>',
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
 
@@ -442,7 +442,7 @@ window.onload = function () {
                    use AW3D30 (30m resolution). For more info on the current DEM source, click on the (DEM info) link.\
                    The current DEM will appear as a gray hillshade (relief) layer overlaying the Google Map.',
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'left'
     });
     $('#transparency_popover').popover({
@@ -450,7 +450,7 @@ window.onload = function () {
         content: 'This slider sets the transparency of the gray hillshade overlay. Full transparency (full right) completely hides the hillshade,\
                   completely to the left, completely hides the Google Map.',
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
  
@@ -460,7 +460,7 @@ window.onload = function () {
                   type in your new value and hit Enter. Note, however, that setting a sun angle will automatically set a gamma value in order\
                   to account for illumination differences.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
     
@@ -470,7 +470,7 @@ window.onload = function () {
                   e.g. sun shining from the North will accentuate East-West stretching hills. Note that some directions, especially sun from the South,\
                   can lead to hills and valleys appearing inverted!',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
 
@@ -479,7 +479,7 @@ window.onload = function () {
                   (default: 45 degr.). Lower sun angles can be useful to better illuminate low relief areas, such as river deltas. \
                   Note that changing sun angle adjusts the gamma value to counteract the darkening effect of lower angles.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'auto'
     });
 
@@ -493,7 +493,7 @@ window.onload = function () {
                   Or, you can upload a Google Earth kml file with a single polygon to define the boundary of your print area. \
                   The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'right'
     });
 
@@ -505,7 +505,7 @@ window.onload = function () {
                   A a minimum you only need to set the size, however, you should also look at the z-scale.<br>\
                   Once values are set, hit the green Export button below to download your model.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'right'
     });
 
@@ -516,7 +516,7 @@ window.onload = function () {
                   If the Effective DEM Resolution field turn yellow, lower either your size or detail.<br>\
                   Leave all other 3D printer options at their defaults.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'right'
     });
 
@@ -526,7 +526,7 @@ window.onload = function () {
                   extent of your box), the height (North-South extent) will be calculated automatically. Ensure that your model fits within the dimensions of\
                   your 3D printer\'s buildplate. If you are subdividing your model into multiple tiles, each tile will be of the size set here.<br>',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'right'
     });
 
@@ -536,7 +536,7 @@ window.onload = function () {
                   Setting it to an artificially smaller value may improve some prints marginally. If you run into server limitations, \
                   increase the nozzle size.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
 
@@ -546,7 +546,7 @@ window.onload = function () {
                   in the x and y direction here, which will be shown inside your box.<br>\
                   Each tile will be of the size defined under Width/Height (see above).',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
     
@@ -556,7 +556,7 @@ window.onload = function () {
                   However, if this field turns yellow, you should increase the nozzle size a bit, otherwise you\'re oversampling the DEM\
                   which is pointless.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
 
@@ -564,7 +564,7 @@ window.onload = function () {
         content: 'This value defines how thick a base will be placed beneath the actual terrain model.\
                   <a href="https://iastate.box.com/s/rcg8b1ttsjy09tdoe3hxxk1tc9q8oi22" target="_blank">(video)</a>',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
     
@@ -575,7 +575,7 @@ window.onload = function () {
                   Instead of setting an explicit z-scale value, you can also request your model to be scaled automatically to a certain\
                   height ("tallness"), which is the z-distance (in mm or inches) from the lowest to the highest elevation on you model.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
     
@@ -583,7 +583,7 @@ window.onload = function () {
         content: 'This selects the mesh file format (type) in which you model will be saved as. STLb (binary STL) is recommended.\
                   Use OBJ if you plan to use the terrain with 3D modeling software.',  
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
 
@@ -592,7 +592,7 @@ window.onload = function () {
                   <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO#processing-parameters" target="_blank">manual options</a> \
                   (or override GUI settings) via JSON format.<br>Examples: \"tile_centered\":false, \"zscale\":3.14, \"only\":[1,1]',
         html: true,
-        trigger: 'click',
+        trigger: 'click hover',
         placement: 'top'
     });
 }; // end of onload()
