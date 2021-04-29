@@ -602,6 +602,13 @@ window.onload = function () {
         trigger: 'hover',
         placement: 'auto'
     });
+
+    $('#pac-input').popover({
+        content: 'Will search for a place and fly you to its location',
+        html: true,
+        trigger: 'hover',
+        placement: 'right'
+    });
 }; // end of onload()
 
 
