@@ -620,7 +620,7 @@ window.onload = function () {
         html: true,
         trigger: 'hover',
         placement: 'auto',
-        delay: { "show": 500, "hide": 0 },
+        delay: { "show": 2000, "hide": 0 },
     });
 }; // end of onload()
 
