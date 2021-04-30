@@ -109,7 +109,7 @@ def main_page():
         "printres": "0.4",
         "ntilesx" : "1",
         "ntilesy" : "1",
-        "tilewidth" : "80",
+        "tilewidth" : "100",
         "basethick" : "1",
         "zscale" : "1.0",
         "fileformat" : "STLb",

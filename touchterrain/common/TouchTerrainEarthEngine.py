@@ -1086,7 +1086,17 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # min/max elev (all tiles)
         print(("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)))) # use nanmin() so we can use (NaN) undefs
+
+        # if scale is negative, assume it means scale up to X mm as range and calculate required z-scale
+        if zscale < 0:
+            unscaled_elev_range_m = numpy.nanmax(npim) - numpy.nanmin(npim) # range at 1 x scale
+            scaled_elev_range_m = unscaled_elev_range_m / print3D_scale_number # convert range from real m to model/map m
+            pos_zscale = -zscale
+            requested_elev_range_m = -zscale / 1000 # requested range as m (given as mm)
+            zscale = requested_elev_range_m / scaled_elev_range_m # z-scale needed to get to a model with the requested range
+            pr("From requested model height of", pos_zscale, "mm, calculated a z-scale of", zscale)
         
+        # lower cells less/equal a certain elevation?
         if lower_leq is not None:
             assert len(lower_leq) == 2, \
                 "lower_leq should have the format [threshold, offset]. Got {}".format(lower_leq)
