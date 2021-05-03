@@ -340,8 +340,8 @@ def export():
 
         # make a URL with full query parameters to repeat this job later
         query_list = list(request.form.items())
-        #server = "https://touchterrain.geol.iastate.edu/"
-        server = "https://touchterrain-beta.geol.iastate.edu/"
+        server = "https://touchterrain.geol.iastate.edu/"
+        #server = "https://touchterrain-beta.geol.iastate.edu/"
         URL_query_str = server + make_current_URL(query_list) 
 
         # create html string
@@ -507,15 +507,13 @@ def export():
         if tot_pix >  MAX_CELLS_PERMITED:
             html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
             html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
-            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2))
+            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2)) + " Kilo pixels"
             html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
-            html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ...\n"
-           
-
+            html += "<br><br>CLick \n"
+        
             # print out the query parameter URL 
             html += '<a href = "'
-            html += URL_query_str + '">' + URL_query_str + "</a><br>"
-            html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
+            html += URL_query_str + '">' + "here" + "</a> to go back to the main page to make adjustments."
  
             # set timout flag to true, so the timeout script doesn't fire
             html += '''\n
