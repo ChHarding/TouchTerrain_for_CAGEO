@@ -354,7 +354,7 @@ def export():
         # script to set a very long timeout to deliver a message should
         # the server get stuck. pageLoadedSuccessfully will be set to true once processing has been
         # done successfully. (Thanks to Nick Booher)
-        timeout_msg =  "Sorry, the server timed out. It not clear how and why, but your processing job did not finish. This is sad.<br>"
+        timeout_msg =  "Sorry, the server timed out. It's not clear how and why, but your processing job did not finish. This is sad.<br>"
         timeout_msg += "Your only option is to run the job again and hope for better luck.<br>"
         
         html += '''
@@ -510,6 +510,19 @@ def export():
             html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2))
             html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
             html += "<br><br>Hit Back on your browser to go back to the Main page and make adjustments ...\n"
+           
+
+            # print out the query parameter URL 
+            html += '<a href = "'
+            html += URL_query_str + '">' + URL_query_str + "</a><br>"
+            html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
+ 
+            # set timout flag to true, so the timeout script doesn't fire
+            html += '''\n
+                <script type="text/javascript">
+                    pageLoadedSuccessfully = true;
+                </script>'''
+
             html +=  '</body></html>'
             yield html
             return "bailing out!"
