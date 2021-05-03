@@ -515,7 +515,7 @@ def export():
             html += '<a href = "'
             html += URL_query_str + '">' + "here" + "</a> to go back to the main page to make adjustments."
  
-            # set timout flag to true, so the timeout script doesn't fire
+            # set timout flag to true, so the timeout script doesn't fire ...
             html += '''\n
                 <script type="text/javascript">
                     pageLoadedSuccessfully = true;
