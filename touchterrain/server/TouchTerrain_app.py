@@ -340,8 +340,8 @@ def export():
 
         # make a URL with full query parameters to repeat this job later
         query_list = list(request.form.items())
-        server = "https://touchterrain.geol.iastate.edu/"
-        #server = "https://touchterrain-beta.geol.iastate.edu/"
+        #server = "https://touchterrain.geol.iastate.edu/"
+        server = "https://touchterrain-beta.geol.iastate.edu/"
         URL_query_str = server + make_current_URL(query_list) 
 
         # create html string
