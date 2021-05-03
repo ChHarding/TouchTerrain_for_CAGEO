@@ -509,7 +509,7 @@ def export():
             html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
             html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2)) + " Kilo pixels"
             html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
-            html += "<br><br>CLick \n"
+            html += "<br><br>Click \n"
         
             # print out the query parameter URL 
             html += '<a href = "'
