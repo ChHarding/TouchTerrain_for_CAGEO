@@ -497,7 +497,7 @@ window.onload = function () {
                   adjust the sides and corners to your liking.<a href="https://iastate.box.com/s/r7jzwoqfv75f1kok4t81cxrjx64p52bg" target="_blank">(video)</a><br>\
                   You can also type in the lat./long. coordinates of the top-right and\
                   bottom-left corners of the box.<a href="https://iastate.box.com/s/pg6xwp92jynvhb439vevi4he0cminom6" target="_blank">(video)</a><br>\
-                  Or, you can upload a Google Earth kml file with a single polygon to define the boundary of your print area. \
+                  Or, you can upload Google Earth kml/kmz files with a single polygon to define the boundary of your print area. \
                   The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',  
         html: true,
         trigger: 'click hover',
