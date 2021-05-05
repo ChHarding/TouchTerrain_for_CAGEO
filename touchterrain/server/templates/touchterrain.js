@@ -605,7 +605,7 @@ window.onload = function () {
     });
 
     $('#manual_settings_popover').popover({
-        content: 'This field can be used to enter export options or to override GUI settings via JSON format.\
+        content: 'This field can be used to enter expert options or to override GUI settings via JSON format.\
                   <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO#processing-parameters" target="_blank">(reference))</a>\
                   <br>Examples: <ul>\
                   <li>\"zscale\":4.5 - overwrites the z-scale with a non-GUI value of 4.5</li>\
