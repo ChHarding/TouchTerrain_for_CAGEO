@@ -606,9 +606,14 @@ window.onload = function () {
     });
 
     $('#manual_settings_popover').popover({
-        content: 'This field can be used to enter\
-                  <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO#processing-parameters" target="_blank">manual options</a> \
-                  (or override GUI settings) via JSON format.<br>Examples: \"tile_centered\":false, \"zscale\":3.14, \"only\":[1,1]',
+        content: 'This field can be used to enter export options or to override GUI settings via JSON format.\
+                  <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO#processing-parameters" target="_blank">(reference))</a>\
+                  <br>Examples: <ul>\
+                  <li>\"zscale\":4.5 - overwrites the z-scale with a non-GUI value of 4.5</li>\
+                  <li>\"smooth_borders\":false - prevents the smoothing of polygon borders (default: true)</li>\
+                  <li>\"lower_leq\":[0,2] - lowers elevations <= 0 by 2m, useful to emphasize shorelines\
+                  </ul>\
+                  Separate multiple settings with a comma:<br>\"zscale\":4.5, \"smooth_borders\":false, \"lower_leq\":[0,2]',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
