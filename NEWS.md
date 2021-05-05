@@ -3,6 +3,7 @@ Apr. 29, 2021 (version 3.3)
 	- default width is 100 mm
 	- added help bubbles. including tips for CNC users
 	- added re-center box after each search
+    - kmz files can now be used for polygon (thanks Nick Booher!)
 
 Apr. 9, 2021
 	- added a manual option to switch border optimization on/off (smooth_borders)

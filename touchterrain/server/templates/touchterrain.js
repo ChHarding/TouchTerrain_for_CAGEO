@@ -413,13 +413,14 @@ window.onload = function () {
     
     // help popovers
     $('#Whats_new__popover').popover({
-        content: 'Mouse over the question mark to see the help text or click it to toggle the text on/off<br><br>\
+        content: 'Mouse over the question marks to see the help text or click on it to toggle the text on/off<br><br>\
                   New stuff:<br>\
                   <ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
                         automatically calculates the required z-scale value.</li>\
                       <li>Help hints for CNC users.</li>\
-                  </ul>',
+                      <li>.kmz files (compressed kml) can now be used for polygons, in addition to .kml files.</li>\
+                      </ul>',
         html: true,
         trigger: 'click hover',
         placement: 'auto'
