@@ -239,7 +239,7 @@ window.onload = function () {
     let fileInput = document.getElementById('kml_file');
     fileInput.addEventListener('change', function(e) {
       if (fileInput.files.length) {
-        let file = fileInput.files[0];
+        let file = fileInput.files[0]; 
         if(file.name.endsWith(".kml")){
             let reader = new FileReader();
             reader.onload = function(e) {
@@ -253,49 +253,47 @@ window.onload = function () {
                     polygon.setMap(map); // and draw
                     fileInput.name = "kml_file"; // will be a key in response.files dict
                     $('#kml_file_name').html(file.name); // show valid filename in label
+                }else{
+                    $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
+                    polygon.setMap(null); // remove any earlier polygon
+                    // bad file will be read-in in Python and generate a warning there
                 }
             }
             reader.readAsText(file);
-        }else{
-            $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
-            polygon.setMap(null); // remove polygon
-            // bad file will be read-in in Python and generate a warning there
         }
-      
-
       
         // unzip kmz file into kml first
         if(file.name.endsWith(".kmz")){
-            // create a BlobReader to read with a ZipReader the zip from a file object
             const reader = new zip.ZipReader(new zip.BlobReader(file));
             const entries =  reader.getEntries(); // get all entries from the zip
-            if (entries.length) {
-                // get first entry content as text by using a TextWriter
-                const text =  entries[0].getData(
-                    new zip.TextWriter(),
-                    { // options
-                        onprogress: (index, max) => {
-                            // onprogress callback
+            reader.getEntries().then(function(entries){
+                //console.log(entries);
+                if (entries.length) {
+                    // get first entry content as text by using a TextWriter
+                    const text =  entries[0].getData(
+                        new zip.TextWriter()
+                    ).then(function(text) {
+                        const [bbox, latloncoords] = processKMLFile(text);
+                        if(!!bbox){ // not null => valid bounding box
+                            rectangle.setBounds(bbox); 
+                            update_corners_form();
+                            map.fitBounds(bbox); // makes the map fit around the box
+                            polygon.setPath(latloncoords); // make polygon ...
+                            polygon.setMap(map); // and draw
+                            fileInput.name = "kml_file"; // will be a key in response.files dict
+                            $('#kml_file_name').html(file.name); // show valid filename in label
+                        }else{
+                            $('#kml_file_name').html("Error: " + file.name + " is not a valid kmz file!")
+                            polygon.setMap(null); // remove any earlier polygon
+                            // bad file will be read-in in Python and generate a warning there
                         }
-                    }
-                );
-                // text contains the entry data as a String
-                console.log(text);
-
-            }
-             reader.close();  // close the ZipReader
-
-        }else{
-            $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
-            polygon.setMap(null); // remove polygon
-            // bad file will be read-in in Python and generate a warning there
+                    });
+                }
+            })
         }
-
-
-      }
+      } // if (fileInput.files.length)
     });
 
-    
     // Place Search
     const input = document.getElementById("pac-input");
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);

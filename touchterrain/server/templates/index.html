@@ -55,7 +55,7 @@
 	{% endif %}
 
 		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
-		<script type="text/javascript" src="/static/js/zip-no-worker-inflate.min.js"></script>
+		<script type="text/javascript" src="/static/js/zip-full.min.js"></script>
 		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
 	</head>
 
@@ -316,8 +316,8 @@
 										<div class="form-group">
 											<select class="form-control custom-select-sm"
 															id="options_tile_width" name="tilewidth" onchange="calcTileHeight(); ">
-												<option value="160.99">CNC large size</option>
-												<option value="120.99">CNC medium size</option>
+												<option value="190.99">CNC large size</option>
+												<option value="130.99">CNC medium size</option>
 												<option value="80.99">CNC small size</option>
 												<option value="50">20 mm</option>
 												<option value="50">30 mm</option>
