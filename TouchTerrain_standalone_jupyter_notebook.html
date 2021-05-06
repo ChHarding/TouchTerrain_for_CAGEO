@@ -13116,14 +13116,15 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="TouchTerrain-standalone-in-a-jupyter-notebook">TouchTerrain standalone in a jupyter notebook<a class="anchor-link" href="#TouchTerrain-standalone-in-a-jupyter-notebook">&#182;</a></h1><p>Chris Harding, Nov. 20, 2020 (<a href="mailto:charding@iastate.edu">charding@iastate.edu</a>)</p>
+<h1 id="TouchTerrain-standalone-in-a-jupyter-notebook">TouchTerrain standalone in a jupyter notebook<a class="anchor-link" href="#TouchTerrain-standalone-in-a-jupyter-notebook">&#182;</a></h1><p>Chris Harding, Feb 8, 2021 (<a href="mailto:charding@iastate.edu">charding@iastate.edu</a>)</p>
 <ul>
-<li>this jupyter notebook runs a standalone version of TouchTerrain, similar to <code>TouchTerrain_standalone.py</code></li>
-<li>this notebook needs to be run in Python <strong>3.x</strong>  (I'm using 3.7)</li>
-<li>Use pip to build and install a package called touchterrain (all lowercase!), which contains all functions needed to run in standalone and in server mode. This will also install all dependencies needed(!)</li>
+<li>This jupyter notebook runs a standalone version of TouchTerrain, similar to <code>TouchTerrain_standalone.py</code></li>
+<li>This notebook needs to be run in Python <strong>3.x</strong>  </li>
+<li>If you're using this via the touchterrain_jupyter docker container, ignore all the install stuff that follows. The image will already contain nearly all packeges, except for the touchterrain module itself, which you should already have installed via the install_touchterrain.sh shell script. You might want to rename/save this notebook into something other than TouchTerrain_standalone_jupyter_notebook.ipnb b/c if you ever update the touchterrain module from github (update_touchterrain.sh) it will overwrite it!</li>
 </ul>
 <ul>
-<li>you can run pip either in a terminal or inside a jupyer cell (next cell)</li>
+<li>Use pip to build and install a package called touchterrain (all lowercase!), which contains all functions needed to run in standalone and in server mode. This will also install all dependencies needed(!)</li>
+<li>you can run pip either in a terminal or inside a jupyer cell (see next cell)</li>
 <li>to run it in a separate terminal, <code>cd</code> to the folder that contains the <code>setup.py</code> file (which will contain a folder called touchterrain)<ul>
 <li>enter:  <code>pip install .</code> </li>
 <li>note the . at the end, which will make pip run the script in setup.py</li>
@@ -13131,7 +13132,12 @@ div#notebook {
 </ul>
 </li>
 <li>on Windows, if pip gives you trouble with <strong>gdal</strong>, get the whl file from <a href="https://www.lfd.uci.edu/~gohlke/pythonlibs/">here</a> and install it separatly with <code>pip install &lt;whl file&gt;</code> then go back and try the full install again</li>
-<li>on Mac, gdal should be avaiable via <a href="https://anaconda.org/conda-forge/gdal">conda-forge</a>, however I have run into trouble with shared library mismatches which I could not resolve! </li>
+<li>on Linux/Mac, gdal should be avaiable via <a href="https://anaconda.org/conda-forge/gdal">conda-forge</a> and does require a C-compiler</li>
+<li>there are two optional modules which you may want to install via pip as well:<ul>
+<li><code>pip install geemap</code>  will allow you to use an interactive in-cell map to digitize the print area</li>
+<li><code>pip install k3d</code> will allow you to preview your STL file in a 3D viewer</li>
+</ul>
+</li>
 </ul>
 
 </div>
@@ -13144,9 +13150,12 @@ div#notebook {
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># if you have already installed touchterrain, skip this cell!</span>
 
-<span class="c1"># Run this cell (Shift-Enter) to have pip install the touchterrain module and all its dependencies</span>
-<span class="c1"># Warning: this can take a awhile! You may not see any message during the install but you should see the full log when pip is done (or when you got errors)</span>
-<span class="o">!</span>pip3 install .
+<span class="c1"># Uncomment these 2 lines and run this cell (Shift-Enter) to have pip install the touchterrain module and </span>
+<span class="c1"># all its dependencies. Warning: this can take a a while! You may not see any message during the install </span>
+<span class="c1"># but you should see the full log when pip is done (or when you got errors)</span>
+
+<span class="c1">#import sys</span>
+<span class="c1">#!{sys.executable} -m pip install . </span>
 </pre></div>
 
     </div>
@@ -13168,15 +13177,19 @@ div#notebook {
 <li>You don't need this if you only want to import terrain from locally stored raster files (geotiffs)!</li>
 <li>TouchTerrain can use DEM data from Google Earth Engine (given the corners of the area), but you need to first request a developer account and set up an authentication file</li>
 <li>(This dev account is different from your standard Google (Gmail, etc.) account!)</li>
+</ul>
+<p><code>------------------- Not sure if this is still needed ..........</code></p>
+<ul>
 <li>Getting the account is free and entitles you to a modest number of requests (4 per seconds), which are also free. Go to <a href="https://signup.earthengine.google.com/">https://signup.earthengine.google.com/</a>, you'll get an email with a file. </li>
 <li>refer to the part <strong>Setting Up Authentication Credentials</strong> <a href="https://developers.google.com/earth-engine/python_install">https://developers.google.com/earth-engine/python_install</a> (ignore the stuff above it, as you should already have installed all the needed packages when you installed the earthengine-api package ...)</li>
 </ul>
+<p><code>------------------- Not sure if this is still needed ..........</code></p>
 <ul>
 <li>ee will be initialized (<code>ee.Initialize()</code>) later (inside TouchTerrainEarthEngine.py)</li>
 <li>in ee.Initialize() it will run an authentication to check with your Google dev/service account.</li>
 <li>The authentication requires that you have this authentication file in place: &lt;your home folder/.config/earthengine/credentials</li>
 <li>This credentials file is created by running <code>ee.Authenticate()</code> <strong>once</strong>(!). </li>
-<li>To create the credentials file comment in <code>ee.Authenticate()</code> in the next cell and run it. </li>
+<li>To create the credentials file uncomment <code>ee.Authenticate()</code> in the next cell and run it. </li>
 <li>After you have done this ONCE, you should not have to use <code>ee.Authenticate()</code> anymore, so comment it out again. (<code>#ee.Authenticate()</code>)</li>
 <li>You will still need to run this cell for its <code>import ee</code> every time, just not the <code>ee.Authenticate()</code> part</li>
 </ul>
@@ -13186,7 +13199,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">ee</span> <span class="c1"># earthengine-api should have been installed via pip ealier</span>
@@ -13224,9 +13237,9 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 <div class="text_cell_render border-box-sizing rendered_html">
 <h2 id="Running-Touchterrain-standalone-(local-and-online-DEM-data)">Running Touchterrain standalone (local and online DEM data)<a class="anchor-link" href="#Running-Touchterrain-standalone-(local-and-online-DEM-data)">&#182;</a></h2><ul>
 <li>Put your settings into the dictionary below and hit <strong>Shift-Enter</strong></li>
-<li>for more info on the settings, look at the ReadMe on <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO">https://github.com/ChHarding/TouchTerrain_for_CAGEO</a></li>
-<li>note, however, that the settings given below are in Python syntax, whereas the ReadMe describes the JSON syntax used in the config file</li>
-<li>both are very similar, except for None and True/False</li>
+<li>For more info on the settings, look at the ReadMe on <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO">https://github.com/ChHarding/TouchTerrain_for_CAGEO</a></li>
+<li>Note, however, that the settings given below are in Python syntax, whereas the ReadMe describes the JSON syntax used in the config file</li>
+<li>Both are very similar, except for None and True/False</li>
 </ul>
 
 <pre><code>    Python:  JSON:
@@ -13239,7 +13252,7 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># import packages</span>
@@ -13257,28 +13270,10 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 </div>
 
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root:EE init() worked with .config/earthengine/credentials
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[3]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">args</span> <span class="o">=</span> <span class="p">{</span>
@@ -13302,21 +13297,16 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
                       <span class="c1"># Using something like 0.01 will NOT print out a super detailed version as you slicer will remove</span>
                       <span class="c1"># super fine details anyway! You&#39;ll just wait a long time and get a super large STL file!</span>
     
-                      <span class="c1"># If you want the equivalent of the original resolution of the DEM, use -1 (But again, think of the slicer ...)</span>
-                      <span class="c1"># This will work for any local DEM but only for small online DEMs b/c </span>
-                      <span class="c1"># Google now (Mar. 2020) caps raster downloads at 10 Mega pixels!</span>
-    
     <span class="s2">&quot;ntilesx&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1"># number of tiles in x  </span>
     <span class="s2">&quot;ntilesy&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1"># number of tiles in y    </span>
 
-    <span class="s2">&quot;basethick&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>   <span class="c1"># thickness (in mm) of printed base</span>
-    <span class="s2">&quot;zscale&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>      <span class="c1"># elevation (vertical) scaling</span>
+    <span class="s2">&quot;basethick&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span>   <span class="c1"># thickness (in mm) of printed base</span>
+    <span class="s2">&quot;zscale&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>      <span class="c1"># elevation (vertical) scaling</span>
     <span class="s2">&quot;fileformat&quot;</span><span class="p">:</span> <span class="s2">&quot;STLb&quot;</span><span class="p">,</span>  <span class="c1"># format of 3D model files: &quot;obj&quot; wavefront obj (ascii),</span>
                            <span class="c1">#   &quot;STLa&quot; ascii STL or &quot;STLb&quot; binary STL.</span>
                            <span class="c1">#   To export just the (untiled) raster (no mesh), use &quot;GeoTiff&quot; </span>
     <span class="s2">&quot;zip_file_name&quot;</span><span class="p">:</span> <span class="s2">&quot;myterrain&quot;</span><span class="p">,</span>   <span class="c1"># base name of zipfile, .zip will be added</span>
 
-    
     <span class="c1"># Expert settings</span>
     <span class="s2">&quot;tile_centered&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="c1"># True-&gt; all tiles are centered around 0/0, False, all tiles &quot;fit together&quot;</span>
     <span class="s2">&quot;CPU_cores_to_use&quot;</span> <span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="c1"># 0: use all available cores, None: don&#39;t use multiprocessing (single core only)</span>
@@ -13324,8 +13314,8 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
     <span class="s2">&quot;max_cells_for_memory_only&quot;</span> <span class="p">:</span> <span class="mi">5000</span><span class="o">^</span><span class="mi">2</span><span class="p">,</span> <span class="c1"># if number of raster cells is bigger than this, use temp_files instead of memory.</span>
                             <span class="c1"># set this very high to force use of memory and lower it if you run out of memory</span>
     <span class="s2">&quot;no_bottom&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>   <span class="c1"># omit bottom triangles? Most slicers still work and it makes smaller files</span>
-    <span class="s2">&quot;no_normal&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>    <span class="c1"># Don&#39;t calculate normals for triangles. This is significantly faster but some viewer may need them.</span>
-    <span class="s2">&quot;bottom_image&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="c1"># 1 band greyscale image used for bottom relief</span>
+    <span class="s2">&quot;no_normal&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>    <span class="c1"># Don&#39;t calculate normals for triangles. This is significantly faster but some 3D model viewers may need them.</span>
+    <span class="s2">&quot;bottom_image&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="c1"># &quot;stuff/TouchTerrain_bottom_example.png&quot;, # 1 band greyscale image used for bottom relief</span>
     <span class="s2">&quot;ignore_leq&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>   <span class="c1"># set all values &lt;= this to NaN so they don&#39;t print</span>
     <span class="s2">&quot;lower_leq&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>    <span class="c1"># e.g. [0.0, 2.0] values &lt;= 0.0 will be lowered by 2mm in the final model</span>
     <span class="s2">&quot;unprojected&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="c1"># don&#39;t project to UTM (for EE rasters only)</span>
@@ -13345,24 +13335,6 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>settings stored, ready to process
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -13412,9 +13384,8 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
      <span class="s2">&quot;gpxPixelsBetweenPoints&quot;</span> <span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="c1"># GPX Files haves a lot of points. A higher </span>
                                     <span class="c1">#number will create more space between lines drawn</span>
                                     <span class="c1"># on the model and can have the effect of making the paths look a bit cleaner </span>
-     <span class="s2">&quot;gpxPathThickness&quot;</span> <span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="c1"># Stack paralell lines on either side of primary line </span>
-                             <span class="c1"># to create thickness. </span>
-                             <span class="c1"># A setting of 1 probably looks the best</span>
+     <span class="s2">&quot;gpxPathThickness&quot;</span> <span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="c1"># Stack paralell lines on either side of primary line </span>
+                             <span class="c1"># to create thickness. A setting of 1 probably looks the best</span>
 <span class="p">}</span>
 
 <span class="c1"># uncomment the next line if you want to use gpx_args!</span>
@@ -13525,7 +13496,7 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[4]:</div>
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">totalsize</span><span class="p">,</span> <span class="n">full_zip_file_name</span> <span class="o">=</span> <span class="n">TouchTerrain</span><span class="o">.</span><span class="n">get_zipped_tiles</span><span class="p">(</span><span class="o">**</span><span class="n">args</span><span class="p">)</span> <span class="c1"># args are in a dict</span>
@@ -13533,253 +13504,6 @@ To authorize access needed by Earth Engine, open the following URL in a web brow
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root:Log for creating 3D model tile(s) for  NED_-108.12_44.60 
- 
-INFO:root:DEM_name = USGS/NED 
-INFO:root:trlat = 44.69741706507476 
-INFO:root:trlon = -107.97962089843747 
-INFO:root:bllat = 44.50185267072875 
-INFO:root:bllon = -108.25427910156247 
-INFO:root:printres = 0.4 
-INFO:root:ntilesx = 1 
-INFO:root:ntilesy = 1 
-INFO:root:tilewidth = 120 
-INFO:root:basethick = 0 
-INFO:root:zscale = 1 
-INFO:root:fileformat = STLb 
-INFO:root:no_bottom = False 
-INFO:root:unprojected = False 
-INFO:root:no_normals = True 
-INFO:root:
-process started: 18:32:11.025034 
-INFO:root:
-Region (lat/lon):
-   44.69741706507476 -107.97962089843747 (top right)
-   44.50185267072875 -108.25427910156247 (bottom left) 
-INFO:root:center at [-108.11694999999997, 44.599634867901756]  UTM 13 N ,  EPSG:32613 
-INFO:root:lon/lat size in degrees: [0.274658203125, 0.19556439434600748] 
-INFO:root:Earth Engine raster: USGS/NED 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>Log for creating 3D model tile(s) for  NED_-108.12_44.60 
- 
-DEM_name = USGS/NED 
-trlat = 44.69741706507476 
-trlon = -107.97962089843747 
-bllat = 44.50185267072875 
-bllon = -108.25427910156247 
-printres = 0.4 
-ntilesx = 1 
-ntilesy = 1 
-tilewidth = 120 
-basethick = 0 
-zscale = 1 
-fileformat = STLb 
-no_bottom = False 
-unprojected = False 
-no_normals = True 
-
-process started: 18:32:11.025034 
-
-Region (lat/lon):
-   44.69741706507476 -107.97962089843747 (top right)
-   44.50185267072875 -108.25427910156247 (bottom left) 
-center at [-108.11694999999997, 44.599634867901756]  UTM 13 N ,  EPSG:32613 
-lon/lat size in degrees: [0.274658203125, 0.19556439434600748] 
-requesting 72.68735070561117 m resolution from EarthEngine
-Earth Engine raster: USGS/NED 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root: USGS National Elevation Dataset 1/3 arc-second 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre> USGS National Elevation Dataset 1/3 arc-second 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root:URL for geotiff is:  https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/thumbnails/e1e4aeee377812eb77e3a4005dc3f8e6-99d87c821e4214a8cf098f6990c3ec47:getPixels 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>URL for geotiff is:  https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/thumbnails/e1e4aeee377812eb77e3a4005dc3f8e6-99d87c821e4214a8cf098f6990c3ec47:getPixels 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root: geotiff size: 0.29921722412109375 Mb 
-INFO:root: cell size 72.68735070561117 m, upper left corner (x/y):  241249.31699192346 4954515.198795868 
-INFO:root:Time to add GPX paths:0.01196742057800293 
-INFO:root:full (untiled) raster (height,width)  (311, 312) float64 elev. min/max: 1125.3890380859375 1582.0689697265625 
-INFO:root:cell size: 72.68735070561117 m  
-INFO:root:adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
-INFO:root:total model size in mm: 120 x 119.61538461538461 
-INFO:root:map scale is 1 : 188987.11183458904 
-INFO:root:Cells per tile (x/y) 312 x 311 
-INFO:root:using single-core only 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre> geotiff size: 0.29921722412109375 Mb 
- cell size 72.68735070561117 m, upper left corner (x/y):  241249.31699192346 4954515.198795868 
-Time to add GPX paths:0.01196742057800293 
-full (untiled) raster (height,width)  (311, 312) float64 elev. min/max: 1125.3890380859375 1582.0689697265625 
-cell size: 72.68735070561117 m  
-adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
-total model size in mm: 120 x 119.61538461538461 
-map scale is 1 : 188987.11183458904 
-elev min/max : 1125.39 to 1582.07
-Cells per tile (x/y) 312 x 311 
-using single-core only 
-processing tile: 1 1
-top min/max: 0.5 2.9164607163282863
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>creating internal triangle data structure for &lt;_MainProcess(MainProcess, started)&gt;
-10 % &lt;_MainProcess(MainProcess, started)&gt;
-20 % &lt;_MainProcess(MainProcess, started)&gt;
-30 % &lt;_MainProcess(MainProcess, started)&gt;
-40 % &lt;_MainProcess(MainProcess, started)&gt;
-50 % &lt;_MainProcess(MainProcess, started)&gt;
-60 % &lt;_MainProcess(MainProcess, started)&gt;
-70 % &lt;_MainProcess(MainProcess, started)&gt;
-80 % &lt;_MainProcess(MainProcess, started)&gt;
-90 % &lt;_MainProcess(MainProcess, started)&gt;
-100% &lt;_MainProcess(MainProcess, started)&gt; 
-
-Writing tile into temp. file C:\Users\charding\Box\TouchTerrain\TouchTerrain_for_CAGEO\tmp\myterrain11.tmp
-assembling binary stl from 390620 triangles
-10 %, 20 %, 30 %, 40 %, 50 %, 60 %, 70 %, 80 %, 90 %, 100 %, 
-
-tile 1 1 STLb 18.626293182373047 Mb 
-INFO:root:
-1 x 1 tiles, tile size 120.00 x 119.62 mm
- 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-1 x 1 tiles, tile size 120.00 x 119.62 mm
- 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stderr output_text">
-<pre>INFO:root:tile 1 1 : height:  0.5 - 2.9164607163282863 mm , file size: 19 Mb 
-INFO:root:
-total size for all tiles: 19 Mb 
-INFO:root:added full geotiff as NED_-108.12_44.60.tif 
-INFO:root:
-processing finished: 18:32:17.068419 
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>tile 1 1 : height:  0.5 - 2.9164607163282863 mm , file size: 19 Mb 
-
-total size for all tiles: 19 Mb 
-zip finished: 18:32:17.057447
-added full geotiff as NED_-108.12_44.60.tif 
-
-processing finished: 18:32:17.068419 
-
-DONE!
-
-Created zip file tmp\myterrain.zip 18.93 Mb
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -13831,12 +13555,12 @@ Created zip file tmp\myterrain.zip 18.93 Mb
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">k3d</span>
 <span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
 
-<span class="c1"># get all stl files in that folder</span>
-<span class="n">mesh_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;*.stl&quot;</span><span class="p">)</span>
-<span class="c1">#print &quot;in folder&quot;, folder, &quot;using&quot;, mesh_files</span>
+<span class="c1"># get all stl files (tiles) in that folder</span>
+<span class="n">mesh_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;*.STL&quot;</span><span class="p">)</span>
 
 <span class="n">plot</span> <span class="o">=</span> <span class="n">k3d</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
 
+<span class="c1"># Add all tiles with a random color</span>
 <span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">randint</span>
 <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mesh_files</span><span class="p">:</span>
     <span class="n">col</span> <span class="o">=</span> <span class="p">(</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">255</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">16</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">255</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">+</span> <span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">255</span><span class="p">)</span> <span class="c1"># random rgb color as hex</span>
@@ -13856,7 +13580,11 @@ Created zip file tmp\myterrain.zip 18.93 Mb
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># If you plan to refine your parameters and create different models, you should run this cell to remove </span>
+<span class="c1"># the preview folder first, otherwise the preview could show you old models.</span>
+
+<span class="kn">from</span> <span class="nn">shutil</span> <span class="k">import</span> <span class="n">rmtree</span>
+<span class="n">rmtree</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
 </pre></div>
 
     </div>
