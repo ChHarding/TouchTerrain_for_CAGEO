@@ -254,8 +254,8 @@ window.onload = function () {
                     fileInput.name = "kml_file"; // will be a key in response.files dict
                     $('#kml_file_name').html(file.name); // show valid filename in label
                 }else{
-                    $('#kml_file_name').html("Error: " + file.name + " not a valid kml file!")
-                    fileInput.name.value = null // invalidate previous kml file
+                    $('#kml_file_name').html("Error: " + file.name + " not a valid kml file!");
+                    fileInput.name.value = null; // invalidate previous kml file
                     polygon.setMap(null); // remove any earlier polygon
                     // bad file will be read-in in Python and generate a warning there
                 }
@@ -734,7 +734,6 @@ function update_corners_form(event) {
     create_divison_lines();
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
-    //document.getElementById('kml_file').value = null // invalidate previous kml file
 }
 
 function update_box(event){
@@ -759,7 +758,6 @@ function update_box(event){
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
-    //document.getElementById('kml_file').value = null // invalidate previous kml file
   
 }
 
@@ -1042,13 +1040,14 @@ function processKMLFile(xmlfile){
             xmlDoc = $.parseXML(xmlfile);
         }
         catch(e) {
-            console.dir(e);
+            //console.dir(e);
+            $('#kml_file_name').html("Error: file could not be parsed!");
             return null;
         }
 
         let $xml = $(xmlDoc);
         if (typeof xmlDoc === 'undefined'){ /// === means == but w/o implicit type conversion
-            alert('Please upload a KML file');
+            $('#kml_file_name').html("Error: file could not be parsed!");
             return null;
         }else{
             let coords = $xml.find("coordinates").text();
