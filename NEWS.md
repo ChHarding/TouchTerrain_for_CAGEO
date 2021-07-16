@@ -1,3 +1,6 @@
+Jul. 16, 2021 (version 3.4)
+	- fixed bug with kml/kmz file showing up in the browser but then not actually used for processing (Once again, thank you, Nick!)
+
 Apr. 29, 2021 (version 3.3)
 	- added auto z-scale to scale up to a given height
 	- default width is 100 mm
