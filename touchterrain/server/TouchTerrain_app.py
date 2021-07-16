@@ -436,12 +436,24 @@ def export():
         geojson_polygon = None
         if 'kml_file' in request.files:
             kml_file = request.files['kml_file']
-            
+
             if kml_file.filename != '':  # '' happens when kml file was invalidated
-                from geojson import Polygon
                 
                 # process kml file
                 kml_stream = kml_file.read()
+
+                # for a kmz file stream, unzip into a text string (kmz archive contains a single doc.kml file)
+                if kml_file.filename[-4:] == ".kmz":
+                    from io import BytesIO
+                    from zipfile import ZipFile
+                    try:
+                        zipped_stream = BytesIO(kml_stream)  # zipped stream (binary)
+                        zipped_archive = ZipFile(zipped_stream)
+                        kml_stream = zipped_archive.read('doc.kml')
+                    except:
+                        html += "Warning: " + kml_file.filename + " is not a valid kmz polygon file! (falling back to area selection box.)\n"
+
+                from geojson import Polygon
                 try:
                     coords, msg = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream) 
                 except:

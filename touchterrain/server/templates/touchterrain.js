@@ -254,7 +254,8 @@ window.onload = function () {
                     fileInput.name = "kml_file"; // will be a key in response.files dict
                     $('#kml_file_name').html(file.name); // show valid filename in label
                 }else{
-                    $('#kml_file_name').html("Error: " + file.name + " is not a valid kml file!")
+                    $('#kml_file_name').html("Error: " + file.name + " not a valid kml file!")
+                    fileInput.name.value = null // invalidate previous kml file
                     polygon.setMap(null); // remove any earlier polygon
                     // bad file will be read-in in Python and generate a warning there
                 }
@@ -263,7 +264,7 @@ window.onload = function () {
         }
       
         // unzip kmz file into kml first
-        if(file.name.endsWith(".kmz")){
+        else if(file.name.endsWith(".kmz")){
             const reader = new zip.ZipReader(new zip.BlobReader(file));
             const entries =  reader.getEntries(); // get all entries from the zip
             reader.getEntries().then(function(entries){
@@ -283,13 +284,19 @@ window.onload = function () {
                             fileInput.name = "kml_file"; // will be a key in response.files dict
                             $('#kml_file_name').html(file.name); // show valid filename in label
                         }else{
-                            $('#kml_file_name').html("Error: " + file.name + " is not a valid kmz file!")
+                            $('#kml_file_name').html("Error: " + file.name + " not a valid kmz file!")
+                            fileInput.name.value = null // invalidate previous kml file
                             polygon.setMap(null); // remove any earlier polygon
                             // bad file will be read-in in Python and generate a warning there
                         }
                     });
                 }
             })
+        }
+        else{ // neither kml nor kmz
+            $('#kml_file_name').html("Error: " + file.name + " not a valid kml/kmz file!")
+            fileInput.name.value = null // invalidate previous kml file
+            polygon.setMap(null); // remove any earlier polygon
         }
       } // if (fileInput.files.length)
     });
@@ -727,7 +734,7 @@ function update_corners_form(event) {
     create_divison_lines();
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
-    document.getElementById('kml_file').value = null // invalidate previous kml file
+    //document.getElementById('kml_file').value = null // invalidate previous kml file
 }
 
 function update_box(event){
@@ -752,7 +759,7 @@ function update_box(event){
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
-    document.getElementById('kml_file').value = null // invalidate previous kml file
+    //document.getElementById('kml_file').value = null // invalidate previous kml file
   
 }
 
