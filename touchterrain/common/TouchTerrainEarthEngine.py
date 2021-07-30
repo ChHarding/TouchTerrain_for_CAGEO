@@ -981,6 +981,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             undef_cells = numpy.isclose(npim, gdal_undef_val) # bool
             npim = numpy.where(undef_cells, numpy.nan, npim)
 
+        # Add GPX points to the model (thanks KohlhardtC!)
+        if importedGPX != None and importedGPX != []:
+            from touchterrain.common.TouchTerrainGPX import addGPXToModel 
+            print("TEST\nTEST\nTEST") 
+            addGPXToModel(pr, npim, dem, importedGPX, 
+                          gpxPathHeight, gpxPixelsBetweenPoints, gpxPathThickness, 
+                          trlat, trlon, bllat, bllon) 
+
         # clip values?
         if ignore_leq != None:
             npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)

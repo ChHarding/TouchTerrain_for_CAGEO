@@ -238,63 +238,72 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
         root = tree.getroot() 
         points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
 
-        # We need to keep track of the last point so that we can draw a line between points
-        lastPoint = None       
-        count = 0 
-        
-        for trkpt in points:
-            count = count + 1
-            gpx_lat = float(trkpt.attrib['lat'])
-            gpx_lon = float(trkpt.attrib['lon']) 
-            #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
-            
-            #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
-            transform = osr.CoordinateTransformation(source,target ) 
-            projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon)
+        tracks = root.findall('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
+        #points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
+        numTracks = len(tracks)
+        pr(numTracks, "GPX tracks found")
 
-            rasterX = int( (projectedPoints[1] - uly) / yres )   
-            rasterY = int( (projectedPoints[0] - ulx) / xres )   
+        for trk in tracks:
+            pr("Plotting track", numTracks)
+            numTracks -= 1
+
+            # We need to keep track of the last point so that we can draw a line between points
+            lastPoint = None       
+            count = 0 
             
-            # Only process this point if it's in the bounds
-            if rasterX >= 0 and rasterX < npim.shape[0] and rasterY >=0 and rasterY < npim.shape[1]:
+            for trkpt in trk:
+                count = count + 1
+                gpx_lat = float(trkpt.attrib['lat'])
+                gpx_lon = float(trkpt.attrib['lon']) 
+                #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
                 
-                currentPoint = (rasterX,rasterY) 
-                              
-                #Draw line between two points using Bresenham's line algorithm 
-                if lastPoint is not None: 
-                    #calculate distance between last point and current point 
-                    #Only plot the point if it's far away. Helps cull some GPX points
-                    dist = math.sqrt((rasterX - lastPoint[0])**2 + (rasterY - lastPoint[1])**2) 
+                #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
+                transform = osr.CoordinateTransformation(source,target ) 
+                projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon)
 
-                    # Only render the GPX point if it's beyond the specified distance OR
-                    # if it's the last point
-                    if dist >= gpxPixelsBetweenPoints or count == len(points) -1: 
-                        #try creating a dashed path by plotting every other line
-                       
-                        #pr("primaryLine")
-                        plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,0) 
+                rasterX = int( (projectedPoints[1] - uly) / yres )   
+                rasterY = int( (projectedPoints[0] - ulx) / xres )   
+                
+                # Only process this point if it's in the bounds
+                if rasterX >= 0 and rasterX < npim.shape[0] and rasterY >=0 and rasterY < npim.shape[1]:
+                    
+                    currentPoint = (rasterX,rasterY) 
+                                  
+                    #Draw line between two points using Bresenham's line algorithm 
+                    if lastPoint is not None: 
+                        #calculate distance between last point and current point 
+                        #Only plot the point if it's far away. Helps cull some GPX points
+                        dist = math.sqrt((rasterX - lastPoint[0])**2 + (rasterY - lastPoint[1])**2) 
 
-                        #create line thickness by stacking lines
-                        thicknessOffset = 1 
-                      
-                        for loopy in range(1, int(gpxPathThickness) ):
-                            
-                            #pr("thickerLine")
-                            plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,thicknessOffset) 
+                        # Only render the GPX point if it's beyond the specified distance OR
+                        # if it's the last point
+                        if dist >= gpxPixelsBetweenPoints or count == len(points) -1: 
+                            #try creating a dashed path by plotting every other line
+                           
+                            #pr("primaryLine")
+                            plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,0) 
 
-                            #alternate sides of line to draw on when adding 
-                            #thickness
-                            if (loopy % 2) == 0: 
-                                thicknessOffset = (thicknessOffset * -1) + 1    
-                            else:
-                                thicknessOffset = thicknessOffset * -1    
-                        lastPoint = currentPoint
+                            #create line thickness by stacking lines
+                            thicknessOffset = 1 
+                          
+                            for loopy in range(1, int(gpxPathThickness) ):
+                                
+                                #pr("thickerLine")
+                                plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,thicknessOffset) 
+
+                                #alternate sides of line to draw on when adding 
+                                #thickness
+                                if (loopy % 2) == 0: 
+                                    thicknessOffset = (thicknessOffset * -1) + 1    
+                                else:
+                                    thicknessOffset = thicknessOffset * -1    
+                            lastPoint = currentPoint
+                    else:
+                        lastPoint = currentPoint 
                 else:
-                    lastPoint = currentPoint 
-            else:
-                # if a point is out of bounds, we need to invalidate lastPoint
-                #pr("out of bounds: {0},{1}".format(gpx_lat, gpx_lon) )
-                lastPoint = None
+                    # if a point is out of bounds, we need to invalidate lastPoint
+                    #pr("out of bounds: {0},{1}".format(gpx_lat, gpx_lon) )
+                    lastPoint = None
 
     gpxEndTime = time.time()
     gpxElapsedTime = gpxEndTime - gpxStartTime
