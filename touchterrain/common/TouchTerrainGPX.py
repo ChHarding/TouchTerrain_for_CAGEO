@@ -158,35 +158,35 @@ def convert_to_GeoJSON(importedGPX):
 def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,gpxPathThickness,trlat,trlon,bllat,bllon):
     """ Add 1 or more GPX tracks to the terrain model
 
-    Args: 
-        pr (function): reference to the logging function 
-        npim (2d numpy array): The numpy array containing elevation data for points on the 3D terrain map 
-        dem (GDAL raster dataset): The GDAL raster dataset is needed since it contains the projection used by 
-                                   the elevation data 
-        importedGPX (list): List of strings which reference the file paths for GPX tracks.  
-        gpxPathHeightHeight (int): height offset, in meters, from the terrain elevation to denote a GPX track. 
-                                   Negative numbers are ok. 
-        gpxPixelsBetweenPoints (int): GPX Files can have a lot of points. This argument controls how 
-                                      many pixel distance there should be between points, effectively causing fewing 
-                                      lines to be drawn. A higher number will create more space between lines drawn 
-                                      on the model and can have the effect of making the paths look a bit cleaner at 
-                                      the expense of less precision 
-        gpxPathThickness (int): Stacks parallel lines on either side of the primary line to create thickness. 
-        trlat (float): top right latitude of the terrain map. 
+    Args:
+        pr (function): reference to the logging function
+        npim (2d numpy array): The numpy array containing elevation data for points on the 3D terrain map
+        dem (GDAL raster dataset): The GDAL raster dataset is needed since it contains the projection used by
+                                   the elevation data
+        importedGPX (list): List of strings which reference the file paths for GPX tracks.
+        gpxPathHeightHeight (int): height offset, in meters, from the terrain elevation to denote a GPX track.
+                                   Negative numbers are ok.
+        gpxPixelsBetweenPoints (int): GPX Files can have a lot of points. This argument controls how
+                                      many pixel distance there should be between points, effectively causing fewing
+                                      lines to be drawn. A higher number will create more space between lines drawn
+                                      on the model and can have the effect of making the paths look a bit cleaner at
+                                      the expense of less precision
+        gpxPathThickness (int): Stacks parallel lines on either side of the primary line to create thickness.
+        trlat (float): top right latitude of the terrain map.
         trlon (float): top right longitude of the terrain map.
-        bllat (float): bottom left latitude of the terrain map. 
-        bllat (float): bottom left longitude of the terrain map.  
-    
+        bllat (float): bottom left latitude of the terrain map.
+        bllat (float): bottom left longitude of the terrain map.
+
     Returns:
-        a modified npim array that now contains adjusted elevation data such that the GPX path(s) will be 
+        a modified npim array that now contains adjusted elevation data such that the GPX path(s) will be
         recognizable on the terrain model
 
-    """ 
-    import xml.etree.ElementTree as ET 
+    """
+    import xml.etree.ElementTree as ET
 
     # check if we have to explicitly override the PROJ_LIB folder so osr has access to
     # the projection database proj.db. Otherwise  source.ImportFromEPSG(4326) (setting up WGS84)
-    # won't work and you'll get this: 
+    # won't work and you'll get this:
     # ERROR 1: PROJ: proj_create_from_database: Cannot find proj.db
     # ERROR 1: PROJ: proj_create: unrecognized format / unknown name
     # ERROR 6: Cannot find coordinate operations from `' to `PROJCRS["WGS 84 / .... (your DEM SRS which did work b/c it used a different call ...)
@@ -194,8 +194,8 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
 
     # Confusingly, what really bombs is transform.TransformPoint(gpx_lat, gpx_lon) later, when
     # it can't transform into the non-existing target SRS and, even more "helpfully" then complains
-    # about a missing signature for the underlying C++ method: 
-    #   NotImplementedError: Wrong number or type of arguments for overloaded function 'CoordinateTransformation_TransformPoint'. 
+    # about a missing signature for the underlying C++ method:
+    #   NotImplementedError: Wrong number or type of arguments for overloaded function 'CoordinateTransformation_TransformPoint'.
     #   Wrong number or type of arguments for overloaded function 'CoordinateTransformation_TransformPoint'.
     #       Possible C/C++ prototypes are:
     #       OSRCoordinateTransformationShadow::TransformPoint(double [3])
@@ -210,21 +210,21 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
     if config.PROJ_DIR != None: # we got an override setting!
         import os
         os.environ['PROJ_LIB'] = config.PROJ_DIR
-        print("PROJ_LIB OSGEO projection folder was set to", os.environ['PROJ_LIB'])    
+        print("PROJ_LIB OSGEO projection folder was set to", os.environ['PROJ_LIB'])
 
     # Later versions of osr may be bundled into osgeo so check there as well.
     try:
         import osr
     except ImportError as err:
         from osgeo import osr
-    import time 
+    import time
     import math
 
     gpxStartTime = time.time()
-    pathedPoints = {} 
-    
-    # Parse GPX file
-    ulx, xres, xskew, uly, yskew, yres  = dem.GetGeoTransform()   
+    pathedPoints = {}
+
+    # Parse GPX file(s)
+    ulx, xres, xskew, uly, yskew, yres  = dem.GetGeoTransform()
     target = osr.SpatialReference()
     t_res = target.ImportFromWkt(dem.GetProjection()) # return of 0 => OK
     if t_res != 0: assert False, "addGPXToMode(): target.ImportFromWkt() returned error" + str(t_res)
@@ -233,13 +233,14 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
     if s_res != 0: assert False, "addGPXToMode(): source.ImportFromEPSG(4326) returned error" + str(s_res)
 
     for gpxFile in importedGPX:
-        pr("process gpx file: {0}".format( gpxFile ) )
-        tree = ET.parse( gpxFile )
-        root = tree.getroot() 
-        points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
+        pr(f"process gpx file: {gpxFile}")
 
-        tracks = root.findall('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
-        #points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg') 
+        # parse file for points and tracks
+        tree = ET.parse(gpxFile)
+        root = tree.getroot()
+        points = root.find('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg')
+        tracks = root.findall('{http://www.topografix.com/GPX/1/1}trk/{http://www.topografix.com/GPX/1/1}trkseg')
+
         numTracks = len(tracks)
         pr(numTracks, "GPX tracks found")
 
@@ -248,63 +249,61 @@ def addGPXToModel(pr,npim,dem,importedGPX,gpxPathHeight,gpxPixelsBetweenPoints,g
             numTracks -= 1
 
             # We need to keep track of the last point so that we can draw a line between points
-            lastPoint = None       
-            count = 0 
-            
+            lastPoint = None
+            count = 0
+
             for trkpt in trk:
                 count = count + 1
                 gpx_lat = float(trkpt.attrib['lat'])
-                gpx_lon = float(trkpt.attrib['lon']) 
-                #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) ) 
-                
-                #if gpx_lat < trlat and gpx_lat > bllat and gpx_lon < trlon and gpx_lon > bllon: 
-                transform = osr.CoordinateTransformation(source,target ) 
+                gpx_lon = float(trkpt.attrib['lon'])
+                #pr("  Process GPX Point: Lat: {0} Lon: {1}:".format( gpx_lat, gpx_lon ) )
+
+                transform = osr.CoordinateTransformation(source,target )
                 projectedPoints = transform.TransformPoint(gpx_lat, gpx_lon)
 
-                rasterX = int( (projectedPoints[1] - uly) / yres )   
-                rasterY = int( (projectedPoints[0] - ulx) / xres )   
-                
+                rasterX = int( (projectedPoints[1] - uly) / yres )
+                rasterY = int( (projectedPoints[0] - ulx) / xres )
+
                 # Only process this point if it's in the bounds
                 if rasterX >= 0 and rasterX < npim.shape[0] and rasterY >=0 and rasterY < npim.shape[1]:
-                    
-                    currentPoint = (rasterX,rasterY) 
-                                  
-                    #Draw line between two points using Bresenham's line algorithm 
-                    if lastPoint is not None: 
-                        #calculate distance between last point and current point 
-                        #Only plot the point if it's far away. Helps cull some GPX points
-                        dist = math.sqrt((rasterX - lastPoint[0])**2 + (rasterY - lastPoint[1])**2) 
+
+                    currentPoint = (rasterX,rasterY)
+
+                    # Draw line between two points using Bresenham's line algorithm
+                    if lastPoint is not None:
+                        # Calculate distance between last point and current point
+                        # Only plot the point if it's far away. Helps cull some GPX points
+                        dist = math.sqrt((rasterX - lastPoint[0])**2 + (rasterY - lastPoint[1])**2)
 
                         # Only render the GPX point if it's beyond the specified distance OR
                         # if it's the last point
-                        if dist >= gpxPixelsBetweenPoints or count == len(points) -1: 
+                        if dist >= gpxPixelsBetweenPoints or count == len(points) -1:
                             #try creating a dashed path by plotting every other line
-                           
+
                             #pr("primaryLine")
-                            plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,0) 
+                            plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,0)
 
-                            #create line thickness by stacking lines
-                            thicknessOffset = 1 
-                          
+                            # Create line thickness by stacking lines
+                            thicknessOffset = 1
+
                             for loopy in range(1, int(gpxPathThickness) ):
-                                
-                                #pr("thickerLine")
-                                plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,thicknessOffset) 
 
-                                #alternate sides of line to draw on when adding 
-                                #thickness
-                                if (loopy % 2) == 0: 
-                                    thicknessOffset = (thicknessOffset * -1) + 1    
+                                #pr("thickerLine")
+                                plotLine(lastPoint[0],lastPoint[1],currentPoint[0],currentPoint[1],gpxPathHeight,npim,pathedPoints,thicknessOffset)
+
+                                # Alternate sides of line to draw on when adding thickness
+                                if (loopy % 2) == 0:
+                                    thicknessOffset = (thicknessOffset * -1) + 1
                                 else:
-                                    thicknessOffset = thicknessOffset * -1    
+                                    thicknessOffset = thicknessOffset * -1
                             lastPoint = currentPoint
                     else:
-                        lastPoint = currentPoint 
+                        lastPoint = currentPoint
                 else:
-                    # if a point is out of bounds, we need to invalidate lastPoint
+                    # If a point is out of bounds, we need to invalidate lastPoint
                     #pr("out of bounds: {0},{1}".format(gpx_lat, gpx_lon) )
                     lastPoint = None
 
     gpxEndTime = time.time()
     gpxElapsedTime = gpxEndTime - gpxStartTime
-    pr("Time to add GPX paths:{0}".format( gpxElapsedTime ) )
+    pr(f"Time to add GPX paths:{gpxElapsedTime}")
