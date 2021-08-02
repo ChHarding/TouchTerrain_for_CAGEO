@@ -1148,8 +1148,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 offset = offset_masks_lower[count][1] / 1000 * print3D_scale_number  # scale mm up to real world meters
                 offset /= zscale # account for zscale
 
-                #Invert the mask layer in order to raise all areas not previously masked. 
-                #Subtracting elevation into negative values will cause an invalid STL to be generated. 
+                # Invert the mask layer in order to raise all areas not previously masked. 
+                # Subtracting elevation into negative values will cause an invalid STL to be generated. 
                 offset_layer = numpy.where(offset_layer > 0, 0, 1)
                 offset_layer = numpy.multiply(offset_layer, 1 * offset)
                 npim = numpy.add(npim, offset_layer)
@@ -1159,6 +1159,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 count += 1
 
         # fill holes using a 3x3 footprint. Requires scipy
+        # [0] is rounds, [1] is threshold
         if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
             import scipy.ndimage as ndimage
 
@@ -1198,7 +1199,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
                 pr("Filled", holesFilledLastRound, "holes. {numRounds} rounds remaining.".format(numRounds="Infinite" if fill_holes[0] == -1 else fill_holes[0]))
 
-        # Ch Mar 30, 2021: removed z-scaling here as it's actully supposed to be done when the grid is created!
+        # Ch Mar 30, 2021: removed z-scaling here as it's actually supposed to be done when the grid is created!
 
         """
         # plot dem
@@ -1315,7 +1316,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 tile_info["tile_no_y"] = ty + 1
                 my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
 
-
                 # if raster is too large, use temp files to create the tile STL/obj files
                 if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
                     # open a temp file in local tmp folder
@@ -1339,7 +1339,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             logger.debug("tempfile or memory? number of pixels:" + str(tile_info["full_raster_height"] * tile_info["full_raster_width"]) + ">" + str(max_cells_for_memory_only) + " => using temp file")
 
 
-        # single core processing: just work on the list sequentially, don't use multi-core processing
+        # single core processing: just work on the list sequentially, don't use multi-core processing.
         # if there's only one tile or one CPU or CPU_cores_to_use is still at default None
         # processed list will contain tuple(s): [0] is always the tile info dict, if its
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
@@ -1387,8 +1387,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             pr("... multi-core processing done, logging resumed")
 
-
-
         # the tile width/height was written into tileinfo during processing
         _ = "\n%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
         pr(_)
@@ -1402,7 +1400,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 tile_info = p[0] # per-tile info
                 tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
                 buf= p[1] # either a string or a file object
-
 
                 if tile_info.get("temp_file") != None: # if buf is a file object
                     fname = tile_info["temp_file"]
@@ -1529,7 +1526,7 @@ if __name__ == "__main__":
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             } 
-    #fname = "test"
+    fname = "test"
     r = get_zipped_tiles(**args)
     
     zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb

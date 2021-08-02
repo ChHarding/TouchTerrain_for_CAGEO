@@ -203,18 +203,18 @@ tiles will fit together without overlaps if tile_centered was false.
     - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background. This is useful to import the mesh file into a 3D GIS, such as ArcGIS Pro. Note that, once imported, you will have to set the coordinate system of the mesh manually, b/c the mesh model file can't contain that information. Unless overwritten, this will be a UTM zone with WGS84. The TouchTerrain log file will contain the equivalent EPSG code.
     - "centered" will set the UTM origin to the center of the full tile, this is make it work together with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
-* `smooth_borders`: default: true. For rasters with NoData cells, determines if the borders of "islands" should be smoothed by selectively removing
-                    certain outer triangles. This makes printing the easier and puts less "rattle" in the motion system. However, if adjacent areas are printed this option should be set to false to prevent gaps between the areas.    
+* `smooth_borders`: default: true. For rasters with NoData cells, determines if the borders of "islands" should be smoothed by selectively removing certain outer triangles. This makes printing the easier and puts less "rattle" in the motion system. However, if adjacent areas are printed this option should be set to false to prevent gaps between the areas.    
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
 * `gpxPathHeight`: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
 * `gpxPixelsBetweenPoints`:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
 * `gpxPathThickness`: (default: 5) Stacks that number of parallel lines on either side of primary line to create thickness.  
 
-Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (non-90 deg.) walls that are more noticeable when 3D printed.
+Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (but stilll non-90 deg.) walls that are more noticeable when 3D printed.
 
 * `offset_masks_lower`: (default None) Masked regions (pixel values > 0) in the file will be lowered (same method as GPX extrusion described above) by offset(mm) * pixel value in the final model. *e.g. [[filename, offset], [filename2, offset2],...]* 
-* `fill_holes`: (default None), Specify number of interations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. *e.g. [10, 7]*
+* `fill_holes`: (default None), Specify number of iterations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. *e.g. [10, 7]*
+
 
 ## Server version
 
