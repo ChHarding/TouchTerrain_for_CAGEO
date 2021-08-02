@@ -95,6 +95,8 @@ def main():
                                        # on the model and can have the effect of making the paths look a bit cleaner
         "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
         "smooth_borders": True, # smooth borders
+        "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
+        "fill_holes": None, # e.g. [10, 7] Specify number of interations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
     }
 
     # write an example json file, in case it gets deleted ...
@@ -212,6 +214,11 @@ def main():
     # for local DEM, get the full path to it
     if not args["importedDEM"] == None:
         args["importedDEM"] = abspath(args["importedDEM"])
+
+    # get full path to offset mask TIFF
+    if not args["offset_masks_lower"] == None and len(args["offset_masks_lower"]) > 0:
+        for offset_mask_pair in args["offset_masks_lower"]:
+            offset_mask_pair[0] = abspath(offset_mask_pair[0])
 
     # Give all config values to get_zipped_tiles for processing:
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict

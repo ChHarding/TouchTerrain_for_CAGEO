@@ -213,7 +213,8 @@ tiles will fit together without overlaps if tile_centered was false.
 
 Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (non-90 deg.) walls that are more noticeable when 3D printed.
 
-
+* `offset_masks_lower`: (default None) Masked regions (pixel values > 0) in the file will be lowered (same method as GPX extrusion described above) by offset(mm) * pixel value in the final model. *e.g. [[filename, offset], [filename2, offset2],...]* 
+* `fill_holes`: (default None), Specify number of interations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. *e.g. [10, 7]*
 
 ## Server version
 

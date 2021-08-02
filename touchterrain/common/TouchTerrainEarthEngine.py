@@ -127,6 +127,8 @@ initial_args = {
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
     "importedGPX": [], # list of gpx path file(s) to be use  
     "smooth_borders": True, # smooth borders
+    "offset_masks": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
+    "fill_holes": None, # [rounds, threshold] hole filling filter iterations and threshold to fill a hole
 }
 
 
@@ -404,6 +406,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          gpxPathThickness=1, 
                          map_img_filename=None,
                          smooth_borders=True,
+                         offset_masks_lower=None,
+                         fill_holes=None,
                          **otherargs):
     """
     args:
@@ -462,6 +466,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
+
+    # Check offset mask file
+    if offset_masks_lower != None:
+        for offset_pair in offset_masks_lower:
+            print(offset_pair[0])
+            assert os.path.exists(offset_pair[0]), "Error: local offset mask raster file " + offset_pair[0] + " does not exist"
+
 
     if not os.path.exists(temp_folder): # do we have a temp folder?
         try:
@@ -937,6 +948,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         band = dem.GetRasterBand(1)
         npim = band.ReadAsArray().astype(numpy.float64)
 
+        # Read in offset mask file
+        offset_npim = []
+        if offset_masks_lower is not None:
+            offset_dem = gdal.Open(offset_masks_lower[0][0])
+            offset_band = offset_dem.GetRasterBand(1)
+            offset_npim.append(offset_band.ReadAsArray().astype(numpy.float64))
+            del offset_band
+            offset_dem = None
+
         # get the GDAL cell size in x (width), assumes cells are square!
         tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
         pw,ph = abs(tf[1]), abs(tf[5])
@@ -1025,6 +1045,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m to")
             npim =  resampleDEM(npim, scale_factor)
 
+            # re-sample offset mask
+            for offset_layer in offset_npim:
+                offset_layer =  resampleDEM(offset_layer, scale_factor)
 
             #
             # based on the full raster's shape and given the model width, recalc the model height
@@ -1117,6 +1140,63 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # Instead of lowering, shift elevations greater than the threshold up to avoid negatives
             npim = numpy.where(npim > threshold, npim + offset, npim)
             pr("Lowering elevations <= ", threshold, " by ", offset, "m, equiv. to", lower_leq[1],  "mm at map scale")  
+
+        # offset (lower) cells highlighted in the offset_masks files
+        if offset_masks_lower is not None:
+            count = 0
+            for offset_layer in offset_npim:
+                offset = offset_masks_lower[count][1] / 1000 * print3D_scale_number  # scale mm up to real world meters
+                offset /= zscale # account for zscale
+
+                #Invert the mask layer in order to raise all areas not previously masked. 
+                #Subtracting elevation into negative values will cause an invalid STL to be generated. 
+                offset_layer = numpy.where(offset_layer > 0, 0, 1)
+                offset_layer = numpy.multiply(offset_layer, 1 * offset)
+                npim = numpy.add(npim, offset_layer)
+                pr("Offset masked elevations by raising all non masked areas of", offset_masks_lower[count][0],"by", offset, "m, equiv. to", offset_masks_lower[count][1],  "mm at map scale")  
+                npim = numpy.where(npim < 0, 0, npim)
+
+                count += 1
+
+        # fill holes using a 3x3 footprint. Requires scipy
+        if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
+            import scipy.ndimage as ndimage
+
+            if fill_holes[1] < 0 or fill_holes[1] > 9:
+                pr("fill_holes neighbor threshold must be in range of [1,9] for 3x3 footprint. Defaulting to 7.")
+                fill_holes[1] = 7
+
+            holesFilledLastRound = 1
+            while holesFilledLastRound > 0 and fill_holes[0] == -1 or fill_holes[0] > 0:
+                holesFilledLastRound = 0
+                if fill_holes[0] > 0:
+                    fill_holes[0] -= 1
+
+                def checkForAndFillHole(values):
+                    nonlocal holesFilledLastRound
+                    # Check to see if there is a hole in the center with elevation of 0
+                    if values[4] > 0:
+                        return values[4]
+
+                    # Count number of neighbors with elevations > 0
+                    neighborsGreaterThanZero = 0
+                    for v in values:
+                        if v > 0:
+                            neighborsGreaterThanZero += 1
+                    # If 7 out of 8 neighbors are filled, fill the hole with the average. 
+                    # This can be set to 8 out of 8 neighbors to only fill completely enclosed holes. 
+                    # 7 out of 8 neighors allows cascading fills to solve diagonal holes and narrow 1xn length holes on repeating iterations.
+                    if neighborsGreaterThanZero >= fill_holes[1]: 
+                        holesFilledLastRound += 1
+                        return numpy.nanmean(values)
+                    return values[4]
+
+                footprint = numpy.array([[1,1,1],
+                                      [1,1,1],
+                                      [1,1,1]])
+                npim = ndimage.generic_filter(npim, checkForAndFillHole, footprint=footprint, mode='constant', cval=0)
+
+                pr("Filled", holesFilledLastRound, "holes. {numRounds} rounds remaining.".format(numRounds="Infinite" if fill_holes[0] == -1 else fill_holes[0]))
 
         # Ch Mar 30, 2021: removed z-scaling here as it's actully supposed to be done when the grid is created!
 
@@ -1352,6 +1432,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         del band
         dem = None #  Python GDAL's way of closing/freeing the raster, needed to be able to delete the inital geotiff
 
+        # clean up data for offset_masks
+        if offset_masks_lower is not None:
+            for offset_layer in offset_npim:
+                del offset_layer
+
     # end of: if fileformat != "GeoTiff"
 
     print("zip finished:", datetime.datetime.now().time().isoformat())
@@ -1444,7 +1529,7 @@ if __name__ == "__main__":
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             } 
-    fname = "test"
+    #fname = "test"
     r = get_zipped_tiles(**args)
     
     zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
