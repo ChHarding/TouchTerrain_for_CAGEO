@@ -1100,6 +1100,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
             pr(" cropped", old_shape[::-1], "to", npim.shape[::-1]   )
 
+            for offset_layer in offset_npim:
+                offset_layer = offset_layer[0:offset_layer.shape[0]-remy, 0:offset_layer.shape[1]-remx]
+
             # adjust tile width and height to reflect the smaller, cropped raster
             ratio = old_shape[0] / float(npim.shape[0]), old_shape[1] / float(npim.shape[1])
             pr(" cropping changed physical size from", print3D_width_per_tile, "mm x", print3D_height_per_tile, "mm")
