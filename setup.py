@@ -22,11 +22,11 @@ setup(
         #'vectors==99.0.0',  # is now part of common folder
         'oauth2client>=4.1.3',
         'numpy>=1.17',
+        'scipy>=1.2', # Only needed for hole filling functionality
         'kml2geojson>=4.0.2', # for reading polygon coords from kml
         'geojson>=2.5', # for wrapping polygon data
         'defusedxml>=0.6', # safe minidom for parsing kml
         'six>=1.15.0', # earthengine apparently uses an old version of six ...
-
     ],
     
     # Deactivated for now b/c there's no standalone submodule, TouchTerrain_standalone.py is at root
