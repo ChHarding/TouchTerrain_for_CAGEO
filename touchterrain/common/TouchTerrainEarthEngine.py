@@ -1046,8 +1046,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim =  resampleDEM(npim, scale_factor)
 
             # re-sample offset mask
-            for offset_layer in offset_npim:
-                offset_layer =  resampleDEM(offset_layer, scale_factor)
+            for index, offset_layer in enumerate(offset_npim):
+                pr("re-sampling offset layer",index, ":\n ", offset_layer.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(offset_layer), "-", numpy.nanmax(offset_layer), "m to")
+                offset_npim[index] = resampleDEM(offset_layer, scale_factor)
 
             #
             # based on the full raster's shape and given the model width, recalc the model height
@@ -1099,6 +1100,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             old_shape = npim.shape
             npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
             pr(" cropped", old_shape[::-1], "to", npim.shape[::-1]   )
+
+            for index, offset_layer in enumerate(offset_npim):
+                offset_npim[index] = offset_layer[0:offset_layer.shape[0]-remy, 0:offset_layer.shape[1]-remx]
 
             # adjust tile width and height to reflect the smaller, cropped raster
             ratio = old_shape[0] / float(npim.shape[0]), old_shape[1] / float(npim.shape[1])
