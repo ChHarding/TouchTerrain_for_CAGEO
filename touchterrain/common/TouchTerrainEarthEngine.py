@@ -570,7 +570,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # end of polygon stuff
 
-
+    # This is needed to avoid python unbound error since offset_npim is currently only available for local DEMs in standalone python script
+    offset_npim = []
 
     #
     # A) use Earth Engine to download DEM geotiff
@@ -949,7 +950,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         npim = band.ReadAsArray().astype(numpy.float64)
 
         # Read in offset mask file
-        offset_npim = []
+        # offset_npim = [] # Define offset_npim in parent scope before importedDEM "if statement" to avoid python unbound error
         if offset_masks_lower is not None:
             offset_dem = gdal.Open(offset_masks_lower[0][0])
             offset_band = offset_dem.GetRasterBand(1)
