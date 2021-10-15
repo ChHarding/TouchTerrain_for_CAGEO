@@ -980,7 +980,7 @@ class grid(object):
                     if  border_quad != False:
                         #print k,
                         # run a check if wall is too skinny, this will set an quad internal value for how much to subdivide
-                        # the subdivison will happen later when we ask for the skinny wall's triangles
+                        # the subdivision will happen later when we ask for the skinny wall's triangles
                         # we need the direction (k) b/c the order of verts is different for n/s vs e/w!
                         border_quad.check_if_too_skinny(k)
                         #print border_quad, border_quad.subdivide_by
