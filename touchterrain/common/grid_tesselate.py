@@ -1017,7 +1017,7 @@ class grid(object):
         try:
             fo = open(temp_file, mode)
         except Exception as e:
-            print("Error openening:",temp_file, e, file=sys.stderr)
+            print("Error opening:",temp_file, e, file=sys.stderr)
             return e
         else:
             # assuming no other exception can occur here (?)
