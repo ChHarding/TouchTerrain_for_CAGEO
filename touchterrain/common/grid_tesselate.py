@@ -1294,7 +1294,9 @@ if __name__ == "__main__":
 
                    ])
     '''
-
+    top =  np.array([ [1,2, 3],
+                      [3, 4, 5],
+                 ])
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
@@ -1343,7 +1345,7 @@ if __name__ == "__main__":
 
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
-    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_ascb1.stl")
+    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b2.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
