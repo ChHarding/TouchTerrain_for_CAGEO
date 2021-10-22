@@ -839,7 +839,7 @@ class grid(object):
     def __str__(self):
         return "TODO: implement __str__() for grid class"
 
-
+    '''
     def _build_binary_stl_orig(self, facets):
         "in: list of [x,y,z]   out: list of binary STL strings"
         # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
@@ -865,7 +865,8 @@ class grid(object):
             l.append(s)
         l.append('endsolid digital_elevation_model')
         return l
-
+    '''
+    
     def _build_ascii_stl(self, tris, no_normals=False, temp_file=None):
         '''args:
          list of triangles, each a list of 3 verts
@@ -920,7 +921,7 @@ class grid(object):
             fo.close()  
             return temp_file
 
-        return s
+        return s.getvalue()
 
 
     def _build_binary_stl(self, tris, no_normals=False, temp_file=None):
@@ -977,7 +978,7 @@ class grid(object):
             fo.close() # close file
             return temp_file
 
-        return l
+        return s.getbuffer()
     '''
     # splits skinny triangles
     def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
