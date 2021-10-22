@@ -35,6 +35,7 @@ import struct # for making binary STL
 import sys
 import multiprocessing
 import tempfile
+import io
 
 # get root logger, will later be redirected into a logfile
 import logging
@@ -42,15 +43,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-# template for ascii STL file
-ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e}
-  outer loop
-   vertex {face[3]:e} {face[4]:e} {face[5]:e}
-   vertex {face[6]:e} {face[7]:e} {face[8]:e}
-   vertex {face[9]:e} {face[10]:e} {face[11]:e}
-  endloop
- endfacet"""
-ASCII_FACET =""" facet normal {face[0]:e} {face[1]:e} {face[2]:e} outer loop vertex {face[3]:e} {face[4]:e} {face[5]:e} vertex {face[6]:e} {face[7]:e} {face[8]:e} vertex {face[9]:e} {face[10]:e} {face[11]:e} endloop endfacet"""
 
 # TODO: this is still pretty slow (takes as long as the first processing step!), 
 # maybe have a nonormals setting which uses 0,0,0 ?
@@ -874,61 +866,117 @@ class grid(object):
         l.append('endsolid digital_elevation_model')
         return l
 
-    def _build_ascii_stl(self, tris, no_normals=False):
-        "in: list of triangles, each a list of 3 verts   out: list of ascii STL strings"
-        l = ['solid digital_elevation_model'] # digital_elevation_model is the name of the model
+    def _build_ascii_stl(self, tris, no_normals=False, temp_file=None):
+        '''args:
+         list of triangles, each a list of 3 verts
+         flag for omit normals
+         flag for using a temp file   
+        returns: either a ascii STL string or the name of the temp file that contains that string
+        ''' 
+        # template for ascii STL file
+        ASCII_FACET ="""facet normal {face[0]:f} {face[1]:f} {face[2]:f}\nouter loop\nvertex {face[3]:f} {face[4]:f} {face[5]:f}\nvertex {face[6]:f} {face[7]:f} {face[8]:f}\nvertex {face[9]:f} {face[10]:f} {face[11]:f}\nendloop\nendfacet\n"""
+
+        s = io.StringIO() # better for growing strings than +=
+        s.write('solid digital_elevation_model\n') # digital_elevation_model is the name of the model
+
         pc_step = int(len(tris)/10) + 1
         progress = 0
-        print("assembling ascii stl from", len(tris), "triangles", file=sys.stderr)
+        print("assembling ascii stl from", len(tris), "triangles ", temp_file, file=sys.stderr)
+
+        if temp_file != None:
+            try:
+                fo = open(temp_file, "a") # append
+            except Exception as e:
+                print("Error opening:", temp_file, e, file=sys.stderr)
+                return e
+
         for i,t  in enumerate(tris):
-
-            if i % pc_step == 0:
-                progress += 10
-                print(progress, "%", file=sys.stderr, end=", ")
-
-            # with "tri quads" it's now possible to have None in the list, ignore those
-            if t == None: continue
-
+            
+            if t == None: continue # with "tri quads" it's now possible to have None (missing 2. triangle) in the list, ignore those
             tl = get_normal(t) if no_normals == False else [0,0,0]
 
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
                 tl.extend(coords) # extend() unpacks that list!
             #print tl
-            s = ASCII_FACET.format(face=tl) # ASCII string with  12 floats (3 for normal + 3 * 3 for verts )
-            #print s
-            l.append(s)
-        l.append('endsolid digital_elevation_model')
-        print("\n", file=sys.stderr)
-        return l
-
-    def _build_binary_stl(self, tris, no_normals=False):
-        "in: list of triangles, each a list of 3 verts   out: list of binary STL strings"
-        # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-        BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
-        BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
-        l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris))] #  (I)
-        pc_step = int(len(tris)/10) + 1
-        progress = 0
-        print("assembling binary stl from", len(tris), "triangles", file=sys.stderr)
-        for i,t  in enumerate(tris): # go through list of triangles
-
+            s.write(ASCII_FACET.format(face=tl))
+ 
             if i % pc_step == 0:
                 progress += 10
                 print(progress, "%", file=sys.stderr, end=", ")
+                
+                if temp_file != None:
+                    fo.write(s.getvalue()) # append string to file 
+                    s.close()
+                    s = io.StringIO() # new string
 
-            # with "tri quads" it's now possible to have None in the list, ignore those
-            if t == None: continue
+        s.write('endsolid digital_elevation_model')
 
-            # start with x,y,z for normal
+        print("\n", file=sys.stderr)
+
+        if temp_file != None: 
+            fo.write(s.getvalue()) # append last line and close string and file
+            s.close()
+            fo.close()  
+            return temp_file
+
+        return s
+
+
+    def _build_binary_stl(self, tris, no_normals=False, temp_file=None):
+        '''args:
+         list of triangles, each a list of 3 verts
+         flag for omit normals
+         flag for using a temp file   
+        returns: either a binary STL string or the name of the temp file that contains that string
+        ''' 
+
+        # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
+        BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
+        BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
+        #l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris))] #  (I)
+        s = io.BytesIO() # binary "string"
+        s.write(struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris)))
+
+        # stop every 10%
+        pc_step = int(len(tris)/10) + 1
+        progress = 0
+        print("assembling binary stl from", len(tris), "triangles ", temp_file, file=sys.stderr)
+
+        if temp_file != None:
+            try:
+                fo = open(temp_file, "ab")
+            except Exception as e:
+                print("Error opening:", temp_file, e, file=sys.stderr)
+                return e
+                
+        for i,t  in enumerate(tris): # go through list of triangles
+
+            if t == None: continue # with "tri quads" it's now possible to have None in the list, ignore those empty half quads
             tl = get_normal(t) if no_normals == False else [0,0,0]
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
                 tl.extend(coords) # like append() but extend() unpacks that list!
                 #print tl
             tl.append(0) # append attribute byte 0
-            l.append(struct.pack(BINARY_FACET, *tl))
+            s.write(struct.pack(BINARY_FACET, *tl)) # append to s
+
+            if i % pc_step == 0:
+                progress += 10
+                print(progress, "%", file=sys.stderr, end=", ")
+                
+                if temp_file != None:
+                    fo.write(s.getbuffer())   # append (partial) string to file
+                    s.close()
+                    s = io.BytesIO()
+
         print("\n", file=sys.stderr)
+
+        if temp_file != None: 
+            s.close()
+            fo.close() # close file
+            return temp_file
+
         return l
     '''
     # splits skinny triangles
@@ -1074,10 +1122,8 @@ class grid(object):
 
         #for t in triangles: print t
 
-        buf = None
         if ascii:
-            buf_as_list = self._build_ascii_stl(triangles, no_normals)
-            buf = "\n".join(buf_as_list).encode("UTF-8") # single utf8 string
+            buf = self._build_ascii_stl(triangles, no_normals, temp_file)
         else:
 
             # profiling
@@ -1088,8 +1134,10 @@ class grid(object):
             pr.enable()
             '''
 
-            buf_as_list = self._build_binary_stl(triangles, no_normals)
-            buf = b"".join(buf_as_list)  # single "binary string"/buffer
+            #buf_as_list = self._build_binary_stl(triangles, no_normals)
+            #buf = b"".join(buf_as_list)  # single "binary string"/buffer
+
+            buf = self._build_binary_stl(triangles, no_normals, temp_file)
 
             '''
             pr.disable()
@@ -1104,8 +1152,7 @@ class grid(object):
         if temp_file ==  None:
             return buf
         else:
-            r = self.write_into_temp_file(temp_file, buf, ascii=ascii)
-            return r # if OK, just returns temp filename
+            return temp_file
 
 
 
@@ -1294,9 +1341,9 @@ if __name__ == "__main__":
 
 
 
-    #b = g.make_STLfile_buffer(ascii=True, no_normals=True)
-    b = g.make_STLfile_buffer(ascii=False, no_normals=False)
-    f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
+    #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
+    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_ascb1.stl")
+    #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
     #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
