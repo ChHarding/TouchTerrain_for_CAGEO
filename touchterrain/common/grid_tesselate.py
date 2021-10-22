@@ -974,6 +974,7 @@ class grid(object):
         print("\n", file=sys.stderr)
 
         if temp_file != None: 
+            fo.write(s.getbuffer())   # append (partial) string to file
             s.close()
             fo.close() # close file
             return temp_file
@@ -1345,7 +1346,7 @@ if __name__ == "__main__":
 
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
-    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b2.stl")
+    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer()
