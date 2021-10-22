@@ -1181,15 +1181,24 @@ class grid(object):
 
         assert self.vi != -1, "make_OBJfile_buffer: need grid with vertex indices!"
 
-        # initially, store each line in output file as string in a list
-        buf_as_list = []
-        buf_as_list.append("g vert")    # header for vertex indexing section
+        # make a stream s, either on disk or memory and append to it via write()
+        if temp_file != None:
+            try:
+                s = open(temp_file, "a") # append
+            except Exception as e:
+                print("Error opening:", temp_file, e, file=sys.stderr)
+                return e
+        else:
+            s = io.StringIO()
+
+
+        s.write("g vert\n")
         for v in list(self.vi.keys()): # self.vi is a dict of vertex indices
             #vstr = "v %f %f %f #%d" % (v[0], v[1], v[2], i+1) # putting the vert index behind a comment makes some programs crash when loading the obj file!
-            vstr = f"v {v[0]}, {v[1]}, {v[2]}"
-            buf_as_list.append(vstr)
+            vstr = f"v {v[0]}, {v[1]}, {v[2]}\n"
+            s.write(vstr)
 
-        buf_as_list.append("g tris")
+        s.write("\ng tris\n")
 
         # number of cells in x and y     grid is cells[y,x]
         ncells_x = self.cells.shape[1]
@@ -1214,18 +1223,17 @@ class grid(object):
 
                     for f in (t0,t1): # output the 2 facets (triangles)
                         if f == None: continue # for "tri quads" one tri is None
-                        fstr = "f %d %d %d" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indices start at 1!
-                        buf_as_list.append(fstr)
+                        fstr = "f %d %d %d\n" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indices start at 1!
+                        #buf_as_list.append(fstr)
+                        s.write(fstr)
                 del cell
 
-        # concat list of strings to a single string
-        buf = "\n".join(buf_as_list).encode("UTF-8")
 
         if temp_file ==  None:
-            return buf
+            return s.getvalue() # return stream as string
         else:
-            r = self.write_into_temp_file(temp_file, buf, ascii=True)
-            return r # if OK, just returns temp filename
+            s.close()
+            return temp_file  
 
 # MAIN  (left this in so I can test stuff ...)
 if __name__ == "__main__":
@@ -1294,10 +1302,11 @@ if __name__ == "__main__":
                          [ 1, 50, 10, 10, 20, 10 , 1 ],
 
                    ])
-    '''
+    
     top =  np.array([ [1,2, 3],
                       [3, 4, 5],
                  ])
+    '''
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
@@ -1330,8 +1339,9 @@ if __name__ == "__main__":
         "ntilesx": 1,
         "ntilesy": 1,
         "tile_centered" : False, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-        "fileformat": "stlb",  # folder/zip file name for all tiles
-        "base_thickness_mm": 0, # thickness between bottom and lowest elevation, NOT including the bottom relief.
+        #"fileformat": "stlb",  # folder/zip file name for all tiles
+        "fileformat": "obj",
+        "base_thickness_mm": 1, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
         "use_geo_coords": None,
         
@@ -1346,11 +1356,10 @@ if __name__ == "__main__":
 
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
-    b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
+    #b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
-    #b = g.make_OBJfile_buffer()
-    #f = open("OBJtest.obj", 'wb');f.write(b);f.close()
+    b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
     print("done")
 
 
