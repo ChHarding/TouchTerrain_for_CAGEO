@@ -3,7 +3,7 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode
 
-# CH: don't put debug server script on github
+# CH: ignore this script in project root (where it has to be run), it belongs in the server folder
 Run_TouchTerrain_debug_server_app.py
 
 # my private API key for testing
@@ -41,6 +41,7 @@ terrain
 !test/test_TouchTerrain_standalone.py
 !stuff/TouchTerrain_bottom_example.png
 !stuff/example_config.json
+!touchterrain/server/Run_TouchTerrain_debug_server_app.py
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

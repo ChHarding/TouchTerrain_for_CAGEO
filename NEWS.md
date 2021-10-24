@@ -1,3 +1,11 @@
+Oct. 24, 2021 (version 3.5)
+	- rewrote how large STL/OBJ files are created, they are now written during the process to disk 
+	  rather first into memory which turned out to be too much for our 4 Gb server which would
+	  kill the process and end in a time-out. Still not sure what happens if several large jobs are
+	  run but this will certainly improve the odds of finishing.
+	- accepted offset_masks_lower and fill_holes options contributed by Anson Liu (NOT well tested outside his use case)
+	- some edits to the jupyter starter notebook
+
 Jul. 16, 2021 (version 3.4)
 	- fixed bug with kml/kmz file showing up in the browser but then not actually used for processing (Once again, thank you, Nick!)
 
@@ -11,14 +19,11 @@ Apr. 29, 2021 (version 3.3)
 Apr. 9, 2021
 	- added a manual option to switch border optimization on/off (smooth_borders)
 
-Mar. 30, 2021
+Mar. 30, 2021 (version 3.2.1)
 	- fixed double application of z-scale (thanks to Simon Scherrer!)
-	made version 3.2.1
 
-
-Mar. 12, 2021
+Mar. 12, 2021 (version 3.2)
 - added Canadian 20m NRCan/CDEM and Australian AU/GA/AUSTRALIA_5M_DEM
-- made version 3.2
 
 Mar. 11, 2021
 	- temporary fix for bad google-api-python-client version
