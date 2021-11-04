@@ -177,8 +177,10 @@ def main_page():
     html_str = render_template("index.html", **args)
 
     # test for getting servername
-    import os
-    print("####################\nServer name is", os.environ.get('SERVER_NAME'), "\n############################")
+    from urllib.parse import urlparse
+    o = urlparse(request.base_url)
+    host = o.hostname
+    print("####################\nServer name is", host, "\n############################")
 
     return html_str
 
