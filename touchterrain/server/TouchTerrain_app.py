@@ -175,6 +175,11 @@ def main_page():
 
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
+
+    # test for getting servername
+    import os
+    print("####################\nServer name is", os.environ.get('SERVER_NAME'), "\n############################")
+
     return html_str
 
 # @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
@@ -500,8 +505,8 @@ def export():
 
         # pr <= 0 means: use source resolution
         if pr > 0: # print res given by user (width and height are in mm)
-            height = width * (dlat / dlon)
-            pix_per_tile = (width / pr) * (height / pr)
+            height = width * (dlat / dlon) # get height from aspect ratio
+            pix_per_tile = (width / pr) * (height / pr) # pixels in each dimension
             tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
             print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
         else:
@@ -520,7 +525,7 @@ def export():
             html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
             html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
             html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2)) + " Kilo pixels"
-            html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
+            html +  "If you're trying to process multiple tiles: Consider using the only     manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
             html += "<br><br>Click \n"
         
             # print out the query parameter URL 
