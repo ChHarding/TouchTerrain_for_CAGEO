@@ -33,6 +33,7 @@ from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
 
 from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template, flash, redirect
+from urllib.parse import urlparse
 app = Flask(__name__)
 
 # import modules from common
@@ -176,12 +177,6 @@ def main_page():
     # string with index.html "file" with mapid, token, etc. inlined
     html_str = render_template("index.html", **args)
 
-    # test for getting servername
-    from urllib.parse import urlparse
-    o = urlparse(request.base_url)
-    host = o.hostname
-    print("####################\nServer name is", host, "\n############################")
-
     return html_str
 
 # @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
@@ -324,7 +319,7 @@ def make_current_URL(query_string_names_and_values_list):
     into
     "?trlat=12.34&trlon=-56,78"'''
     from urllib.parse import quote
-    query = '?'
+    query = '/?'
     for kv in query_string_names_and_values_list: 
         if kv[1] != '': # skip empty
             query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
@@ -347,8 +342,10 @@ def export():
 
         # make a URL with full query parameters to repeat this job later
         query_list = list(request.form.items())
-        server = "https://touchterrain.geol.iastate.edu/"
-        #server = "https://touchterrain-beta.geol.iastate.edu/"
+        
+        o = urlparse(request.base_url)
+        server = o.hostname
+
         URL_query_str = server + make_current_URL(query_list) 
 
         # create html string
