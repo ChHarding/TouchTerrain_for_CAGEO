@@ -344,7 +344,7 @@ def export():
         query_list = list(request.form.items())
         
         o = urlparse(request.base_url)
-        server = o.hostname
+        server = o. scheme + "://" +o.netloc # was: hostname e.g. https://touchterrain.geol.iastate.edu 
 
         URL_query_str = server + make_current_URL(query_list) 
 
