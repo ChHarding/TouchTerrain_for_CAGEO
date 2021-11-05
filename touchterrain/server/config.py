@@ -24,7 +24,7 @@ if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at
 # limits for ISU server
 
 # for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 100!
-MAX_CELLS_PERMITED =   1000 * 1000 * 0.7
+MAX_CELLS_PERMITED =   1000 * 1000 * 2
 
 # if DEM has > this number of cells, use tempfile instead of memory
 MAX_CELLS = MAX_CELLS_PERMITED / 4

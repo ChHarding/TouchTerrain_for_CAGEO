@@ -182,6 +182,7 @@ def make_bottom_raster(image_file_name, shape):
 # tile_info["temp_file"] contains the file name to open and write into (creating a file object)
 # but if it's None, a buffer is made instead.
 # the tile info dict (with the file/buffer size) and the buffer (or the file's name) are returns as a tuple
+#@profile
 def process_tile(tile_tuple):
     tile_info = tile_tuple[0] # has info for this individual tile
     tile_elev_raster = tile_tuple[1] # the actual raster
@@ -209,7 +210,6 @@ def process_tile(tile_tuple):
     # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
 
-
     if tile_info.get("temp_file") != None:  # contains None or a file name.
         print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
         temp_fn = tile_info.get("temp_file")
@@ -222,11 +222,11 @@ def process_tile(tile_tuple):
         b = g.make_OBJfile_buffer(temp_file=temp_fn)
         # TODO: add a header for obj
     elif fileformat == "STLa":
-        b = g.make_STLfile_buffer(ascii=True, no_bottom=tile_info["no_bottom"],
-                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
+        ascii=True
+        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
     elif fileformat == "STLb":
-        b = g.make_STLfile_buffer(ascii=False, no_bottom=tile_info["no_bottom"],
-                                  no_normals=tile_info["no_normals"], temp_file=temp_fn)
+        ascii=False
+        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
     else:
         raise ValueError("invalid file format:", fileformat)
 
@@ -1516,23 +1516,27 @@ if __name__ == "__main__":
     '''
     args = {"DEM_name": 'USGS/GMTED2010',# DEM_name:    name of DEM source used in Google Earth Engine
                                    # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-            "trlat": 48.1,        # lat/lon of top right corner
-            "trlon": 16.2,
-            "bllat": 43.5,        # lat/lon of bottom left corner
-            "bllon": 5.1,
+            "trlat": 48,        # lat/lon of top right corner
+            "trlon": 16,
+            "bllat": 43,        # lat/lon of bottom left corner
+            "bllon": 11,
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-            "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+            "printres": 1,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
             "ntilesx": 1,      # number of tiles in x and y
             "ntilesy": 1,
-            "tilewidth": 100, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "basethick": 0, # thickness (in mm) of printed base
-            "zscale": 5,      # elevation (vertical) scaling
-            "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+            "tilewidth": 10, # width of each tile in mm (<- !!!!!), tile height is calculated
+            "basethick": 2, # thickness (in mm) of printed base
+            "zscale": 1,      # elevation (vertical) scaling
+            "fileformat": "STLa",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
+            "no_bottom": True,
+            "no_normals": True,
             } 
     fname = "test"
     r = get_zipped_tiles(**args)
+    #initial_args["max_cells_for_memory_only"] = 100
+    #r = get_zipped_tiles(**initial_args)
     
     zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
     with open(fname+".zip", "w+") as f:

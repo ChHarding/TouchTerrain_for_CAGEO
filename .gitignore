@@ -29,6 +29,7 @@ tmp/*
 test/*
 *.zip
 *.tif
+*.stl
 
 # default folder for stand alone
 terrain  

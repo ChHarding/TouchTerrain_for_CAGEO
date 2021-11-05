@@ -73,7 +73,7 @@ def get_normal(tri):
 class vertex(object):
     def __init__(self, x,y,z, vertex_idx_from_grid):
         self.coords = [x,y,z] # needs to be a list for zigzag magic to be able to change coords
-        self.vert_idx = vertex_idx_from_grid # list of indices kept by grid (class attribute)
+        self.vert_idx = vertex_idx_from_grid # list of indices kept by grid (class attribute self.vi)
 
         # for non obj file this is set to -1, and there's no need to deal with vertex indices
         if self.vert_idx != -1:
@@ -398,8 +398,7 @@ def profile_me(func):
 
 class grid(object):
     " makes cells from two numpy arrays (top, bottom) of the same shape. tile_info is a simple dict"
-    
-    #@profile_me
+    #@profile # https://pypi.org/project/memory-profiler/
     def __init__(self, top, bottom, tile_info):
         '''top: top elevation raster, must hang over by 1 row/column on each side (be already padded)
         bottom: None => bottom elevation is 0, otherwise a 8 bit raster that will be resized to top's size
@@ -441,17 +440,21 @@ class grid(object):
         cell_size = tile_info["pixel_mm"]
 
         have_nan = np.isnan(np.sum(top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-numpy
+        tile_info["have_nan"] = have_nan # save for later
         #print "have_nan", have_nan
 
-        # Jan 2019: no idea why but somtimes changing top also changes the elevation
+        # Jan 2019: no idea why but sometimes changing top also changes the elevation
         # array of another tile in the tile list
         # for now I make a copy of the incoming top (calling it ro_top)
         ro_top = top
         top = ro_top.copy() # writeable
 
         # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant
-        if not isinstance(bottom,np.ndarray):  
+        if not isinstance(bottom, np.ndarray):  
             bottom = 0
+            have_bottom_array = False
+        else:
+            have_bottom_array = True
 
         # Coordinates are in mm (for 3D printing on a buildplate)
         if tile_info["use_geo_coords"] == None:
@@ -488,16 +491,19 @@ class grid(object):
 
         # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the lower left corner of all tiles (global)
         if tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
-            offsetx = -tile_info["tile_width"]  * (tile_info["tile_no_x"]-1)  # tile_no starts with 1!
+            offsetx = -tile_info["tile_width"]  * (tile_info["tile_no_x"]-1)  # tile_no starts with 1! This is the top end of the tile, not 0!
             offsety = -tile_info["tile_height"] * (tile_info["tile_no_y"]-1)  + tile_info["tile_height"] * tile_info["ntilesy"]
+
         else: # local centered for printing
             offsetx = tile_info["tile_width"] / 2.0
             offsety = tile_info["tile_height"] / 2.0
+            # put extent of current into tile info dict (may later be needed for 2 bottom triangles)
+            
         #print offsetx, offsety
 
 
         # geo coords are in meters (UTM). Place the tiles so that the center is at 0/0, which is what Blender GIS needs.
-        # tile_centered is ignored got geo coords
+        # tile_centered is ignored for geo coords
         if tile_info["use_geo_coords"] != None:
 
             geo_transform = tile_info["geo_transform"]
@@ -524,15 +530,26 @@ class grid(object):
             else:  # "UTM"
 
                 offsetx = -tile_width_m  * (tile_info["tile_no_x"]-1)
-                offsety = - tile_height_m * (tile_info["tile_no_y"]-1)
+                offsety = -tile_height_m * (tile_info["tile_no_y"]-1)
 
                 offsetx = -geo_transform[0] + offsetx # UTM x of upper left corner
                 offsety =  geo_transform[3] + offsety # UTM y
 
+        
+        # put extent of current into tile info dict (may later be needed for 2 bottom triangles)
+        if tile_info["tile_centered"] == False:
+            tile_info["W"] = offsetx  
+            tile_info["E"] = offsetx + tile_info["tile_width"]
+            tile_info["S"] = offsety - tile_info["tile_height"]
+            tile_info["N"] = offsety  
+        else:
+            tile_info["W"] = -offsetx  
+            tile_info["E"] =  offsetx
+            tile_info["S"] = -offsety  
+            tile_info["N"] =  offsety
 
         # store cells in an array, init to None
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)
-
 
         # report progress in %
         percent = 10
@@ -559,7 +576,7 @@ class grid(object):
                 W = E + cell_size
                 N = -(j-1) * cell_size + offsety # y is flipped to negative
                 S = N - cell_size
-                #print i,j, " ", E,W, " ",  N,S, " ", top[j,i]
+                #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
 
 
                 ## Which directions will need to have a wall?
@@ -631,19 +648,25 @@ class grid(object):
                 topq = quad(NEt, SEt, SWt, NWt) # with this vertex order, a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
                 #print topq
 
-
+                #
                 # make bottom quad (x,y,z)
+                #
 
-                # if bottom array is not None, interpolate bottom from the given array
-                # (NaN should never occur here!)
-                if hasattr(bottom, "__len__"):#
+                # if we have NaN cells and bottom is a simple float use that to make a flat but "detailed"
+                # bottom as we can't do the super cheap 2 triangle bottom method
+                if have_nan and not have_bottom_array:
+                    NEelev = NWelev = SEelev = SWelev = bottom # uniform bottom elevation, no bottom array was given
+
+                # if we instead have a bottom array, interpolate bottom from it
+                # (Note: bottom arrays cannot have NaNs!)
+                if have_bottom_array:# array was given?
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
                     NWelev = (bottom[j+0,i+0] + bottom[j+0,i-1] + bottom[j-1,i-1] + bottom[j-1,i+0]) / 4.0
                     SEelev = (bottom[j+0,i+0] + bottom[j-0,i+1] + bottom[j+1,i+1] + bottom[j+1,i+0]) / 4.0
                     SWelev = (bottom[j+0,i+0] + bottom[j+1,i+0] + bottom[j+1,i-1] + bottom[j+0,i-1]) / 4.0
-                else:
-                    NEelev = NWelev = SEelev = SWelev = bottom # uniform bottom elevation, no bottom array was given
 
+                # from whatever bottom values we have now, make the bottom quad
+                # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
                 NEb = vertex(E, N, NWelev, self.vi)
                 NWb = vertex(W, N, NEelev, self.vi)
                 SEb = vertex(E, S, SWelev, self.vi)
@@ -651,15 +674,22 @@ class grid(object):
                 botq = quad(NEb, NWb, SWb, SEb)
                 #print botq
 
-                # in borders dict, replace any True with a quad of that wall
+
+                # Quads for walls: in borders dict, replace any True with a quad of that wall
                 if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)
                 if borders["S"] == True: borders["S"] = quad(SWb, SWt, SEt, SEb)
                 if borders["E"] == True: borders["E"] = quad(NWt, SWt, SWb, NWb)
                 if borders["W"] == True: borders["W"] = quad(SEt, NEt, NEb, SEb)
 
-                # make cell from both
-                c = cell(topq, botq, borders)
-                #print c
+                # Make cell
+                if tile_info["no_bottom"] == True:
+                    c = cell(topq, None, borders) # omit bottom - do not fill with 2 tris later (may have NaNs)
+                else:
+                    if have_nan: 
+                        c = cell(topq, botq, borders) # full cell: top quad, bottom quad and wall quads
+                    else:
+                        c = cell(topq, None, borders) # omit bottom, will fill with 2 tris later
+
 
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
@@ -670,7 +700,6 @@ class grid(object):
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
                 # are flagged as is_tri_cell = True, have only v0, v1 and v2. One border is deleted, the other
                 # is set as a diagonal wall
-                
                 if have_nan == True and tile_info["smooth_borders"] == True:
                     #print(i,j, c.borders)
                     if c.check_for_tri_cell():
@@ -686,6 +715,8 @@ class grid(object):
         #print vertex.vert_idx
 
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
+
+
 
 
     def create_zigzag_borders(self, num_cells_per_zig = 100, zig_dist_mm = 0.15, zig_undershoot_mm = 0.05):
@@ -923,7 +954,6 @@ class grid(object):
 
         return s.getvalue()
 
-
     def _build_binary_stl(self, tris, no_normals=False, temp_file=None):
         '''args:
          list of triangles, each a list of 3 verts
@@ -935,7 +965,6 @@ class grid(object):
         # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
         BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
         BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
-        #l = [struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris))] #  (I)
         s = io.BytesIO() # binary "string"
         s.write(struct.pack(BINARY_HEADER, b'Binary STL Writer', len(tris)))
 
@@ -980,8 +1009,9 @@ class grid(object):
             return temp_file
 
         return s.getbuffer()
+
     '''
-    # splits skinny triangles
+    # version that splits skinny triangles - didn't turn out to be a problem ....
     def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
             if no_bottom is True, bottom triangles are omitted
@@ -1057,27 +1087,11 @@ class grid(object):
         return temp_file
     '''
 
-    def write_into_temp_file(self, temp_file, buf, ascii=True):
-        """ open temp_file (as ascii if True, else binary) and write buffer into it, close it
-        return temp_file if OK, exception object otherwise"""
 
-        # overwrite and open as ascii or binary
-        mode = "w+" if ascii == True else "wb+" # ternary operator, youso cool!
-
-        try:
-            fo = open(temp_file, mode)
-        except Exception as e:
-            print("Error opening:",temp_file, e, file=sys.stderr)
-            return e
-        else:
-            # assuming no other exception can occur here (?)
-            fo.write(buf)
-            fo.close()
-            return temp_file
-
-    def make_STLfile_buffer(self, ascii=False, no_bottom=False, temp_file=None, no_normals=False):
+    def make_STLfile_buffer(self, tile_info, ascii=False, temp_file=None):
         """"returns buffer of ASCII or binary STL file from a list of triangles, each triangle must have 9 floats (3 verts, each xyz)
-            if no_bottom is True, bottom triangles are omitted
+            if no_bottom is True, bottom triangles are omitted, otherwise 2 triangles are added
+            if no_bottom is False but has_nan is True, a "detailed" buttom is used
             if temp_file is not None, write STL into it (instead of a buffer) and return it
             if no_normals is True, all normals are 0,0,0, which makes this process subestantially faster
         """
@@ -1093,8 +1107,11 @@ class grid(object):
         # Normal for each facet is set to 0,0,0
 
         triangles = [] # list of triangles
+        no_bottom = tile_info["no_bottom"]
+        no_normals = tile_info["no_normals"]
+        have_nan = tile_info["have_nan"]
 
-        # number of cells in x and y     grid is cells[y,x]
+        # number of cells in x and y    grid is cells[y,x]
         ncells_x = self.cells.shape[1]
         ncells_y = self.cells.shape[0]
 
@@ -1103,27 +1120,44 @@ class grid(object):
           for iy in range(0, ncells_y):
             cell = self.cells[iy,ix] # get cell from 2D array of cells (grid)
         
-            if cell != None:
+            if cell != None: # None means raster value was NaN at that location
+
                 # list of quads for this cell,
-                if no_bottom == False:
+                if no_bottom == False and have_nan == True: # only need a bottom if we don't have
                     quads = [cell.topquad, cell.bottomquad]
                 else:
                     quads = [cell.topquad] # no bottom quads, only top
 
-                # add border quads if we have any
+                # add border quads if we have any (False means no border quad) 
                 for k in list(cell.borders.keys()): 
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                     # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
                 
-                for q in quads:
+                for q in quads: 
                     t0,t1 = q.get_triangles()
                     triangles.append(t0)
                     if t1  != None: # for a tri quadcell t1 is None
                         triangles.append(t1)
+        
+        # if we don't have NaNs and want a bottom, add 2 triangles based on the corners of the tile
+        if no_bottom == False and tile_info["have_nan"] == False:
+            v0 = vertex(tile_info["W"], tile_info["S"], 0, self.vi)
+            v1 = vertex(tile_info["E"], tile_info["S"], 0, self.vi)
+            v2 = vertex(tile_info["E"], tile_info["N"], 0, self.vi)
+            v3 = vertex(tile_info["W"], tile_info["N"], 0, self.vi)
+
+            for v in (v0, v1, v2, v3):
+                print(v)
                 
+            t0 = (v0, v2, v1)
+            triangles.append(t0)
+            
+            t1 = (v0, v3, v1)
+            triangles.append(t1)
 
-        #for t in triangles: print t
+        #for t in triangles: print t # debug
 
+        # Write triangles into file
         if ascii:
             buf = self._build_ascii_stl(triangles, no_normals, temp_file)
         else:
@@ -1159,13 +1193,12 @@ class grid(object):
 
 
 
-    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None, no_normals=False):
+    def make_OBJfile_buffer(self, no_bottom=False, temp_file=None, no_normals=True):
         """returns buffer of OBJ file, creates a list of triangles and a list of indexed x,y,z vertices
         if no_bottom is True, bottom triangles are omitted
         if temp_file is not None, open it and write OBJ into it (instead of a buffer) and close it,
         return temp_file or exception
-        no_normals is not used for now
-
+        no_normals is not used for now, no normal information is generated
 
         mtllib dontcare.mtl
         g vert
@@ -1178,7 +1211,6 @@ class grid(object):
         f 1 2 3
         f 3 4 1
         """
-
         assert self.vi != -1, "make_OBJfile_buffer: need grid with vertex indices!"
 
         # make a stream s, either on disk or memory and append to it via write()
@@ -1236,7 +1268,11 @@ class grid(object):
             return temp_file  
 
 # MAIN  (left this in so I can test stuff ...)
-if __name__ == "__main__":
+
+
+
+#@profile # https://pypi.org/project/memory-profiler/
+def main():
     nn = np.nan
     """
     top = np.array([[11,12,13,14],
@@ -1278,7 +1314,7 @@ if __name__ == "__main__":
                         [nn, 10, 23, 10, nn, 10, nn],   
                         [nn, nn, 11,  6, nn, nn, nn],                     
                      ])
-    """
+    
     top =  np.array([
                     [10, 10, 10, 10, 10, 10, 10],
                     [10, 10, 10, 10, 10, 10, 10],
@@ -1288,7 +1324,7 @@ if __name__ == "__main__":
                     [10, 10, 10, 10, 10, 10, 10],  
                     [10, 10, 10, 10, 10, 10, 10],                    
                     ])
-    '''
+    
     top =  np.array([ [nn, nn, 11],
                       [11, nn, nn],
                       [11, 11, nn],
@@ -1302,11 +1338,15 @@ if __name__ == "__main__":
                          [ 1, 50, 10, 10, 20, 10 , 1 ],
 
                    ])
-    
-    top =  np.array([ [1,2, 3],
-                      [3, 4, 5],
+    top = np.array([ [1]])
+    """
+
+    top =  np.array([ [1, 2],
+                      [3, 4],
                  ])
-    '''
+    
+ 
+    #top = np.ones( (100, 100) , dtype=np.int64)
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
@@ -1333,18 +1373,19 @@ if __name__ == "__main__":
         "pixel_mm" : 1, # lateral (x/y) size of a pixel in mm
         "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
         "min_elev" : np.nanmin(top),
-        "z_scale" :  2,     # z (vertical) scale (elevation exageration) factor, float
-        "tile_no_x": 1, # tile number in x, int, starting with 1, at upper left corner
+        "z_scale" :  5,     # z (vertical) scale (elevation exageration) factor, float
+        "tile_no_x": 1, # current tile number in x, int, starting with 1, at upper left corner
         "tile_no_y": 1,
         "ntilesx": 1,
         "ntilesy": 1,
         "tile_centered" : False, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-        #"fileformat": "stlb",  # folder/zip file name for all tiles
-        "fileformat": "obj",
-        "base_thickness_mm": 1, # thickness between bottom and lowest elevation, NOT including the bottom relief.
+        "fileformat": "stlb",  # folder/zip file name for all tiles
+        #"fileformat": "obj",
+        "base_thickness_mm": 10, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
         "use_geo_coords": None,
-        
+        "no_bottom": False,
+        "no_normals": True,
     }
 
     whratio = top.shape[0] / float(top.shape[1])
@@ -1357,13 +1398,13 @@ if __name__ == "__main__":
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
     #b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
+    b = g.make_STLfile_buffer(tile_info_dict, ascii=True, temp_file="STLtest_a.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
-    b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
+    #b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
     print("done")
 
 
+if __name__ == "__main__":
+    main()
 
-else:
-    #print "imported", __file__
-    pass
