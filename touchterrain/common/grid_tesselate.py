@@ -44,8 +44,6 @@ logger.setLevel(logging.INFO)
 
 
 
-# TODO: this is still pretty slow (takes as long as the first processing step!), 
-# maybe have a nonormals setting which uses 0,0,0 ?
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package
 
 # function to calculate the normal for a triangle
@@ -455,6 +453,7 @@ class grid(object):
             have_bottom_array = False
         else:
             have_bottom_array = True
+        tile_info["have_bottom_array"] = have_bottom_array
 
         # Coordinates are in mm (for 3D printing on a buildplate)
         if tile_info["use_geo_coords"] == None:
@@ -649,17 +648,14 @@ class grid(object):
                 #print topq
 
                 #
-                # make bottom quad (x,y,z)
+                # make bottom quad  
                 #
 
-                # if we have NaN cells and bottom is a simple float use that to make a flat but "detailed"
-                # bottom as we can't do the super cheap 2 triangle bottom method
-                if have_nan and not have_bottom_array:
+                # Either use constant (even for non-Nan b/c we need this for the walls!)
+                # of use array instead
+                if not have_bottom_array:
                     NEelev = NWelev = SEelev = SWelev = bottom # uniform bottom elevation, no bottom array was given
-
-                # if we instead have a bottom array, interpolate bottom from it
-                # (Note: bottom arrays cannot have NaNs!)
-                if have_bottom_array:# array was given?
+                else:
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
                     NWelev = (bottom[j+0,i+0] + bottom[j+0,i-1] + bottom[j-1,i-1] + bottom[j-1,i+0]) / 4.0
                     SEelev = (bottom[j+0,i+0] + bottom[j-0,i+1] + bottom[j+1,i+1] + bottom[j+1,i+0]) / 4.0
@@ -685,7 +681,7 @@ class grid(object):
                 if tile_info["no_bottom"] == True:
                     c = cell(topq, None, borders) # omit bottom - do not fill with 2 tris later (may have NaNs)
                 else:
-                    if have_nan: 
+                    if have_nan or have_bottom_array: 
                         c = cell(topq, botq, borders) # full cell: top quad, bottom quad and wall quads
                     else:
                         c = cell(topq, None, borders) # omit bottom, will fill with 2 tris later
@@ -1110,6 +1106,7 @@ class grid(object):
         no_bottom = tile_info["no_bottom"]
         no_normals = tile_info["no_normals"]
         have_nan = tile_info["have_nan"]
+        have_bottom_array = tile_info["have_bottom_array"]  
 
         # number of cells in x and y    grid is cells[y,x]
         ncells_x = self.cells.shape[1]
@@ -1123,11 +1120,11 @@ class grid(object):
             if cell != None: # None means raster value was NaN at that location
 
                 # list of quads for this cell,
-                if no_bottom == False and have_nan == True: # only need a bottom if we don't have
+                if no_bottom == False and (have_nan or have_bottom_array): #  
                     quads = [cell.topquad, cell.bottomquad]
                 else:
-                    quads = [cell.topquad] # no bottom quads, only top
-
+                    quads = [cell.topquad ] # no bottom quads, only top
+ 
                 # add border quads if we have any (False means no border quad) 
                 for k in list(cell.borders.keys()): 
                     if cell.borders[k] != False: quads.append(cell.borders[k])
@@ -1146,15 +1143,14 @@ class grid(object):
             v2 = vertex(tile_info["E"], tile_info["N"], 0, self.vi)
             v3 = vertex(tile_info["W"], tile_info["N"], 0, self.vi)
 
-            for v in (v0, v1, v2, v3):
-                print(v)
+            #for v in (v0, v1, v2, v3): print(v)
                 
             t0 = (v0, v2, v1)
             triangles.append(t0)
             
-            t1 = (v0, v3, v1)
+            t1 = (v0, v3, v2)
             triangles.append(t1)
-
+        
         #for t in triangles: print t # debug
 
         # Write triangles into file
@@ -1341,12 +1337,12 @@ def main():
     top = np.array([ [1]])
     """
 
-    top =  np.array([ [1, 2],
-                      [3, 4],
+    top =  np.array([ [2, 3],
+                      [3, 2],
                  ])
     
  
-    #top = np.ones( (100, 100) , dtype=np.int64)
+    top = np.ones( (200, 200) , dtype=np.int64)
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
@@ -1384,7 +1380,7 @@ def main():
         "base_thickness_mm": 10, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
         "use_geo_coords": None,
-        "no_bottom": False,
+        "no_bottom": True,
         "no_normals": True,
     }
 
@@ -1398,7 +1394,7 @@ def main():
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
     #b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
-    b = g.make_STLfile_buffer(tile_info_dict, ascii=True, temp_file="STLtest_a.stl")
+    b = g.make_STLfile_buffer(tile_info_dict, ascii=False, temp_file="STLtest_b200.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
