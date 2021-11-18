@@ -33,9 +33,15 @@ from zipfile import ZipFile
 
 import http.client
 
+# debug: force use of local modules
+#import sys
+#oldsp = sys.path
+#sys.path = ["."] + sys.path
+
 import touchterrain.common
 from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
+#sys.path = oldsp
 
 import numpy
 from PIL import Image
@@ -60,7 +66,7 @@ logger.setLevel(logging.INFO)
 # CH test Aug 18: do EE init here only  
 # this seems to prevent the file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
 # crap from happening. It assumes that any "main" file imports TouchTerrainEarthEngine anyway.
-# But, as this could als be run in a standalone scenario where EE should not be involved,
+# But, as this could also be run in a standalone scenario where EE should not be involved,
 # the failed to EE init messages are just warnings 
 try:
     import ee
@@ -448,7 +454,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive)
     - poly_file: local KML file to use as mask
     - map_image_filename: image with a map of the area
-    - smooth_borders: should borders be optimized (smoothed) by removing triangles
+    - smooth_borders: should borders be optimized (smoothed) by removing triangles?
     
     returns the total size of the zip file in Mb
 
@@ -497,6 +503,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # horizontal size of "cells" on the 3D printed model (realistically: the diameter of the nozzle)
     print3D_resolution_mm = printres
+
+
+    # Nov 19, 2021: As multi processing is still broken, I'm setting CPU to 1 for now ...
+    CPU_cores_to_use = 1
 
     #
     # get polygon data, either from GeoJSON or from kml URL or file
@@ -1522,18 +1532,19 @@ if __name__ == "__main__":
             "bllon": 11,
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
             "printres": 1,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-            "ntilesx": 1,      # number of tiles in x and y
-            "ntilesy": 1,
+            "ntilesx": 2,      # number of tiles in x and y
+            "ntilesy": 2,
             "tilewidth": 10, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "basethick": 2, # thickness (in mm) of printed base
-            "zscale": 1,      # elevation (vertical) scaling
+            "basethick": 0.5, # thickness (in mm) of printed base
+            "zscale": 10,      # elevation (vertical) scaling
             "fileformat": "STLa",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
-            "no_bottom": True,
+            "no_bottom": False,
             "no_normals": True,
+            "CPU_cores_to_use": 1,
             } 
-    fname = "test"
+    fname = "test2"
     r = get_zipped_tiles(**args)
     #initial_args["max_cells_for_memory_only"] = 100
     #r = get_zipped_tiles(**initial_args)
