@@ -542,6 +542,9 @@ def export():
             return "bailing out!"
 
         args["CPU_cores_to_use"] = NUM_CORES
+        if extra_args.get("CPU_cores_to_use") != None: # Override if given as manual option
+            args["CPU_cores_to_use"] = extra_args.get("CPU_cores_to_use")
+
 
         # check if we have a valid temp folder
         args["temp_folder"] = TMP_FOLDER
