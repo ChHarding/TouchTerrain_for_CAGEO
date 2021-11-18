@@ -537,15 +537,17 @@ class grid(object):
         
         # put extent of current into tile info dict (may later be needed for 2 bottom triangles)
         if tile_info["tile_centered"] == False:
-            tile_info["W"] = offsetx  
-            tile_info["E"] = offsetx + tile_info["tile_width"]
-            tile_info["S"] = offsety - tile_info["tile_height"]
-            tile_info["N"] = offsety  
+            tile_info["W"] = tile_info["tile_width"]  * (tile_info["tile_no_x"]-1)  
+            tile_info["E"] = tile_info["W"] + tile_info["tile_width"]
+            tot_height = tile_info["tile_height"] * tile_info["ntilesy"]
+            # y tiles index goes top(0) DOWN to bottom
+            tile_info["N"] = tot_height - (tile_info["tile_height"] * (tile_info["tile_no_y"]-1))
+            tile_info["S"] = tile_info["N"] - tile_info["tile_height"]
         else:
-            tile_info["W"] = -offsetx  
-            tile_info["E"] =  offsetx
-            tile_info["S"] = -offsety  
-            tile_info["N"] =  offsety
+            tile_info["W"] = -tile_info["tile_width"] / 2
+            tile_info["E"] =  tile_info["tile_width"] / 2
+            tile_info["S"] = -tile_info["tile_height"] / 2
+            tile_info["N"] =  tile_info["tile_height"] / 2
 
         # store cells in an array, init to None
         self.cells = np.empty([ymaxidx, xmaxidx], dtype=cell)
@@ -572,7 +574,7 @@ class grid(object):
 
                 # x/y coords of cell "walls", origin is upper left
                 E = (i-1) * cell_size - offsetx # index -1 as it's ref'ing to top, not ptop
-                W = E + cell_size
+                W = E + cell_size  # Ch NOv 2021: I think E and W are flipped (?) but I must correct for that later somewhere (?)
                 N = -(j-1) * cell_size + offsety # y is flipped to negative
                 S = N - cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
@@ -1143,7 +1145,7 @@ class grid(object):
             v2 = vertex(tile_info["E"], tile_info["N"], 0, self.vi)
             v3 = vertex(tile_info["W"], tile_info["N"], 0, self.vi)
 
-            #for v in (v0, v1, v2, v3): print(v)
+            for v in (v0, v1, v2, v3): print(v)
                 
             t0 = (v0, v2, v1)
             triangles.append(t0)
@@ -1342,7 +1344,7 @@ def main():
                  ])
     
  
-    top = np.ones( (200, 200) , dtype=np.int64)
+    #top = np.ones( (200, 200) , dtype=np.int64)
 
     #bottom = np.zeros((4, 3)) # num along x, num along y
     top = top.astype(float)
@@ -1365,7 +1367,8 @@ def main():
 
 
     tile_info_dict = {
-        "scale"  : 10000, # horizontal scale number, defines the size of the model (= 3D map): 1000 => 1m (real) = 1000m in model
+        #"scale"  : 10000, # horizontal scale number, defines the size of the model (= 3D map): 1000 => 1m (real) = 1000m in model
+        "scale"  : 1, 
         "pixel_mm" : 1, # lateral (x/y) size of a pixel in mm
         "max_elev" : np.nanmax(top), # tilewide minimum/maximum elevation (in meter), either int or float, depending on raster
         "min_elev" : np.nanmin(top),
@@ -1380,8 +1383,9 @@ def main():
         "base_thickness_mm": 10, # thickness between bottom and lowest elevation, NOT including the bottom relief.
         "tile_width": 100,
         "use_geo_coords": None,
-        "no_bottom": True,
+        "no_bottom": False,
         "no_normals": True,
+        "CPU_cores_to_use" : 1,
     }
 
     whratio = top.shape[0] / float(top.shape[1])
@@ -1394,7 +1398,7 @@ def main():
 
     #b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
     #b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
-    b = g.make_STLfile_buffer(tile_info_dict, ascii=False, temp_file="STLtest_b200.stl")
+    b = g.make_STLfile_buffer(tile_info_dict, ascii=False, temp_file="STLtest.stl")
     #f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     #b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
