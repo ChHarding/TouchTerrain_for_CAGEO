@@ -1145,7 +1145,7 @@ class grid(object):
             v2 = vertex(tile_info["E"], tile_info["N"], 0, self.vi)
             v3 = vertex(tile_info["W"], tile_info["N"], 0, self.vi)
 
-            for v in (v0, v1, v2, v3): print(v)
+            #for v in (v0, v1, v2, v3): print(v)
                 
             t0 = (v0, v2, v1)
             triangles.append(t0)
