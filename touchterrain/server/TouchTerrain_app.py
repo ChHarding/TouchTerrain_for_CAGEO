@@ -93,7 +93,7 @@ def main_page():
 
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
-        'DEM_name': 'USGS/NED',
+        'DEM_name': 'USGS/3DEP/10m',
 
         # defines map location
         'map_lat': "44.59982",
@@ -512,7 +512,7 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/NED":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+            cell_width_arcsecs = {"USGS/3DEP/10m":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
                                   "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75, 
                                   "AU/GA/AUSTRALIA_5M_DEM": 1/18.0} # in arcseconds!

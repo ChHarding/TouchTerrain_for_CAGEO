@@ -59,7 +59,7 @@ def main():
     # args for get_zipped_tiles() and save them inside a zipped folder.
     # Print each tile on a 3D printer (they are already scaled!)
     args = {
-        "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+        "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
                             # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
         "trlat": 44.69741706507476,        # lat/lon of top right corner
         "trlon": -107.97962089843747,
@@ -133,7 +133,7 @@ def main():
         # no JSON config file given, setting config values in code
         # you can comment out lines for which you don't want to overwrite the default settings
         overwrite_args = {
-            "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+            "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
                                    # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
             "trlat": 44.69741706507476,        # lat/lon of top right corner
             "trlon": -107.97962089843747,
@@ -170,7 +170,7 @@ def main():
     '''
     args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/NED",   # DEM source
+                "DEM_name": "USGS/3DEP/10m",   # DEM source
                 # area for gpx test
                 "bllat": 39.32205105794382,   # bottom left corner lat
                 "bllon": -120.37497608519418, # bottom left corner long

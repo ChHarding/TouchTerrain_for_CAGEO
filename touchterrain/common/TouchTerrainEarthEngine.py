@@ -89,7 +89,7 @@ def pr(*arglist):
 use_zigzag_magic = False
 
 #  List of DEM sources  Earth engine offers and their nominal resolutions (only used for guessing the size of a geotiff ...)
-DEM_sources = ["USGS/NED", 
+DEM_sources = ["USGS/3DEP/10m", 
                "USGS/GMTED2010", 
                "NOAA/NGDC/ETOPO1", 
                "USGS/SRTMGL1_003",
@@ -105,7 +105,7 @@ DEM_sources = ["USGS/NED",
 # Define default parameters
 # Print settings that can be used to initialize the actual args
 initial_args = {
-    "DEM_name": 'USGS/NED',# DEM_name:    name of DEM source used in Google Earth Engine
+    "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
     "bllat": 39.32205105794382,   # bottom left corner lat
     "bllon": -120.37497608519418, # bottom left corner long
     "trlat": 39.45763749030933,   # top right corner lat
@@ -666,7 +666,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             utm_zone_str = "unprojected"
 
         # Although pretty good, this is still an approximation and the cell resolution to be
-        # requested is therefore also not quite exact, so we need to adjust after the EE raster is downloaded,
+        # requested is therefore also not quite exact, so we need to adjust it after the EE raster is downloaded
         (latitude_in_m, longitude_in_m) = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
         region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
         pr("lon/lat size in degrees:",region_size_in_degrees)
@@ -803,6 +803,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # read the zipped folder into memory
         buf = web_sock.read()
+        web_sock.close()
         GEEZippedGeotiff = io.BytesIO(buf)
         GEEZippedGeotiff.flush() # not sure if this is needed ...
         #print GEEZippedGeotiff
@@ -1502,7 +1503,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 if __name__ == "__main__":
 
     # Grand Canyon: -109.947664, 37.173425  -> -109.905481, 37.151472
-    #r = get_zipped_tiles("USGS/NED", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=1, ntilesy=1,printres=1.0,
+    #r = get_zipped_tiles("USGS/3DEP/10m", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=1, ntilesy=1,printres=1.0,
     #                     tilewidth=120, basethick=2, zscale=1.0)
 
 
@@ -1524,35 +1525,41 @@ if __name__ == "__main__":
                          max_cells_for_memory_only=0,
                          zip_file_name="const100")
     '''
-    args = {"DEM_name": 'USGS/GMTED2010',# DEM_name:    name of DEM source used in Google Earth Engine
-                                   # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-            "trlat": 48,        # lat/lon of top right corner
-            "trlon": 16,
-            "bllat": 43,        # lat/lon of bottom left corner
-            "bllon": 11,
+    ovrw_args = {"DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
+            "trlat": 44.67336694786201,        # lat/lon of top right corner
+            "trlon": -108.01895043655932,
+            "bllat": 44.53403790429051,        # lat/lon of bottom left corner
+            "bllon": -108.21391959517898,
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-            "printres": 1,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-            "ntilesx": 2,      # number of tiles in x and y
-            "ntilesy": 2,
-            "tilewidth": 10, # width of each tile in mm (<- !!!!!), tile height is calculated
+            "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+            "ntilesx": 1,      # number of tiles in x and y
+            "ntilesy": 1,
+            "tilewidth": 100, # width of each tile in mm (<- !!!!!), tile height is calculated
             "basethick": 0.5, # thickness (in mm) of printed base
-            "zscale": 10,      # elevation (vertical) scaling
-            "fileformat": "STLa",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+            "zscale": 1,      # elevation (vertical) scaling
+            "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
+            "zip_file_name": "test100_0.4_1_1",
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             "no_bottom": False,
             "no_normals": True,
             "CPU_cores_to_use": 1,
             } 
-    fname = "test2"
+    # merge args
+    args = {**initial_args, **ovrw_args}
+
+    # make tiles
     r = get_zipped_tiles(**args)
-    #initial_args["max_cells_for_memory_only"] = 100
-    #r = get_zipped_tiles(**initial_args)
-    
-    zip_string = r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
-    with open(fname+".zip", "w+") as f:
-        f.write(zip_string)
-    print("done")
+
+    # unzip files into folder and delete zip file
+    from os import sep, remove
+    full_zip_file_name = "." + sep + r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
+    print("Unzipping", full_zip_file_name)
+    import zipfile
+    zip_ref = zipfile.ZipFile(full_zip_file_name, 'r')
+    zip_ref.extractall(args["zip_file_name"])
+    zip_ref.close()
+    remove(full_zip_file_name)
 
 
 

@@ -1,6 +1,6 @@
 {
 "CPU_cores_to_use": 0,
-"DEM_name": "USGS/NED",
+"DEM_name": "USGS/3DEP/10m",
 "basethick": 1,
 "bllat": 44.50185267072875,
 "bllon": -108.25427910156247,

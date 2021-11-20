@@ -13341,7 +13341,7 @@ _print(123)</code></pre>
 <h3 id="Select-the-name-of-the-DEM-source">Select the name of the DEM source<a class="anchor-link" href="#Select-the-name-of-the-DEM-source">&#182;</a></h3><ul>
 <li>Before you can select the actual print area you need to select which online DEM source will be used. The setting is called <code>DEM_name</code>.</li>
 <li>There are several options but for starters you only need to decide among two options:<ul>
-<li>If your area is in the lower 48 US states, use <code>USGS/NED</code></li>
+<li>If your area is in the lower 48 US states, use <code>USGS/3DEP/10m</code></li>
 <li>Anywhere else on the globe use: <code>JAXA/ALOS/AW3D30/V2_2</code></li>
 </ul>
 </li>
@@ -13357,7 +13357,7 @@ _print(123)</code></pre>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Comment out one of the following two lines</span>
-<span class="n">args</span><span class="p">[</span><span class="s2">&quot;DEM_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;USGS/NED&quot;</span>  <span class="c1"># area within the lower 48 (US)</span>
+<span class="n">args</span><span class="p">[</span><span class="s2">&quot;DEM_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;USGS/3DEP/10m&quot;</span>  <span class="c1"># area within the lower 48 (US)</span>
 <span class="c1">#args[&quot;DEM_name&quot;] = &quot;JAXA/ALOS/AW3D30/V2_2&quot;  # area is outside the US (worldwide)</span>
 </pre></div>
 
