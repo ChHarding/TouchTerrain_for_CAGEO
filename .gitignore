@@ -41,10 +41,15 @@ terrain
 # white listings
 !.gitignore
 !README.md
+!NEWS.md
 !test/test_TouchTerrain_standalone.py
-!stuff/TouchTerrain_bottom_example.png
-!stuff/example_config.json
+!test/bottom_image_test.png
+!test/sheepMtn_outline.kml
+!test/SheepMtn.tif
 !touchterrain/server/Run_TouchTerrain_debug_server_app.py
+!touchterrain/server/downloads/.gitkeep
+!touchterrain/server/previews/.gitkeep
+!touchterrain/server/tmp/.gitkeep
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
