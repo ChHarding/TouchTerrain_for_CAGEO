@@ -42,11 +42,13 @@ terrain
 !.gitignore
 !README.md
 !NEWS.md
+
 !test/test_TouchTerrain_standalone.py
 !test/bottom_image_test.png
 !test/sheepMtn_outline.kml
 !test/SheepMtn.tif
-!touchterrain/server/Run_TouchTerrain_debug_server_app.py
+!test/TouchTerrain_test_matrix.csv
+
 !touchterrain/server/downloads/.gitkeep
 !touchterrain/server/previews/.gitkeep
 !touchterrain/server/tmp/.gitkeep
