@@ -1,0 +1,18 @@
+test name,Online DEM,Source resolution,KML poly,use normals,multi tile,no bottom,bottom image,smooth borders,ignore leq,lower leq,GPX path,file format,
+basic_EE,y,n,n,n,n,n,n,n/a,n,n,n,STLb,
+basic_EE_OBJ,y,n,n,n,n,n,n,n/a,n,n,n,OBJ,WAI: OBJ cannot NOT have simple bottom as (some) STLs have!
+basic_EE_STLa,y,n,n,n,n,n,n,n/a,n,n,n,STLa,
+EE_gpx_path,y,n,n,n,n,n,n,n/a,n,n,y,STLb,
+EE_multi_tiles,y,n,n,n,y,n,n,n/a,n,n,n,STLb,
+EE_no_bottom,y,n,n,n,n,y,n,n/a,n,n,n,STLb,
+EE_with_normals,y,n,n,y,n,n,n,n/a,n,n,n,STLb,
+EE_with_kml_with_smoothing,y,n,y,n,n,n,n,y,n,n,n,STLb,
+EE_with_kml_multi_tiles,y,n,y,n,y,n,n,y,n,n,n,STLb,
+EE_with_kml_no_smoothing,y,n,y,n,n,n,n,no,n,n,n,STLb,
+EE_with_kml_no_bottom,y,n,y,n,n,y,n,y,n,n,n,STLb,
+EE_bottom_image,y,n,n,n,n,n,y,n/a,n,n,n,STLb,
+EE_bottom_image_masked,y,n,y,n,n,n,y,n/a,n,n,n,STLb,WAI: ignores bottom image!
+local_resampled,n,n,n,n,n,n,n,n/a,n,n,n,STLb,
+local_source_resolution,n,y,n,n,n,n,n,n/a,n,n,n,STLb,
+local_with_kml,n,n,y,n,n,n,n,n/a,n,n,n,STLb,WAI: ignores kml!
+local_bottom_image,n,n,n,n,n,n,y,n/a,n,n,n,STLb,

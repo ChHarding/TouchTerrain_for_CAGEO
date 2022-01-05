@@ -2,7 +2,7 @@ from setuptools import find_namespace_packages, setup
  
 setup(
     name='touchterrain',
-    version='3.5',
+    version='3.5.1',
     description='Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)',
 	url='https://github.com/ChHarding/TouchTerrain_for_CAGEO',
 	license='GPL',

@@ -1,3 +1,7 @@
+Jan. 5, 2022 (version 3.5.1)
+	- simplified bottom with only 2 triangles (many exceptions!) to further lower the size of large models
+	- added more unit tests (test matrix included)
+
 Oct. 24, 2021 (version 3.5)
 	- rewrote how large STL/OBJ files are created, they are now written during the process to disk 
 	  rather first into memory which turned out to be too much for our 4 Gb server which would
@@ -12,7 +16,7 @@ Jul. 16, 2021 (version 3.4)
 Apr. 29, 2021 (version 3.3)
 	- added auto z-scale to scale up to a given height
 	- default width is 100 mm
-	- added help bubbles. including tips for CNC users
+	- added help bubbles including tips for CNC users
 	- added re-center box after each search
     - kmz files can now be used for polygon (thanks Nick Booher!)
 

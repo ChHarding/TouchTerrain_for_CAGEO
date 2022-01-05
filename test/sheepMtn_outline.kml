@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.opengis.net/kml/2.2 http://schemas.opengis.net/kml/2.2.0/ogckml22.xsd http://www.google.com/kml/ext/2.2 http://code.google.com/apis/kml/schema/kml22gx.xsd">
+<Document id="kmlblob">
+  <name>kmlblob</name>
+  <snippet></snippet>
+  <description><![CDATA[kmlblob]]></description>
+  <Folder id="FeatureLayer0">
+    <name>kmlblob</name>
+    <snippet></snippet>
+    <description><![CDATA[kmlblob]]></description>
+    <Placemark id="ID_00000">
+      <name>62553.142231211357</name>
+      <snippet></snippet>
+      <description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+<head>
+<META http-equiv="Content-Type" content="text/html">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+<td>62553.1422312114</td>
+</tr>
+<tr>
+<td>
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+<tr>
+<td>SHAPE</td>
+<td>Polygon</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body><script type="text/javascript">
+				function changeImage(attElement, nameElement) {
+				document.getElementById('imageAttachment').src = attElement;
+				document.getElementById('imageName').innerHTML = nameElement;}
+			</script></html>
+]]></description>
+      <styleUrl>#PolyStyle00</styleUrl>
+      <MultiGeometry>
+        <Polygon>
+          <extrude>0</extrude><altitudeMode>clampToGround</altitudeMode>
+          <outerBoundaryIs><LinearRing><coordinates> -108.1827744933207,44.65662148189931,0 -108.2039249026804,44.67024423859502,0 -108.2157502621985,44.66764967483944,0 -108.212259265274,44.65746041412829,0 -108.2067554411401,44.64095918656371,0 -108.1927993154973,44.61941662460764,0 -108.1800225808045,44.60346438300284,0 -108.1576141536529,44.57868774652571,0 -108.1155492118657,44.55221967725536,0 -108.0797743554446,44.53933139194753,0 -108.0375128479002,44.53680943693564,0 -108.0268983302485,44.5473168615507,0 -108.0286674166735,44.56202407032252,0 -108.0489136267841,44.57980782268248,0 -108.0752533565035,44.59828595990303,0 -108.1015930871212,44.61437954842058,0 -108.1430683334334,44.63494486021402,0 -108.1827744933207,44.65662148189931,0</coordinates></LinearRing></outerBoundaryIs>
+        </Polygon>
+      </MultiGeometry>
+    </Placemark>
+  </Folder>
+  <Style id="PolyStyle00">
+    <LabelStyle>
+      <color>00000000</color>
+      <scale>0.000000</scale>
+    </LabelStyle>
+    <LineStyle>
+      <color>ff6e6e6e</color>
+      <width>0.700000</width>
+    </LineStyle>
+    <PolyStyle>
+      <color>ffbdfcbd</color>
+      <outline>1</outline>
+    </PolyStyle>
+  </Style>
+</Document>
+</kml>

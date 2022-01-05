@@ -135,6 +135,7 @@ initial_args = {
     "smooth_borders": True, # smooth borders
     "offset_masks": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
     "fill_holes": None, # [rounds, threshold] hole filling filter iterations and threshold to fill a hole
+    "poly_file": None, # local kml file for mask
 }
 
 
@@ -448,9 +449,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles
                       not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)    
     - importedGPX: None or List of GPX file paths that are to be plotted on the model
-    - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the mdoel 
+    - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the model 
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
-    - gpxPathThickness: Stack paralell lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
+    - gpxPathThickness: Stack parallel lines on either side of primary line to create thickness. A setting of 1 probably looks the best 
     - polyURL: Url to a KML file (with a polygon) as a publically read-able cloud file (Google Drive)
     - poly_file: local KML file to use as mask
     - map_image_filename: image with a map of the area
@@ -950,6 +951,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # TODO: deal with clip polygon?   
 
     else:
+        
+        
 
         filename = os.path.basename(importedDEM)
         pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n")
@@ -999,6 +1002,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("lower_leq:", lower_leq)
         pr("importedGPX:", importedGPX)
         #pr("polyURL:", polyURL)
+
+        # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
+        if polygon != None or  polyURL != None or polyURL != '' or poly_file != None or poly_file != '':
+            pr("Warning: Given outline polygon will be ignored when using local raster file!") 
 
 
         #
@@ -1414,7 +1421,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #print "start of putting tiles into zip file")
         for p in processed_list:
                 tile_info = p[0] # per-tile info
-                tn = DEM_title+"_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
+                tn = DEM_title + "_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
                 buf= p[1] # either a string or a file object
 
                 if tile_info.get("temp_file") != None: # if buf is a file object
@@ -1460,7 +1467,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
 
-    # add png from Google Maps static 
+    # add png from Google Maps static (ISU server doesn't use that b/c it eats too much into our free google maps allowance ...)
     if map_img_filename != None:
         zip_file.write(map_img_filename, DEM_title + ".jpg")
         pr("added map of area as " + DEM_title + ".jpg")
@@ -1531,15 +1538,15 @@ if __name__ == "__main__":
             "bllat": 44.53403790429051,        # lat/lon of bottom left corner
             "bllon": -108.21391959517898,
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-            "printres": 0.4,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
+            "printres": 5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
             "ntilesx": 1,      # number of tiles in x and y
             "ntilesy": 1,
-            "tilewidth": 100, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "basethick": 0.5, # thickness (in mm) of printed base
-            "zscale": 1,      # elevation (vertical) scaling
-            "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
+            "tilewidth": 10, # width of each tile in mm (<- !!!!!), tile height is calculated
+            "basethick": 2, # thickness (in mm) of printed base
+            "zscale": 5,      # elevation (vertical) scaling
+            "fileformat": "STLa",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
             "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-            "zip_file_name": "test100_0.4_1_1",
+            "zip_file_name": "test_non_manif",
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             "no_bottom": False,
             "no_normals": True,

@@ -448,11 +448,16 @@ class grid(object):
         top = ro_top.copy() # writeable
 
         # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant
-        if not isinstance(bottom, np.ndarray):  
+        if isinstance(bottom, np.ndarray) == False:  
             bottom = 0
             have_bottom_array = False
-        else:
-            have_bottom_array = True
+        elif isinstance(bottom, np.ndarray) == True and have_nan == True:  # Can't use bottom array with NaN
+            have_bottom_array = False
+            bottom = 0
+            print("Top has NaN values, requested bottom array will be ignored!")
+        else: 
+            have_bottom_array = True # got bottom array and no NaNs on top
+
         tile_info["have_bottom_array"] = have_bottom_array
 
         # Coordinates are in mm (for 3D printing on a buildplate)
@@ -584,7 +589,6 @@ class grid(object):
                 # True means: we have an adjacent cell and need a wall in that direction
                 borders =   dict([[drct,False] for drct in ["N", "S", "E", "W"]]) # init                    
                 
-                
                 # set walls for fringe cells
                 if j == 1        : borders["N"] = True
                 if j == ymaxidx  : borders["S"] = True
@@ -653,15 +657,14 @@ class grid(object):
                 # make bottom quad  
                 #
 
-                # Either use constant (even for non-Nan b/c we need this for the walls!)
-                # of use array instead
-                if not have_bottom_array:
-                    NEelev = NWelev = SEelev = SWelev = bottom # uniform bottom elevation, no bottom array was given
-                else:
+                # for bottom array (which implies non-Nan) or NaN (implies no bottom array) get corner values
+                if have_bottom_array == True:
                     NEelev = (bottom[j+0,i+0] + bottom[j-1,i-0] + bottom[j-1,i+1] + bottom[j-0,i+1]) / 4.0
                     NWelev = (bottom[j+0,i+0] + bottom[j+0,i-1] + bottom[j-1,i-1] + bottom[j-1,i+0]) / 4.0
                     SEelev = (bottom[j+0,i+0] + bottom[j-0,i+1] + bottom[j+1,i+1] + bottom[j+1,i+0]) / 4.0
                     SWelev = (bottom[j+0,i+0] + bottom[j+1,i+0] + bottom[j+1,i-1] + bottom[j+0,i-1]) / 4.0
+                else:
+                    NEelev = NWelev = SEelev = SWelev = bottom # otherwise use uniform bottom elevation 
 
                 # from whatever bottom values we have now, make the bottom quad
                 # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
@@ -683,11 +686,11 @@ class grid(object):
                 if tile_info["no_bottom"] == True:
                     c = cell(topq, None, borders) # omit bottom - do not fill with 2 tris later (may have NaNs)
                 else:
-                    if have_nan or have_bottom_array: 
+                    if have_nan == True or have_bottom_array == True or tile_info["fileformat"] == "obj": 
+                    # Note: obj doesn't currently support simple bottoms
                         c = cell(topq, botq, borders) # full cell: top quad, bottom quad and wall quads
                     else:
                         c = cell(topq, None, borders) # omit bottom, will fill with 2 tris later
-
 
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
@@ -696,8 +699,8 @@ class grid(object):
 
                 # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
-                # are flagged as is_tri_cell = True, have only v0, v1 and v2. One border is deleted, the other
-                # is set as a diagonal wall
+                # are flagged as is_tri_cell = True, and have only v0, v1 and v2. One border is deleted, the other
+                # is set as a diagonal wall.
                 if have_nan == True and tile_info["smooth_borders"] == True:
                     #print(i,j, c.borders)
                     if c.check_for_tri_cell():
@@ -1138,21 +1141,34 @@ class grid(object):
                     if t1  != None: # for a tri quadcell t1 is None
                         triangles.append(t1)
         
-        # if we don't have NaNs and want a bottom, add 2 triangles based on the corners of the tile
-        if no_bottom == False and tile_info["have_nan"] == False:
+        # Do we need to add a 2-triangle  bottom?
+        add_simple_bottom = True 
+        
+        # We don't have bottom tris but that's OK as we don't won't any (no_bottom option was set)
+        if no_bottom == True: add_simple_bottom = False # 
+        
+        # With a NaN (masked) top array we already have the corresponding full bottom
+        if tile_info["have_nan"] == True: add_simple_bottom = False 
+        
+        # with a bottom image, we also already have a full bottom
+        if tile_info["bottom_image"] != None: add_simple_bottom = False
+
+         # obj files currently don't support simple bottoms
+        if tile_info["fileformat"] == 'obj': add_simple_bottom = False
+
+        #  Add 2 triangles based on the corners of the tile
+        if add_simple_bottom:
             v0 = vertex(tile_info["W"], tile_info["S"], 0, self.vi)
             v1 = vertex(tile_info["E"], tile_info["S"], 0, self.vi)
             v2 = vertex(tile_info["E"], tile_info["N"], 0, self.vi)
             v3 = vertex(tile_info["W"], tile_info["N"], 0, self.vi)
-
             #for v in (v0, v1, v2, v3): print(v)
-                
-            t0 = (v0, v2, v1)
+ 
+            t0 = (v0, v2, v1) #A
             triangles.append(t0)
             
-            t1 = (v0, v3, v2)
-            triangles.append(t1)
-        
+            t1 = (v0, v3, v2) #A
+            triangles.append(t1)    
         #for t in triangles: print t # debug
 
         # Write triangles into file
@@ -1249,9 +1265,9 @@ class grid(object):
                 for k in list(cell.borders.keys()): # plus get border quads if we have any
                     if cell.borders[k] != False: quads.append(cell.borders[k])
                 for q in quads:
-                    t0,t1 = q.get_triangles_with_indexed_verts()
+                    t0i,t1i = q.get_triangles_with_indexed_verts()
 
-                    for f in (t0,t1): # output the 2 facets (triangles)
+                    for f in (t0i, t1i): # output the 2 facets (triangles)
                         if f == None: continue # for "tri quads" one tri is None
                         fstr = "f %d %d %d\n" % (f[0]+1, f[1]+1, f[2]+1) # OBJ indices start at 1!
                         #buf_as_list.append(fstr)
@@ -1265,9 +1281,9 @@ class grid(object):
             s.close()
             return temp_file  
 
+
+
 # MAIN  (left this in so I can test stuff ...)
-
-
 
 #@profile # https://pypi.org/project/memory-profiler/
 def main():
