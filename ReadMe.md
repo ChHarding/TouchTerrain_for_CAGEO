@@ -1,4 +1,4 @@
-# TouchTerrain (version 3.0)
+# TouchTerrain (version 3.x)
 
 TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as a standalone version and as a server version for a web application. To see the server version in action, go to [http://touchterrain.org](http://touchterrain.org)  or
 [http://touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu)
@@ -23,7 +23,7 @@ TouchTerrain reads DEM data of a geographical extent (a geotiff file downloaded 
 
 The server version offers a Google Map interface to select the area and a simple GUI to specify the processing parameters. An Earth Engine account is needed to run the server version. Some "expert" parameters are only exposed via a JSON style text field input (called manual). Once the request has been processed it is again downloaded as a zip file.
 
-TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: run 'pip install .' in the same folder as the setup.py file.
+TouchTerrain is only supported for Python 3.6 and higher. It provides a `setup.py` file that will build and install a module called `touchterrain` and also install all prerequisites. We recommend using pip for the installation: run 'pip install .' in the same folder as the setup.py file.
 
 __Unclear if the dev license is still needed__
  If you want to process DEM data curated by Earth Engine you will need to request a (free) [Developer's license from Google](https://signup.earthengine.google.com/#!/)) and/or a [service account](https://developers.google.com/earth-engine/service_account). EarthEngine is primarily meant for cloud operations  via Javascript but has a Python API for non-visual functionality, such as requesting geotiffs, which touchterrain uses.
@@ -168,18 +168,17 @@ Set printres to -1 to prevent downsampling and instead use the file's intrinsic 
 
 * `no_bottom`: default: false. Will omit any bottom triangles i.e. only stores the top surface and
 the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid
-printed bottom (tested in Cura >3.6)
+printed bottom (tested in Cura >3.6). Note that starting with 3.5 for simple cases, the bottom mesh have been set to just two triangles, so the no_bottom setting is really only useful for cases involving polygon outlines (e.g. from a kml file).
 
 * `no_normals`: default: true. Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate a normal for each triangle (via cross product) anyway. However, if you require properly calculated normals to be stored in the STL file, set this to false. (Contributed by idenc)
 
-* `ignore_leq`: default: null. Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sealevel, on some DEMs you may have to experiment with slightly larger values (e.g. 0.5)
+* `ignore_leq`: default: null. Using an elevation (e.g. 0.0) will ignore any cells less or equal to that elevation. Good for omitting offshore cells and print only onshore terrain. Note that 0 may not be exactly sea level, on some DEMs you may have to experiment with slightly larger values (e.g. try 0.5 for a sharper coastline)
 
 * `lower_leq`: default: null. An alternative to ignore_leq. Given a list in the format [threshold, offset], all cells less than or equal to threshold will be lowered by the offset. This helps with giving emphasis to coastlines. The offset is in mm with respect to the final mesh size. Unaffected by zscale.
 
 * `unprojected`: default: false. (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polar-stereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
-* `bottom_image`: default: null. If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *mylogo.png*), the image is uniformly resized, centered to have a generous fringe
-and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
+* `bottom_image`: default: null. If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *TouchTerrain_bottom_example.png* in the *stuff* folder), the image is centered, uniformly resized to have a generous fringe and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
 
 * `only`: default: null. If given a list [x,y], will only process that tile index ([1,1] is upper
 left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).  
@@ -207,17 +206,23 @@ tiles will fit together without overlaps if tile_centered was false.
 
 * `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
 * `gpxPathHeight`: (default 40) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
-* `gpxPixelsBetweenPoints`:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
+* `gpxPixelsBetweenPoints`:  (default 20) Controls how many pixel distance there should be between points, effectively causing fewer lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
 * `gpxPathThickness`: (default: 5) Stacks that number of parallel lines on either side of primary line to create thickness.  
 
-Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (but stilll non-90 deg.) walls that are more noticeable when 3D printed.
+Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (but still non-90 deg.) walls that are more noticeable when 3D printed.
 
 * `offset_masks_lower`: (default None) Masked regions (pixel values > 0) in the file will be lowered (same method as GPX extrusion described above) by offset(mm) * pixel value in the final model. *e.g. [[filename, offset], [filename2, offset2],...]* 
 * `fill_holes`: (default None), Specify number of iterations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. *e.g. [10, 7]*
 
+### Unit tests (new in 3.5)
+- The test folder contains a (somewhat simplistic) setup for running unit tests. 
+- Each test is defined by a set of input parameters (see above section) and will create a folder (same name as the test) that will contain the resulting files (log, geotiff, STL, etc.) This should make it possible to test (or re-test) specific combination of parameters in the event of a suspected bug.
+- Note that some of these tests "fail" with their parameters b/c the expected effect is not yet implemented E.g. kml files cannot (yet) be used with a local geotiff DEM. These will be flagged as WAI (working as intended) 
+- Note that the current set of tests do not capture all possible combinations as there are simply too many. The number of tests will grow over time but will probably never be complete.
+- Running test works by editing `test_TouchTerrain_standalone.py` and selecting the desired test methods by commenting out its `@unittest.skip()` decorator that otherwise forces that test to be skipped and then running the .py file main part (inside the test folder!)
+- The test folder also contains a csv file capturing which test uses which parameter settings.
 
 ## Server version
-
 All server related files are in `touchterrain/server`
 
 Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want to know about the dockerized Gunicorn version we run at ISU. The server creates a webpage, through which the user inputs the area selection and print parameters.
@@ -227,7 +232,7 @@ The server presents users with `index.html` (in templates), which can be styled 
 The config.py file inside the server folder contains server specific config settings:
 - NUM_CORES: 0 means: use all cores, 1 means: use only 1 core (useful for debugging)
 - MAX_CELLS: if the raster has more cells than this number, tempfiles are used instead of memory during the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone.
-- MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommeded practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
+- MAX_CELLS_PERMITED: if the number of cells is bigger than this number, processing is not started. This help to prevents jobs that are so big that the server would start thrashing. It is, however, just a heuristic. Recommended practice is to start a job and see if virtual memory (swapspace) is used and to lower MAX_CELLS_PERMITED until this does not happen.
 - GOOGLE_ANALYTICS_TRACKING_ID is the Google Analytics tracking id that gets inlined into index.html. By default it's our GA id, so be sure to change this to yours or set it to 'UA-XXXXXXXX' to disable tracking.
 - PROJ_DIR: (default: None). Workaround for a OSgeo/GDAL problem with projecting points. This will only matter if you a) run standalone and b) use the GPX path option. Will set the path to a folder that must contain the proj.db database that the point projection needs and store it in an environment variable (PROJ).  In some installations, PROJ points to a folder that doesn’t contain proj.db, so use this override to current this issue.
 
@@ -236,18 +241,20 @@ The `touchterrain/common` directory contains files used by both, the standalone 
 
 `touchterrain/stuff` contains, well, stuff, such as pdfs and example data files.
 
+
 ## Appendix
 
 ### Getting large geotiffs from Google Earth Engine
-- The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around the 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the stand alone version of TouchTerrain.
+- The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around the 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the standalone version of TouchTerrain.
 - The example area will only create a 1 Mb geotiff but has been shown to work for larger areas. **Be warned that exporting large areas to a Google Drive can potentially take hours(!).**
 
 - To run this code, you'll need a Google Earth Engine account. Then, go to [https://code.earthengine.google.com/](https://code.earthengine.google.com/), create a new Script (left side) and copy/paste the code below into it. 
-- You will need to know the designation for the DEM source (e.g. `JAXA/ALOS/AW3D30/V2_2`) and what the elevation band is called (e.g. `AVE_DSM`) which you can get from  the Explore in Earth Engine code snippet you get from DEM info link on the web app [example](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2). This will also tells you the meter resolution of the DEM, which is the smallest number you can put into the scale parameter of the Export routine.
+- You will need to know the designation for the DEM source (e.g. `JAXA/ALOS/AW3D30/V2_2`) and what the elevation band is called (e.g. `AVE_DSM`) which you can get from  the *Explore in Earth Engine* code snippet you get from the DEM info link on the web app [example](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2). This will also tells you the meter resolution of the DEM, which is the smallest number you can put into the scale parameter of the Export routine.
 - To get the lat/long coordinates of the top right and bottom left corner of your print area box, use the web app and look at the coordinate info in the Area selection box.
-- Finally you'll need to know the EPSG code for the coordinate system to use. For UTM, just export a low res version of the are you want with the web app and look into the log file (search for EPSG).
+- Finally you'll need to know the EPSG code for the coordinate system to use. For UTM, just export a low res version of the are you want with the web app and look into the log file (search for EPSG). Other coordinate systems (EPSG codes) can/may/should work, just remember that some codes seem to not be supported by EE.
 - When you run the script you'll get a simple map visualization and a new Task will be created in the Tasks tab (right). `RUN` this task to have Google save the geotiff into your Google Drive. If you want, you can still change the file name and the resolution at this stage. Hit Run one more to start the job. Again, this job may take a long time when exporting large areas.
 - When the job is done, you'll see a check mark for your task. Click on the question mark and a popup will appear, hit `Open in Drive`. In Google Drive, download the geotiff.
+- Run TouchTerrain in standalone mode and set the importDEM parameter to your geotiff. To use the actual (source) resolution of the geotiff for generating your model, set printres to -1.
 
 
 ```

@@ -62,7 +62,7 @@ def run_get_zipped_tiles(overwrite_args, testname):
 #
 class MyTests(unittest.TestCase):
 
-    @unittest.skip("test_basic_EE")
+    #@unittest.skip("test_basic_EE")
     def test_basic_EE(self):
         '''Basic test to get Sheep Mountain via EE'''
         args = {
