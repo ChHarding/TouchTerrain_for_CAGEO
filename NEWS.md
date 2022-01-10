@@ -1,65 +1,65 @@
 Jan. 5, 2022 (version 3.5.1)
-	- simplified bottom with only 2 triangles (many exceptions!) to further lower the size of large models
-	- added more unit tests (test matrix included)
+- simplified bottom with only 2 triangles (many exceptions!) to further lower the size of large models
+- added more unit tests (test matrix included)
 
 Oct. 24, 2021 (version 3.5)
-	- rewrote how large STL/OBJ files are created, they are now written during the process to disk 
+- rewrote how large STL/OBJ files are created, they are now written during the process to disk 
 	  rather first into memory which turned out to be too much for our 4 Gb server which would
 	  kill the process and end in a time-out. Still not sure what happens if several large jobs are
 	  run but this will certainly improve the odds of finishing.
-	- accepted offset_masks_lower and fill_holes options contributed by Anson Liu (NOT well tested outside his use case)
-	- some edits to the jupyter starter notebook
+- accepted offset_masks_lower and fill_holes options contributed by Anson Liu (NOT well tested outside his use case)
+- some edits to the jupyter starter notebook
 
 Jul. 16, 2021 (version 3.4)
-	- fixed bug with kml/kmz file showing up in the browser but then not actually used for processing (Once again, thank you, Nick!)
+- fixed bug with kml/kmz file showing up in the browser but then not actually used for processing (Once again, thank you, Nick!)
 
 Apr. 29, 2021 (version 3.3)
-	- added auto z-scale to scale up to a given height
-	- default width is 100 mm
-	- added help bubbles including tips for CNC users
-	- added re-center box after each search
-    - kmz files can now be used for polygon (thanks Nick Booher!)
+- added auto z-scale to scale up to a given height
+- default width is 100 mm
+- added help bubbles including tips for CNC users
+- added re-center box after each search
+- kmz files can now be used for polygon (thanks Nick Booher!)
 
 Apr. 9, 2021
-	- added a manual option to switch border optimization on/off (smooth_borders)
+- added a manual option to switch border optimization on/off (smooth_borders)
 
 Mar. 30, 2021 (version 3.2.1)
-	- fixed double application of z-scale (thanks to Simon Scherrer!)
+- fixed double application of z-scale (thanks to Simon Scherrer!)
 
 Mar. 12, 2021 (version 3.2)
 - added Canadian 20m NRCan/CDEM and Australian AU/GA/AUSTRALIA_5M_DEM
 
 Mar. 11, 2021
-	- temporary fix for bad google-api-python-client version
+- temporary fix for bad google-api-python-client version
 	
 Jan. 10, 2021
-	- per request, added a requirements.txt file
-	- added JS script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
+- per request, added a requirements.txt file
+- added JS script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
 
 Jan. 5, 2021
-	- added 5 min server timeout message
+- added 5 min server timeout message
 
 Dec. 9, 2020
-	- added check to bail out if the entire Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
+- added check to bail out if the entire Geotiff has the same value, which happens if the selected area is no covered by the selected DEm source. This often happens when non-US users forget to switch from NED to AW3D30
 
 Nov. 20, 2020 (3.1)
-	- optimized wall border outline for models made from polygon
+- optimized wall border outline for models made from polygon
 
 Oct. 23, 2020 (3.0.3)
-	- added MERIT/DEM/v1_0_3 as DEM source
+- added MERIT/DEM/v1_0_3 as DEM source
 
 Sep. 30, 2020 (3.0.0)
-	- Rewrote GUI to use Bootstrap 4
-	- area box can now be set via coordinate text entries
-	- Added place search bar
+- Rewrote GUI to use Bootstrap 4
+- area box can now be set via coordinate text entries
+- Added place search bar
 
 Sep. 7, 2020 (2.5.2)
-	- Added upload of kml file with masking polygon to server version 
-	- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used, they are also shown on the geemap
+- Added upload of kml file with masking polygon to server version 
+- Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used, they are also shown on the geemap
 
-Aug. 28, 2020
-	- Thanks to github.com/KohlhardtC, who added a module to drape GPX path lines over the terrain
-	- added a test folder with unittests
+Aug. 28, 2020:
+- Thanks to github.com/KohlhardtC, who added a module to drape GPX path lines over the terrain
+- added a test folder with unittests
 
 May. 7, 2020:
 - pretty massive restructuring of folders:
