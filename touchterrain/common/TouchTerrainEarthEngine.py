@@ -145,7 +145,7 @@ def make_bottom_raster(image_file_name, shape):
         in: image_file_name. Must be 1 band/greyscale image,
             will be scaled to fit the tile with at least a 5% fringe
             shape: width [0] and height [1] of TOP ! raster
-        out: numpy raster with 0 - 255 (with 0 = buildplate, 1 = max relieft) or None on error
+        out: numpy raster with 0 - 255 (with 0 = buildplate, 1 = max relief) or None on error
     """
     try:
         bg = Image.open(image_file_name)
