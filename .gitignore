@@ -30,6 +30,14 @@ test/*
 *.zip
 *.tif
 *.stl
+*.txt
+*.ovr  
+*.tfw 
+*.xml
+*/*/*/*_CH*
+*/*/*_CH*
+*/*_CH*
+*_CH*
 
 # default folder for stand alone
 terrain  
