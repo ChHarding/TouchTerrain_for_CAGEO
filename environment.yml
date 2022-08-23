@@ -25,3 +25,16 @@ dependencies:
     - rio-cogeo
     - tifffile
     - xarray_leaflet
+   
+    - pillow>=6.0.0
+    - google-api-python-client==1.12.8
+    - earthengine-api>=0.1.232
+    - oauth2client>=4.1.3
+    - numpy>=1.17
+    - scipy>=1.2
+    - kml2geojson>=4.0.2
+    - geojson>=2.5
+    - defusedxml>=0.6
+    - six>=1.15.0
+
+
