@@ -36,5 +36,6 @@ dependencies:
     - geojson>=2.5
     - defusedxml>=0.6
     - six>=1.15.0
+    - k3d>=2.14
 
 
