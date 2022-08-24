@@ -48,6 +48,7 @@ terrain
 
 # white listings
 !.gitignore
+!tmp/.gitkeep
 !README.md
 !NEWS.md
 
