@@ -1,7 +1,7 @@
 name: notebook
 channels:
     - conda-forge
-dependencies:
+dependencies:  # for geemap in a notebook, avoiding the model not found error
     - cartopy
     - datapane
     - flask>=2.0.0
@@ -26,6 +26,8 @@ dependencies:
     - tifffile
     - xarray_leaflet
    
+    # for touchterrain in a notebook
+    - touchterrain
     - pillow>=6.0.0
     - google-api-python-client==1.12.8
     - earthengine-api>=0.1.232
@@ -37,5 +39,6 @@ dependencies:
     - defusedxml>=0.6
     - six>=1.15.0
     - k3d>=2.14
+    
 
 
