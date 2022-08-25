@@ -313,3 +313,9 @@ Export.image.toDrive({
 // The image will be created in your Drive account with the specified fileFormat.
 ```
 
+### Running the standalone version in Binder
+- __this is currently being tested!__
+- clicking the badge below will create a docker container for you in the cloud (it's free!) and run a specific notebook in Jupyter lab in a browser.
+- this does require some setup (need a Earth Engine dev account to authenticate via python with earthengine) and takes a while to start (~10 mins) but avoids having to set up a docker container locally.
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb)
