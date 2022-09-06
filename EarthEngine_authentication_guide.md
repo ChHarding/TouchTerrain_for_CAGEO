@@ -4,20 +4,20 @@ Chris Harding (charding@iastate.edu)
 
 This guide is only relevant for those who want to:
 
-  a) run the standalone version of TouchTerrain in a binder jupyter notebook
+  a) run the standalone version of TouchTerrain in a binder jupyter notebook and
 
-  b) want to use it with online elevation data (via Google Earth Engine) instead of using local geotiff files
+  b) want to use it with online elevation data (via Google Earth Engine) instead of only with local geotiff files
 
 <div>
 
 #### Rationale
-- Using the Run on Binder badge will eventually show you a notebook (TouchTerrain_jupyter_starters_binder.ipynb) inside a browser
+- Using this badge [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb) will eventually show you a notebook (TouchTerrain_jupyter_starters_binder.ipynb) inside a browser
 - When running the cell `ee.Authenticate()` in this notebook, you will be required to generate and paste in a token (code) that connects your notebook code with a EarthEngine dev account
   
   
-#### Request a EarthEngine dev account
-- This assumes that you have a standard Google account and are signed in on your browser
-- Go to go to https://signup.earthengine.google.com/ and request an account
+#### Request a EarthEngine dev account  (I'm actually not sure if this is required, so you could skip this part and see if the rest works!)
+- This assumes that you have a standard Google account and are signed in with it on your current browser
+- In your browser, go to go to https://signup.earthengine.google.com/ and request an account
 - Use something like `Want to use TouchTerrain to create 3D printable terrain models` files as reason
 - I think this will only work for private and research usage, so use this for Organization/Institution
 - You should get an email with sign-up intructions __(need more detail for this part, which I cannot do myself!)__
