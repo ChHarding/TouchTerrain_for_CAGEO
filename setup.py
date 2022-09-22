@@ -16,9 +16,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'Pillow>=6.0.0',
-        'google-api-python-client==1.12.8', # Mar 11, 2021: use pre 2.0 version until that's fixed
+        'google-api-python-client>=2.6', 
         'earthengine-api>=0.1.232', # 1.232 is required after Aug 19, 2020
-        'Flask>=1.0.2',
         #'vectors==99.0.0',  # is now part of common folder
         'oauth2client>=4.1.3',
         'numpy>=1.17',
@@ -28,17 +27,11 @@ setup(
         'defusedxml>=0.6', # safe minidom for parsing kml
         'six>=1.15.0', # earthengine apparently uses an old version of six ...
     ],
-    
-    # Deactivated for now b/c there's no standalone submodule, TouchTerrain_standalone.py is at root
-    #entry_points={
-    #    "console_scripts": [
-    #        "touchterrain = touchterrain.standalone.TouchTerrain_standalone:main",
-    #    ],
-    #},
-    
+
     extras_require={
-        'server': [
+        'server': [  # Not sure which of the above could also be server-only
             'gunicorn>=20.0.4',
+            'Flask>=1.0.2',
         ],
     },
 )
