@@ -11,7 +11,7 @@ This guide is only relevant for those who want to:
 <div>
 
 #### Rationale
-- Using this badge [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb) will eventually show you a notebook (TouchTerrain_jupyter_starters_binder.ipynb) inside a browser
+- Using the colab badge [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb) or the binder badge [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb) will eventually show you a notebook (TouchTerrain_jupyter_starters_binder.ipynb) inside a browser.
 - When running the cell `ee.Authenticate()` in this notebook, you will be required to generate and paste in a token (code) that connects your notebook code with a EarthEngine dev account
   
   
