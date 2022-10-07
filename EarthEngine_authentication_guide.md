@@ -34,7 +34,7 @@ This guide is meant for TouchTerrain users who want to:
 - Go through this warning (Click Continue)
 ![Unverified](https://user-images.githubusercontent.com/19935989/186753217-0c62cefc-5dcd-4ab4-a03c-0361128ea32b.PNG)
   
-- Then grant your Earth Engine Notebook access (I checked both EarthEngine and Cloudstorage but I'm not sure if the second is actually needed ...)
+- Then grant your Earth Engine Notebook access (check both EarthEngine and Cloudstorage)
   
 ![WantsAccess](https://user-images.githubusercontent.com/19935989/186753654-6bda55e6-f2e8-4cfc-89ac-b9361552806f.PNG)
 
