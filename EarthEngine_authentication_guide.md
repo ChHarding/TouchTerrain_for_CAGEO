@@ -2,11 +2,10 @@
 Aug.25, 2022
 Chris Harding (charding@iastate.edu)
 
-This guide is only relevant for those who want to:
+This guide is meant for TouchTerrain users who want to:
 
-  a) run the standalone version of TouchTerrain in a binder jupyter notebook and
-
-  b) want to use it with online elevation data (via Google Earth Engine) instead of only with local geotiff files
+  1) Run the standalone version of TouchTerrain in a colab or binder jupyter notebook and
+  2) Use it with __online__ elevation data (via Google Earth Engine) instead of only with local geotiff files
 
 <div>
 
@@ -20,7 +19,7 @@ This guide is only relevant for those who want to:
 - In your browser, go to go to https://signup.earthengine.google.com/ and request an account
 - Use something like `Want to use TouchTerrain to create 3D printable terrain models` files as reason
 - I think this will only work for private and research usage, so use this for Organization/Institution
-- You should get an email with sign-up intructions __(need more detail for this part, which I cannot do myself!)__
+- You should get an email with sign-up instructions __(need more detail for this part, which I cannot do myself!)__
   
 #### Generating the token
 - Running `ee.Authenticate()` will output a URL (starting with https://code.earthengine.google.com/), click on it
