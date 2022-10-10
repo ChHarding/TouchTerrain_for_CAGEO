@@ -446,8 +446,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
     - no_normals: True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway
     - projection: EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone
-    - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles
-                      not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)    
+    - use_geo_coords: None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)    
     - importedGPX: None or List of GPX file paths that are to be plotted on the model
     - gpxPathHeight: Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon, therefore this is in meters. Negative numbers are ok and put a dent in the model 
     - gpxPixelsBetweenPoints:  GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
