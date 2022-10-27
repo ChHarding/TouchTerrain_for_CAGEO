@@ -43,12 +43,14 @@ except:
 # How to run the standalone version:
 #
 
-# Make a copy of example_config.json (in the stuff folder), modify the parameters and save it with a new
-# name (e.g. my.json) in the same folder as this .py file. The JSON file format follows the args dict shown below.
+# A) Go to the overwrite_args section (line 136) below and change the settings there, then run this file. 
 #
-# run python with your JSON file as the only arg, e.g.:
+# B) Make a copy of example_config.json (in the stuff folder), modify the parameters and save it with a new
+#    name (e.g. my.json) in the same folder as this .py file. The JSON file format follows the args dict shown below.
 #
-# python TouchTerrain_standalone.py my.json
+#    run python with your JSON file as the only arg, e.g.:
+#
+#    python TouchTerrain_standalone.py my.json
 #
 
 # main function, will be called at the end of the script
@@ -57,7 +59,6 @@ def main():
     # Default parameters:
     # The JSON file overwrites values for the following keys, which are used as
     # args for get_zipped_tiles() and save them inside a zipped folder.
-    # Print each tile on a 3D printer (they are already scaled!)
     args = {
         "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
                             # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
@@ -96,7 +97,7 @@ def main():
         "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
         "smooth_borders": True, # smooth borders
         "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
-        "fill_holes": None, # e.g. [10, 7] Specify number of interations to find and neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
+        "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
     }
 
     # write an example json file, in case it gets deleted ...
@@ -125,10 +126,10 @@ def main():
         for k in list(args.keys()):
             try:
                 args[k] = json_args[k]    # try to find a value for k in json config file
-                #print k, args[k]
+                #print(k, args[k])
             except:
                 print("info:", k, "has missing or invalid value, using defaults where possible")     # no match? no problem, just keep the default value
-                #print "%s = %s" % (k, str(args[k]))
+                #print("%s = %s" % (k, str(args[k])))
     else:
         # no JSON config file given, setting config values in code
         # you can comment out lines for which you don't want to overwrite the default settings
@@ -162,49 +163,10 @@ def main():
             "smooth_borders": True, # smooth borders
         }
 
-        # overwrite config settings in args
+        # overwrite settings in args
         for k in overwrite_args:
             args[k] = overwrite_args[k]
        
-    # CH testing gpx here, so I can use the debugger
-    '''
-    args = {
-                "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
-                # area for gpx test
-                "bllat": 39.32205105794382,   # bottom left corner lat
-                "bllon": -120.37497608519418, # bottom left corner long
-                "trlat": 39.45763749030933,   # top right corner lat
-                "trlon": -120.2002248034559, # top right corner long
-                "tilewidth": 120,  # width of each tile in mm,  
-                "printres": 0.4,  # resolution (horizontal) of 3D printer in mm
-                "ntilesx": 1, # number of tiles in x  
-                "ntilesy": 1, # number of tiles in y    
-                "basethick": 0.5,   # thickness (in mm) of printed base
-                "zscale": 1.5,  # elevation (vertical) scaling
-                "fileformat": "STLb",  # format of 3D model file
-                "zip_file_name": "test_get_zipped_tiles_gpx",   # base name of zipfile, .zip will be added
-                "importedGPX": # Plot GPX paths from these files onto the model.
-                            ["stuff/gpx-test/DLRTnML.gpx",
-                            "stuff/gpx-test/DonnerToFrog.gpx",
-                            "stuff/gpx-test/CinTwistToFrog.gpx",
-                            "stuff/gpx-test/sagehen.gpx",
-                            "stuff/gpx-test/dd-to-prosser.gpx",
-                            "stuff/gpx-test/alder-creek-to-crabtree-canyon.gpx",
-                            "stuff/gpx-test/ugly-pop-without-solvang.gpx",
-                            "stuff/gpx-test/tomstrail.gpx"   
-                            ],
-                "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
-                                    # therefore this is in meters. Negative numbers are ok and put a dent in the mdoel  
-                "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
-                                                # on the model and can have the effect of making the paths look a bit cleaner 
-                "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness. 
-                                        # A setting of 1 probably looks the best 
-                "smooth_borders": True, # smooth borders
-    }
-    
-    ml = convert_to_GeoJSON(args["importedGPX"])
-    '''
     
     # print out current args 
     print("\nUsing these config values:")
@@ -225,7 +187,7 @@ def main():
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
-    if 1: # set this to 0 if you don't want the zip file to be unzippeed
+    if 1: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
         folder = os.getcwd() + os.sep + args["zip_file_name"]# new stl folder in current folder
