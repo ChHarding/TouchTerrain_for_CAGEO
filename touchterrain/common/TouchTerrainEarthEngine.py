@@ -1003,7 +1003,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #pr("polyURL:", polyURL)
 
         # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
-        if polygon != None or  polyURL != None or polyURL != '' or poly_file != None or poly_file != '':
+        if polygon != None or  (polyURL != None and polyURL != '') or (poly_file != None and poly_file != ''):
             pr("Warning: Given outline polygon will be ignored when using local raster file!") 
 
 
