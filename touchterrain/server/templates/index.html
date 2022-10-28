@@ -66,7 +66,7 @@
 				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models (ver. BUILDID) &nbsp
 				<div class="text-truncate float-right"> 
-					<a href="https://touchterrain.blogspot.com/" target="_blank"> What's new in version 3.5?</a> 
+					<a href="https://touchterrain.blogspot.com/" target="_blank"> What's new in version 3.6?</a> 
 					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
 							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
@@ -75,7 +75,7 @@
 			  </h4>
 			</div>
 			<div class="row">
-				<div class="col-sm-8" ">
+				<div class="col-sm-8">
 					<div style="height: 730; position: relative; overflow: hidden; margin-top: 4px;" id="map">
 						Map didn't load
 					</div>
@@ -236,7 +236,7 @@
 					</form>
 
 					<!-- form 2 -->
-					<form class="form-horizontal" id="accordion" action="/export" method="post" enctype=multipart/form-data>
+					<form class="form-horizontal" id="accordion" action="/export" method="post" enctype="multipart/form-data">
 						
 						<input type="hidden" id="place" name="place" value="" >
 
@@ -258,30 +258,38 @@
 								<div class="card-body ">
 									<div class="form-inline">
 										<div class="form-group ">
-											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="12" size="7" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="18" size="7" value="NULL" 
 												 onkeydown="if(event.keyCode == 13){update_box()}">
 											<label for="trlat2">N &nbsp</label>
-											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="13" size="8" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="19" size="8" value="NULL" 
 												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="trlon2"> E &nbsp (Top right corner)</label>
 										</div>
 										<div class="form-group " >
-											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="12" size="7" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="18" size="7" value="NULL" 
 												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="bllat2">N &nbsp</label>
-											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="13" size="8" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="19" size="8" value="NULL" 
 												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="bllon2">E &nbsp (Lower left corner)</label 
 										</div>
 									</div>
 								</div>
 								<br>
-
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											onchange="ga('send', 'event', 'kmlUpload', 'filename', this.files[0].name , {nonInteraction:true});">
-										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:</label>
+										<label class="custom-file-label" id="kml_file_name" for="kml_file">Optional Polygon KML file:
+                                        </label>
 								</div>
+                                <br>
+                                <div class="form-inline">
+                                    <div class="form-group " >
+                                        <input type="text" class="form-control form-control-sm" id="scale" name="scale" maxlength="12" size="3" value="1.00"
+                                                onkeydown="if(event.keyCode == 13){scale_box(this.value)}">
+                                        <label for="scale">&nbsp Scale Box around center</label>
+                                    </div>
+                                </div>
 							</div>
 						</div>
 

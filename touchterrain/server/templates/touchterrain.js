@@ -54,7 +54,7 @@ let hselev = "{{ hselev }}";
 window.onload = function () {
 
     // init google map
-    let myLatLng = new google.maps.LatLng( map_lat, map_lon);
+    let myLatLng = new google.maps.LatLng(map_lat, map_lon);
     let mapOptions = {
         center: myLatLng,
         zoom: map_zoom,
@@ -738,6 +738,7 @@ function update_corners_form(event) {
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
 }
 
+// triggered after manual change of box coords
 function update_box(event){
 
     // read values from GUI
@@ -754,7 +755,7 @@ function update_box(event){
 
     // make and new bounds
     var newbounds = new google.maps.LatLngBounds(
-        new google.maps.LatLng(bllat,bllon), // sw
+        new google.maps.LatLng(bllat, bllon), // sw
         new google.maps.LatLng(trlat, trlon) // ne
     );
     rectangle.setBounds(newbounds);
@@ -763,6 +764,44 @@ function update_box(event){
   
 }
 
+// read corners, scale them by sc and update corners
+function scale_box(scale_factor){
+
+    let sc = Number(scale_factor); // needed?
+
+    let b = rectangle.getBounds();
+    let n = b.getNorthEast().lat();
+    let e = b.getNorthEast().lng();
+    let s = b.getSouthWest().lat();
+    let w = b.getSouthWest().lng();
+
+    let c = b.getCenter();
+    let cx = c.lng();
+    let cy = c.lat();
+    
+    let hwidth  = (w - e) / 2.0; // 1/2 width
+    let hheight = (n - s) / 2.0; // 1/2 width
+
+    // scaled coords
+    let esc = cx + (hwidth * sc) ; 
+    let wsc = cx - (hwidth * sc);
+    let nsc = cy + (hheight * sc);
+    let ssc = cy - (hheight * sc);
+
+    // update rectangle bounds with new coords
+    let tr = new google.maps.LatLng(nsc, esc);
+    let bl = new google.maps.LatLng(ssc, wsc);
+    let bounds_scaled = new google.maps.LatLngBounds();  
+    bounds_scaled.extend(tr);
+    bounds_scaled.extend(bl);
+
+    // draw rectangle and put coords in form
+    rectangle.setBounds(bounds_scaled);
+    update_corners_form();
+
+    document.getElementById('scale').value = "1.0"; // reset scale factor
+
+}
 
 // calculate the approximate meter resolution of each pixel at the current lat
 // from the width (lon) of the rectangle and the print resolution
