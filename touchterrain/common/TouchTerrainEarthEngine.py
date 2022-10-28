@@ -70,7 +70,12 @@ logger.setLevel(logging.INFO)
 # the failed to EE init messages are just warnings 
 try:
     import ee
-    ee.Initialize() # uses .config/earthengine/credentials
+    # uses .config/earthengine/credentials
+    import httplib2
+    ee.Initialize(http_transport=httplib2.Http())      
+    # Oct 2022: just ee.Initialize() doesn't work any more b/c of this BS:
+    # https://github.com/google/earthengine-api/issues/181
+    # solution: https://github.com/GoogleCloudPlatform/httplib2shim/pull/16
 except Exception as e:
     logging.warning("EE init() error (with .config/earthengine/credentials) " + str(e) + " (This is OK if you don't use earthengine anyway!)")
 else:
