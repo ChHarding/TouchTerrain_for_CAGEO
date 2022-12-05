@@ -84,10 +84,15 @@ def make_GA_script(page_title):
     </script>
     """
 
+# entry page that shows an image of the UI and loads the main page when clicked
+@app.route("/", methods=['GET', 'POST'])
+def intro_page():
+    return render_template("intro.html")
+
 #
 # The page for selecting the ROI and putting in printer parameters
 #
-@app.route("/", methods=['GET', 'POST'])
+@app.route("/main", methods=['GET', 'POST'])
 def main_page():
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
