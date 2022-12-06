@@ -563,7 +563,7 @@ window.onload = function () {
 
     $('#tile_config_popover').popover({
         content: 'If you want to print out a terrain model at a larger size than your buildplate permits, you can subdivide it into smaller parts (tiles)\
-                  <a href="https://iastate.box.com/s/ccem0equbdmzvz1v9oimujqa7c7cfv1el" target="_blank">(video)</a>. Set the number of subdivions\
+                  <a href="https://iastate.box.com/s/ccem0equbdmzvz1v9oimujqa7c7cfv1e" target="_blank">(video)</a>. Set the number of subdivions\
                   in the x and y direction here, which will be shown inside your box.<br>\
                   Each tile will be of the size defined under Width/Height (see above).',  
         html: true,
