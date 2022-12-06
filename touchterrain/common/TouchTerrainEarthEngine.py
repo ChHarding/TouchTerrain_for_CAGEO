@@ -1186,7 +1186,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 count += 1
 
         # fill holes using a 3x3 footprint. Requires scipy
-        # [0] is rounds, [1] is threshold
+        # [0] is number of interations, [1] is threshold
         if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
             import scipy.ndimage as ndimage
 
