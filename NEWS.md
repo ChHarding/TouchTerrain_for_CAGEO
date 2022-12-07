@@ -1,3 +1,10 @@
+Dec. 6, 2022 (version 3.5.2)
+- added jupyter notebooks for Colab and Binder (Binder is NOT well tested!)
+- fixed help broken link to tiling help video
+- added (uniform scaling) to area box
+- updated 10m NED data set to USGS/3DEP/10m (same data set, it's just called differently)
+- rewrote standalone part of the ReadMe.md file, especially about running notebooks.
+
 Jan. 5, 2022 (version 3.5.1)
 - simplified bottom with only 2 triangles (many exceptions!) to further lower the size of large models
 - added more unit tests (test matrix included)
