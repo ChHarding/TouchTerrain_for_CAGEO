@@ -519,7 +519,7 @@ def export():
             DEM_name = args["DEM_name"]
             cell_width_arcsecs = {"USGS/3DEP/10m":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
-                                  "JAXA/ALOS/AW3D30/V2_2":1, "NRCan/CDEM": 0.75, 
+                                  "JAXA/ALOS/AW3D30/V3_2":1, "NRCan/CDEM": 0.75, 
                                   "AU/GA/AUSTRALIA_5M_DEM": 1/18.0} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
             tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)

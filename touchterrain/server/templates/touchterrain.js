@@ -206,7 +206,7 @@ window.onload = function () {
         case "AU/GA/AUSTRALIA_5M_DEM": link = "https://developers.google.com/earth-engine/datasets/catalog/AU_GA_AUSTRALIA_5M_DEM"; break;
         case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
         case "MERIT/DEM/v1_0_3": link = "https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3"; break;
-        case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
+        case "JAXA/ALOS/AW3D30/V3_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V3_2"; break;
         case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
         case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
@@ -906,7 +906,7 @@ function SetDEM_name(){
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
         case "USGS/SRTMGL1_003": res = "30"; break;
         case "MERIT/DEM/v1_0_3": res= "90"; break;
-        case "JAXA/ALOS/AW3D30/V2_2": res = "30"; break;
+        case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
         case "USGS/GMTED2010": res = "230"; break;
         case "USGS/GTOPO30" : res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
