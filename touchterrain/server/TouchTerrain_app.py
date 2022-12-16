@@ -149,13 +149,16 @@ def main_page():
         #print(key, request.args[key])
 
     # get hillshade for elevation
-    if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
-        dataset = ee.ImageCollection(args["DEM_name"])
-        elev = dataset.select('elevation')
-        proj = elev.first().select(0).projection() # must use common projection(?)
-        elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
-    else:
-        elev = ee.Image(args["DEM_name"])
+    try:
+        if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM", "JAXA/ALOS/AW3D30/V3_2"):  # Image collection?
+            dataset = ee.ImageCollection(args["DEM_name"])
+            elev = dataset.select('elevation')
+            proj = elev.first().select(0).projection() # must use common projection(?)
+            elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+        else:
+            elev = ee.Image(args["DEM_name"])
+    except Exception as e:
+        logging.error(args["DEM_name"] + str(e))
 
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
@@ -363,7 +366,7 @@ def export():
         # script to set a very long timeout to deliver a message should
         # the server get stuck. pageLoadedSuccessfully will be set to true once processing has been
         # done successfully. (Thanks to Nick Booher)
-        timeout_msg =  "Sorry, the server timed out. It's not clear how and why, but your processing job did not finish. This is sad.<br>"
+        timeout_msg =  "Sorry, the server timed out. It's not clear how and why, but your processing job did not finish. Maybe the server had to many jobs to process and run out of memory? This is sad.<br>"
         timeout_msg += "Your only option is to run the job again and hope for better luck.<br>"
         
         html += '''
