@@ -324,7 +324,7 @@ def make_current_URL(query_string_names_and_values_list):
     into
     "?trlat=12.34&trlon=-56,78"'''
     from urllib.parse import quote
-    query = '/?'
+    query = '/main?'
     for kv in query_string_names_and_values_list: 
         if kv[1] != '': # skip empty
             query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
@@ -349,9 +349,9 @@ def export():
         query_list = list(request.form.items())
         
         o = urlparse(request.base_url)
-        server = o. scheme + "://" +o.netloc # was: hostname e.g. https://touchterrain.geol.iastate.edu 
+        server = o.scheme + "://" + o.netloc # was: hostname e.g. https://touchterrain.geol.iastate.edu 
 
-        URL_query_str = server + make_current_URL(query_list) 
+        URL_query_str = server + make_current_URL(query_list) # make_current_URL return will start with main? so it doesn't go to the splash screen
 
         # create html string
         html = '<html>'
