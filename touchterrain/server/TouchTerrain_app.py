@@ -149,16 +149,13 @@ def main_page():
         #print(key, request.args[key])
 
     # get hillshade for elevation
-    try:
-        if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM", "JAXA/ALOS/AW3D30/V3_2"):  # Image collection?
-            dataset = ee.ImageCollection(args["DEM_name"])
-            elev = dataset.select('elevation')
-            proj = elev.first().select(0).projection() # must use common projection(?)
-            elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
-        else:
-            elev = ee.Image(args["DEM_name"])
-    except Exception as e:
-        logging.error(args["DEM_name"] + str(e))
+    if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
+        dataset = ee.ImageCollection(args["DEM_name"])
+        elev = dataset.select('elevation')
+        proj = elev.first().select(0).projection() # must use common projection(?)
+        elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+    else:
+        elev = ee.Image(args["DEM_name"])
 
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
@@ -532,7 +529,7 @@ def export():
             html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
             html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
             html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2)) + " Kilo pixels"
-            html +  "If you're trying to process multiple tiles: Consider using the only     manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
+            html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
             html += "<br><br>Click \n"
         
             # print out the query parameter URL 

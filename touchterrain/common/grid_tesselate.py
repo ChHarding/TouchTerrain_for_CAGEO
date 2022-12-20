@@ -460,6 +460,12 @@ class grid(object):
 
         tile_info["have_bottom_array"] = have_bottom_array
 
+        # real world (pre-scale) min_elev, either user-given or min of top
+        if tile_info["min_elev"] == None: # NOT set by user
+            tile_info["min_elev"] = np.nanmin(top)
+        # else use user-given min_elev 
+
+
         # Coordinates are in mm (for 3D printing on a buildplate)
         if tile_info["use_geo_coords"] == None:
 
@@ -468,25 +474,26 @@ class grid(object):
             #
 
             #print top.astype(int)
-            top -= float(tile_info["min_elev"]) # subtract tile-wide max from top
+            top -= float(tile_info["min_elev"]) # subtract tile-wide min from top
             #print np.nanmin(top), np.nanmax(top)
             #print top.astype(int)
             scz = 1 / float(tile_info["scale"]) * 1000.0 # scale z to mm
             #print tile_info["scale"], tile_info["z_scale"], scz
             top *= scz * tile_info["z_scale"] # apply z-scale
             #print top.astype(int)
-            #print np.nanmin(top), np.nanmax(top)
+            
             top += tile_info["base_thickness_mm"] # add base thickness
             print("top min/max:", np.nanmin(top), np.nanmax(top))
             #print top.astype(int)
 
         else:  # using geo coords - thickness is meters)
-            bottom = np.nanmin(top) - tile_info["base_thickness_mm"] * 10
+            bottom = tile_info["min_elev"] - tile_info["base_thickness_mm"] * 10
             logger.info("Using geo coords with a base thickness of " + str(tile_info["base_thickness_mm"] * 10) + " meters")
 
-
+        # post-scale (i.e. in mm) max elev
         tile_info["max_elev"] = np.nanmax(top)
-        tile_info["min_elev"] = np.nanmin(top)
+
+
 
         # max index in x and y for "inner" raster
         xmaxidx = top.shape[1]-2

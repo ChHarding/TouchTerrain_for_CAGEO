@@ -98,7 +98,7 @@ DEM_sources = ["USGS/3DEP/10m",
                "USGS/GMTED2010", 
                "NOAA/NGDC/ETOPO1", 
                "USGS/SRTMGL1_003",
-               "JAXA/ALOS/AW3D30/V3_2",
+               "JAXA/ALOS/AW3D30/V2_2",
                "NRCan/CDEM",
                "AU/GA/AUSTRALIA_5M_DEM",
                "USGS/GTOPO30",
@@ -420,6 +420,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          smooth_borders=True,
                          offset_masks_lower=None,
                          fill_holes=None,
+                         min_elev=None,
                          **otherargs):
     """
     args:
@@ -460,6 +461,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - poly_file: local KML file to use as mask
     - map_image_filename: image with a map of the area
     - smooth_borders: should borders be optimized (smoothed) by removing triangles?
+    - min_elev: overwrites minimum elevation for all tiles
     
     returns the total size of the zip file in Mb
 
@@ -719,7 +721,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Get a download URL for DEM from Earth Engine
         #
-        if DEM_name in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM", "JAXA/ALOS/AW3D30/V3_2"):  # Image collection?
+        if DEM_name in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM", "JAXA/ALOS/AW3D30/V2_2"):  # Image collection?
             coll = ee.ImageCollection(DEM_name)
             info = coll.getInfo()
             elev = coll.select('elevation')
@@ -777,7 +779,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # if cellsize is <= 0, just get whatever GEE's default cellsize is (printres = -1)
         if cell_size_m <= 0: del request_dict["scale"]
 
-        # don't apply UTM projection, can only work for Geotiff export
+        # force to use unprojected (lat/long) instead of UTM projection, can only work for Geotiff export
         if unprojected == True: del request_dict["crs"]
 
         request = image1.getDownloadUrl(request_dict)
@@ -877,7 +879,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # for calculations, otherwise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
-            min_elev = numpy.nanmin(npim)
+            min_elevation = numpy.nanmin(npim) # independent from arg min_elev!
 
             # Do a quick check if all the values are the same, which happens if we didn't get
             # any actual elevation data i.e. the area was not covered by the DEM
@@ -909,7 +911,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # Polygon masked pixels will have been set to -32768, so turn
             # these into NaN. Huge values can also occur outside
             # polygon masking (e.g. offshore pixels in GTOPO or non US pixels in NED)
-            if min_elev < -16384:
+            if min_elevation < -16384:
                 npim = numpy.where(npim <  -16384, numpy.nan, npim)
                 pr("omitting cells with elevation < -16384")
             if numpy.nanmax(npim) > 16384:
@@ -956,8 +958,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     else:
         
-        
-
         filename = os.path.basename(importedDEM)
         pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n")
 
@@ -1144,6 +1144,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # min/max elev (all tiles)
         print(("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)))) # use nanmin() so we can use (NaN) undefs
 
+        if min_elev != None: # user given minimum elevation
+            print("(elev min is overwritten with", min_elev, "m)")
+
         # if scale is negative, assume it means scale up to X mm as range and calculate required z-scale
         if zscale < 0:
             unscaled_elev_range_m = numpy.nanmax(npim) - numpy.nanmin(npim) # range at 1 x scale
@@ -1269,8 +1272,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "UTMzone" : utm_zone_str, # UTM zone eg  UTM13N
             "scale"  : print3D_scale_number, # horizontal scale number, defines the size of the model (= 3D map): eg 1000 means 1m in model = 1000m in reality
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
-            "max_elev" : numpy.nanmax(npim), # tilewide minimum/maximum elevation (in meter)
-            "min_elev" : numpy.nanmin(npim),
+            "max_elev" : None, # tilewide minimum/maximum elevation (in meter), None means: will be calculated later
+            "min_elev" : min_elev if min_elev != None else None, # None means: will be calculated from actual elevation later
             "z_scale" :  zscale,     # z (vertical) scale (elevation exageration) factor
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
@@ -1293,6 +1296,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
             "smooth_borders": smooth_borders, # optimize borders?
         }
+
 
         #
         # Make tiles (subsets) of the full raster and generate 3D grid model

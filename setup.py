@@ -26,6 +26,10 @@ setup(
         'geojson>=2.5', # for wrapping polygon data
         'defusedxml>=0.6', # safe minidom for parsing kml
         'six>=1.15.0', # earthengine apparently uses an old version of six ...
+        #'GDAL>3.4.3', # Installation via pip requires a C++ compiler: https://visualstudio.microsoft.com/visual-cpp-build-tools
+        # with conda: conda install -c conda-forge gdal
+        # Prebuilds (.whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal but stopped with 3.4.3
+        # Still active: https://www.nuget.org/packages?q=GDAL but uses a .Net package manager
     ],
 
     extras_require={
