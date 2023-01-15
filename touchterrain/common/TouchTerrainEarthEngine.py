@@ -215,11 +215,9 @@ def process_tile(tile_tuple):
     # create a grid object containing cells, each cell has a top/bottom and maybe wall quad(s)
     # each quad is 2 triangles with 3 vertices
     g = grid(tile_elev_raster, bottom_raster, tile_info)
-    printres = tile_info["pixel_mm"]
 
     del tile_elev_raster
 
-    # convert 3D model to a (in-memory) file (buffer)
     fileformat = tile_info["fileformat"]
 
     if tile_info.get("temp_file") != None:  # contains None or a file name.
@@ -230,17 +228,8 @@ def process_tile(tile_tuple):
 
     # Create triangle "file" either in a buffer or in a tempfile
     # if file: open, write and close it, b will be temp file name
-    if  fileformat == "obj":
-        b = g.make_OBJfile_buffer(temp_file=temp_fn)
-        # TODO: add a header for obj
-    elif fileformat == "STLa":
-        ascii=True
-        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
-    elif fileformat == "STLb":
-        ascii=False
-        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
-    else:
-        raise ValueError("invalid file format:", fileformat)
+
+    b = g.make_file_buffer()
 
     if temp_fn != None:
         fsize = os.stat(temp_fn).st_size / float(1024*1024)
@@ -399,7 +388,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
-                         max_cells_for_memory_only=500*500*4,
+                         max_cells_for_memory_only=0,
                          temp_folder = "tmp",
                          zip_file_name="terrain",
                          no_bottom=False,
@@ -462,7 +451,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - map_image_filename: image with a map of the area
     - smooth_borders: should borders be optimized (smoothed) by removing triangles?
     - min_elev: overwrites minimum elevation for all tiles
-    
+
     returns the total size of the zip file in Mb
 
     """
@@ -1349,6 +1338,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
                 # if raster is too large, use temp files to create the tile STL/obj files
                 if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
+                    pr("Using temp files instead of memory")
                     # open a temp file in local tmp folder
                     # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
                     mytempfname =  temp_folder + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
