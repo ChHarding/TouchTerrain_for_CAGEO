@@ -674,7 +674,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # Although pretty good, this is still an approximation and the cell resolution to be
         # requested is therefore also not quite exact, so we need to adjust it after the EE raster is downloaded
-        (latitude_in_m, longitude_in_m) = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
+        latitude_in_m, longitude_in_m = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
         region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
         pr("lon/lat size in degrees:",region_size_in_degrees)
         region_ratio_for_degrees =  region_size_in_degrees[1] / float(region_size_in_degrees[0])
@@ -1096,13 +1096,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         DEM_title = filename[:filename.rfind('.')]
         # end local raster file
 
-
-
-
     total_size = 0 # size of stl/objs/geotiff file(s) in byes
     full_zip_file_name =  temp_folder + os.sep + zip_file_name + ".zip"
     #print >> sys.stderr, "zip is in", os.path.abspath(full_zip_file_name)
     zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True) # create empty zipfile
+
 
     #
     # Create and store geometry (triangles)
