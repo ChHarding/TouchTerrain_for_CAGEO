@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Welcome to TouchTerrain, the free web app for creating 3D printable terrain models!</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Application for creating 3D printable terrain models">
+    <meta property="og:image" content="/static/touchTerrain_logo.png">
+    <meta name="keywords" content="HTML, JavaScript, 3D-printing, CNC, STL, terrain data, free">
+    <meta name="author" content="Chris Harding">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to TouchTerrain, the web app for creating 3D printable terrain models!</title>
 </head>
 <style>
     img {
@@ -14,7 +18,7 @@
   </style>
 <body>
     <form method="post" action="/main" id="myForm">
-        <img id="intro_image" src="static/world.jpg" alt="Click to contineu" onclick="document.getElementById('myForm').submit();"> 
+        <img id="intro_image" src="static/world.jpg" alt="Click to continue" onclick="document.getElementById('myForm').submit();"> 
     </form>
       
       
