@@ -2,7 +2,7 @@ from setuptools import find_namespace_packages, setup
  
 setup(
     name='touchterrain',
-    version='3.5.2',
+    version='3.6.0',
     description='Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)',
 	url='https://github.com/ChHarding/TouchTerrain_for_CAGEO',
 	license='GPL',
@@ -10,15 +10,16 @@ setup(
 		'Programming Language :: Python :: 3',
 	],	
 	keywords='elevation terrain 3D-printing geotiff STL',
-	python_requires='>=3.6, <4',
-	
+	python_requires='>=3.8, <4',
+	author="Chris Harding",
+    author_email="charding@iastate.edu",
+    license="MIT",
     packages=find_namespace_packages(include=["touchterrain.*"]), # should only be server and common
     include_package_data=True,
     install_requires=[
         'Pillow>=6.0.0',
         'google-api-python-client>=2.6', 
-        'earthengine-api>=0.1.232', # 1.232 is required after Aug 19, 2020
-        #'vectors==99.0.0',  # is now part of common folder
+        'earthengine-api>=0.1.232',  
         'oauth2client>=4.1.3',
         'numpy>=1.17',
         'scipy>=1.2', # Only needed for hole filling functionality
