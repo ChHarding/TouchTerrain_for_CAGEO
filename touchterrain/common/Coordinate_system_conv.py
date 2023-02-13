@@ -23,9 +23,9 @@ def arcDegr_in_meter(latitude_in_degr):
     p2 = -93.5;			# longitude calculation term 2
     p3 = 0.118;			# longitude calculation term 3
 
-    latlen =  m1 + (m2 * math.cos(2.0 * lat)) + (m3 * math.cos(4.0 * lat)) + (m4 * math.cos(6.0 * lat));
-    longlen = (p1 * math.cos(lat)) + (p2 * math.cos(3 * lat)) + (p3 * math.cos(5 * lat));
-    return (latlen, longlen);
+    latlen =  m1 + (m2 * math.cos(2.0 * lat)) + (m3 * math.cos(4.0 * lat)) + (m4 * math.cos(6.0 * lat))
+    longlen = (p1 * math.cos(lat)) + (p2 * math.cos(3 * lat)) + (p3 * math.cos(5 * lat))
+    return (latlen, longlen)
       
 
 def LatLon_to_UTM(arg1, arg2=None):
