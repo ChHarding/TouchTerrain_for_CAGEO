@@ -421,7 +421,7 @@ window.onload = function () {
     // help popovers
     $('#Whats_new__popover').popover({
         content: 'Mouse over the question marks to see the help text or click on it to toggle the text on/off<br><br>\
-                  New in 3.6: Added Colab notebook support, the easiest way to run TouchTerrain standalone! http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb<br>\
+                  New in 3.6: Added Colab notebook support, the easiest way to <a href="http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb"> run TouchTerrain standalone!</a><br>\
                   New in 3.5: large processing jobs should no longer time out. Simplified bottom.<br>\
                   <ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
