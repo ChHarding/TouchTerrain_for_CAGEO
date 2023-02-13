@@ -421,9 +421,8 @@ window.onload = function () {
     // help popovers
     $('#Whats_new__popover').popover({
         content: 'Mouse over the question marks to see the help text or click on it to toggle the text on/off<br><br>\
+                  New in 3.6: Added Colab notebook support, easiest way to run TouchTerrain standalone!\
                   New in 3.5: large processing jobs should no longer time out. Simplified bottom.<br>\
-                  New in 3.4: fixed kml file issues<br>\
-                  New in 3.3:<br>\
                   <ul><li>Help popups explain the different options and settings.</li>\
                       <li>Better z-scaling: will let you define how tall you want your printed model to be (model height), \
                         automatically calculates the required z-scale value.</li>\
