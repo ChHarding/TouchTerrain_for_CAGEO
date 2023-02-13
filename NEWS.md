@@ -1,3 +1,10 @@
+Feb. 13, 2023 (version 3.6.0)
+- changed how touchterrain gets installed on the colab notebook
+- updated colab notebook after feedback from Steve Potter 
+- updated TouchTerrain_standalone_jupyter_notebook (GMX with geemap)
+- added min_elev setting to overwrite the minimum elevation for all tiles (request by Anson Liu)
+- added landing screen
+
 Dec. 6, 2022 (version 3.5.2)
 - added jupyter notebooks for Colab and Binder (Binder is NOT well tested!)
 - fixed help broken link to tiling help video
