@@ -5,7 +5,7 @@ setup(
     version='3.6.0',
     description='Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)',
 	url='https://github.com/ChHarding/TouchTerrain_for_CAGEO',
-	license='GPL',
+	license='MIT',
 	classifiers=[
 		'Programming Language :: Python :: 3',
 	],	
@@ -13,7 +13,6 @@ setup(
 	python_requires='>=3.8, <4',
 	author="Chris Harding",
     author_email="charding@iastate.edu",
-    license="MIT",
     packages=find_namespace_packages(include=["touchterrain.*"]), # should only be server and common
     include_package_data=True,
     install_requires=[
