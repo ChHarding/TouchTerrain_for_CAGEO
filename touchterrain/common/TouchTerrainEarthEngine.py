@@ -579,10 +579,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # [-111.533203, 42.820084], p2
         # [-111.533203, 42.530947], p3
         # [-111.895752, 42.530947]]
+
+        # ff is a fudge factor
+        def feq(a, b, ff=0.0001):
+            '''Is a between b - ff and b + ff?'''
+            if a > b - ff and a < b + ff: return True
+            return False
+
         if len(clip_poly_coords) == 5: # 4 points + overlap with first
             cp = clip_poly_coords
-            if cp[0][0] == cp[1][0] and cp[0][1] == cp[3][1]: # 0 matches with 1 and 3
-                if cp[2][0] == cp[3][0] and cp[2][1] == cp[1][1]: # 2 also matches with 1 and 3
+            #if cp[0][0] == cp[1][0] and cp[0][1] == cp[3][1]: # 0 matches with 1 and 3
+            #    if cp[2][0] == cp[3][0] and cp[2][1] == cp[1][1]: # 2 also matches with 1 and 3
+            #        clip_poly_coords = None
+            
+            if feq(cp[0][0], cp[1][0]) and feq(cp[0][1], cp[3][1]): # 0 matches with 1 and 3
+                if feq(cp[2][0], cp[3][0]) and feq(cp[2][1], cp[1][1]): # 2 also matches with 1 and 3
                     clip_poly_coords = None
 
     # end of polygon stuff
