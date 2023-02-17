@@ -632,8 +632,10 @@ def export():
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
             html += '</form>\n'
+            
+            html += "   <br><br>If you take picture of your touchterrain 3D prints (or CNC carves) and put them on Instagram why not tag them with #touchterrain?"
 
-            html += "   <br>To return to the selection map, click on the back button in your browser once, or on the link below:<br>"
+            html += "   <br><br>To return to the selection map, click on the back button in your browser once, or on the link below:<br>"
             #html += "<br>Click on the URL below to return to the selection map:<br>"
 
             # print out the query parameter URL 
