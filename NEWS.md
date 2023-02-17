@@ -3,12 +3,13 @@ Feb. 13, 2023 (version 3.6.0)
 - updated colab notebook after feedback from Steve Potter 
 - updated TouchTerrain_standalone_jupyter_notebook (GMX with geemap)
 - added min_elev setting to overwrite the minimum elevation for all tiles (request by Anson Liu)
+- added (uniform scaling) to area selection box UI group
 - added landing screen
 
 Dec. 6, 2022 (version 3.5.2)
 - added jupyter notebooks for Colab and Binder (Binder is NOT well tested!)
 - fixed help broken link to tiling help video
-- added (uniform scaling) to area box
+
 - updated 10m NED data set to USGS/3DEP/10m (same data set, it's just called differently)
 - rewrote standalone part of the ReadMe.md file, especially about running notebooks.
 
