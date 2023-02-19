@@ -732,7 +732,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Get a download URL for DEM from Earth Engine
         #
-        if DEM_name in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM", "JAXA/ALOS/AW3D30/V2_2"):  # Image collection?
+        if DEM_name in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
             coll = ee.ImageCollection(DEM_name)
             info = coll.getInfo()
             elev = coll.select('elevation')
