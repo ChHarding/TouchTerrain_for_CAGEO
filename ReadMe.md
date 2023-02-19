@@ -119,12 +119,7 @@ Note that for Python, None and True/False need to be different:
     * `poly_file` : path to a local kml file
     * `polyURL` : URL to a publicly readable(!) kml file on Google Drive
 
-    The standalone version also supports:
-    * `poly` : string containing a GeoJSON polygon, for example:
-        ```
-        {"type": "Polygon", 
-        "coordinates": [ [[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}
-        ```
+    The standalone version also supports: `polygon` :  a GeoJSON polygon,
 
  * `fileformat`: file format for 3D model file.
     - obj: wavefront obj (ascii)  
