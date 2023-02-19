@@ -529,7 +529,28 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polygon + ")"
         clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
         logging.info("Using GeoJSON polygon for masking with " + str(len(clip_poly_coords)) + " points")
-        
+
+        # make area selection box from bounding box of polygon
+        trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
+
+        # Hack: If we only have 5 points forming a rectangle just use the bounding box and forget about the polyon
+        # Otherwise a rectangle digitized via gee ends up as a slightly sheared rectangle
+        # This does assume a certain order, which seems to be the same for gee rectangles no matter how they are digitized:
+        # Feb 2023: geemap appearently changed the order of the points, so I re-wrote this
+
+        # [-98.951111, 27.505835],  p0 0 1 
+        # [-98.503418, 27.505835],  p1 0 1
+        # [-98.503418, 27.678664],  p2 0 1
+        # [-98.951111, 27.678664],  p3 0 1
+        # [-98.951111, 27.505835],  ignored, same as p0
+
+        if len(clip_poly_coords) == 5: # is it a 5 point geemap box polygon: 4 points + overlap with first
+            #print("5 point clip polygon is", clip_poly_coords)
+            p = clip_poly_coords  # p[0], p[1],  etc., p[x][0] is lat p[x][1] is lon
+            if p[0][0] == p[3][0] and p[1][0] == p[2][0] and p[0][1] == p[1][1] and p[2][1] == p[3][1]:
+                print("ignoring geemap box polygon, using bounding box", trlat, trlon, bllat, bllon)
+                clip_poly_coords = None
+   
     # Get poly from a KML file via google drive URL
     #TODO: TEST THIS!!!!!!
     elif polyURL != None and polyURL != '':
@@ -567,36 +588,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             else:
                 logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + poly_file)
         
-    # overwrite trlat, trlon, bllat, bllon with bounding box around 
-    if clip_poly_coords != None: 
-        trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
 
-        # Hack: If we only have 5 points forming a rectangle just use the bounding box and forget about the polyon
-        # Otherwise a rectangle digitized via gee ends up as a slightly sheared rectangle
-        # This does assume a certain order, which seems to be the same for gee rectangles no matter how they are digitized:
-        # Feb 2023: geemap appearently changed the order of the points, so I re-wrote this
-
-        # [-98.951111, 27.505835],  p0 0 1 
-        # [-98.503418, 27.505835],  p1 0 1
-        # [-98.503418, 27.678664],  p2 0 1
-        # [-98.951111, 27.678664],  p3 0 1
-        # [-98.951111, 27.505835],  ignored, same as p0
-
-        if len(clip_poly_coords) == 5: # is it a 5 point geemap box polygon: 4 points + overlap with first
-
-            print("5 point clip polygon is", clip_poly_coords)
-            p = clip_poly_coords  # p[0], p[1],  etc., p[x][0] is lat p[x][1] is lon
-            if p[0][0] == p[3][0]:
-                print("p[0][0] == p[3][0]", p[0][0])
-                if p[1][0] == p[2][0]: 
-                    print("p[1][0] == p[2][0]", p[1][0])
-                    if p[0][1] == p[1][1]:
-                        print("p[0][1] == p[1][1]", p[0][1])
-                        if p[2][1] == p[3][1]:
-                            print("p[2][1] == p[3][1]", p[2][1])
-                            print("ignoring geemap box polygon, using bounding box", trlat, trlon, bllat, bllon)
-                            clip_poly_coords = None
-            
 
     # end of polygon stuff
 
