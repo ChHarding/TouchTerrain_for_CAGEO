@@ -171,7 +171,7 @@ def make_bottom_raster(image_file_name, shape):
     print("Used", image_file_name, "for bottom relief, rescaled to", scaled_size, end=' ')
 
     # white 8 bit image (0-255) (flip shape as it's from numpy)
-    canvas = Image.new("L", shape[::-1], color=255)  \
+    canvas = Image.new("L", shape[::-1], color=255)  
 
     # find upper left corner in canvas so that bg is centered
     bg_w, bg_h = scaled_size
@@ -516,7 +516,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     CPU_cores_to_use = 1
 
     #
-    # get polygon data, either from GeoJSON or from kml URL or file
+    # get polygon data, either from GeoJSON (or just it's coordinates as a list) or from kml URL or file
     #
     clip_poly_coords = None # list of lat/lons, will create ee.Feature used for clipping the terrain image 
     if polygon != None: 
@@ -526,8 +526,19 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!")
         elif poly_file != None and poly_file != '':
              pr("Warning: polygon via KML file will be ignored b/c a GeoJSON polygon was also given!")
-        assert polygon.is_valid, "Error: GeoJSON polygon is not valid! (" + polygon + ")"
-        clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
+
+        # Check if we have a GeoJSON polygon (i.e. a dict)  or at least a coordinate list
+        # ex: {"coordinates": [[[60.48766, -81.597101], [60.571116, -81.598891], ...]], "type": "Polygon"}
+        if isinstance(polygon, dict):
+            assert polygon["type"] == 'Polygon', f"Error: dict is not a GeoJSON polygon: {polygon}"
+
+            # Extract polygon coordinates (throw away [1] which would be a doughnut hole)
+            clip_poly_coords = polygon["coordinates"][0] # ignore holes, which would be in 1,2, ...
+        elif isinstance(polygon, list): # maybe it's just the coordinates? [[60.48766, -81.597101], [60.571116, -81.598891], ...]
+            clip_poly_coords = polygon[0]
+        else:
+            assert False, f"Error: coordinate format must be: [[[x,y], [x,y], ...]] not {polygon}"
+        
         logging.info("Using GeoJSON polygon for masking with " + str(len(clip_poly_coords)) + " points")
 
         # make area selection box from bounding box of polygon
@@ -883,6 +894,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # although STL can only use 32-bit floats, we need to use 64 bit floats
             # for calculations, otherwise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
+            #npim = band.ReadAsArray().astype(numpy.longdouble)
+            
             #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
             min_elevation = numpy.nanmin(npim) # independent from arg min_elev!
 
