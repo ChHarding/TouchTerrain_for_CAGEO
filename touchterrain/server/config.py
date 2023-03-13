@@ -17,7 +17,8 @@ DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
 SERVER_TYPE = "gnunicorn"
 
 # multiprocessing:
-NUM_CORES = 0 # 0 means: use all cores
+#NUM_CORES = 0 # 0 means: use all cores
+NUM_CORES = "Forced_single_core_only"   # means that SP cannot be overwritten by manual option
 if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at all
 
 
