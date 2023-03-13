@@ -513,7 +513,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
     # Nov 19, 2021: As multi processing is still broken, I'm setting CPU to 1 for now ...
-    CPU_cores_to_use = 1
+    #CPU_cores_to_use = 1
 
     #
     # get polygon data, either from GeoJSON (or just it's coordinates as a list) or from kml URL or file
