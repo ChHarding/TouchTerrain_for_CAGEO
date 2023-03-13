@@ -231,15 +231,16 @@ def preview(zip_file):
                 print("Error:", e, file=sys.stderr)
                 return "Error:" + str(e)
 
+        # extract stl files from zip file
         with ZipFile(full_zip_path, "r") as zip_ref:
-            fl = zip_ref.namelist() # list of files
+            fl = zip_ref.namelist() # list of files inside the zip file
             stl_files = []
             for f in fl:
-                if f[-4:].lower() == ".stl":
-                    stl_files.append(f)
+                if f[-4:].lower() == ".stl": # only extract stl files
+                    stl_files.append(f) # list of extracted files
                     zip_ref.extract(f, preview_dir)
 
-
+        # bail out if zip didn't contain any stl files
         if len(stl_files) == 0:
             errstr = "No STL files found in " + full_zip_path
             print("Error:", errstr, file=sys.stderr)
@@ -546,8 +547,18 @@ def export():
             yield html
             return "bailing out!"
 
+
+        # Set number of cores to use 
+        # server/config.py defined NUM_CORES 0 means all, 1 means single, etc. which can be overwritten
+        # via manual option CPU_cores_to_use. However, Forced_single_core_only will 
+        # set the cores to 1 and not allow manual override. MP on ISU servers was disabled 
+        # Nov. 2021 as we could not figure out why it was giving us problems (jobs bailed out early)
+        # Forced_single_core_only was added 3/13/23 as response to user request to put MP back
+    
         args["CPU_cores_to_use"] = NUM_CORES
-        if extra_args.get("CPU_cores_to_use") != None: # Override if given as manual option
+        if args["CPU_cores_to_use"] == "Forced_single_core_only":
+            args["CPU_cores_to_use"] = 1
+        elif extra_args.get("CPU_cores_to_use") != None: # Override if given as manual option
             args["CPU_cores_to_use"] = extra_args.get("CPU_cores_to_use")
 
 
