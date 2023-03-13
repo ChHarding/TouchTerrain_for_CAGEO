@@ -1425,7 +1425,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
             try:
+                print("Before map()\n", file=sys.stderr)  # DEBUG
                 processed_list = pool.map(process_tile, tile_list)
+                print("After map()\n", file=sys.stderr)   # DEBUG
             except Exception as e:
                 pr(e)
             else:
