@@ -53,6 +53,7 @@ terrain
 !NEWS.md
 
 !test/test_TouchTerrain_standalone.py
+!test/test_TouchTerrainGPX.py
 !test/bottom_image_test.png
 !test/sheepMtn_outline.kml
 !test/SheepMtn.tif
