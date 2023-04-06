@@ -1158,11 +1158,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("map scale is 1 :", print3D_scale_number) # EW scale
         #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
 
-        # min/max elev (all tiles)
-        print(("elev min/max : %.2f to %.2f" % (numpy.nanmin(npim), numpy.nanmax(npim)))) # use nanmin() so we can use (NaN) undefs
-
+        # set minimum elevation
         if min_elev != None: # user given minimum elevation
-            print("(elev min is overwritten with", min_elev, "m)")
+            print("(elev min is manually set to", min_elev, "m)")
+        else: 
+            # min/max elev (this "global" min_elev will be used by all tiles)
+            min_elev = numpy.nanmin(npim)
+            print(("elev min/max : %.2f to %.2f" % (min_elev, numpy.nanmax(npim)))) 
+            # use nanmin() so we can use (NaN) undefs
+
 
         # if scale is negative, assume it means scale up to X mm as range and calculate required z-scale
         if zscale < 0:
@@ -1306,7 +1310,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "temp_file": None,
             "no_bottom": no_bottom,
             "bottom_image": bottom_image,
-            "ntilesy": ntilesy, # number of tiles in y
+            "ntilesy": ntilesy, # number of tiles in y, ntilesx is not needed here
             "only": only, # if nont None, process only this tile e.g. [1,2]
             "no_normals": no_normals,
             "geo_transform": geo_transform, # GeoTransform of geotiff
@@ -1393,7 +1397,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
         # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)
         if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:
-            pr("using single-core only")
+            pr("using single-core only (multi-core is currently broken :(")
             processed_list = []
             # Convert each tile into a list: [0]: updated tile info, [1]: grid object
             for i,t in enumerate(tile_list):
@@ -1577,7 +1581,7 @@ if __name__ == "__main__":
             #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
             "no_bottom": False,
             "no_normals": True,
-            "CPU_cores_to_use": 1,
+            "CPU_cores_to_use": None,
             } 
     # merge args
     args = {**initial_args, **ovrw_args}
