@@ -131,6 +131,8 @@ Note that for Python, None and True/False need to be different:
  * `ntilesy`: See `ntilesx`, above.
 
  * `tilewidth`: The width of a tile in mm, tile height will be calculated from the aspect ratio of your area.
+ 
+ * `tilewidth_scale`: (default None). Uses this scale factor to calculate and override the tile width. Ex: a factor of 10000 will divide the real-world width of the area by 10000 and multiply that value by 1000 to arrive at a new tilewidth (in mm). Note that the final x/y scale (reported in the log file) may be slightly different due to some projection adjustments. _(New in 3.6.1)_
 
  * `printres`:  (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:    
 
