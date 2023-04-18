@@ -422,6 +422,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          offset_masks_lower=None,
                          fill_holes=None,
                          min_elev=None,
+                         tilewidth_scale=None,
                          **otherargs):
     """
     args:
@@ -463,6 +464,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - map_image_filename: image with a map of the area
     - smooth_borders: should borders be optimized (smoothed) by removing triangles?
     - min_elev: overwrites minimum elevation for all tiles
+    - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
     
     returns the total size of the zip file in Mb
 
@@ -599,10 +601,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
             else:
                 logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + poly_file)
-        
-
-
     # end of polygon stuff
+
+
 
     # This is needed to avoid python unbound error since offset_npim is currently only available for local DEMs in standalone python script
     offset_npim = []
@@ -703,6 +704,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
                                  region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
         region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
+
+        # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
+        if tilewidth_scale != None:
+            tilewidth = region_size_in_meters[1] / tilewidth_scale * 1000 # new tilewidth in mm
+            pr("Overriding tilewidth using a tilewidth_scale of 1 :", tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", tilewidth, "(Note that the final scale may be slighly different!)")
 
         # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
         print3D_width_per_tile = tilewidth # EW
@@ -1054,6 +1060,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if ignore_leq != None:
             npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
             pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
+
+
+        # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
+        if tilewidth_scale != None:
+            tilewidth = region_size_in_meters[1] / tilewidth_scale * 1000 # new tilewidth in mm
+            pr("Overriding tilewidth using a tilewidth_scale of 1 :", tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", tilewidth, "mm. (Note that the final scale may be slighly different!)")
 
 
         # tile height
