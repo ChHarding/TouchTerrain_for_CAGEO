@@ -979,15 +979,33 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     #
     # B) DEM data comes from a local raster file (geotiff, etc.)
     #
-    # TODO: deal with clip polygon?   
+    # TODO: deal with clip polygon?  Done for KML (poly_file) 
 
     else:
-        
         filename = os.path.basename(importedDEM)
+        
         pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n")
-
-
         pr("started:", datetime.datetime.now().time().isoformat())
+
+        # If we have a KML file, use it to mask (clip) and crop the importedDEM
+        if poly_file != None and poly_file != '':
+            clipped_geotiff = "clipped_" + filename
+
+            try:
+                gdal.Warp(clipped_geotiff, filename, 
+                    format='GTiff', 
+                    warpOptions=['CUTLINE_ALL_TOUCHED=TRUE'], 
+                    cutlineDSName=poly_file,
+                    cropToCutline=True,
+                    dstNodata=-32768)
+            except Exception as e:
+                pr("clipping", filename, "with", poly_file, "failed, using unclipped geotiff. ", e)
+            else:
+                pr("clipped", filename, "with", poly_file, "now using", clipped_geotiff, "instead")
+                folder = os.path.split(importedDEM)[0]
+                importedDEM = os.path.join(folder, clipped_geotiff)
+
+        # Make numpy array from geotiff
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
         npim = band.ReadAsArray().astype(numpy.float64)
@@ -1032,8 +1050,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("importedGPX:", importedGPX)
         #pr("polyURL:", polyURL)
 
+
+        
+
+
+
         # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
-        if polygon != None or  (polyURL != None and polyURL != '') or (poly_file != None and poly_file != ''):
+        if polygon != None or  (polyURL != None and polyURL != ''):
             pr("Warning: Given outline polygon will be ignored when using local raster file!") 
 
 
