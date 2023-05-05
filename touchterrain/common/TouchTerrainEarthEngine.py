@@ -44,6 +44,7 @@ from touchterrain.common.Coordinate_system_conv import * # arc to meters convers
 #sys.path = oldsp
 
 import numpy
+from scipy import ndimage # for clean_up_diags()
 from PIL import Image
 
 # for reading/writing geotiffs
@@ -392,6 +393,81 @@ def get_bounding_box(coords):
     bllon -= width/100
     return trlat, trlon, bllat, bllon
 
+def clean_up_diags(ras):
+    '''clean up diagonal cells as these lead to non-manifold vertices where they meet
+        These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
+                                     1 0        0 1  
+
+        The operation uses a  binary hit & miss operation to identify these patterns and 
+        subtraction to removed one of the two. Then the mask is flipped to catch the other pattern
+
+        This is repeated until no new changes occur any more.
+
+        returns changed ras
+
+    Example of mask data:
+    mask = np.array([[0, 0, 1, 0],
+                     [0, 1, 0, 1,],
+                     [0, 1, 1, 1,],
+                     [1, 0, 0, 1,],
+                     [0, 1, 1, 0,]])
+    '''
+
+    cnt = 0
+    
+    while True:
+    
+        print("Diagonal pattern cleanup, round: ", cnt)
+        # make a (inverse) mask raster (where 1 == NaN and 0 == non-NaN) (initially a bool raster)
+        # invert it, and cast to int. This is a binary mask that we'll query for diagonal patterns and
+        # modify accordingly (turn half the pattern from 1 to 0)
+        mask = numpy.invert(numpy.isnan(ras)).astype(numpy.int8) # int8 is the cheapest possible int in numpy
+
+        # how many 0s and 1s do we have before the potential cleanup?
+        unique_pre, counts_pre = numpy.unique(mask, return_counts=True)
+        pre = dict(zip(unique_pre, counts_pre))
+        print("pre-cleanup masks stats: ", pre)
+
+        p = numpy.array([[1, 0],
+                         [0, 1]]) # pattern to detect with hit-or-miss
+
+        #print(mask, "input raster")
+        hm = ndimage.binary_hit_or_miss(mask, structure1=p, origin1=-1).astype(numpy.int8) # shift origin to upper left corner
+        # hm will have 1s where the upper-left 1 of the first pattern are
+
+        #print(hm, "hit or miss with\n", p)
+        mask = mask - hm # subtract hit-or-miss results to change the location of upper left pattern cell from in the mask 1 to 0
+        #print(mask, "raster after 1. subtraction")
+
+        # flip the mask vertically to catch the inverse of the pattern p and again set its upper-left 1 to 0
+        mask = numpy.flip(mask, axis=1) #  flip
+        #print(mask, "raster flipped before 2. subtraction")
+        hm = ndimage.binary_hit_or_miss(mask, structure1=p, origin1=-1).astype(numpy.int8) # shift origin to upper left corner
+        #print(hm, "hit or miss with")
+        #print(p)
+        mask = mask - hm 
+        #print(mask, "raster flipped after 2. subtraction")
+        mask = numpy.flip(mask, axis=1) #  flip back
+        #print(mask, "final raster")
+
+        # how many 0s and 1s do we have after the cleanup?
+        unique_post, counts_post = numpy.unique(mask, return_counts=True)
+        post = dict(zip(unique_post, counts_post))
+        print("post-cleanup masks stats:", post)
+
+        # convert 0 to NaN so we can use the 0s in the mask to create NaN cells in the DEM raster
+        mask = numpy.where(mask == 0, numpy.NaN, 1)    
+        #print(mask, "after 0 => NaN")
+
+        # multiply mask with original DEM raster
+        ras = ras * mask
+
+        # if there was not change, we're done, otherwise, run another round.
+        if (pre[0] == post[0]) and (pre[1] == post[1]):
+            return ras
+        
+        cnt += 1 # next round 
+
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None, 
                          polyURL=None,
@@ -423,6 +499,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          fill_holes=None,
                          min_elev=None,
                          tilewidth_scale=None,
+                         clean_diags = False,
                          **otherargs):
     """
     args:
@@ -465,6 +542,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - smooth_borders: should borders be optimized (smoothed) by removing triangles?
     - min_elev: overwrites minimum elevation for all tiles
     - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
+    - clean_diags: if True, repair diagonal patterns which cause non-manifold edges
     
     returns the total size of the zip file in Mb
 
@@ -1279,12 +1357,19 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     return values[4]
 
                 footprint = numpy.array([[1,1,1],
-                                      [1,1,1],
-                                      [1,1,1]])
+                                         [1,1,1],
+                                         [1,1,1]])
                 npim = ndimage.generic_filter(npim, checkForAndFillHole, footprint=footprint, mode='constant', cval=0)
 
                 pr("Filled", holesFilledLastRound, "holes. {numRounds} rounds remaining.".format(numRounds="Infinite" if fill_holes[0] == -1 else fill_holes[0]))
 
+        # repair these patterns, which cause non_manifold problems later:
+        # 0 1    or     1 0
+        # 1 0    or     0 1
+        if clean_diags == True:
+            npim = clean_up_diags(npim)
+        
+        
         # Ch Mar 30, 2021: removed z-scaling here as it's actually supposed to be done when the grid is created!
 
         """
