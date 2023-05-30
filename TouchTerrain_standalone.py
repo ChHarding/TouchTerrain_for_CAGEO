@@ -98,7 +98,6 @@ def main():
         "smooth_borders": True, # smooth borders
         "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
         "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
-        "max_elev" : None, # tilewide minimum/maximum elevation (in meter), None means: will be calculated later
         "min_elev" : None, # None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness
     }
 
