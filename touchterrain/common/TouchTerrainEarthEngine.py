@@ -34,14 +34,14 @@ from zipfile import ZipFile
 import http.client
 
 # debug: force use of local modules
-#import sys
-#oldsp = sys.path
-#sys.path = ["."] + sys.path
+import sys
+oldsp = sys.path
+sys.path = ["."] + sys.path
 
 import touchterrain.common
 from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
-#sys.path = oldsp
+sys.path = oldsp
 
 import numpy
 from scipy import ndimage # for clean_up_diags()
@@ -127,22 +127,26 @@ initial_args = {
     "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
     "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     #"CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
-    "CPU_cores_to_use" : None,  # 
-    "max_cells_for_memory_only" : 5000 * 5000, # if raster is bigger, use temp_files instead of memory
+    "CPU_cores_to_use" : None,  # Specail case for SP that cannot be overwritten later
+    "max_cells_for_memory_only" : 5000 * 5000, # if raster has more cells, use temp_files instead of memory (slower, but can be huge)
     "zip_file_name": "myterrain",   # base name of zipfile, .zip will be added
+    
     # these are the args that could be given "manually" via the web UI
     "no_bottom": False, # omit bottom triangles?
     #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
-    "bottom_image": None,  # 1 band greyscale image used for bottom relief
+    "bottom_image": None,  # 1 band 8-bit greyscale image used for bottom relief
     "ignore_leq": None, # set values <= this to NaN, so they are ignored
     "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
-    "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
+    "unprojected": False, # project to UTM? only useful when using GEE for DEM rasters
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
     "importedGPX": [], # list of gpx path file(s) to be use  
-    "smooth_borders": True, # smooth borders
+    "smooth_borders": True, # smooth borders  by removing a border triangle?
     "offset_masks": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
     "fill_holes": None, # [rounds, threshold] hole filling filter iterations and threshold to fill a hole
     "poly_file": None, # local kml file for mask
+    "min_elev": None, # min elev to use, None means set by min of all tiles
+    "tilewidth_scale": None, # set x/y scale, with None, scale is set automatically by the selected area (region)
+    "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
 }
 
 
@@ -217,21 +221,22 @@ def process_tile(tile_tuple):
     # create a grid object containing cells, each cell has a top/bottom and maybe wall quad(s)
     # each quad is 2 triangles with 3 vertices
     g = grid(tile_elev_raster, bottom_raster, tile_info)
-    printres = tile_info["pixel_mm"]
-
     del tile_elev_raster
 
-    # convert 3D model to a (in-memory) file (buffer)
+    #
+    # convert 3D model (gri object) into a triangle mesh file 
+    #
     fileformat = tile_info["fileformat"]
 
     if tile_info.get("temp_file") != None:  # contains None or a file name.
         print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
         temp_fn = tile_info.get("temp_file")
     else:
+        print("Writing tile into memory buffer")
         temp_fn = None # means: use memory
 
-    # Create triangle "file" either in a buffer or in a tempfile
-    # if file: open, write and close it, b will be temp file name
+    '''
+    # Create file/buffer of requested format 
     if  fileformat == "obj":
         b = g.make_OBJfile_buffer(temp_file=temp_fn)
         # TODO: add a header for obj
@@ -243,7 +248,14 @@ def process_tile(tile_tuple):
         b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
     else:
         raise ValueError("invalid file format:", fileformat)
+    '''
 
+    # Create triangle "file" either in a buffer or in a tempfile, of requested fileformat
+    # if file: open, write and close it, b will be temp file name
+    b = g.make_file_buffer()
+
+
+    # get size of file/buffer
     if temp_fn != None:
         fsize = os.stat(temp_fn).st_size / float(1024*1024)
     else:
