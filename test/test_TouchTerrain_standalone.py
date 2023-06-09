@@ -4,8 +4,7 @@ This is a (non-complete) battery of test methods for the many different combinat
 TouchTerrain.get_zipped_tiles(). Each test's arguments are set in a dict (args) which are then
 given as overwrite args to run_get_zipped_tiles().
 I'm currently testing 12 different args, obviously NOT in all possible combinations! 
-For better readability and to keep track which combos are covered, these are listed in TouchTerrain_test_matrix.csv 
-inside this test folder.
+For better readability and to keep track which combos are covered, these are listed in TouchTerrain_test_matrix.csv inside this test folder.
 
 As I'm pretty new to unit testing, I've just added a new test method for each new test. If you want to add your
 own test it copy one of my methods, rename stuff ans set your own args. By defaults my test methods are decorated
@@ -13,7 +12,8 @@ with @unittest.skip('Skipped test') which will skip that test. To actually run a
 
 Note that the cwd when running the test will be project root, NOT the test folder in it!
 
-EE means a test will use a only (Google Earth Engine) DEM,  local tests use a local geotiff (in test folder).
+EE means a test will use a only (Google Earth Engine) DEM, local tests use a local geotiff (in test folder).
+Unless noted these test will assemble the mesh file purely in memory.
 The test folder also contains a kml polygon file to test masking for EE and a 8-bit png for bottom image (relief) testing.
 '''
 # 
@@ -27,7 +27,7 @@ def run_get_zipped_tiles(overwrite_args, testname):
     default (initial) args.'''
 
 
-    # Use this to force import of local modules, required for debuging those imports
+    # Use this to force import of local modules, required for debugging those imports
     import sys
     oldsp = sys.path
     sys.path = ["."] + sys.path
@@ -62,7 +62,8 @@ def run_get_zipped_tiles(overwrite_args, testname):
 #
 class MyTests(unittest.TestCase):
 
-    #@unittest.skip("test_basic_EE")
+    
+    @unittest.skip("test_basic_EE")
     def test_basic_EE(self):
         '''Basic test to get Sheep Mountain via EE'''
         args = {
@@ -85,8 +86,7 @@ class MyTests(unittest.TestCase):
 
     @unittest.skip("skipping test_basic_EE_OBJ")
     def test_basic_EE_OBJ(self):
-        '''single tile EE but saves as OBJ file
-        This will NOT have the simple (2 triangle) bottom that STL files would have'''
+        '''single tile EE but saves as OBJ file'''
         args = {
                 "importedDEM": None,
                 "DEM_name": "USGS/3DEP/10m",   # DEM source
@@ -125,6 +125,72 @@ class MyTests(unittest.TestCase):
                 "zip_file_name": "test_basic_EE_STLa",   # base name of zipfile, .zip will be added
         }
         run_get_zipped_tiles(args, "test EE STLa")
+
+    #@unittest.skip("test_basic_EE_STlb_tempfiles")
+    def test_basic_EE_STlb_tempfiles(self):
+        '''Basic test to get Sheep Mountain via EE (using tempfiles)'''
+        args = {
+                "importedDEM": None,
+                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "bllat": 44.50185267072875,   # bottom left corner lat
+                "bllon": -108.25427910156247, # bottom left corner long
+                "trlat": 44.69741706507476,   # top right corner lat
+                "trlon": -107.97962089843747, # top right corner long
+                "tilewidth": 300,  # width of each tile in mm,  (large, so caching kicks in)
+                "printres": 0.4,  # resolution (horizontal) of 3D printer in mm
+                "ntilesx": 1, # number of tiles in x  
+                "ntilesy": 1, # number of tiles in y    
+                "basethick": 0.5,   # thickness (in mm) of printed base
+                "zscale": 1.5,  # elevation (vertical) scaling
+                "fileformat": "STLb",  # format of 3D model file
+                "max_cells_for_memory_only": 0, # force use of temps files instead of memory for assembling mesh file
+                "zip_file_name": "test_basic_EE_STlb_tempfiles",   # base name of zipfile, .zip will be added
+        }
+        run_get_zipped_tiles(args, "test_basic_EE_STlb_tempfiles")
+
+    #@unittest.skip("skipping est_basic_EE_OBJ_tempfile")
+    def test_basic_EE_OBJ_tempfile(self):
+        '''single tile EE but saves as OBJ file using tempfiles'''
+        args = {
+                "importedDEM": None,
+                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "bllat": 44.50185267072875,   # bottom left corner lat
+                "bllon": -108.25427910156247, # bottom left corner long
+                "trlat": 44.69741706507476,   # top right corner lat
+                "trlon": -107.97962089843747, # top right corner long
+                "tilewidth": 300,  # width of each tile in mm,  
+                "printres": 0.4,  # resolution (horizontal) of 3D printer in mm
+                "ntilesx": 1, # number of tiles in x  
+                "ntilesy": 1, # number of tiles in y    
+                "basethick": 0.5,   # thickness (in mm) of printed base
+                "zscale": 1.5,  # elevation (vertical) scaling
+                "fileformat": "obj",  # format of 3D model file
+                "max_cells_for_memory_only": 0, # force use of temps files instead of memory for assembling mesh file
+                "zip_file_name": "test_basic_EE_OBJ_tempfile",   # base name of zipfile, .zip will be added
+        }
+        run_get_zipped_tiles(args, "test_basic_EE_OBJ_tempfile")
+
+    #@unittest.skip("skipping test_basic_EE_STLa_tempfile")
+    def test_basic_EE_STLa_tempfile(self):
+        '''single tile EE but saves as STLa (ascii STL) file using tempfiles'''
+        args = {
+                "importedDEM": None,
+                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "bllat": 44.50185267072875,   # bottom left corner lat
+                "bllon": -108.25427910156247, # bottom left corner long
+                "trlat": 44.69741706507476,   # top right corner lat
+                "trlon": -107.97962089843747, # top right corner long
+                "tilewidth": 300,  # width of each tile in mm,  
+                "printres": 0.4,  # resolution (horizontal) of 3D printer in mm
+                "ntilesx": 1, # number of tiles in x  
+                "ntilesy": 1, # number of tiles in y    
+                "basethick": 0.5,   # thickness (in mm) of printed base
+                "zscale": 1.5,  # elevation (vertical) scaling
+                "fileformat": "STLa",  # format of 3D model file
+                "max_cells_for_memory_only": 0, # force use of temps files instead of memory for assembling mesh file
+                "zip_file_name": "test_basic_EE_STLa_tempfile",   # base name of zipfile, .zip will be added
+        }
+        run_get_zipped_tiles(args, "test_basic_EE_STLa_tempfile")
 
     @unittest.skip("skipping test_EE_multi_tiles")
     def test_EE_multi_tiles(self):
