@@ -58,7 +58,7 @@ def main():
 
     # Default parameters:
     # The JSON file overwrites values for the following keys, which are used as
-    # args for get_zipped_tiles() and save them inside a zipped folder.
+    # args for get_zipped_tiles() 
     args = {
         "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
                             # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
@@ -91,7 +91,7 @@ def main():
         "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
         "importedGPX": None, # Plot GPX paths from files onto the model.
         "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
-                               # therefore this is in meters. Negative numbers are ok and put a dent in the mdoel
+                               # therefore this is in meters. Negative numbers are ok and put a dent in the model
         "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
                                        # on the model and can have the effect of making the paths look a bit cleaner
         "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
