@@ -691,6 +691,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
             else:
                 logging.info("Read file KML polygon with " + str(len(clip_poly_coords)) + " points from " + poly_file)
+
+                # make area selection box from bounding box of polygon
+                trlat, trlon, bllat, bllon = get_bounding_box(clip_poly_coords)
+
+
     # end of polygon stuff
 
 
