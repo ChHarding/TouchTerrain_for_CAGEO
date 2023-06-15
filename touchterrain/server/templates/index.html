@@ -40,6 +40,7 @@
 			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
 		</script>
 		  
+    <!--
 	{% if GOOGLE_ANALYTICS_TRACKING_ID %}
 		<script>
 			(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -53,6 +54,17 @@
 				ga('send', 'pageview', 'location'); // location = URL
 		</script>
 	{% endif %}
+    -->
+
+    
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EGX5Y3PBYH"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-EGX5Y3PBYH');
+        </script>
 
 		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
 		<script type="text/javascript" src="/static/js/zip-full.min.js"></script>
