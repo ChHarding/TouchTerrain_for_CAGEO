@@ -61,30 +61,33 @@ except:
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
-    return """
-    <title>TouchTerrain: processing finished. Settings used:""" + page_title + """</title>
-    <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    html = """<title>TouchTerrain: processing finished. Settings used:""" + page_title + """</title>"""
+    if GOOGLE_ANALYTICS_TRACKING_ID:
+        html += """
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EGX5Y3PBYH"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '""" + GOOGLE_ANALYTICS_TRACKING_ID + """');
+        
+        //fire off events to GA when download button is clicked
+        function onclick_for_dl(){
+                //ga('send', 'event', 'Download', 'Click', 'direct', '1');
+                gtag('event', 'Click', {'event_category':'Download', 'event_label':'direct_dl', 'value':'1'});
+                
+                let comment_text=document.getElementById('comment').value;
+                if (comment_text !== ""){ // log comment with GA
+                    //console.log(comment_text); 
+                    //ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
+                    gtag('event', 'Comment', {'event_category':'Comment', 'event_label':comment_text, 'value':'1', 'nonInteraction': true});
+                }
+        }
+        </script>        
+        """
+    return html
 
-    ga('create',
-        '""" + GOOGLE_ANALYTICS_TRACKING_ID + """',  // put your own tracking id in server/config.py
-        'auto');
-    ga('send', 'pageview', 'location'); // location = URL
-    
-    //fire off events to GA when download button is clicked
-    function onclick_for_dl(){
-            ga('send', 'event', 'Download', 'Click', 'direct', '1');
-            let comment_text=document.getElementById('comment').value;
-            //console.log(comment_text) 
-            ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
-    }
-    </script>
-    """
-
-# entry page that shows an image of the UI and loads the main page when clicked
+# entry page that shows a world map and loads the main page when clicked
 @app.route("/", methods=['GET', 'POST'])
 def intro_page():
     return render_template("intro.html")
@@ -131,7 +134,6 @@ def main_page():
         # defines optional polygon (currently not used)
         'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
         "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
-
         'warning':"",
     }
         
@@ -167,13 +169,6 @@ def main_page():
     # these have to be added to the args so they end up in the template
     args['mapid'] = mapid['mapid']
     args['token'] = mapid['token']
-
-    # add google analytics id (should have been imported from server/config.py
-    try:
-        args["GOOGLE_ANALYTICS_TRACKING_ID"] = GOOGLE_ANALYTICS_TRACKING_ID
-    except:
-        pass
-   
    
     # in manual, replace " with \" i.e. ""ignore_leq":123" -> "\"ignore_leq\":123"
     # so that it's a valid JS string after it's been inlined
@@ -184,10 +179,6 @@ def main_page():
 
     return html_str
 
-# @app.route("/cleanup_preview/<string:zip_file>")  onunload="myFunction()"
-
-
-
 
 @app.route("/preview/<string:zip_file>")
 def preview(zip_file):
@@ -196,8 +187,7 @@ def preview(zip_file):
 
         # create html string
         html = '<html>'
-
-        html += make_GA_script("TouchTerrain preview") # <head> with script that inits GA with my tracking id and calls send pageview
+        html += make_GA_script("TouchTerrain preview") # <head> with script that inits GA with my tracking id 
 
         # onload event will only be triggered once </body> is given
         html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
@@ -213,7 +203,7 @@ def preview(zip_file):
         zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
         html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">'
         html += '  <input type="submit" value="Download zip File" '
-        html += ''' onclick="ga('send', 'event', 'Download', 'Click', 'from preview', '0')" '''
+        html += ''' onclick="gtag('event', 'Click', {'event_category':'Download', 'event_label':'preview_dl', 'value':'1'})" '''
         html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
         #html += '  To return to the selection map, click the back button in your browser twice.\n'
         html += '</form>\n'
@@ -321,9 +311,7 @@ def preview_file(zip_file, filename):
 
 def make_current_URL(query_string_names_and_values_list):
     '''Assembles a string from a list of query names and value tuples:
-    [('trlat', '12.34'), ('trlon', '-56,78')] 
-    into
-    "?trlat=12.34&trlon=-56,78"'''
+    [('trlat', '12.34'), ('trlon', '-56,78')] into "?trlat=12.34&trlon=-56,78" '''
     from urllib.parse import quote
     query = '/main?'
     for kv in query_string_names_and_values_list: 
@@ -336,7 +324,6 @@ def make_current_URL(query_string_names_and_values_list):
 # a timestamp and shows a download URL to the zip file.
 @app.route("/export", methods=["POST"])
 def export():
-
     # clean up old exports
     os.system('tmpwatch --mtime 6h {} {} {}'.format(DOWNLOADS_FOLDER, PREVIEWS_FOLDER, TMP_FOLDER))
 
@@ -359,12 +346,12 @@ def export():
 
         ## make head
         html += '<head>'
-        html += make_GA_script(header) # <head> with script that inits GA with my tracking id and calls send pageview
+        html += make_GA_script(header) # <head> with script that inits GA with my tracking id a 
         
         # script to set a very long timeout to deliver a message should
         # the server get stuck. pageLoadedSuccessfully will be set to true once processing has been
         # done successfully. (Thanks to Nick Booher)
-        timeout_msg =  "Sorry, the server timed out. It's not clear how and why, but your processing job did not finish. Maybe the server had to many jobs to process and run out of memory? This is sad.<br>"
+        timeout_msg =  "Sorry, the server timed out. It's not clear how and why, but your processing job did not finish. Maybe the server had to many jobs to process and did run out of memory? This is sad.<br>"
         timeout_msg += "Your only option is to run the job again and hope for better luck.<br>"
         
         html += '''
@@ -382,7 +369,7 @@ def export():
         # with the setTimeout the onerror should not be needed anymore, leaving it in just in case
         html += '''<body onerror="document.getElementById('error').innerHTML=\'''' + 'onerror: ' + timeout_msg + ''''"\n'''
         # onload event will only be triggered once </body> is given
-        html += '''      onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '''onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
         html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
         html += 'Once the animation stops, you can preview and download your file.</h2>\n'
         
@@ -398,7 +385,7 @@ def export():
 
         # list of the subset of args needed for processing
         key_list = ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
-                  "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
+                    "ntilesx", "ntilesy", "tilewidth", "basethick", "zscale", "fileformat")
 
         for k in key_list:
             # float-ify some args
@@ -493,7 +480,7 @@ def export():
         dlon =  180 - abs(abs(bllon - trlon) - 180) # width in degrees
         dlat =  180 - abs(abs(bllat - trlat) - 180) # height in degrees
         center_lat = bllat + abs((bllat - trlat) / 2.0)
-        latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
+        #latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
         num_total_tiles = args["ntilesx"] * args["ntilesy"]
         pr = args["printres"]
 
@@ -518,18 +505,18 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/3DEP/10m":1/9.0,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+            cell_width_arcsecs = {"USGS/3DEP/10m":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
                                   "JAXA/ALOS/AW3D30/V3_2":1, "NRCan/CDEM": 0.75, 
-                                  "AU/GA/AUSTRALIA_5M_DEM": 1/18.0} # in arcseconds!
+                                  "AU/GA/AUSTRALIA_5M_DEM": 1/18} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
-            tot_pix =    int( ( ((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas) ) / div_by)
-            print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
+            tot_pix = int((((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas)) / div_by)
+            print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is",  MAX_CELLS_PERMITED, file=sys.stderr)
 
         if tot_pix >  MAX_CELLS_PERMITED:
             html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
-            html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000.0, 2))
-            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000.0, 2)) + " Kilo pixels"
+            html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000, 2))
+            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000, 2)) + " Kilo pixels"
             html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
             html += "<br><br>Click \n"
         
@@ -554,7 +541,6 @@ def export():
         # set the cores to 1 and not allow manual override. MP on ISU servers was disabled 
         # Nov. 2021 as we could not figure out why it was giving us problems (jobs bailed out early)
         # Forced_single_core_only was added 3/13/23 as response to user request to put MP back
-    
         args["CPU_cores_to_use"] = NUM_CORES
         if args["CPU_cores_to_use"] == "Forced_single_core_only":
             args["CPU_cores_to_use"] = 1
@@ -584,7 +570,7 @@ def export():
         args["polygon"] = geojson_polygon
 
         # show snazzy animated gif - set to style="display: none to hide once processing is done
-        html =  '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
+        html = '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
 
         # add an empty paragraph for error messages during processing that come from JS
         html += '<p id="error"> </p>\n'
@@ -627,18 +613,17 @@ def export():
             if args["fileformat"] in ("STLa", "STLb"):
                 html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">'
                 html += '  <input type="submit" value="Preview STL " '
-                html += ''' onclick="ga('send', 'event', 'Preview', 'Click', 'preview', '0')" '''
+                html += ''' onclick="gtag('event', 'Click', {'event_category':'Preview', 'event_label':'preview', 'value':'1'})" '''
                 html += '   title=""> '
                 html += 'Note: This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
                 html += 'You may not see anything for a while even after the progress bar is full!'
                 html += '</form>\n'
 
-            html += "Optional: tell us what you're using this model for<br>\n"
+            html += "Optional: Tell us what you're using this model for<br>\n"
             html += '''<textarea autofocus form="dl" id="comment" cols="100" maxlength=150 rows="2"></textarea><br>\n'''
 
             html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
             html += '  <input type="submit" value="Download zip File " \n'
-            #https://stackoverflow.com/questions/57499732/google-analytics-events-present-in-console-but-no-more-in-api-v4-results
             html += '''  onclick=onclick_for_dl();\n'''
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize

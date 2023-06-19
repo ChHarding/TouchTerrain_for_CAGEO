@@ -402,7 +402,8 @@ window.onload = function () {
                     document.getElementById("pac-input").placeholder = "Search for a place (last search result: " + name + ")";
 
                     // throw place name at GA
-                    ga('send', 'event', 'placename', 'SearchBoxText',name , {nonInteraction: true});
+                    
+                    gtag('event', 'Placename', {'event_category':'SearchBoxText', 'event_label':name, 'value':'1', 'nonInteraction': true});
 
                     // Update place id in form 2
                     document.getElementById("place").value = name;
