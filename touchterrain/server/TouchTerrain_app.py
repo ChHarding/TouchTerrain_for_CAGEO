@@ -61,11 +61,10 @@ except:
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
-    html = """<title>TouchTerrain: processing finished. Settings used:""" + page_title + """</title>"""
+    html = """<title>Settings:""" + page_title + """</title>"""
     if GOOGLE_ANALYTICS_TRACKING_ID:
-        html += """
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EGX5Y3PBYH"></script>
-        <script>
+        html += """<script async src="https://www.googletagmanager.com/gtag/js?id""" + GOOGLE_ANALYTICS_TRACKING_ID + "></script>" 
+        html += """<script>
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
