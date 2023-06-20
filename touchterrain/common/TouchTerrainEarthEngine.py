@@ -511,7 +511,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          fill_holes=None,
                          min_elev=None,
                          tilewidth_scale=None,
-                         clean_diags = False,
+                         clean_diags=False,
+                         sqrt=False,
                          **otherargs):
     """
     args:
@@ -555,6 +556,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - min_elev: overwrites minimum elevation for all tiles
     - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
     - clean_diags: if True, repair diagonal patterns which cause non-manifold edges
+    - sqrt: if True will apply the square root function to the elevation after multiplying it with z_scale 
+
     
     returns the total size of the zip file in Mb
 
@@ -1386,8 +1389,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if clean_diags == True:
             npim = clean_up_diags(npim)
         
-        
-        # Ch Mar 30, 2021: removed z-scaling here as it's actually supposed to be done when the grid is created!
+        # Apply square root to elevation
+        if sqrt == True:
+            npim = numpy.sqrt(npim)
+            pr("Applied square root to elevation")
+
 
         """
         # plot dem
