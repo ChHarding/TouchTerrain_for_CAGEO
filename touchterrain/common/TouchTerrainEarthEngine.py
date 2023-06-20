@@ -147,6 +147,7 @@ initial_args = {
     "min_elev": None, # min elev to use, None means set by min of all tiles
     "tilewidth_scale": None, # set x/y scale, with None, scale is set automatically by the selected area (region)
     "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
+    "sqrt":False,
 }
 
 
