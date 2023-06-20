@@ -1393,6 +1393,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Apply square root to elevation
         if sqrt == True:
             npim = numpy.sqrt(npim)
+            npim -= numpy.nanmin(npim)
             pr("Applied square root to elevation")
 
 
