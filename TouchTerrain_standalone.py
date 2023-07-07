@@ -136,14 +136,16 @@ def main():
         # you can comment out lines for which you don't want to overwrite the default settings
         overwrite_args = {
             "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
-                                   # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
+                                        # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
             "trlat": 44.69741706507476,        # lat/lon of top right corner
             "trlon": -107.97962089843747,
             "bllat": 44.50185267072875,        # lat/lon of bottom left corner
             "bllon": -108.25427910156247,
+            "poly_file": None, # path to a local kml file
+            "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
             "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-            "ntilesx": 1,      # number of tiles in x and y
+            "ntilesx": 1,     # number of tiles in x and y
             "ntilesy": 1,
             "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
             "basethick": 1, # thickness (in mm) of printed base
@@ -153,6 +155,8 @@ def main():
             "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
             "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
             "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
+            
+            # these are the args that could be given "manually" via the web UI
             "no_bottom": False, # omit bottom triangles?
             #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
             "bottom_image": None,  # 1 band greyscale image used for bottom relief
@@ -160,8 +164,16 @@ def main():
             "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
             "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
             "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-            "poly_file": None, #"idaho.kml", #TT_poly_test.kml",
+            "importedGPX": None, # Plot GPX paths from files onto the model.
+            "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
+                                # therefore this is in meters. Negative numbers are ok and put a dent in the model
+            "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
+                                        # on the model and can have the effect of making the paths look a bit cleaner
+            "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
             "smooth_borders": True, # smooth borders
+            "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
+            "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
+            "min_elev" : None, # None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness
         }
 
         # overwrite settings in args
