@@ -80,9 +80,9 @@ class vertex(object):
 
         # for non obj file this is set to -1, and there's no need to deal with vertex indices
         if vdict != -1:
-            # This creates a  dict (a grid class attribute) with a tuple of the
+            # This creates a dict (a grid class attribute) with a tuple of the
             # 3 coords as key and a int as value. The int is a running index i.e. for each new
-            # (not yet hashed) vertex this index just increases by 1, based the number of dict
+            # (not yet hashed) vertex this index just increases by 1, based on the current number of dict
             # entries. If a vertex has coords that already exist in the dict, nothing needs to be done.
             # This ensures that each index number is unique but can be shared by multiple indices
             # (e.g. when 2 triangles have vertices at exactly the same coords)
@@ -611,11 +611,13 @@ class grid(object):
                 N = -(j-1) * self.cell_size + self.offsety # y is flipped to negative
                 S = N - self.cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
-
+                
+                # needed?
+                E, W, N, S = round(E, 2), round(W, 2), round(N, 2), round(S, 2)
 
                 ## Which directions will need to have a wall?
                 # True means: we have an adjacent cell and need a wall in that direction
-                borders =   dict([[drct,False] for drct in ["N", "S", "E", "W"]]) # init                    
+                borders =   dict([[drct, False] for drct in ["N", "S", "E", "W"]]) # init                    
                 
                 # set walls for fringe cells
                 if j == 1        : borders["N"] = True
@@ -647,12 +649,13 @@ class grid(object):
                     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
-                        NEar = np.array([self.top[j+0,i+0], self.top[j-1,i-0], self.top[j-1,i+1], self.top[j-0,i+1]])
-                        NWar = np.array([self.top[j+0,i+0], self.top[j+0,i-1], self.top[j-1,i-1], self.top[j-1,i+0]])
-                        SEar = np.array([self.top[j+0,i+0], self.top[j-0,i+1], self.top[j+1,i+1], self.top[j+1,i+0]])
-                        SWar = np.array([self.top[j+0,i+0], self.top[j+1,i+0], self.top[j+1,i-1], self.top[j+0,i-1]])
+                        NEar = np.array([self.top[j+0,i+0], self.top[j-1,i-0], self.top[j-1,i+1], self.top[j-0,i+1]]).astype(np.float64)
+                        NWar = np.array([self.top[j+0,i+0], self.top[j+0,i-1], self.top[j-1,i-1], self.top[j-1,i+0]]).astype(np.float64)
+                        SEar = np.array([self.top[j+0,i+0], self.top[j-0,i+1], self.top[j+1,i+1], self.top[j+1,i+0]]).astype(np.float64)
+                        SWar = np.array([self.top[j+0,i+0], self.top[j+1,i+0], self.top[j+1,i-1], self.top[j+0,i-1]]).astype(np.float64)
 
-                        try: # nanmean is expensive, so only use it when actually needed
+                        try: 
+                            # nanmean is expensive, so only use it when actually needed
                             NEelev = np.nanmean(NEar) if np.isnan(np.sum(NEar)) else (self.top[j+0,i+0] + self.top[j-1,i-0] + self.top[j-1,i+1] + self.top[j-0,i+1]) / 4.0  
                             NWelev = np.nanmean(NWar) if np.isnan(np.sum(NWar)) else (self.top[j+0,i+0] + self.top[j+0,i-1] + self.top[j-1,i-1] + self.top[j-1,i+0]) / 4.0
                             SEelev = np.nanmean(SEar) if np.isnan(np.sum(SEar)) else (self.top[j+0,i+0] + self.top[j-0,i+1] + self.top[j+1,i+1] + self.top[j+1,i+0]) / 4.0
@@ -678,7 +681,7 @@ class grid(object):
                 NWt = vertex(W, N, NEelev)
                 SEt = vertex(E, S, SWelev)
                 SWt = vertex(W, S, SEelev)
-                topq = quad(NEt, SEt, SWt, NWt) # with this vertex order, a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
+                topq = quad(NEt, SEt, SWt, NWt) # a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
                 #print topq
 
                 #
@@ -747,7 +750,6 @@ class grid(object):
                     # add border quads if we have any (False means no border quad) 
                     for k in list(c.borders.keys()): # TODO: fix
                         if c.borders[k] != False: quads.append(c.borders[k])
-                        # TODO? the tris for these quads can become very skinny, should be subdivided into more quads to keep the angles high enough
                     
                     # write the triangles of this quad to buffer
                     for q in quads:
