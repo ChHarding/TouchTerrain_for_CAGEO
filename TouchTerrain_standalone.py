@@ -66,6 +66,7 @@ def main():
         "trlon": -107.97962089843747,
         "bllat": 44.50185267072875,        # lat/lon of bottom left corner
         "bllon": -108.25427910156247,
+        "clean_diags": False, # clean 2x2 diagonals
         "poly_file": None, # path to a local kml file
         "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
         "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
@@ -141,6 +142,7 @@ def main():
             "trlon": -107.97962089843747,
             "bllat": 44.50185267072875,        # lat/lon of bottom left corner
             "bllon": -108.25427910156247,
+            "clean_diags": False, # clean 2x2 diagonals
             "poly_file": None, # path to a local kml file
             "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
