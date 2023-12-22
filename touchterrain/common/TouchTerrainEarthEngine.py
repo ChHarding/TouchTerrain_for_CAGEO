@@ -807,7 +807,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
      
 
         # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
-        pr("!!!tilewidth_scale:", tilewidth_scale, "tilewidth:", tilewidth, "region width:", region_size_in_meters[1], "m")
         if tilewidth_scale != None:
             tilewidth = region_size_in_meters[1] / tilewidth_scale * 1000 # new tilewidth in mm
             pr("Overriding tilewidth using a tilewidth_scale of 1 :", tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", tilewidth, "(Note that the final scale may be slighly different!)")
@@ -1229,7 +1228,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # re-sample offset mask
             for index, offset_layer in enumerate(offset_npim):
-                pr("re-sampling offset layer",index, ":\n ",  offset_layer.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(offset_layer), "-", numpy.nanmax(offset_layer), "m to")
+                pr("re-sampling offset layer",index, ":\n ", offset_layer.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(offset_layer), "-", numpy.nanmax(offset_layer), "m to")
                 offset_npim[index] = resampleDEM(offset_layer, scale_factor)
 
             #
@@ -1256,7 +1255,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # end local raster file
 
     total_size = 0 # size of stl/objs/geotiff file(s) in byes
-    full_zip_file_name =    + os.sep + zip_file_name + ".zip"
+    full_zip_file_name = temp_folder + os.sep + zip_file_name + ".zip"
     #print >> sys.stderr, "zip is in", os.path.abspath(full_zip_file_name)
     zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True) # create empty zipfile
 
