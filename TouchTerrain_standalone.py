@@ -74,6 +74,8 @@ def main():
         "ntilesx": 1,      # number of tiles in x and y
         "ntilesy": 1,
         "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
+        "tilewidth_scale": None,
+        "use_geo_coords": False, 
         "basethick": 1, # thickness (in mm) of printed base
         "zscale": 1.0,      # elevation (vertical) scaling
         "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
