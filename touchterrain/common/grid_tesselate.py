@@ -749,7 +749,7 @@ class grid:
                 if self.tile_info["have_bottom_array"] == True:
                     
                     # simple interpolation
-                    if self.tile_info["have_bot_nan"] is not True:
+                    if not self.tile_info["have_bot_nan"]:
                         NEelev = (self.bottom[j+0,i+0] + self.bottom[j-1,i-0] + self.bottom[j-1,i+1] + self.bottom[j-0,i+1]) / 4.0
                         NWelev = (self.bottom[j+0,i+0] + self.bottom[j+0,i-1] + self.bottom[j-1,i-1] + self.bottom[j-1,i+0]) / 4.0
                         SEelev = (self.bottom[j+0,i+0] + self.bottom[j-0,i+1] + self.bottom[j+1,i+1] + self.bottom[j+1,i+0]) / 4.0
@@ -757,7 +757,7 @@ class grid:
                     else:
                         # Nan aware interpolation 
                         NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self, self.bottom, i, j)
-                        # no need to check if any them are None, as we would have skipped this cell based on top resulting in None earlier
+                        # no need to check if any of them are None, as we would have skipped this cell based on top resulting in None earlier
                         
                 else:
                     NEelev = NWelev = SEelev = SWelev = self.bottom # otherwise use constant bottom elevation value

@@ -223,6 +223,7 @@ def process_tile(tile_tuple):
     else:
         bottom_raster = None # None means bottom is flat
 
+    '''
     # DEBUG: make some simple rasters  (CH)
     tile_elev_raster =  numpy.array([
                          [ 1, 5, 10, 50, 20, 10, 1],
@@ -241,6 +242,7 @@ def process_tile(tile_tuple):
 
                    ])   
     bottom_raster = bottom_raster - 0.5  
+    '''
 
     # CH: I don't think this needed, in fact min_elev would overwrite a user-given min_elev!       
     #tile_info["min_elev"] = numpy.nanmin(tile_elev_raster)
