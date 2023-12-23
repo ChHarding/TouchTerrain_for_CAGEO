@@ -74,6 +74,8 @@ def main():
         "ntilesx": 1,      # number of tiles in x and y
         "ntilesy": 1,
         "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
+        "tilewidth_scale": None,
+        "use_geo_coords": False, 
         "basethick": 1, # thickness (in mm) of printed base
         "zscale": 1.0,      # elevation (vertical) scaling
         "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
@@ -100,6 +102,7 @@ def main():
         "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
         "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
         "min_elev" : None, # None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness
+        "no_normals": True
     }
 
     # write an example json file, in case it gets deleted ...
