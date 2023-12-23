@@ -482,23 +482,23 @@ class grid:
         elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
             self.tile_info["have_bottom_array"] = True 
 
-        # If there is a bottom_elevation, ensure that neither top nor bottom have a NaN where the other doesn't.
-        # If so, make it so both are NaN
+        # Checking for bottom only holes and top == bottom
         if self.tile_info["bottom_elevation"] is not None:
 
-            # if top has NaNs where bottom doesn't, make them NaN
-            if have_nan == True and have_bot_nan == False:
-                self.bottom[np.isnan(self.top)] = np.nan
-                have_bot_nan = self.tile_info["have_bot_nan"] = True
-
-            # if bottom has NaNs where top doesn't, make them NaN
-            elif have_nan == False and have_bot_nan == True:
-                self.top[np.isnan(self.bottom)] = np.nan
-                have_nan = self.tile_info["have_nan"] = True
+            # if the bottom has NaNs make sure the corresponding top cells are also NaN
+            if have_bot_nan == True:
+                nan_values = np.isnan(self.bottom) # bool array with True for NaN values
+                if np.any(nan_values) == True: 
+                    self.top[nan_values] = np.nan
+                    have_nan = self.tile_info["have_nan"] = True
 
             # if both have the same value (or very close to) set both to Nan
+            # TODO: should the tolerances be larger? Maybe just 0.0001 m?
             close_values = np.isclose(self.top, self.bottom, rtol=1e-05, atol=1e-08, equal_nan=False) # bool array
-            if np.any(close_values) == True: # if any True values in array set corresponding cells to NaN
+
+            # for any True values in array, set corresponding top and bottom cells to NaN
+            # Also set NaN flags
+            if np.any(close_values) == True: 
                 self.top[close_values] = np.nan
                 have_nan = self.tile_info["have_nan"] = True
                 self.bottom[close_values] = np.nan
@@ -506,7 +506,7 @@ class grid:
 
         # real world (pre-scale) min_elev, either user-given or min of top
         if self.tile_info["min_elev"] == None: # NOT set by user
-            self.tile_info["min_elev"] = np.nanmin(self.top)
+            self.tile_info["min_elev"] = np.nanmin(self.top) # use min of top
         # else use user-given min_elev for conversion to mm
 
         # Coordinates are in mm  
@@ -550,7 +550,7 @@ class grid:
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
 
-        else:  # using geo coords - thickness is meters
+        else:  # using geo coords (UTM, meter based) - thickness is meters
             # TODO: Just noticed that we don't apply a z-scale to the top. Not sure if we should
             self.bottom = self.tile_info["min_elev"] - self.tile_info["base_thickness_mm"] * 10
             logger.info("Using geo coords with a base thickness of " + str(self.tile_info["base_thickness_mm"] * 10) + " meters")

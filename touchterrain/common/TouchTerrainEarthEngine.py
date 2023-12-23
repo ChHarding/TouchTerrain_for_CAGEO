@@ -129,7 +129,7 @@ initial_args = {
     "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
     "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     #"CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
-    "CPU_cores_to_use" : None,  # Specail case for SP that cannot be overwritten later
+    "CPU_cores_to_use" : None,  # Special case for setting to SP that cannot be overwritten later
     "max_cells_for_memory_only" : 5000 * 5000, # if raster has more cells, use temp_files instead of memory (slower, but can be huge)
     
     # these are the args that could be given "manually" via the web UI
@@ -227,20 +227,20 @@ def process_tile(tile_tuple):
     tile_elev_raster =  numpy.array([
                          [ 1, 5, 10, 50, 20, 10, 1],
                          [ 1, 10, 10, 50, 20, 10, 2],
-                         [ 1, 11, 15, 30, 30, 10, 5],
+                         [ 1, 11, 15, 20, 30, 10, 5],
                          [ 1, 23, 30, 40, 20, 10, 2 ],
                          [ 1, 20, 10, 10, 20, 10 , 1 ],
 
                    ])  
     bottom_raster = numpy.array([
                          [ 1, 5, 10, 10, 20, 10, 1],
-                         [ 1, 10, 5, 10, 10, 10, 2],
-                         [ 1, 11, 10, numpy.NaN , 10, 10, 5],
+                         [ 1, numpy.NaN, 5, 10, 10, 10, 2],
+                         [ 1, 11, 10, 5 , 10, 10, 5],
                          [ 1, 23, 10, 10, 10, 10, 2 ],
                          [ 1, 20, 10, 10, 20, 10 , 1 ],
 
                    ])   
-    bottom_raster = bottom_raster - 0.1 
+    bottom_raster = bottom_raster - 0.5  
 
     # CH: I don't think this needed, in fact min_elev would overwrite a user-given min_elev!       
     #tile_info["min_elev"] = numpy.nanmin(tile_elev_raster)
