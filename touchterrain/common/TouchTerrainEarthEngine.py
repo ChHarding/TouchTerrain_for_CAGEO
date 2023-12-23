@@ -54,6 +54,8 @@ try:
 except ImportError as err:
     from osgeo import gdal
 
+import osgeo.osr as osr  # projection stuff
+
 import time
 import random
 import os.path
@@ -129,7 +131,6 @@ initial_args = {
     #"CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
     "CPU_cores_to_use" : None,  # Specail case for SP that cannot be overwritten later
     "max_cells_for_memory_only" : 5000 * 5000, # if raster has more cells, use temp_files instead of memory (slower, but can be huge)
-    "zip_file_name": "myterrain",   # base name of zipfile, .zip will be added
     
     # these are the args that could be given "manually" via the web UI
     "no_bottom": False, # omit bottom triangles?
@@ -147,11 +148,11 @@ initial_args = {
     "min_elev": None, # min elev to use, None means set by min of all tiles
     "tilewidth_scale": None, # set x/y scale, with None, scale is set automatically by the selected area (region)
     "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
-    "sqrt":False,
+    "bottom_elevation":None
 }
 
 
-def make_bottom_raster(image_file_name, shape):
+def make_bottom_raster_from_image(image_file_name, shape):
     """ Make a bottom image (numpy array) to be used in the stl model
 
         in: image_file_name. Must be 1 band/greyscale image,
@@ -204,7 +205,8 @@ def make_bottom_raster(image_file_name, shape):
 #@profile
 def process_tile(tile_tuple):
     tile_info = tile_tuple[0] # has info for this individual tile
-    tile_elev_raster = tile_tuple[1] # the actual raster
+    tile_elev_raster = tile_tuple[1] # the actual (top) raster
+    tile_bottom_raster = tile_tuple[2] # the actual (bottom) raster (or None)
 
     print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -212,28 +214,55 @@ def process_tile(tile_tuple):
     # create a bottom relief raster (values 0.0 - 1.0)
     if tile_info["bottom_image"] != None and tile_info["no_bottom"] != None:
         logger.debug("using " + tile_info["bottom_image"] + " as relief on bottom")
-        bottom_raster = make_bottom_raster(tile_info["bottom_image"], tile_elev_raster.shape)
+        bottom_raster = make_bottom_raster_from_image(tile_info["bottom_image"], tile_elev_raster.shape)
         #print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)
         bottom_raster *= (tile_info["base_thickness_mm"] * 0.8) # max relief is 80% of base thickness to still have a bit of "roof"
-        print("min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)) # range of bottom raster
+        print("bottom image (in meters!) min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)) # range of bottom raster
+    elif tile_bottom_raster is not None:
+        bottom_raster = tile_bottom_raster # bottom elevation(!) raster
     else:
-        bottom_raster = None # None means Bottom is flat
+        bottom_raster = None # None means bottom is flat
 
-    # create a grid object containing cells, each cell has a top/bottom and maybe wall quad(s)
-    # each quad is 2 triangles with 3 vertices
+    # DEBUG: make some simple rasters  (CH)
+    tile_elev_raster =  numpy.array([
+                         [ 1, 5, 10, 50, 20, 10, 1],
+                         [ 1, 10, 10, 50, 20, 10, 2],
+                         [ 1, 11, 15, 30, 30, 10, 5],
+                         [ 1, 23, 30, 40, 20, 10, 2 ],
+                         [ 1, 20, 10, 10, 20, 10 , 1 ],
+
+                   ])  
+    bottom_raster = numpy.array([
+                         [ 1, 5, 10, 10, 20, 10, 1],
+                         [ 1, 10, 5, 10, 10, 10, 2],
+                         [ 1, 11, 10, numpy.NaN , 10, 10, 5],
+                         [ 1, 23, 10, 10, 10, 10, 2 ],
+                         [ 1, 20, 10, 10, 20, 10 , 1 ],
+
+                   ])   
+    bottom_raster = bottom_raster - 0.1 
+
+    # CH: I don't think this needed, in fact min_elev would overwrite a user-given min_elev!       
+    #tile_info["min_elev"] = numpy.nanmin(tile_elev_raster)
+    #tile_info["max_elev"] = numpy.nanmax(tile_elev_raster)
+    #tile_info["min_bot_elev"] = numpy.nanmin(bottom_raster)
+    #tile_info["max_bot_elev"] = numpy.nanmax(bottom_raster)
+
+    # create a grid object from the raster(s), which later converted into a triangle mesh
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     del tile_elev_raster
 
     #
-    # convert 3D model (gri object) into a triangle mesh file 
+    # convert grid object into a triangle mesh file 
     #
     fileformat = tile_info["fileformat"]
 
+    # info on buffer/temp file
     if tile_info.get("temp_file") != None:  # contains None or a file name.
         print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
         temp_fn = tile_info.get("temp_file")
     else:
-        print("Writing tile into memory buffer")
+        print("Writing tile into memory buffer", file=sys.stderr)
         temp_fn = None # means: use memory
 
     '''
@@ -328,8 +357,12 @@ def resampleDEM(a, factor):
     # fix CH Jan 2, 20: needs to be a copy, PIL locks it to read only!
     # Thanks to ljverge for finding this!
     a = numpy.copy(a)
-    return a
 
+    # deleting the PIL image will also free up the read-only numpy array
+    # CHECK THIS
+    del img
+
+    return a
 
 import kml2geojson # https://rawgit.com/araichev/kml2geojson/master/docs/_build/singlehtml/index.html
 import defusedxml.minidom as md 
@@ -486,6 +519,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          polyURL=None,
                          poly_file=None,
                          importedDEM=None,
+                         bottom_elevation=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
@@ -513,7 +547,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          min_elev=None,
                          tilewidth_scale=None,
                          clean_diags=False,
-                         sqrt=False,
                          **otherargs):
     """
     args:
@@ -522,6 +555,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - bllat, bllon: lat/lon of bottom left corner of bounding box
     - polygon: optional geoJSON polygon
     - importedDEM: None (means: get the DEM from GEE) or local file name with DEM to be used instead
+    - bottom_elevation (None): elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM 
     - printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
     - ntilesx, ntilesy: number of tiles in x and y
     - tilewidth: width of each tile in mm (<- !!!!!), tile height is calculated automatically
@@ -539,7 +573,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - no_bottom: don't create any bottom triangles. The STL file is not watertight but should still print fine with most slicers (e.g. Cura) and is much smaller
     - bottom_image: 1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)
     - ignore_leq: ignore elevation values <= this value, good for removing offshore data
-    - lower_leq: lower elevation values <= lower_leq[0] m by lower_leq[1] mm in final mesh, good for adding emphasis to coastlines. Unaffected by z_scale.
+    - lower_leq: [threshold, offset] if elevation is lower than threhold, lower it by offset mm. Good for adding emphasis to coastlines. Unaffected by z_scale.
     - unprojected: don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters
     - only: 2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed
     - original_query_string: the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view
@@ -557,14 +591,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - min_elev: overwrites minimum elevation for all tiles
     - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
     - clean_diags: if True, repair diagonal patterns which cause non-manifold edges
-    - sqrt: if True will apply the square root function to the elevation after multiplying it with z_scale 
-
+   
     
     returns the total size of the zip file in Mb
 
     """
     # Sanity checks:   TODO: use better exit on error instead of throwing an assert exception
     assert fileformat in ("obj", "STLa", "STLb", "GeoTiff"), "Error: unknown 3D geometry file format:"  + fileformat + ", must be obj, STLa, STLb (or GeoTiff when using local raster)"
+
+    if bottom_elevation != None:
+        assert importedDEM != None, "Error: importDEM local DEM raster file needed for bottom_elevation"
 
     if importedDEM == None: # GEE as DEM source
         assert DEM_name in DEM_sources, "Error: DEM source must be one of: " + ", ".join(DEM_sources)
@@ -573,9 +609,17 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else: # local raster file as DEM source
         assert os.path.exists(importedDEM), "Error: local DEM raster file " + importedDEM + " does not exist"
         assert fileformat != "GeoTiff", "Error: it's silly to make a Geotiff from a local DEM file (" + importedDEM + ") instead of a mesh file format ..."
+        if bottom_elevation != None:
+            assert os.path.exists(bottom_elevation), "Error: bottom elevation raster file " + bottom_elevation + " does not exist"
+
 
     assert not (bottom_image != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_image (" + bottom_image + ")"
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
+
+    assert not (bottom_elevation != None and bottom_image != None), "Error: Can't use both bottom_elevation and bottom_image"
+    assert not (bottom_elevation != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_elevation (" + bottom_elevation + ")"
+
+    assert not (bottom_elevation != None and use_geo_coords != None), "Error: use_geo_coords is currently not supported with a bottom_elevation raster"
 
     # Check offset mask file
     if offset_masks_lower != None:
@@ -722,7 +766,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                   [bllon, bllat]]#WS  SW
 
         # get center of region as lon/lat, needed for conversion to meters
-        center = [(region[0][0] + region[1][0])/2.0, (region[0][1] + region[2][1])/2.0]
+        center = [(region[0][0] + region[1][0]) / 2, (region[0][1] + region[2][1]) / 2]
 
         # Make a more descriptive name for the selected DEM from it's official (ee) name and the center
         # if there's a / (e.g. NOAA/NGDC/ETOPO1), just get the last, ETOPO1
@@ -731,9 +775,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             DEM_title = DEM_title.split('/')[-1]
         DEM_title = "%s_%.2f_%.2f" % (DEM_title, center[0], center[1])
 
-        pr("Log for creating 3D model tile(s) for ", DEM_title, "\n")
-
+        #
         # print args to log
+        #
+        pr("Log for creating 3D model tile(s) for ", DEM_title, "\n")
         args = locals() # dict of local variables
         dict_for_url = {} # dict with only those args that are valid for a URL query string
         for k in ("DEM_name", "trlat", "trlon", "bllat", "bllon", "printres",
@@ -764,30 +809,28 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if unprojected == False:
             if projection != None:
                 epsg = projection
-                epsg_str = "EPSG:%d" % (epsg)
-                utm_zone_str = epsg_str
+                crs_str = f"EPSG:{epsg}"
+                #utm_zone_str = epsg_str
                 pr("using " + epsg_str + " as projection")
             elif bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
-                utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
+                #utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3995
-                epsg_str = "EPSG:%d" % (epsg)
+                crs_str = f"EPSG:{epsg}"
                 pr("Too far north for UTM - using Arctic Polar Stereographic projection (EPSG 3995)")
 
             elif trlat < -55: # too far south for UTM, use Arctic Polar Stereographic
-                utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
+                #tm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3031
-                epsg_str = "EPSG:%d" % (epsg)
+                crs_str = f"EPSG:{epsg}"
                 pr("Too far south for UTM - using Antarctic Polar Stereographic projection (EPSG 3031)")
             else:
                 # get UTM zone of center to project into
-                utm,h = LatLon_to_UTM(center)
-                utm_zone_str = "UTM %d%s" % (utm,h)
-                epsg = UTM_zone_to_EPSG_code(utm, h)
-                epsg_str = "EPSG:%d" % (epsg)
-                pr("center at", center, " UTM",utm, h, ", ", epsg_str)
+                utm, hemi = LatLon_to_UTM(center)
+                epsg = UTM_zone_to_EPSG_code(utm, hemi)
+                crs_str = f"EPSG:{epsg}"
+                pr(f"center at {center}, UTM{utm}{hemi}, {crs_str}")
         else:
-            epsg_str = "unprojected"
-            utm_zone_str = "unprojected"
+            crs_str = "unprojected"
 
         # Although pretty good, this is still an approximation and the cell resolution to be
         # requested is therefore also not quite exact, so we need to adjust it after the EE raster is downloaded
@@ -971,11 +1014,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         ras_x_sz = dem.RasterXSize # number of pixels in x
         ras_y_sz = dem.RasterYSize
         band = dem.GetRasterBand(1)
-        gdal_undef_val = band.GetNoDataValue()
+        dem_undef_val = band.GetNoDataValue()
         geo_transform = dem.GetGeoTransform()
         GEE_cell_size_m =  (geo_transform[1], geo_transform[5])
 
-        # if we requested the true resolution of the source, use the cellsize of the gdal/GEE geotiff
+        # if we requested the true resolution of the source with -1, use the cellsize of the gdal/GEE geotiff
         if cell_size_m <= 0:
             cell_size_m = geo_transform[1]
 
@@ -990,8 +1033,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             assert abs(geo_transform[1]) == abs(geo_transform[5]), "Error: raster cells are not square!" # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
 
             # typically, EE does not use proper undefined values in the geotiffs it serves, but just in case ...
-            if gdal_undef_val != None:
-                logger.debug("undefined GDAL value used by GEE geotiff: " + str(gdal_undef_val))
+            if dem_undef_val != None:
+                logger.debug("undefined DEM value used by GEE geotiff: " + str(dem_undef_val))
 
             # delete zip file and buffer from memory
             GEEZippedGeotiff.close()
@@ -1001,9 +1044,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # for calculations, otherwise we get non-manifold vertices!
             npim = band.ReadAsArray().astype(numpy.float64)
             #npim = band.ReadAsArray().astype(numpy.longdouble)
-            
-            #print npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)
-            min_elevation = numpy.nanmin(npim) # independent from arg min_elev!
+            #print(npim, npim.shape, npim.dtype, numpy.nanmin(npim), numpy.nanmax(npim)) #DEBUG
 
             # Do a quick check if all the values are the same, which happens if we didn't get
             # any actual elevation data i.e. the area was not covered by the DEM
@@ -1035,6 +1076,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # Polygon masked pixels will have been set to -32768, so turn
             # these into NaN. Huge values can also occur outside
             # polygon masking (e.g. offshore pixels in GTOPO or non US pixels in NED)
+            min_elevation = numpy.nanmin(npim) # independent from arg min_elev!
             if min_elevation < -16384:
                 npim = numpy.where(npim <  -16384, numpy.nan, npim)
                 pr("omitting cells with elevation < -16384")
@@ -1072,7 +1114,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pr("print res for native source resolution is", print3D_resolution_mm, "mm")
 
             pr("total model size in mm:", print3D_width_total_mm, "x", print3D_height_total_mm)
-    # end of getting DEM data via GEE
+    # end of getting DEM data via GEE (A)
 
 
     #
@@ -1104,13 +1146,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 folder = os.path.split(importedDEM)[0]
                 importedDEM = os.path.join(folder, clipped_geotiff)
 
-        # Make numpy array from geotiff
+        # Make numpy array from imported geotiff
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
         npim = band.ReadAsArray().astype(numpy.float64)
 
-        # Read in offset mask file
-        # offset_npim = [] # Define offset_npim in parent scope before importedDEM "if statement" to avoid python unbound error
+        # Read in offset mask file (Anson's stuff ...)
         if offset_masks_lower is not None:
             offset_dem = gdal.Open(offset_masks_lower[0][0])
             offset_band = offset_dem.GetRasterBand(1)
@@ -1119,7 +1160,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             offset_dem = None
 
         # get the GDAL cell size in x (width), assumes cells are square!
-        tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height. The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
+        tf = dem.GetGeoTransform()  # In a north up image, padfTransform[1] is the pixel width, and padfTransform[5] is the pixel height
+        # The upper left corner of the upper left pixel is at position (padfTransform[0],padfTransform[3]).
         pw,ph = abs(tf[1]), abs(tf[5])
         if pw != ph:
             logger.warning("Warning: raster cells are not square (" + str(pw) + "x" + str(ph) + ") , using" + str(pw))
@@ -1128,16 +1170,68 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("source raster cells size", cell_size_m, "m ", npim.shape)
         geo_transform = tf
 
-        # I use PROJCS[ to get a projection name, e.g. PROJCS["NAD_1983_UTM_Zone_10N",GEOGCS[....
-        # I'm grabbing the text between the first and second double-quote.
-        utm_zone_str = dem.GetProjection()
-        i = utm_zone_str.find('"')+1
-        utm_zone_str = utm_zone_str[i:]
-        i = utm_zone_str.find('"')
-        utm_zone_str = utm_zone_str[:i]
-        epsg_str = "N/A"
-        pr("projection:", utm_zone_str)
+        def get_GDAL_projection_and_datum(raster):
+            ''' from a valid GDAL raster, get the projection and datum as strings
+            returns: projection, datum
+            ''' 
+            #local function b/c I need to do this for top and possible bottom raster
+            spatial_ref = raster.GetProjection()
 
+            # Create an OSR SpatialReference object from the spatial reference string
+            sr = osr.SpatialReference()
+            sr.ImportFromWkt(spatial_ref)
+
+            # Get the projection information (projection name)
+            projection = sr.GetAttrValue("PROJECTION")
+
+            # Get the datum information (datum name)
+            datum = sr.GetAttrValue("DATUM")
+            
+            return projection, datum
+
+        proj_str, datum_str = get_GDAL_projection_and_datum(dem)
+
+        # if we have a bottom_elevation raster read it in and check that size and cell size match
+        # also store all the metadata
+        if bottom_elevation != None and bottom_elevation != '':
+            bot_elev = gdal.Open(bottom_elevation)
+            bot_band = bot_elev.GetRasterBand(1)
+            bot_npim = bot_band.ReadAsArray().astype(numpy.float64)
+            bot_tf = bot_elev.GetGeoTransform()
+            bot_pw, bot_ph = abs(bot_tf[1]), abs(bot_tf[5])
+            if bot_pw != pw or bot_ph != ph:
+                logger.warning("Warning: bottom_elevation raster cells are not square (" + str(bot_pw) + "x" + str(bot_ph) + ") , using" + str(bot_pw))
+            bot_cell_size_m = bot_pw
+
+            if dem.RasterXSize != bot_elev.RasterXSize or dem.RasterYSize != bot_elev.RasterYSize:
+                assert False, f"Error: bottom_elevation raster sizes ({bot_elev.RasterXSize} x {bot_elev.RasterYSize}) does not match (top) DEM size ({dem.RasterXSize} x {dem.RasterYSize})"
+            
+            if bot_cell_size_m != cell_size_m:
+                assert False, f"Error: bottom_elevation raster cell size ({bot_cell_size_m}) does not match (top) DEM cell size ({cell_size_m})"
+            
+            # get and compare projection and datum
+            bot_proj_str, bot_datum_str = get_GDAL_projection_and_datum(bot_elev)
+            if bot_proj_str != proj_str or bot_datum_str != datum_str:
+                assert False, f"Error: bottom_elevation raster projection ({bot_proj_str}) or datum ({bot_datum_str}) does not match (top) DEM projection ({proj_str}) or datum ({datum_str})"
+
+            # get undef value and write it into the numpy array
+            bot_elev_undef_val = bot_band.GetNoDataValue()
+            pr("undefined bottom elevation value:", bot_elev_undef_val)
+            if bot_elev_undef_val != None:  # None means the raster is not a geotiff
+                undef_cells = numpy.isclose(bot_npim, bot_elev_undef_val) # bool
+                bot_npim = numpy.where(undef_cells, numpy.nan, bot_npim)
+
+            # CHECK THIS: close/delete the GDAL raster and band here, b/c I only need the numpy array from now on (and meta data has been stored)
+            bot_elev = None
+            del bot_band
+            
+        crs_str = proj_str # for local rasters, we use the projection string   
+        
+        # Print out some info about the raster
+        pr("DEM (top) raster file:", importedDEM)
+        if bottom_elevation != None and bottom_elevation != '':
+            pr("Bottom elevation raster file:", bottom_elevation)
+        pr("DEM projection & datum:", proj_str, datum_str)
         pr("z-scale:", zscale)
         pr("basethickness:", basethick)
         pr("fileformat:", fileformat)
@@ -1149,26 +1243,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("importedGPX:", importedGPX)
         #pr("polyURL:", polyURL)
 
-
-        
-
-
-
         # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
         if polygon != None or  (polyURL != None and polyURL != ''):
             pr("Warning: Given outline polygon will be ignored when using local raster file!") 
 
-
-        #
-        # set Cells with GDAL undef to numpy NaN
-        #
-
-        gdal_undef_val = band.GetNoDataValue()
-        pr("undefined GDAL value:", gdal_undef_val)
-
+        # if we have a GDAL undefined value, set all cells with that value to NaN
+        dem_undef_val = band.GetNoDataValue()
+        pr("undefined DEM value:", dem_undef_val)
         # Instead of == use numpy.isclose to flag undef cells as True
-        if gdal_undef_val != None:  # None means the raster is not a geotiff
-            undef_cells = numpy.isclose(npim, gdal_undef_val) # bool
+        if dem_undef_val != None:  # None means the raster is not a geotiff
+            undef_cells = numpy.isclose(npim, dem_undef_val) # bool
             npim = numpy.where(undef_cells, numpy.nan, npim)
 
         # Add GPX points to the model (thanks KohlhardtC and ansonl!)
@@ -1184,7 +1268,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
 
 
-        # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
+        # if tilewidth_scale is given, overwrite mm tilewidth by region width / tilewidth_scale
         if tilewidth_scale != None:
             tilewidth = region_size_in_meters[1] / tilewidth_scale * 1000 # new tilewidth in mm
             pr("Overriding tilewidth using a tilewidth_scale of 1 :", tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", tilewidth, "mm. (Note that the final scale may be slighly different!)")
@@ -1217,13 +1301,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             if scale_factor < 1.0:
                 pr("Warning: will re-sample to a resolution finer than the original source raster. Consider instead a value for printres >", source_print3D_resolution)
 
-            # re-sample DEM using PIL
-            pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m to")
+            # re-sample DEM (and bottom_elevation) using PIL
+            pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
             npim =  resampleDEM(npim, scale_factor)
+            if bottom_elevation != None and bottom_elevation != '':
+                pr("re-sampling", bottom_elevation, ":\n ", bot_npim.shape[::-1], source_print3D_resolution, "mm ", bot_cell_size_m, "m ", numpy.nanmin(bot_npim), "-", numpy.nanmax(bot_npim), "m")
+                bot_npim =  resampleDEM(bot_npim, scale_factor)
 
             # re-sample offset mask
             for index, offset_layer in enumerate(offset_npim):
-                pr("re-sampling offset layer",index, ":\n ", offset_layer.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(offset_layer), "-", numpy.nanmax(offset_layer), "m to")
+                pr("re-sampling offset layer",index, ":\n ", offset_layer.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(offset_layer), "-", numpy.nanmax(offset_layer), "m")
                 offset_npim[index] = resampleDEM(offset_layer, scale_factor)
 
             #
@@ -1247,8 +1334,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pr("print res is", print3D_resolution_mm, "mm")
 
         DEM_title = filename[:filename.rfind('.')]
-        # end local raster file
+    # end of B: (local raster file)
 
+    # Make empty zip file in temp_folder, add files into it later
     total_size = 0 # size of stl/objs/geotiff file(s) in byes
     full_zip_file_name =  temp_folder + os.sep + zip_file_name + ".zip"
     #print >> sys.stderr, "zip is in", os.path.abspath(full_zip_file_name)
@@ -1270,10 +1358,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         remx = npim.shape[1] % num_tiles[0]
         remy = npim.shape[0] % num_tiles[1]
         if remx > 0 or  remy > 0:
-            pr("Cropping for nice fit of %d (width) x %d (height) tiles, removing: %d columns, %d rows" % (num_tiles[0], num_tiles[1], remx, remy))
+            pr(f"Cropping for nice fit of {num_tiles[0]} (width) x {num_tiles[1]} (height) tiles, removing: {remx} columns, {remy} rows")
             old_shape = npim.shape
             npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
-            pr(" cropped", old_shape[::-1], "to", npim.shape[::-1]   )
+            pr("cropped", old_shape[::-1], "to", npim.shape[::-1])
+
+            if bottom_elevation != None and bottom_elevation != '':
+                bot_npim = bot_npim[0:bot_npim.shape[0]-remy, 0:bot_npim.shape[1]-remx]
+                pr("cropped bottom elevation raster to", bot_npim.shape[::-1])
 
             for index, offset_layer in enumerate(offset_npim):
                 offset_npim[index] = offset_layer[0:offset_layer.shape[0]-remy, 0:offset_layer.shape[1]-remx]
@@ -1298,11 +1390,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         else: 
             # min/max elev (this "global" min_elev will be used by all tiles)
             min_elev = numpy.nanmin(npim)
-            print(("elev min/max : %.2f to %.2f" % (min_elev, numpy.nanmax(npim)))) 
-            # use nanmin() so we can use (NaN) undefs
+            print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
 
-
-        # if scale is negative, assume it means scale up to X mm as range and calculate required z-scale
+        # if scale X is negative, assume it means scale up to X mm high and calculate required z-scale for that height
         if zscale < 0:
             unscaled_elev_range_m = numpy.nanmax(npim) - numpy.nanmin(npim) # range at 1 x scale
             scaled_elev_range_m = unscaled_elev_range_m / print3D_scale_number # convert range from real m to model/map m
@@ -1314,13 +1404,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # lower cells less/equal a certain elevation?
         if lower_leq is not None:
             assert len(lower_leq) == 2, \
-                "lower_leq should have the format [threshold, offset]. Got {}".format(lower_leq)
+                f"lower_leq should have the format [threshold, offset]. Got {lower_leq}" 
             #sf = (print3D_height_total_mm / 1000) / region_size_in_meters[1] # IdenC
             #offset = (lower_leq[1] / 1000) / sf
             
             threshold = lower_leq[0]
             offset = lower_leq[1] / 1000 * print3D_scale_number  # scale mm up to real world meters
-            offset /= zscale # account for zscale
+            offset /= zscale # => unaffected by zscale
             
             # Instead of lowering, shift elevations greater than the threshold up to avoid negatives
             npim = numpy.where(npim > threshold, npim + offset, npim)
@@ -1343,8 +1433,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
                 count += 1
 
-        # fill holes using a 3x3 footprint. Requires scipy
-        # [0] is number of interations, [1] is threshold
+        # fill holes using a 3x3 footprint. Requires scipy. [0] is number of interations, [1] is threshold
         if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
             import scipy.ndimage as ndimage
 
@@ -1389,58 +1478,68 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # 1 0    or     0 1
         if clean_diags == True:
             npim = clean_up_diags(npim)
-        
-        # Apply square root to elevation
-        if sqrt == True:
-            npim = numpy.sqrt(npim)
-            npim -= numpy.nanmin(npim)
-            pr("Applied square root to elevation")
 
-
-        """
-        # plot dem
+    
+        # plot dem and histogram, save as png
         import matplotlib.pyplot as plt
-        plt.ion()
-        fig = plt.figure(figsize=(7,10))
-        imgplot = plt.imshow(npim, aspect=u"equal", interpolation=u"none")
+        import matplotlib.gridspec as gridspec
+        import matplotlib as mpl 
+            
+
+        fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(5, 10), gridspec_kw={'height_ratios': [1, 0.4]})
+
+        imgplot = ax1.imshow(npim, aspect=u"equal", interpolation=u"spline36")
         cmap_name = 'gist_earth' # gist_earth or terrain or nipy_spectral
         imgplot.set_cmap(cmap_name)
-        #a = fig.add_axes()
-        plt.title(DEM_name + " " + str(center))
-        plt.colorbar(orientation="horizontal")
-        fig.canvas.draw()
-        plot_buf = fig.canvas.tostring_rgb()
+        ax1.xaxis.set_ticks([])
+        ax1.yaxis.set_ticks([])
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+        ax1.spines['bottom'].set_visible(False)
+        ax1.spines['left'].set_visible(False)
+        ax1.tick_params(axis='both', which='both', length=0)
+        ax1.set_title("Elevation by color for " + DEM_name) 
 
+        npim_flt = npim.flatten()
+        rng = (numpy.nanmin(npim_flt), numpy.nanmax(npim_flt))
+        
+        # Add a colorbar to the first subplot with min and max elevation values
+        cbar = fig.colorbar(imgplot, ax=ax1, format='%.1f m', orientation='horizontal', pad=0.1, 
+                     ticks=[rng[0], rng[1]], shrink=1)
+        cbar.ax.xaxis.set_ticks_position('top')
+        cbar.ax.xaxis.set_label_position('top')
+        #cbar.ax.xaxis.set_tick_params(width=0)
+       
         # histogram with colored bars
-        rng = (npim.flatten().min(), npim.flatten().max())
         numcols = imgplot.cmap.N
         cmap = imgplot.cmap(numpy.arange(numcols)) # will only have 256 colors
-        mult = 1/4.0
-        numbins = numcols * mult
-        bns = numpy.linspace(rng[0], rng[1], num=numbins) # => i/4 when setting colors!
-        fig = plt.figure(figsize=(8,4))
-        n,bins,patches = plt.hist(npim.flatten(),bins=bns, lw=0)
-        maxy=max(n)
-        #xext = (rng[1]-rng[0])
-        #asp = xext/maxy # current aspect
-        #a.set_aspect(asp/4) # make smaller in y
-        for i in range(numpy.size(patches)): # set each bar's color
-                plt.setp(patches[i], color=cmap[int(i/mult)])
-        plt.tight_layout()
-        plt.show()
-        """
+        
+        n, bins = numpy.histogram(npim_flt, bins=numcols, range=(rng[0], rng[1]))
+        ax2.bar(bins[:-1], n, width=numpy.diff(bins), align='edge', color=cmap)
+        ax2.set_ylim([0, numpy.max(n)])
+        ax2.grid(True, which='both', color='gray', linestyle='-', linewidth=0.5)
+        ax2.set_facecolor((0.95, 0.95, 0.95))
+        ax2.set_title("Histogram of Elevation")
+        
+        plt.draw() # needed to flush everything (?)
+        #plt.show()
+        plot_file_name = temp_folder + os.sep + DEM_name + "_elevation_plot_with_histogram.png"
+        plt.savefig(plot_file_name, dpi=300)
+
+        
         #
         # create tile info dict
         #
         tile_info = {
             "DEMname": DEM_name, # name of raster requested from earth eng.
-            "crs" : epsg_str, # EPSG name for UTM zone
-            "UTMzone" : utm_zone_str, # UTM zone eg  UTM13N
-            "scale"  : print3D_scale_number, # horizontal scale number, defines the size of the model (= 3D map): eg 1000 means 1m in model = 1000m in reality
+            "bottom_elevation": bottom_elevation, # None or name of bottom elevation raster
+            "crs" : crs_str, # cordinate reference system, can be EPSG code or UTM zone or any projection  
+            #"UTMzone" : utm_zone_str, # UTM zone e.g. UTM13N or
+            "scale"  : print3D_scale_number, # horizontal scale number,  1000 means 1:1000 => 1m in model = 1000m in reality
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
             "max_elev" : None, # tilewide minimum/maximum elevation (in meter), None means: will be calculated later
             "min_elev" : min_elev if min_elev != None else None, # None means: will be calculated from actual elevation later
-            "z_scale" :  zscale,     # z (vertical) scale (elevation exageration) factor
+            "z_scale" :  zscale,  # z (vertical) scale (elevation exageration) factor
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
             "folder_name": DEM_title,  # folder/zip file name for all tiles
@@ -1453,11 +1552,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "full_raster_height": -1,
             "fileformat": fileformat,
             "temp_file": None,
-            "no_bottom": no_bottom,
-            "bottom_image": bottom_image,
+            "no_bottom": no_bottom, # omit bottom triangles?
+            "bottom_image": bottom_image, # None or name of bottom image file (for relief)
             "ntilesy": ntilesy, # number of tiles in y, ntilesx is not needed here
             "only": only, # if nont None, process only this tile e.g. [1,2]
-            "no_normals": no_normals,
+            "no_normals": no_normals, # calculate normals?
             "geo_transform": geo_transform, # GeoTransform of geotiff
             "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
             "smooth_borders": smooth_borders, # optimize borders?
@@ -1477,6 +1576,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # pad full raster by one at the fringes
         #print npim, npim.shape
         npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan
+        if bottom_elevation != None and bottom_elevation != '':
+            bot_npim = numpy.pad(bot_npim, (1,1), 'edge') 
         #print npim.astype(int)
 
         # store size of full raster
@@ -1508,6 +1609,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 tile_elev_raster.flags.writeable = False
 
+                if bottom_elevation != None and bottom_elevation != '':
+                    tile_bot_elev_raster = bot_npim[start_y:end_y, start_x:end_x] #  [y,x]  
+                    tile_bot_elev_raster.flags.writeable = False
+                else:
+                    tile_bot_elev_raster = None
+
                 # add to tile_list
                 tile_info["tile_no_x"] = tx + 1
                 tile_info["tile_no_y"] = ty + 1
@@ -1521,7 +1628,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
                     # store temp file names (not file objects), MP will create file objects during processing
                     my_tile_info["temp_file"]  = mytempfname
-                tile = (my_tile_info, tile_elev_raster)   # leave it to process_tile() to unwrap the info and data parts
+                
+                tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster)   # leave it to process_tile() to unwrap the info and data parts
 
                 # if we only process one tile ...
                 if process_only == None: # no only was given
@@ -1541,7 +1649,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # processed list will contain tuple(s): [0] is always the tile info dict, if its
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
         # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)
-        if num_tiles[0]*num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:
+        if num_tiles[0] * num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:
             pr("using single-core only (multi-core is currently broken :(")
             processed_list = []
             # Convert each tile into a list: [0]: updated tile info, [1]: grid object
@@ -1587,8 +1695,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("... multi-core processing done, logging resumed")
 
         # the tile width/height was written into tileinfo during processing
-        _ = "\n%d x %d tiles, tile size %.2f x %.2f mm\n" % ( num_tiles[0], num_tiles[1], tile_info["tile_width"], tile_info["tile_height"])
-        pr(_)
+        pr(f"\n{num_tiles[0]} x {num_tiles[1]} tiles, tile size {tile_info['tile_width']:.2f} x {tile_info['tile_height']:.2f} mm\n")
 
         # delete tile list, as the elevation arrays are no longer needed
         del tile_list
@@ -1620,6 +1727,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # print size and elev range
                 pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
                    ", file size:", round(tile_info["file_size"]), "Mb")
+                if bottom_elevation != None and bottom_elevation != '':
+                    pr("bottom elevation:", tile_info["min_bot_elev"], "-", tile_info["max_bot_elev"], "mm")
 
         pr("\ntotal size for all tiles:", round(total_size), "Mb")
 
@@ -1639,7 +1748,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # add (full) geotiff we got from EE to zip
     if importedDEM == None:
-        total_size += os.path.getsize(GEE_dem_filename) / 1048576.0
+        total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
 
@@ -1649,6 +1758,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("added map of area as " + DEM_title + ".jpg")
 
     pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
+
+    # add plot with histogram to zip
+    zip_file.write(plot_file_name, "plot_with_histogram.png")
 
     # add logfile to zip
     log_file_handler.flush()
@@ -1675,8 +1787,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             os.remove(map_img_filename)
         except Exception as e:
-            print("Error removing map image " + str(map_img_filename) + " " + str(e), file=sys.stderr)
+            print("Error removing plot_with_histogram.png" + str(map_img_filename) + " " + str(e), file=sys.stderr)
 
+    # remove plot+histo file
+    try:
+        os.remove(plot_file_name)
+    except Exception as e:
+        print("Error removing map image " + str(map_img_filename) + " " + str(e), file=sys.stderr)
 
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
@@ -1708,6 +1825,7 @@ if __name__ == "__main__":
                          max_cells_for_memory_only=0,
                          zip_file_name="const100")
     '''
+    '''
     ovrw_args = {"DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
             "trlat": 44.67336694786201,        # lat/lon of top right corner
             "trlon": -108.01895043655932,
@@ -1728,12 +1846,18 @@ if __name__ == "__main__":
             "no_normals": True,
             "CPU_cores_to_use": None,
             } 
+    
+    '''
+    ovrw_args = {"importedDEM": "DC_top.tif",
+                 "bottom_elevation": "DC_bottom.tif",
+                }
     # merge args
     args = {**initial_args, **ovrw_args}
 
     # make tiles
     r = get_zipped_tiles(**args)
 
+    '''
     # unzip files into folder and delete zip file
     from os import sep, remove
     full_zip_file_name = "." + sep + r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
@@ -1743,139 +1867,4 @@ if __name__ == "__main__":
     zip_ref.extractall(args["zip_file_name"])
     zip_ref.close()
     remove(full_zip_file_name)
-
-
-
-
-
-
-
-# CH: as it turns out, having anything but a flat bottom is bad for printing, but I'll leave the code
-# for setting a relief into the bottom raster here for now ...
-"""
-            #
-            # make bottom image
-            #
-            ncols, nrows = tile_elev_raster.shape[::-1] #width/height (shape) needs to be flipped as numpy is [y,x]
-            bimg = Image.new("L", (ncols, nrows), color=0) # black 8 bit image (0-255)
-
-            # put a 1 cell wide groove at the fringe
-            draw = ImageDraw.Draw(bimg)
-            fos = 2 # fringe offset
-            draw.rectangle([(fos, fos),  (ncols-fos, nrows-fos)], outline=64, fill=None)
-            #bimg.show()
-
-            #
-            # put placement diagram in center
-            #
-            '''
-            if num_tiles[0] * num_tiles[1] > 1: # not needed if there's only one tile ...
-                w2,h2,w3,h3  = (ncols/2.0, nrows/2.0, ncols/3.0, nrows/3.0) # halfs and thirds
-                # for each tile, draw a small empty box, for the current tile (tx,ty), fill the box
-                sbw, sbh = w3 / num_tiles[0], h3 / num_tiles[0] # width, height  of small box
-                for tnx in range(num_tiles[0]):
-                    for tny in range(num_tiles[1]):
-                        ul = (w3 + sbw * tnx, h3 + sbh * tny)
-                        lr = (ul[0] + sbw, ul[1] + sbh)
-                        if tnx == tx and tny == ty: # tx/ty is the current tile index
-                            draw.rectangle([ul, lr], fill=255)
-                        else:
-                            draw.rectangle([ul, lr], outline=64, fill=None)
-            bimg.show()
-            '''
-
-
-
-
-            # draw text
-            fnt = ImageFont.truetype('Consolab.ttf', min(ncols,nrows)/12) # locally installed ttf file (same folder as this .py file). Use a monospaced font!
-            #fnt= ImageFont.load_default() # seems to be  10 pixels high
-            #lh = 14
-            fw,fh = fnt.getsize("X") # font height and font width, if monospaces it's the same for all chars
-            fh = fh * 1.5 # account for space between lines
-
-            y = nrows / 6 #
-            x = ncols / 5 #
-
-            def text(txt,y,x): # local function, cause I'm lazy
-                draw.text((x,y), txt, fill=255, font=fnt)
-                return y + fh # simlulate line feed, y will already be at next line
-
-
-            #lh = text("tile %d/%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), lh)
-            #dts = datetime.datetime.strftime(datetime.datetime.now(),'%Y-%m-%d')
-            #lh = text(tile_info["DEMname"]+" "+tile_info["UTMzone"], lh)
-            y = text("tile %d %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]), y,x)
-            y = text("GeoFabLab", y, x)
-            y = text("res %.2f mm" % (tile_info["pixel_mm"]), y, x)
-            y = text("|", y, x)
-            y = text("N", y, x)
-            y = text("1:{:,}".format(int(tile_info["scale"])), y, x)
-            y = text("zsc %.2f" % (tile_info["z_scale"]), y, x)
-            y = text("%s" % (tile_info["UTMzone"]), y, x)
-
-
-
-            #small_logo = logo.copy()
-            #tn_size = min(tile_elev_raster.shape) / 2
-            #small_logo.thumbnail((tn_size, tn_size)) # changes small_logo internally, will preserve aspect
-            #upper_left_corner = (tile_elev_raster.shape[1]/2-3, tile_elev_raster.shape[0]/2-3)
-            #bimg.paste(small_logo, upper_left_corner)  # paste into center
-            #bimg.show()
-
-
-            #bimg.show()
-            bimg = bimg.transpose(Image.FLIP_LEFT_RIGHT) # text needs to be flipped, but seems to screw up draw !
-            #bimg.show()
-
-            # Convert bimg to numpy, normalize and scale
-            bottom_elev = numpy.asarray(bimg).astype(numpy.float64)
-            #print bottom_elev.shape, bottom_elev.min(), bottom_elev.max()
-            bottom_elev /= 255.0 # normalize from max 8 bit value (255) to 1.0
-            #print bottom_elev.min(), bottom_elev.max() # normalized to 0 - 1.0
-            bottom_elev *= tile_info["bottom_relief_mm"]   # scale
-
-            #
-            # Make holes for magnets "magnet_hole_mm" -> (diameter, height)
-            #
-            if tile_info["magnet_hole_mm"][1] > tile_info["base_thickness_mm"]:
-                print "Warning: base thickness", tile_info["base_thickness_mm"], "is not thicker than height of magnet hole", tile_info["magnet_hole_mm"][1]
-            himg = Image.new("L", (ncols, nrows), color=0) # binary "mask"
-            draw = ImageDraw.Draw(himg) # draw into it
-            dia = math.ceil(tile_info["magnet_hole_mm"][0] / tile_info["pixel_mm"]) # diameter in px
-            ofs_mm = 4.0 # offset from border in mm, same in x and y
-            of = math.ceil(ofs_mm / tile_info["pixel_mm"])# offset in pixels
-
-            bb_list = [ # list of bounding boxes (ulx,uly, lrx,lry) to draw a hole into
-                (of, of, of+dia, of+dia), # ul
-                (ncols-of-dia, of, ncols-of, of+dia), # ur
-                (of, nrows-of-dia, of+dia, nrows-of), # ll
-                (ncols-of-dia, nrows-of-dia, ncols-of, nrows-of), # lr
-                (ncols/2-dia/2, nrows/2-dia/2, ncols/2+dia/2, nrows/2+dia/2), # center
-                ]
-
-            for bb in bb_list:
-                #print bb
-                draw.ellipse(bb, fill=255, outline=255)
-
-            #print "Creating", len(bb_list), "holes for magnets, diameter:", tile_info["magnet_hole_mm"][0], "mm, height", tile_info["magnet_hole_mm"][1], "mm"
-            #himg.show()
-
-            # Convert himg to numpy and mult by hole height
-            hole_elev = numpy.asarray(himg).astype(numpy.float64)
-            hole_elev /= hole_elev.max() # normalize to 0 - 1.0
-            hole_thickness = tile_info["magnet_hole_mm"][1]
-            hole_elev *= hole_thickness # mult 1 (=hole) by height
-            #print hole_elev.shape, hole_elev.min(), hole_elev.max()
-
-            # integrate into bottom_elev array
-            bottom_elev = numpy.maximum(bottom_elev, hole_elev)
-            #print bottom_elev.min(), bottom_elev.max()
-
-            # test: set an internal region to Nan
-            #for n in range(20,25):
-                    #tile_elev_raster[n,n] = numpy.nan
-                    #tile_elev_raster[n,n-1] = numpy.nan
-                    #tile_elev_raster[n-1,n] = numpy.nan
-
-            """
+    '''
