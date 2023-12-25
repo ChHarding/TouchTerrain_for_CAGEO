@@ -29,7 +29,7 @@ def arcDegr_in_meter(latitude_in_degr):
       
 
 def LatLon_to_UTM(arg1, arg2=None):
-    """ given latitude (easting) and longitude (northing) as floats,
+    """ given longitude (easting) and latitude (northing) as floats,
         return the UTM zone number (1 to 60) and "N" for North or "S" for South as a tuple
         or -1 on error
         
