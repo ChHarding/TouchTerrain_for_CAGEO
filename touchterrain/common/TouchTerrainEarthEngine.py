@@ -707,6 +707,28 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # This is needed to avoid python unbound error since offset_npim is currently only available for local DEMs in standalone python script
     offset_npim = []
 
+    region = [[bllon, trlat],#WS  NW
+        [trlon, trlat],#EN  NE
+        [trlon, bllat],#ES  SE
+        [bllon, bllat]]#WS  SW
+
+    # get center of region as lon/lat, needed for conversion to meters
+    center = [(region[0][0] + region[1][0])/2.0, (region[0][1] + region[2][1])/2.0]
+
+   # Although pretty good, this is still an approximation and the cell resolution to be
+    # requested is therefore also not quite exact, so we need to adjust it after the EE raster is downloaded
+    latitude_in_m, longitude_in_m = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
+    region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
+    pr("lon/lat size in degrees:",region_size_in_degrees)
+
+    #
+    # figure out an (approximate) cell size to request from GEE
+    # Once we got the GEE raster, we can redo the print res and tile height (for a given tile width) properly
+    #
+    region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
+                                region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
+    region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
+
     #
     # A) use Earth Engine to download DEM geotiff
     #
@@ -716,13 +738,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         except Exception as e:
             print("Earth Engine module (ee) not installed", e, file=sys.stderr)
 
-        region = [[bllon, trlat],#WS  NW
-                  [trlon, trlat],#EN  NE
-                  [trlon, bllat],#ES  SE
-                  [bllon, bllat]]#WS  SW
-
-        # get center of region as lon/lat, needed for conversion to meters
-        center = [(region[0][0] + region[1][0])/2.0, (region[0][1] + region[2][1])/2.0]
 
         # Make a more descriptive name for the selected DEM from it's official (ee) name and the center
         # if there's a / (e.g. NOAA/NGDC/ETOPO1), just get the last, ETOPO1
@@ -789,20 +804,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             epsg_str = "unprojected"
             utm_zone_str = "unprojected"
 
-        # Although pretty good, this is still an approximation and the cell resolution to be
-        # requested is therefore also not quite exact, so we need to adjust it after the EE raster is downloaded
-        latitude_in_m, longitude_in_m = arcDegr_in_meter(center[1]) # returns: (latitude_in_m, longitude_in_m)
-        region_size_in_degrees = [abs(region[0][0]-region[1][0]), abs(region[0][1]-region[2][1]) ]
-        pr("lon/lat size in degrees:",region_size_in_degrees)
-        region_ratio_for_degrees =  region_size_in_degrees[1] / float(region_size_in_degrees[0])
-
-        #
-        # figure out an (approximate) cell size to request from GEE
-        # Once we got the GEE raster, we can redo the print res and tile height (for a given tile width) properly
-        #
-        region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
-                                 region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
-        region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
+     
 
         # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
         if tilewidth_scale != None:
@@ -1186,7 +1188,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
         if tilewidth_scale != None:
+
+            region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
             tilewidth = region_size_in_meters[1] / tilewidth_scale * 1000 # new tilewidth in mm
+            
             pr("Overriding tilewidth using a tilewidth_scale of 1 :", tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", tilewidth, "mm. (Note that the final scale may be slighly different!)")
 
 
@@ -1218,7 +1223,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 pr("Warning: will re-sample to a resolution finer than the original source raster. Consider instead a value for printres >", source_print3D_resolution)
 
             # re-sample DEM using PIL
-            pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m to")
+            pr("re-sampling", scale_factor, filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m to")
             npim =  resampleDEM(npim, scale_factor)
 
             # re-sample offset mask
@@ -1250,7 +1255,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # end local raster file
 
     total_size = 0 # size of stl/objs/geotiff file(s) in byes
-    full_zip_file_name =  temp_folder + os.sep + zip_file_name + ".zip"
+    full_zip_file_name = temp_folder + os.sep + zip_file_name + ".zip"
     #print >> sys.stderr, "zip is in", os.path.abspath(full_zip_file_name)
     zip_file = ZipFile(full_zip_file_name, "w", allowZip64=True) # create empty zipfile
 
