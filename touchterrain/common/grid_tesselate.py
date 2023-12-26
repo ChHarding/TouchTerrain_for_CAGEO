@@ -454,8 +454,9 @@ class grid:
         self.tile_info["have_nan"] = have_nan # save for later
 
         # same for bottom
-        have_bot_nan = np.isnan(np.sum(self.bottom)) # True => we have NaN values, 
-        self.tile_info["have_bot_nan"] = have_bot_nan
+        if self.tile_info["bottom_elevation"] is not None:
+            have_bot_nan = np.isnan(np.sum(self.bottom)) # True => we have NaN values, 
+            self.tile_info["have_bot_nan"] = have_bot_nan
 
         # Jan 2019: no idea why but sometimes changing top also changes the elevation
         # array of another tile in the tile list
@@ -507,7 +508,9 @@ class grid:
         # real world (pre-scale) min_elev, either user-given or min of top
         if self.tile_info["min_elev"] == None: # NOT set by user
             self.tile_info["min_elev"] = np.nanmin(self.top) # use min of top
-        # else use user-given min_elev for conversion to mm
+        else: # use user-given min_elev of top for conversion to mm
+            if self.tile_info["bottom_elevation"] is not None:
+                self.bottom += self.tile_info["min_elev"] -  np.nanmin(self.top)  #add change for top to bottom
 
         # Coordinates are in mm  
         if self.tile_info["use_geo_coords"] == None:
@@ -524,12 +527,6 @@ class grid:
             #print tile_info["scale"], tile_info["z_scale"], scz
             self.top *= scz * self.tile_info["z_scale"] # apply z-scale
             #print top.astype(int)
-            self.top += self.tile_info["base_thickness_mm"] # add base thickness
-
-            # post-scale (i.e. in mm) max elev
-            self.tile_info["min_elev"] = np.nanmin(self.top)
-            self.tile_info["max_elev"] = np.nanmax(self.top)
-            print("top min/max:", self.tile_info["min_elev"], self.tile_info["max_elev"])
 
             # convert bottom's elevation from real word elevation (m) to model height (mm)
             # Note: I'm unclear how a base thickness works here but for now I will add it to the bottom
@@ -545,10 +542,18 @@ class grid:
 
                 scz = 1 / float(self.tile_info["scale"]) * 1000.0 # scale z to mm
                 self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale
-                self.bottom += self.tile_info["base_thickness_mm"] # add base thickness
+                # Note: having a bottom raster, we ignore base thickness for top and bottom rasters!
+
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
+            else:
+                 self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have not bottom raster
+
+            # post-scale (i.e. in mm) elevations for top
+            self.tile_info["min_elev"] = np.nanmin(self.top)
+            self.tile_info["max_elev"] = np.nanmax(self.top)
+            print("top min/max:", self.tile_info["min_elev"], self.tile_info["max_elev"])
 
         else:  # using geo coords (UTM, meter based) - thickness is meters
             # TODO: Just noticed that we don't apply a z-scale to the top. Not sure if we should

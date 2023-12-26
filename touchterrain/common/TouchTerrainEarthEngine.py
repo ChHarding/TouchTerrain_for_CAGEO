@@ -1127,7 +1127,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else:
         filename = os.path.basename(importedDEM)
         
-        pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, "\n")
+        if bottom_elevation != None and bottom_elevation != '':
+            btxt = "and " + bottom_elevation
+        else:
+            btxt = ""
+        pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, btxt, "\n")
         pr("started:", datetime.datetime.now().time().isoformat())
 
         # If we have a KML file, use it to mask (clip) and crop the importedDEM
