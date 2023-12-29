@@ -505,15 +505,8 @@ class grid:
                 self.bottom[close_values] = np.nan
                 have_bot_nan = self.tile_info["have_bot_nan"] = True
 
-        # real world (pre-scale) min_elev, either user-given or min of top
-        if self.tile_info["min_elev"] == None: # NOT set by user
-            self.tile_info["min_elev"] = np.nanmin(self.top) # use min of top
-        else: # use user-given min_elev of top for conversion to mm
-            if self.tile_info["bottom_elevation"] is not None:
-                self.bottom += self.tile_info["min_elev"] -  np.nanmin(self.top)  #add change for top to bottom
-
-        # Coordinates are in mm  
-        if self.tile_info["use_geo_coords"] == None:
+          
+        if self.tile_info["use_geo_coords"] == None: # Coordinates need to be in mm 
 
             #
             # Convert elevation from real word elevation (m) to model height (mm)
@@ -531,26 +524,20 @@ class grid:
             # convert bottom's elevation from real word elevation (m) to model height (mm)
             # Note: I'm unclear how a base thickness works here but for now I will add it to the bottom
             if self.tile_info["have_bottom_array"] == True:
-                self.bottom -= float(self.tile_info["min_elev"]) # subtract top's min from bottom
-                
-                # if the bottom is below 0, we need to add the difference to the top and bottom
-                # so that the bottom is at 0 and the offset to to top is preserved
-                bot_min = np.nanmin(self.bottom)
-                if bot_min < 0: 
-                    self.top += abs(bot_min)
-                    self.bottom += abs(bot_min)
+                self.bottom -= float(self.tile_info["min_bot_elev"]) # subtract tilewide bottom min
 
                 scz = 1 / float(self.tile_info["scale"]) * 1000.0 # scale z to mm
                 self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale
-                # Note: having a bottom raster, we ignore base thickness for top and bottom rasters!
+                # Note: with a bottom raster, we do NOT add base thickness for top and bottom rasters!
 
+                # Update with per-tile mm min/max 
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
             else:
                  self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have not bottom raster
 
-            # post-scale (i.e. in mm) elevations for top
+            # post-scale (i.e. in mm) top elevations (for this tile)
             self.tile_info["min_elev"] = np.nanmin(self.top)
             self.tile_info["max_elev"] = np.nanmax(self.top)
             print("top min/max:", self.tile_info["min_elev"], self.tile_info["max_elev"])
@@ -774,6 +761,9 @@ class grid:
                 SEb = vertex(E, S, SWelev)
                 SWb = vertex(W, S, SEelev)
                 botq = quad(NEb, NWb, SWb, SEb)
+
+                print(topq)
+                print(botq)
                  
                 # Quads for walls: in borders dict, replace any True with a quad of that wall
                 if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)

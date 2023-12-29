@@ -522,6 +522,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          poly_file=None,
                          importedDEM=None,
                          bottom_elevation=None,
+                         top_thickness=None,
                          printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
@@ -558,6 +559,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - polygon: optional geoJSON polygon
     - importedDEM: None (means: get the DEM from GEE) or local file name with DEM to be used instead
     - bottom_elevation (None): elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM 
+    - top_thickness (None): thickness of the top of the model, i.e. top - thickness = bottom. Must exactly match the sizes and cell resolution of importedDEM
     - printres: resolution (horizontal) of 3D printer (= size of one pixel) in mm
     - ntilesx, ntilesy: number of tiles in x and y
     - tilewidth: width of each tile in mm (<- !!!!!), tile height is calculated automatically
@@ -619,7 +621,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     assert not (bottom_image != None and basethick <= 0.5), "Error: base thickness (" + str(basethick) + ") must be > 0.5 mm when using a bottom relief image"
 
     assert not (bottom_elevation != None and bottom_image != None), "Error: Can't use both bottom_elevation and bottom_image"
+    assert not (bottom_image != None and top_thickness != None), "Error: Can't use both bottom_image and top_thickness"
     assert not (bottom_elevation != None and no_bottom == True), "Error: Can't use no_bottom=True and also want a bottom_elevation (" + bottom_elevation + ")"
+    assert not (bottom_elevation != None and top_thickness != None), "Error: Can't use both bottom_elevation and top_thickness"
 
     assert not (bottom_elevation != None and use_geo_coords != None), "Error: use_geo_coords is currently not supported with a bottom_elevation raster"
 
@@ -1129,6 +1133,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         
         if bottom_elevation != None and bottom_elevation != '':
             btxt = "and " + bottom_elevation
+        elif top_thickness != None and top_thickness != '':
+            btxt = "and " + top_thickness
         else:
             btxt = ""
         pr("Log for creating", num_tiles[0], "x", num_tiles[1], "3D model tile(s) from", filename, btxt, "\n")
@@ -1155,7 +1161,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Make numpy array from imported geotiff
         dem = gdal.Open(importedDEM)
         band = dem.GetRasterBand(1)
-        npim = band.ReadAsArray().astype(numpy.float64)
+        npim = band.ReadAsArray().astype(numpy.float64) # top elevation values
 
         # Read in offset mask file (Anson's stuff ...)
         if offset_masks_lower is not None:
@@ -1196,46 +1202,66 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             return projection, datum
 
         proj_str, datum_str = get_GDAL_projection_and_datum(dem)
+        crs_str = proj_str # for local rasters, we use the projection string  
 
-        # if we have a bottom_elevation raster read it in and check that size and cell size match
-        # also store all the metadata
-        if bottom_elevation != None and bottom_elevation != '':
-            bot_elev = gdal.Open(bottom_elevation)
-            bot_band = bot_elev.GetRasterBand(1)
-            bot_npim = bot_band.ReadAsArray().astype(numpy.float64)
-            bot_tf = bot_elev.GetGeoTransform()
-            bot_pw, bot_ph = abs(bot_tf[1]), abs(bot_tf[5])
-            if bot_pw != pw or bot_ph != ph:
-                logger.warning("Warning: bottom_elevation raster cells are not square (" + str(bot_pw) + "x" + str(bot_ph) + ") , using" + str(bot_pw))
-            bot_cell_size_m = bot_pw
+        # if we have a GDAL undefined value, set all cells with that value to NaN
+        dem_undef_val = band.GetNoDataValue()
+        pr("undefined DEM value:", dem_undef_val)
+        if dem_undef_val != None:  # None means the raster is not a geotiff, so no undef values
+            undef_cells = numpy.isclose(npim, dem_undef_val) # bool with cells that are close to the GDAL undef value
+            npim = numpy.where(undef_cells, numpy.nan, npim) # replace GDAL undef values with nan
 
-            if dem.RasterXSize != bot_elev.RasterXSize or dem.RasterYSize != bot_elev.RasterYSize:
-                assert False, f"Error: bottom_elevation raster sizes ({bot_elev.RasterXSize} x {bot_elev.RasterYSize}) does not match (top) DEM size ({dem.RasterXSize} x {dem.RasterYSize})"
+
+        # for a bottom raster or a thickness raster, check that it matches the top raster
+        if bottom_elevation != None or top_thickness != None:
+            if bottom_elevation != None:
+                ras = gdal.Open(bottom_elevation)
+            else:
+                ras = gdal.Open(top_thickness)
+            ras_band = ras.GetRasterBand(1)
+            ras_npim = ras_band.ReadAsArray().astype(numpy.float64) # bottom elevation or thickness values as numpy array
+            ras_tf = ras.GetGeoTransform()
+            ras_pw, ras_ph = abs(ras_tf[1]), abs(ras_tf[5])
+            if ras_pw != pw or ras_ph != ph:
+                logger.warning("Warning: bottom_elevation or top_thickness raster cells are not square (" + str(ras_pw) + "x" + str(ras_ph) + ") , using" + str(ras_pw))
+            ras_cell_size_m = ras_pw
+
+            if dem.RasterXSize != ras.RasterXSize or dem.RasterYSize != ras.RasterYSize:
+                assert False, f"Error: bottom_elevation or top_thickness raster sizes ({ras.RasterXSize} x {ras.RasterYSize}) does not match (top) DEM size ({dem.RasterXSize} x {dem.RasterYSize})"
             
-            if bot_cell_size_m != cell_size_m:
-                assert False, f"Error: bottom_elevation raster cell size ({bot_cell_size_m}) does not match (top) DEM cell size ({cell_size_m})"
+            if ras_cell_size_m != cell_size_m:
+                assert False, f"Error: bottom_elevation or top_thickness raster cell size ({ras_cell_size_m}) does not match (top) DEM cell size ({cell_size_m})"
             
             # get and compare projection and datum
-            bot_proj_str, bot_datum_str = get_GDAL_projection_and_datum(bot_elev)
-            if bot_proj_str != proj_str or bot_datum_str != datum_str:
-                assert False, f"Error: bottom_elevation raster projection ({bot_proj_str}) or datum ({bot_datum_str}) does not match (top) DEM projection ({proj_str}) or datum ({datum_str})"
+            ras_proj_str, ras_datum_str = get_GDAL_projection_and_datum(ras)
+            if ras_proj_str != proj_str or ras_datum_str != datum_str:
+                assert False, f"Error: bottom_elevation or top_thickness raster projection ({ras_proj_str}) or datum ({ras_datum_str}) does not match (top) DEM projection ({proj_str}) or datum ({datum_str})"
 
             # get undef value and write it into the numpy array
-            bot_elev_undef_val = bot_band.GetNoDataValue()
-            pr("undefined bottom elevation value:", bot_elev_undef_val)
-            if bot_elev_undef_val != None:  # None means the raster is not a geotiff
-                undef_cells = numpy.isclose(bot_npim, bot_elev_undef_val) # bool
-                bot_npim = numpy.where(undef_cells, numpy.nan, bot_npim)
+            ras_undef_val = ras_band.GetNoDataValue()
+            pr("undefined bottom elevation or thickness value:", ras_undef_val)
+            if ras_undef_val != None:  # None means the raster is not a geotiff so we don't support undef values
+                undef_cells = numpy.isclose(ras_npim, ras_undef_val) # bool with cells that are close to the undef value
+                ras_npim = numpy.where(undef_cells, numpy.nan, ras_npim) # replace undef values with nan
 
-            # CHECK THIS: close/delete the GDAL raster and band here, b/c I only need the numpy array from now on (and meta data has been stored)
-            bot_elev = None
-            del bot_band
-            
-        crs_str = proj_str # for local rasters, we use the projection string   
-        
+            # get bottom elevation as numpy array or create it be subtracting thickness from top elevation
+            if bottom_elevation != None:
+                bot_npim = ras_npim # numpy array to be used later
+            else:
+                bot_npim = npim - ras_npim
+                del ras_npim # don't need it anymore
+                # Pretend we have a bottom elevation raster of that name so all further checks for bottom will work
+                bottom_elevation = top_thickness  
+
+            # close/delete the GDAL raster and band here, b/c I only need the numpy array from now on (and meta data has been stored)
+            ras = None
+            del ras_band
+
         # Print out some info about the raster
         pr("DEM (top) raster file:", importedDEM)
-        if bottom_elevation != None and bottom_elevation != '':
+        if top_thickness != None and top_thickness != '':
+            pr("Top thickness raster file:", top_thickness)
+        elif bottom_elevation != None and bottom_elevation != '':
             pr("Bottom elevation raster file:", bottom_elevation)
         pr("DEM projection & datum:", proj_str, datum_str)
         pr("z-scale:", zscale)
@@ -1252,14 +1278,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
         if polygon != None or  (polyURL != None and polyURL != ''):
             pr("Warning: Given outline polygon will be ignored when using local raster file!") 
-
-        # if we have a GDAL undefined value, set all cells with that value to NaN
-        dem_undef_val = band.GetNoDataValue()
-        pr("undefined DEM value:", dem_undef_val)
-        # Instead of == use numpy.isclose to flag undef cells as True
-        if dem_undef_val != None:  # None means the raster is not a geotiff
-            undef_cells = numpy.isclose(npim, dem_undef_val) # bool
-            npim = numpy.where(undef_cells, numpy.nan, npim)
 
         # Add GPX points to the model (thanks KohlhardtC and ansonl!)
         if importedGPX != None and importedGPX != []:
@@ -1390,13 +1408,25 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("map scale is 1 :", print3D_scale_number) # EW scale
         #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
 
-        # set minimum elevation
-        if min_elev != None: # user given minimum elevation
+        # set minimum elevation for top and bottom (will be used by all! tiles)
+        min_bottom_elev = None
+        if min_elev != None: # user given minimum elevation (via argument)
             print("(elev min is manually set to", min_elev, "m)")
-        else: 
-            # min/max elev (this "global" min_elev will be used by all tiles)
+            offset = min_elev - numpy.nanmin(npim) # offset between user given min_elev and actual data min_elev
+            npim += offset # add offset
+            print(f"elev min/max : {numpy.nanmin(npim):.2f} to {numpy.nanmax(npim):.2f}")  
+            # Need to also adjust the bottom elevation to match this user given min_elev
+            if bottom_elevation != None and bottom_elevation != '':
+                bot_npim += offset # add offset to bottom elevations
+                min_bottom_elev = numpy.nanmin(bot_npim)
+                print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
+
+        else: # calculate from numpy array(s)
             min_elev = numpy.nanmin(npim)
             print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
+            if bottom_elevation != None and bottom_elevation != '':
+                min_bottom_elev = numpy.nanmin(bot_npim)
+                print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
 
         # if scale X is negative, assume it means scale up to X mm high and calculate required z-scale for that height
         if zscale < 0:
@@ -1542,10 +1572,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "crs" : crs_str, # cordinate reference system, can be EPSG code or UTM zone or any projection  
             #"UTMzone" : utm_zone_str, # UTM zone e.g. UTM13N or
             "scale"  : print3D_scale_number, # horizontal scale number,  1000 means 1:1000 => 1m in model = 1000m in reality
+            "z_scale" : zscale,  # z (vertical) scale (elevation exageration) factor
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
-            "max_elev" : None, # tilewide minimum/maximum elevation (in meter), None means: will be calculated later
-            "min_elev" : min_elev if min_elev != None else None, # None means: will be calculated from actual elevation later
-            "z_scale" :  zscale,  # z (vertical) scale (elevation exageration) factor
+            "min_elev" : min_elev, # for all tiles
+            "min_bot_elev" : min_bottom_elev,
+            # max_elev needed?
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
             "folder_name": DEM_title,  # folder/zip file name for all tiles
