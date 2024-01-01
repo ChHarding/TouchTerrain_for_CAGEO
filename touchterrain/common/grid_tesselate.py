@@ -524,11 +524,14 @@ class grid:
             # convert bottom's elevation from real word elevation (m) to model height (mm)
             # Note: I'm unclear how a base thickness works here but for now I will add it to the bottom
             if self.tile_info["have_bottom_array"] == True:
-                self.bottom -= float(self.tile_info["min_bot_elev"]) # subtract tilewide bottom min
+                self.bottom -= float(self.tile_info["min_elev"]) # subtract tilewide min of TOP! 
 
                 scz = 1 / float(self.tile_info["scale"]) * 1000.0 # scale z to mm
                 self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale
                 # Note: with a bottom raster, we do NOT add base thickness for top and bottom rasters!
+
+                # TODO: bottom may now has < 0 values but I'm think that's ok as the resulting STL will have
+                # to be placed on the buildplate anyway, so the slicer will take care of that.
 
                 # Update with per-tile mm min/max 
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
@@ -762,8 +765,8 @@ class grid:
                 SWb = vertex(W, S, SEelev)
                 botq = quad(NEb, NWb, SWb, SEb)
 
-                print(topq)
-                print(botq)
+                #print(topq)
+                #print(botq)
                  
                 # Quads for walls: in borders dict, replace any True with a quad of that wall
                 if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)

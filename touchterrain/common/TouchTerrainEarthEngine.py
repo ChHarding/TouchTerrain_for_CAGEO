@@ -244,12 +244,6 @@ def process_tile(tile_tuple):
     bottom_raster = bottom_raster - 0.5  
     '''
 
-    # CH: I don't think this needed, in fact min_elev would overwrite a user-given min_elev!       
-    #tile_info["min_elev"] = numpy.nanmin(tile_elev_raster)
-    #tile_info["max_elev"] = numpy.nanmax(tile_elev_raster)
-    #tile_info["min_bot_elev"] = numpy.nanmin(bottom_raster)
-    #tile_info["max_bot_elev"] = numpy.nanmax(bottom_raster)
-
     # create a grid object from the raster(s), which later converted into a triangle mesh
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     del tile_elev_raster
@@ -266,21 +260,6 @@ def process_tile(tile_tuple):
     else:
         print("Writing tile into memory buffer", file=sys.stderr)
         temp_fn = None # means: use memory
-
-    '''
-    # Create file/buffer of requested format 
-    if  fileformat == "obj":
-        b = g.make_OBJfile_buffer(temp_file=temp_fn)
-        # TODO: add a header for obj
-    elif fileformat == "STLa":
-        ascii=True
-        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
-    elif fileformat == "STLb":
-        ascii=False
-        b = g.make_STLfile_buffer(tile_info, ascii, temp_file=temp_fn)
-    else:
-        raise ValueError("invalid file format:", fileformat)
-    '''
 
     # Create triangle "file" either in a buffer or in a tempfile, of requested fileformat
     # if file: open, write and close it, b will be temp file name
@@ -1408,8 +1387,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("map scale is 1 :", print3D_scale_number) # EW scale
         #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
 
-        # set minimum elevation for top and bottom (will be used by all! tiles)
-        min_bottom_elev = None
+        # set minimum elevation for top (will be used by all! tiles)
+        min_bottom_elev = None # bottom min is just for info and will not be used in late processing to mm!
         if min_elev != None: # user given minimum elevation (via argument)
             print("(elev min is manually set to", min_elev, "m)")
             offset = min_elev - numpy.nanmin(npim) # offset between user given min_elev and actual data min_elev
@@ -1466,7 +1445,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 npim = numpy.add(npim, offset_layer)
                 pr("Offset masked elevations by raising all non masked areas of", offset_masks_lower[count][0],"by", offset, "m, equiv. to", offset_masks_lower[count][1],  "mm at map scale")  
                 npim = numpy.where(npim < 0, 0, npim)
-
                 count += 1
 
         # fill holes using a 3x3 footprint. Requires scipy. [0] is number of interations, [1] is threshold
@@ -1515,13 +1493,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if clean_diags == True:
             npim = clean_up_diags(npim)
 
-    
+        #
         # plot dem and histogram, save as png
+        #
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
         import matplotlib as mpl 
             
-
         fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(5, 10), gridspec_kw={'height_ratios': [1, 0.4]})
 
         imgplot = ax1.imshow(npim, aspect=u"equal", interpolation=u"spline36")
@@ -1536,12 +1514,20 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         ax1.tick_params(axis='both', which='both', length=0)
         ax1.set_title("Elevation by color for " + DEM_name) 
 
-        npim_flt = npim.flatten()
-        rng = (numpy.nanmin(npim_flt), numpy.nanmax(npim_flt))
+        npim_flt = npim.flatten() # 1D array
+        elevmin, elevmax = numpy.nanmin(npim_flt), numpy.nanmax(npim_flt)
+        rnge = elevmax - elevmin
+        # interval between ticks should depend on the range of the elevation
+        interval_lst = ((10, 2), (100, 20), (500, 100), (1000, 200), (50000, 1000), (99999999999, 2500))
+        for r, i in interval_lst:
+            if rnge <= r:
+                interval = i
+                break
+        ticks = list(range(int(elevmin), int(elevmax), interval)) + [int(elevmax)]
         
         # Add a colorbar to the first subplot with min and max elevation values
         cbar = fig.colorbar(imgplot, ax=ax1, format='%.1f m', orientation='horizontal', pad=0.1, 
-                     ticks=[rng[0], rng[1]], shrink=1)
+                     ticks=ticks, shrink=1)
         cbar.ax.xaxis.set_ticks_position('top')
         cbar.ax.xaxis.set_label_position('top')
         #cbar.ax.xaxis.set_tick_params(width=0)
@@ -1550,9 +1536,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         numcols = imgplot.cmap.N
         cmap = imgplot.cmap(numpy.arange(numcols)) # will only have 256 colors
         
-        n, bins = numpy.histogram(npim_flt, bins=numcols, range=(rng[0], rng[1]))
+        n, bins = numpy.histogram(npim_flt, bins=numcols, range=(elevmin, elevmax))
         ax2.bar(bins[:-1], n, width=numpy.diff(bins), align='edge', color=cmap)
         ax2.set_ylim([0, numpy.max(n)])
+        ax2.set_xticks(ticks)
         ax2.grid(True, which='both', color='gray', linestyle='-', linewidth=0.5)
         ax2.set_facecolor((0.95, 0.95, 0.95))
         ax2.set_title("Histogram of Elevation")
@@ -1797,7 +1784,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
 
     # add plot with histogram to zip
-    zip_file.write(plot_file_name, "plot_with_histogram.png")
+    zip_file.write(plot_file_name, "elevation_plot_with_histogram.png")
 
     # add logfile to zip
     log_file_handler.flush()
