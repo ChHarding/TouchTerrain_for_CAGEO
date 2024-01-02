@@ -141,7 +141,7 @@ initial_args = {
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
     "importedGPX": [], # list of gpx path file(s) to be use  
     "smooth_borders": True, # smooth borders  by removing a border triangle?
-    "offset_masks": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
+    "offset_masks_lower": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
     "fill_holes": None, # [rounds, threshold] hole filling filter iterations and threshold to fill a hole
     "poly_file": None, # local kml file for mask
     "min_elev": None, # min elev to use, None means set by min of all tiles
