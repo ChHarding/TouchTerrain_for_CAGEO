@@ -148,6 +148,7 @@ initial_args = {
     "tilewidth_scale": None, # set x/y scale, with None, scale is set automatically by the selected area (region)
     "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
     "sqrt":False,
+    "use_geo_coords": None,
 }
 
 
