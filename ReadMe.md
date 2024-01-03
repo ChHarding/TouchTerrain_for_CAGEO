@@ -45,7 +45,7 @@ We have created four versions of notebooks:
 
 1) __TouchTerrain_standalone_jupyter_notebook.ipynb__ is meant to be run locally or via a docker container and is meant for those familiar with Python. The setup part is now somewhat outdated but the notebook may still form a useful basis. It allow the preview of the model for k3d.
 2) __TouchTerrain_jupyter_for_starters.ipynb__ is a modification of 1) meant for Python beginners. It tries to walk a beginner through the process in much more detail by providing a template (workflow) for all major parameters. As such is may be unnecessarily verbose for non-beginners. It also can preview the model via k3d and is again meant to be run locally on via a docker container. 
-3) __TouchTerrain_jupyter_for_starters_colab.ipynb__ is a modification of 2) specifically for running on colab (free but Google account required). To run it just click on this badge: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb) and follow the instructions! With some caveats, this is __by far the easiest and fastest way to process DEM data with TouchTerrain standalone!__ The free runtime environment has plenty CPU power and disk space and, as most of the required Python packages are already installed, installation (despite being a bit quirky) is usually done under a minute. Sadly, k3d cannot be run and so it has now model preview.
+3) __TouchTerrain_jupyter_for_starters_colab.ipynb__ is a modification of 2) specifically for running on colab (free but Google account required). To run it just click on this badge: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb) and follow the instructions! With some caveats, this is __by far the easiest and fastest way to process DEM data with TouchTerrain standalone!__ The free runtime environment has plenty CPU power and disk space and, as most of the required Python packages are already installed, installation (despite being a bit quirky) is usually done under a minute. Sadly, k3d cannot be run and so it has no model preview.
 4) __TouchTerrain_jupyter_for_starters_binder.ipynb__ is similar to 3) but tailored to run on Binder [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb) Binder sets up a free docker container within a slick web interface (nice!) and uses JupyterLab. But, in my experience the installation phase is slower and less reliable than Colab. As lots of Python packages have to be installed (more than 750 Mb!), installation can take 10 - 15 minutes, with long paused w/o progress indication. Refreshing the browser sometimes helps but I've had cases where the installation simply stopped and never finished. In addition, a created instance seems to time out quite quickly, meaning that if your don't use it right away after its lengthy installation, the instance will shut down, requiring a new installation.
 
 __EarthEngine_authentication_guide.md__ has some notes on how to authenticate with EarthEngine, which is required when processing their online DEM data (but not when only processing uploaded local DEM raster files!).
@@ -53,39 +53,43 @@ __EarthEngine_authentication_guide.md__ has some notes on how to authenticate wi
 
 ### General Processing parameters
 
-These parameters can be used in the JSON config file or in a python dictionary for hardingcoding them in the jupyter notebook or TouchTerrain_standalone.py.
-
-The JSON config file has the following format:
+These parameters can be used in the JSON config file or in a python dictionary for hardingcoding them in the jupyter notebook or TouchTerrain_standalone.py. The JSON config file has the following format and default values:
 
 ```json
 {
-"CPU_cores_to_use": 0,
-"DEM_name": "USGS/3DEP/10m",
-"basethick": 1,
-"bllat": 44.50185267072875,
-"bllon": -108.25427910156247,
-"bottom_image": null,
-"clean_diags": false,
-"fileformat": "STLb",
-"fill_holes": null,
-"ignore_leq": null,
-"lower_leq": null,
-"importedDEM": null,
-"max_cells_for_memory_only": 1000000,
-"min_elev": null,
-"no_bottom": false,
-"no_normals": true,
-"ntilesx": 1,
-"ntilesy": 1,
-"only": null,
-"printres": 0.5,
-"tile_centered": false,
-"tilewidth": 80,
-"trlat": 44.69741706507476,
-"trlon": -107.97962089843747,
-"unprojected": false,
-"zip_file_name": "terrain",
-"zscale": 1.0
+    "DEM_name": "USGS/3DEP/10m",
+    "bllat": 39.32205105794382,
+    "bllon": -120.37497608519418,
+    "trlat": 39.45763749030933,
+    "trlon": -120.2002248034559,
+    "importedDEM": null,
+    "printres": 0.4,
+    "ntilesx": 1,
+    "ntilesy": 1,
+    "tilewidth": 120,
+    "basethick": 0.6,
+    "zscale": 2.0,
+    "fileformat": "STLb",
+    "tile_centered": false,
+    "zip_file_name": "myterrain",
+    "CPU_cores_to_use": null,
+    "max_cells_for_memory_only": 25000000,
+    "no_bottom": false,
+    "bottom_image": null,
+    "ignore_leq": null,
+    "lower_leq": null,
+    "unprojected": false,
+    "only": null,
+    "importedGPX": [],
+    "smooth_borders": true,
+    "offset_masks_lower": null,
+    "fill_holes": null,
+    "poly_file": null,
+    "min_elev": null,
+    "tilewidth_scale": null,
+    "clean_diags": false,
+    "sqrt": false,
+    "use_geo_coords": null
 }
 ```
 
@@ -100,6 +104,7 @@ The JSON config file has the following format:
 - `CPU_cores_to_use`: Number of CPU cores (processes) to use. 
   - `0`: use all available cores, which will improve multi-tile processing times but has no effect for single tile processing. 
   - `null`: forces use of only a single core, even for multiple tiles, which is useful when running the multi-tile code in a Debugger.
+  - __Note that multi-tile processing is currently broken so single processor mode will be used for now!__
 
 - `DEM_name`: (resolutions are approximate and strictly true only at the equator!)
   - USGS/3DEP/10m: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
@@ -119,24 +124,24 @@ The JSON config file has the following format:
 - `trlat`: Top-right latitude
 - `trlon`: Top-right longitude
 
-- Polygon to define the area:
-  The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings. 
+- Polygon to define the area: The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings. 
 
-  The standalone version can read a kml file using the `poly_file` or `polyURL` parameters. For both, the first polygon found will be used as a mask, i.e. the model will only cover terrain inside the polygon. If no polygon is found, the first polyline is used instead. (Holes in polygons are ignored). kmz files are __not__ supported at this time. To convert kmz to kml, unzip it (will be doc.kml) and rename doc to the (pre-dot) name of the kmz file.
+  The standalone version can read a kml file using the `poly_file` or `polyURL` parameters. For both, the first polygon found will be used as a mask, i.e. the model will only cover terrain inside the polygon. If no polygon is found, the first polyline is used instead. (Holes in polygons are ignored). *kmz files are __not__ supported at this time.* To convert kmz to kml, unzip it (will be doc.kml) and rename doc to the name of the kmz file.
 
   - `poly_file` : path to a local kml file
   - `polyURL` : URL to a publicly readable(!) kml file on Google Drive
 
-  The standalone version also supports: `polygon` :  a GeoJSON polygon,
+  The standalone version also supports: `polygon` :  a GeoJSON polygon
 
 - `bottom_image`: (default: `null`). If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *TouchTerrain_bottom_example.png* in the *stuff* folder), the image is centered, uniformly resized to have a generous fringe and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
 
-- `clean_diags`: (default: `null`). Eliminate 2x2 diagonal filled and empty cells in a DEM that lead to nonmanifold models with 4 faces sharing the same edge.
+- `clean_diags`: (default: `null`). Eliminates 2x2 diagonal filled and empty cells in a DEM that lead to non-manifold models with 4 faces sharing the same edge. (Here 0 means undefined and 1 means a valid elevation):
 
   ```
   01    and    10
   10           01
   ```
+    This only works on a model for which its raster contains undefined (NoData, NaN) values. This is off by default as it takes time and most modern slicers can handle non-manifold (i.e. non watertight) models. *However, if you plan to import the model into other 3D applications (e.g. Meshmixer, Fusion 360, Microsoft 3D builder), you should set this to true.*
 
 - `fileformat`: file format for 3D model file.
   - `obj`: wavefront obj (ascii)  
@@ -152,16 +157,16 @@ The JSON config file has the following format:
 
 - `importedDEM`: (default: `null`). If `null` a geotiff is fetched from Earth Engine as detailed above. If it is set to a filename, this file is used as DEM. In this case, DEM_name, bllat, bllon, trlat and trlon are ignored, but all other parameters are still used.
  
-  - You can test this with pyramid.tif (in the stuff folder) which has an elevation of 0 to 255, so probably will need a z-scale of 0.5 on a width of 100 mm. Any GDAL raster file format
- (http://www.gdal.org/frmt_various.html) should be readable. 
-    - Set printres to -1 to prevent downsampling and instead use the file's intrinsic resolution. Non-georef'ed rasters (i.e., regular images) are assumed to have a "real-world" cell size of 1.
-    - The file can contain cells that are officially undefined. These undefined cells will be omitted in the STL/OBJ file, allowing you to create 3D prints with "organic" boundaries instead of rectangular ones. Unrealistically low or high elevations (e.g. -9999999) will be treated as undefined.
+  - You can test this with pyramid.tif (in the stuff folder) which has elevations from 0 to 255, so you probably will need a z-scale of 0.5 on a width of 100 mm. Any GDAL raster file format
+ (http://www.gdal.org/frmt_various.html) should be readable, although geoTiffs are recommended.
+  - Set printres to -1 to prevent downsampling and instead use the file's intrinsic resolution. Non-georef'ed rasters (i.e., regular images) are assumed to have a "real-world" cell size of 1.
+  - The file can contain cells that are officially undefined (e.g. via teh GeoTiff meta data). These undefined cells will be omitted in the STL/OBJ file, allowing you to create 3D prints with "organic" boundaries instead of rectangular ones. Unrealistically low or high elevations (e.g. -9999999) will be treated as undefined.
 
 - `max_cells_for_memory_only`: (default: `1000000`). If the number of raster cells to be processed is bigger than this number, temp files are used in the later stages of processing. This is slower but less memory intensive than assembling the entire zip file in memory alone. If your machine runs out of memory, lowering this may help.
 
 - `min_elev`: (default: `null`) Minimum elevation to start the model height at after `basethick` height. If null, the minimum elevation found in the DEM is used so the `basethick` height will start at the minimum elevation found in the DEM and not necessarily sea level.
 
-- `no_bottom`: (default: `false`). Will omit any bottom triangles i.e. only stores the top surface and the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid printed bottom (tested in Cura >3.6). Note that starting with 3.5 for simple cases, the bottom mesh have been set to just two triangles, so the no_bottom setting is really only useful for cases involving polygon outlines (e.g. from a kml file).
+- `no_bottom`: (default: `false`). Will omit any bottom triangles i.e. only stores the top surface and the "walls". The creates ~50% smaller STL/OBJ files. When sliced it should still create a solid printed bottom (tested in Cura >3.6). Note that starting with TOuchTerrain version 3.5 for simple cases, the bottom mesh have been set to just two triangles, so the no_bottom setting is really only useful for cases involving polygon outlines (e.g. from a kml file).
 
 - `no_normals`: (default: `true`). Will NOT calculate normals for triangles in STL files and instead set them to 0,0,0. This is significantly faster and should not matter as on import most slicers and 3D viewers will calculate a normal for each triangle (via cross product) anyway. However, if you require properly calculated normals to be stored in the STL file, set this to false. *(Contributed by idenc)*
 
@@ -171,14 +176,14 @@ The JSON config file has the following format:
 - `only`: (default: `null`). If given a list [x,y], will only process that tile index ([1,1] is upper left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).  
   - __Example__: only:[1,1] (JSON) or only = [1,1] (python) will d/l only the tile with index 1,1
     - Once this tile was downloaded, using __only with [1,2]__, but otherwise repeating the request, will d/l tile 1,2
-    - Although each tile will be in a new zip, unzipping them and putting all tiles in a common folder will create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the tiles will fit together without overlaps if tile_centered was false.
+    - Although each tile will be in a new zip, unzipping them and putting all tiles in a common folder will create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the tiles will fit together without overlaps if tile_centered was set to false.
 
 - `printres`: (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:
 
   - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED). It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. 
-    - Note: setting printres to -1 will set it to the equivalent of the DEM sources __original__ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. An example script is given in the appendix. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
+  - Note: setting printres to -1 will set it to the equivalent of the DEM sources __original__ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. An example script is given in the appendix. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
 
-- `sqrt`: (default: `false`) if true, will apply the square root to the final elevation and lower it so the smallest value is 0. This is done after applying z-scale and running _leq operations. When combined with a very large z-scale (100 - 500) this can help to equalize terrain models that have a wide range of elevations, such as going from sea level to 2000 m peaks. This helps to bring out details in low areas while avoiding un-printably pointy mountains. Will only work with all-positive elevation values, so apply ignore_leq(0) if e.g. cells along a shoreline have negative elevations. In the web app, large z-scales have to be set manually, e.g. lie `"sqrt":true, "zscale":100, "ignore_leq":0`
+- `sqrt`: (default: `false`) if true, will apply the square root to the final elevation and lower it so the smallest value is 0. This is done after applying z-scale and running _leq operations. When also using a very large z-scale (100 - 500) this can help to equalize terrain models that have a wide range of elevations, such as going from sea level to 2000 m peaks. This helps to bring out details in low areas while avoiding un-printably pointy mountains. Will only work with all-positive elevation values, so apply ignore_leq(0) if e.g. cells along a shoreline have negative elevations. In the web app, large z-scales have to be set manually, e.g. `"sqrt":true, "zscale":100, "ignore_leq":0`
 
 - `tile_centered`: (default: `false`)
   - `false`: All tiles are offset so they all "fit together" when they all are loaded into a 3D viewer, such as Meshlab or Meshmixer.
@@ -188,19 +193,19 @@ The JSON config file has the following format:
 
 - `tilewidth_scale`: (default: `None`). Uses this scale factor to calculate and override the tile width. Ex: a factor of 10000 will divide the real-world width of the area by 10000 and multiply that value by 1000 to arrive at a new tilewidth (in mm). Note that the final x/y scale (reported in the log file) may be slightly different due to some projection adjustments. __(New in 3.6.1)__
 
-- `unprojected`: (default: `false`). (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polar-stereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
+- `unprojected`: (default: `false`). (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polar-stereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected. This means you will have to figure out a (very large) z-scale to make the result look somewhat realistic!
 
 - `zip_file_name`: default: "terrain" Prefix of the output filename for stand-alone. (.zip is added)
 
 - `zscale`: (default: `1.0`). Vertical exaggeration versus horizontal units.
 
-- `projection`: (default: `null`). By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into it. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), may work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
+- `projection`: (default: `null`). By default, the DEM is reprojected to the UTM zone (datum: WGS84) the model center falls into. The EPSG code of that UTM projection is shown in the log file, e.g. UTM 13 N,  EPSG:32613. If a number(!) is given for this projection setting, the system will request the Earth Engine DEM to be reprojected into its EPSG code. For example, maybe your data spans 2 UTM zones (13 and 14) and you want UTM 14 to be used, so you set projection to (EPSG) 32614. Or maybe you need to use UTM 13 with NAD83 instead of WGS84, so you use 26913. For continent-size models,  WGS84 Web Mercator (EPSG 3857), may work better than UTM. See [https://spatialreference.org/] for descriptions of EPSG codes.
   - Be aware, however, that  Earth Engine __does not support all possible EPSG codes__. For example, North America Lambert Conformal Conic (EPSG 102009) is not supported and gives the error message: *The CRS of a map projection could not be parsed*. I can't find a list of EPSG codes that __are__ supported by EE, so you'll need to use trial and error ...
   - A note on distances: Earth Engine requires that the requested area is given in lat/lon coordinates but it's worth knowing the approximate real-world meter distance in order to select good values for the tile width, number of tiles and the printres. The server version displays the tile width in Javascript but for the standalone version you need to calculate it yourself. This haversine distance (https://en.wikipedia.org/wiki/Haversine_formula, interactive calculator here: http://www.movable-type.co.uk/scripts/latlong.html) depends on the latitude of your area.
   - Once you know the width of your tile in meters, divide it by the number of cells along x (400 cells in the example above) to get an idea of the re-sampled real-world resolution of your model and its scale. This [Help file](https://docs.google.com/document/d/1GlggZ47xER9N85Qls_MiE1jNuihlYEZnFFSVZtX8bKU/pub) goes into the interplay of these parameters in the section: _Understanding the linkage of tile size, tile number, source DEM resolution and 3D print resolution_
 
 - `use_geo_coords`: (default: `null`)
-  - with null (or if not given at all), x/y coordinates are in mm and refer to the buildplate
+  - with null, x/y coordinates are in mm and refer to the buildplate
   - "UTM" will use meter based UTM x/y coordinates instead. See [this](http://blog.touchterrain.org/2020/03/exporting-terrain-models-with-real.html) for some background. This is useful to import the mesh file into a 3D GIS, such as ArcGIS Pro. Note that, once imported, you will have to set the coordinate system of the mesh manually, b/c the mesh model file can't contain that information. Unless overwritten, this will be a UTM zone with WGS84. The TouchTerrain log file will contain the equivalent EPSG code.
   - "centered" will set the UTM origin to the center of the full tile, this is make it work together with [BlenderGIS](https://github.com/domlysz/BlenderGIS)
 
@@ -258,7 +263,7 @@ More specific details on how to set up and run your own server are beyond the sc
 
 ### Getting large geotiffs from Google Earth Engine
 
-- The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around the 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the standalone version of TouchTerrain.
+- The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around Google's 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the standalone version of TouchTerrain.
 - The example area will only create a 1 Mb geotiff but has been shown to work for larger areas. **Be warned that exporting large areas to a Google Drive can potentially take hours(!).**
 
 - To run this code, you'll need a Google Earth Engine account. Then, go to [https://code.earthengine.google.com/](https://code.earthengine.google.com/), create a new Script (left side) and copy/paste the code below into it. 
@@ -269,7 +274,7 @@ More specific details on how to set up and run your own server are beyond the sc
 - When the job is done, you'll see a check mark for your task. Click on the question mark and a popup will appear, hit `Open in Drive`. In Google Drive, download the geotiff.
 - Run TouchTerrain in standalone mode and set the importDEM parameter to your geotiff. To use the actual (source) resolution of the geotiff for generating your model, set printres to -1.
 
-```python
+```Javascript
 // Example of exporting a raster from EE to Google Drive (Jan. 2021)
 
 // You will need the corner coords, which you can get from the Area Selection Box display
