@@ -1304,19 +1304,6 @@ def main():
     print(top)
     #print bottom
 
-    """
-    import matplotlib.pyplot as plt
-    #plt.ion()
-    fig = plt.figure(figsize=(7,10))
-    npim = top
-    imgplot = plt.imshow(npim, aspect=u"equal", interpolation=u"none")
-    cmap_name = 'nipy_spectral' # gist_earth or terrain or nipy_spectral
-    imgplot.set_cmap(cmap_name)
-    #a = fig.add_axes()
-    #plt.title(DEM_name + " " + str(center))
-    plt.colorbar(orientation="horizontal")
-    plt.show()
-    """
 
 
     tile_info_dict = {
