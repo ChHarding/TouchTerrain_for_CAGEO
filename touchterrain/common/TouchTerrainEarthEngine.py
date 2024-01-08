@@ -142,7 +142,7 @@ initial_args = {
     "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
     "importedGPX": [], # list of gpx path file(s) to be use  
     "smooth_borders": True, # smooth borders  by removing a border triangle?
-    "offset_masks": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
+    "offset_masks_lower": None, # [[filename, offset], [filename2, offset2], ...] offset masks to apply to map
     "fill_holes": None, # [rounds, threshold] hole filling filter iterations and threshold to fill a hole
     "poly_file": None, # local kml file for mask
     "min_elev": None, # min elev to use, None means set by min of all tiles
@@ -438,7 +438,11 @@ def clean_up_diags(ras):
                      [0, 1, 1, 1,],
                      [1, 0, 0, 1,],
                      [0, 1, 1, 0,]])
+    
     '''
+    # If there are NaNs in the raster there cannot by any diagonal patterns, so we're done!
+    if not numpy.any(numpy.isnan(ras)):
+        return ras
 
     cnt = 0
     
@@ -449,6 +453,8 @@ def clean_up_diags(ras):
         # invert it, and cast to int. This is a binary mask that we'll query for diagonal patterns and
         # modify accordingly (turn half the pattern from 1 to 0)
         mask = numpy.invert(numpy.isnan(ras)).astype(numpy.int8) # int8 is the cheapest possible int in numpy
+        
+        
 
         # how many 0s and 1s do we have before the potential cleanup?
         unique_pre, counts_pre = numpy.unique(mask, return_counts=True)
@@ -1110,9 +1116,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     else:
         filename = os.path.basename(importedDEM)
         
-        if bottom_elevation != None and bottom_elevation != '':
+        if bottom_elevation != None:
             btxt = "and " + bottom_elevation
-        elif top_thickness != None and top_thickness != '':
+        elif top_thickness != None:
             btxt = "and " + top_thickness
         else:
             btxt = ""
@@ -1236,11 +1242,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             ras = None
             del ras_band
 
+
+            # hack? If top is lower than bottom set these cells to NaN in top and bottom
+            # This is specific to how Anson generates his rasters, which maybe could be changed to top == bottom   
+            top_lower_than_bottom =  npim < bot_npim
+            if numpy.any(top_lower_than_bottom) == True: 
+                npim[top_lower_than_bottom] = numpy.nan
+                have_nan = True
+                bot_npim[top_lower_than_bottom] = numpy.nan
+                have_bot_nan = True
+
         # Print out some info about the raster
         pr("DEM (top) raster file:", importedDEM)
         if top_thickness != None and top_thickness != '':
             pr("Top thickness raster file:", top_thickness)
-        elif bottom_elevation != None and bottom_elevation != '':
+        elif bottom_elevation != None:
             pr("Bottom elevation raster file:", bottom_elevation)
         pr("DEM projection & datum:", proj_str, datum_str)
         pr("z-scale:", zscale)
@@ -1307,7 +1323,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # re-sample DEM (and bottom_elevation) using PIL
             pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
             npim =  resampleDEM(npim, scale_factor)
-            if bottom_elevation != None and bottom_elevation != '':
+            if bottom_elevation != None:
                 pr("re-sampling", bottom_elevation, ":\n ", bot_npim.shape[::-1], source_print3D_resolution, "mm ", bot_cell_size_m, "m ", numpy.nanmin(bot_npim), "-", numpy.nanmax(bot_npim), "m")
                 bot_npim =  resampleDEM(bot_npim, scale_factor)
 
@@ -1360,13 +1376,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Adjust raster to nice multiples of tiles. If needed, crop raster from right and bottom
         remx = npim.shape[1] % num_tiles[0]
         remy = npim.shape[0] % num_tiles[1]
-        if remx > 0 or  remy > 0:
+        if remx > 0 or remy > 0:
             pr(f"Cropping for nice fit of {num_tiles[0]} (width) x {num_tiles[1]} (height) tiles, removing: {remx} columns, {remy} rows")
             old_shape = npim.shape
             npim = npim[0:npim.shape[0]-remy, 0:npim.shape[1]-remx]
             pr("cropped", old_shape[::-1], "to", npim.shape[::-1])
 
-            if bottom_elevation != None and bottom_elevation != '':
+            if bottom_elevation != None:
                 bot_npim = bot_npim[0:bot_npim.shape[0]-remy, 0:bot_npim.shape[1]-remx]
                 pr("cropped bottom elevation raster to", bot_npim.shape[::-1])
 
@@ -1395,7 +1411,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim += offset # add offset
             print(f"elev min/max : {numpy.nanmin(npim):.2f} to {numpy.nanmax(npim):.2f}")  
             # Need to also adjust the bottom elevation to match this user given min_elev
-            if bottom_elevation != None and bottom_elevation != '':
+            if bottom_elevation != None :
                 bot_npim += offset # add offset to bottom elevations
                 min_bottom_elev = numpy.nanmin(bot_npim)
                 print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
@@ -1403,7 +1419,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         else: # calculate from numpy array(s)
             min_elev = numpy.nanmin(npim)
             print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
-            if bottom_elevation != None and bottom_elevation != '':
+            if bottom_elevation != None:
                 min_bottom_elev = numpy.nanmin(bot_npim)
                 print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
 
@@ -1487,6 +1503,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
                 pr("Filled", holesFilledLastRound, "holes. {numRounds} rounds remaining.".format(numRounds="Infinite" if fill_holes[0] == -1 else fill_holes[0]))
 
+
         # repair these patterns, which cause non_manifold problems later:
         # 0 1    or     1 0
         # 1 0    or     0 1
@@ -1524,6 +1541,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 interval = i
                 break
         ticks = list(range(int(elevmin), int(elevmax), interval)) + [int(elevmax)]
+        if ticks[0] < 0:  # make sure we have a 0 tick
+            ticks.insert(1, 0) 
         
         # Add a colorbar to the first subplot with min and max elevation values
         cbar = fig.colorbar(imgplot, ax=ax1, format='%.1f m', orientation='horizontal', pad=0.1, 
@@ -1600,7 +1619,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # pad full raster by one at the fringes
         #print npim, npim.shape
         npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan
-        if bottom_elevation != None and bottom_elevation != '':
+        if bottom_elevation != None:
             bot_npim = numpy.pad(bot_npim, (1,1), 'edge') 
         #print npim.astype(int)
 
@@ -1633,7 +1652,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 tile_elev_raster.flags.writeable = False
 
-                if bottom_elevation != None and bottom_elevation != '':
+                if bottom_elevation != None :
                     tile_bot_elev_raster = bot_npim[start_y:end_y, start_x:end_x] #  [y,x]  
                     tile_bot_elev_raster.flags.writeable = False
                 else:
@@ -1751,7 +1770,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # print size and elev range
                 pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
                    ", file size:", round(tile_info["file_size"]), "Mb")
-                if bottom_elevation != None and bottom_elevation != '':
+                if bottom_elevation != None:
                     pr("bottom elevation:", tile_info["min_bot_elev"], "-", tile_info["max_bot_elev"], "mm")
 
         pr("\ntotal size for all tiles:", round(total_size), "Mb")
