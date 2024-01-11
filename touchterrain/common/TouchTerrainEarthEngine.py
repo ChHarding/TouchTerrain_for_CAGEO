@@ -47,6 +47,10 @@ import numpy
 from scipy import ndimage # for clean_up_diags()
 from PIL import Image
 
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib as mpl 
+
 # for reading/writing geotiffs
 # Later versions of gdal may be bundled into osgeo so check there as well.
 try:
@@ -207,6 +211,14 @@ def process_tile(tile_tuple):
     tile_info = tile_tuple[0] # has info for this individual tile
     tile_elev_raster = tile_tuple[1] # the actual (top) raster
     tile_bottom_raster = tile_tuple[2] # the actual (bottom) raster (or None)
+
+    # DEBUG: save mask rasters
+    #import imageio
+    #tile_bottom_raster_mask = ~numpy.isnan(tile_bottom_raster) * 255
+    #imageio.imsave('tile_bottom_raster_mask.png', tile_bottom_raster_mask.astype(numpy.uint8))
+    #tile_elev_raster_mask = ~numpy.isnan(tile_elev_raster) * 255
+    #imageio.imsave('tile_elev_raster_mask.png', tile_elev_raster_mask.astype(numpy.uint8))
+    
 
     print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -1243,8 +1255,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             del ras_band
 
 
-            # hack? If top is lower than bottom set these cells to NaN in top and bottom
-            # This is specific to how Anson generates his rasters, which maybe could be changed to top == bottom   
+            # hack! If top is lower than bottom set these cells to NaN in top and bottom
+            # This is specific to how Anson generated his rasters in the past but I don't think it hurts to leave it in ...  
             top_lower_than_bottom =  npim < bot_npim
             if numpy.any(top_lower_than_bottom) == True: 
                 npim[top_lower_than_bottom] = numpy.nan
@@ -1411,7 +1423,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim += offset # add offset
             print(f"elev min/max : {numpy.nanmin(npim):.2f} to {numpy.nanmax(npim):.2f}")  
             # Need to also adjust the bottom elevation to match this user given min_elev
-            if bottom_elevation != None :
+            if bottom_elevation != None:
                 bot_npim += offset # add offset to bottom elevations
                 min_bottom_elev = numpy.nanmin(bot_npim)
                 print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
@@ -1509,14 +1521,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # 1 0    or     0 1
         if clean_diags == True:
             npim = clean_up_diags(npim)
+            if bottom_elevation != None:
+                bot_npim = clean_up_diags(bot_npim)
 
         #
         # plot dem and histogram, save as png
-        #
-        import matplotlib.pyplot as plt
-        import matplotlib.gridspec as gridspec
-        import matplotlib as mpl 
-            
+        #   
         fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(5, 10), gridspec_kw={'height_ratios': [1, 0.4]})
 
         imgplot = ax1.imshow(npim, aspect=u"equal", interpolation=u"spline36")
@@ -1535,17 +1545,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         elevmin, elevmax = numpy.nanmin(npim_flt), numpy.nanmax(npim_flt)
         rnge = elevmax - elevmin
         # interval between ticks should depend on the range of the elevation
-        interval_lst = ((10, 2), (100, 20), (500, 100), (1000, 200), (50000, 1000), (99999999999, 2500))
+        interval_lst = ((10, 2), (100, 20), (500, 100), (1000, 200), (2000, 250), (3500, 500), (50000, 1000), (99999999999, 2500))
         for r, i in interval_lst:
             if rnge <= r:
                 interval = i
                 break
-        ticks = list(range(int(elevmin), int(elevmax), interval)) + [int(elevmax)]
-        if ticks[0] < 0:  # make sure we have a 0 tick
+        nice_min = round(int(elevmin), -2) 
+        ticks = list(range(nice_min, int(elevmax-interval), interval)) + [int(elevmax)]
+        if ticks[0] < 0:  # make sure we have a 0 tick if min is negative
             ticks.insert(1, 0) 
         
         # Add a colorbar to the first subplot with min and max elevation values
-        cbar = fig.colorbar(imgplot, ax=ax1, format='%.1f m', orientation='horizontal', pad=0.1, 
+        cbar = fig.colorbar(imgplot, ax=ax1, format='%d', orientation='horizontal', pad=0.1, 
                      ticks=ticks, shrink=1)
         cbar.ax.xaxis.set_ticks_position('top')
         cbar.ax.xaxis.set_label_position('top')
@@ -1564,7 +1575,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         ax2.set_title("Histogram of Elevation")
         
         plt.draw() # needed to flush everything (?)
-        #plt.show()
+        #plt.show() # DEBUG
         plot_file_name = temp_folder + os.sep + DEM_name + "_elevation_plot_with_histogram.png"
         plt.savefig(plot_file_name, dpi=300)
 
@@ -1580,9 +1591,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "scale"  : print3D_scale_number, # horizontal scale number,  1000 means 1:1000 => 1m in model = 1000m in reality
             "z_scale" : zscale,  # z (vertical) scale (elevation exageration) factor
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
-            "min_elev" : min_elev, # for all tiles
-            "min_bot_elev" : min_bottom_elev,
-            # max_elev needed?
+            "min_elev" : min_elev, # min for all tiles, will be used for bottom NaNs
+            "min_bot_elev" : min_bottom_elev, # just for info
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
             "folder_name": DEM_title,  # folder/zip file name for all tiles

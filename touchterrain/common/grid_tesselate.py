@@ -483,19 +483,23 @@ class grid:
         elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
             self.tile_info["have_bottom_array"] = True 
 
-        # Checking for bottom only holes and top == bottom
+        # Checking for all-the-way-through bottom NaNs and top == bottom
         if self.tile_info["bottom_elevation"] is not None:
+            add_base_thickness_to_bottom = False  # usually we don't add base thickness to bottom, except for all-the-way-through rivers
 
-            # if the bottom has NaNs make sure the corresponding top cells are also NaN
+            # If the bottom has NaNs set them to min_elev. This is very specific to Anson's way of creating all-the-way-through rivers
+            # where his preprocessing sets the bottom to NaN for the rivers. This will also set any non-river NaNs to min_elev but
+            # that's ok as long at those bottom cells correspond to top cells with NaNs, which will make them get ignored.
             if have_bot_nan == True:
                 nan_values = np.isnan(self.bottom) # bool array with True for NaN values
                 if np.any(nan_values) == True: 
-                    self.top[nan_values] = np.nan
-                    have_nan = self.tile_info["have_nan"] = True
+                    self.bottom[nan_values] = self.tile_info["min_elev"] # set NaNs to min_elev
+                    have_bot_nan = self.tile_info["have_bot_nan"] = False
+                    add_base_thickness_to_bottom = True
 
             # if both have the same value (or very close to) set both to Nan
-            # TODO: should the tolerances be larger? Maybe just 0.0001 m?
-            close_values = np.isclose(self.top, self.bottom, rtol=1e-05, atol=1e-08, equal_nan=False) # bool array
+            # No relative tolerance here as we don't care about concept here. Set the abs. tolerance to 0.001 m (1 mm)
+            close_values = np.isclose(self.top, self.bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
@@ -533,12 +537,17 @@ class grid:
                 # TODO: bottom may now has < 0 values but I'm think that's ok as the resulting STL will have
                 # to be placed on the buildplate anyway, so the slicer will take care of that.
 
+                # for all-the-way-through rivers we need to add the base thickness to top and bottom, so the rivers end on the buildplate
+                if add_base_thickness_to_bottom == True:
+                    self.bottom += self.tile_info["base_thickness_mm"]
+                    self.top += self.tile_info["base_thickness_mm"] 
+
                 # Update with per-tile mm min/max 
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
             else:
-                 self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have not bottom raster
+                 self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have no bottom raster
 
             # post-scale (i.e. in mm) top elevations (for this tile)
             self.tile_info["min_elev"] = np.nanmin(self.top)
