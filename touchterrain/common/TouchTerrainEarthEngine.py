@@ -38,7 +38,7 @@ import sys
 oldsp = sys.path
 sys.path = ["."] + sys.path
 
-import touchterrain.common
+import touchterrain.common 
 from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 sys.path = oldsp
@@ -155,6 +155,25 @@ initial_args = {
     "bottom_elevation":None
 }
 
+#from scipy.ndimage import binary_dilation
+def dilate_array(raster, dilation_source):
+    ''' Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
+    returns the dilated raster'''
+    
+    # Convert raster to a binary array, where True represents non-NaN values
+    nan_mask = ~numpy.isnan(raster) 
+
+    # Perform the binary dilation operation
+    dilated_nan_mask = ndimage.binary_dilation(nan_mask) 
+
+    # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
+    mask = dilated_nan_mask & ~nan_mask  
+
+    # Create a new array that is the same as bottom, but with the pixels in the dilation zone replaced with the corresponding values from top
+    dilated_raster = numpy.where(mask, dilation_source, raster)
+
+    return dilated_raster
+
 
 def make_bottom_raster_from_image(image_file_name, shape):
     """ Make a bottom image (numpy array) to be used in the stl model
@@ -235,8 +254,46 @@ def process_tile(tile_tuple):
     else:
         bottom_raster = None # None means bottom is flat
 
+    
+    # DEBUG: make some simple rasters  (CH hack)
+    nn = numpy.NaN
     '''
-    # DEBUG: make some simple rasters  (CH)
+    tile_elev_raster =  numpy.array([
+                         [ 10, 13,],
+                         [ 10, 13,],
+                         [ 10, 13,],
+                         [ 10, 13,],
+                   ]) 
+    
+    tile_elev_raster =  numpy.array([
+                         [ nn, 13,],
+                         [ 10, nn,],
+                         [ nn, 13,],
+                         [ nn, 13,],
+                   ]) 
+    
+    
+    
+    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+    
+    bottom_raster =  numpy.array([
+                         [ nn, 13,],
+                         [ 10, nn,],
+                         [ nn, 13,],
+                         [ nn, 13,],
+                   ]) 
+    
+    bottom_raster =  numpy.array([
+                         [ 10, 13,],
+                         [ 10, 13,],
+                         [ 10, 13,],
+                         [ 10, 13,],
+                   ])
+    bottom_raster =   numpy.pad(bottom_raster, (1,1), 'edge')
+    tile_info["bottom_as_aux"] = True
+    '''
+
+    '''
     tile_elev_raster =  numpy.array([
                          [ 1, 5, 10, 50, 20, 10, 1],
                          [ 1, 10, 10, 50, 20, 10, 2],
@@ -245,19 +302,70 @@ def process_tile(tile_tuple):
                          [ 1, 20, 10, 10, 20, 10 , 1 ],
 
                    ])  
+    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+
     bottom_raster = numpy.array([
-                         [ 1, 5, 10, 10, 20, 10, 1],
-                         [ 1, numpy.NaN, 5, 10, 10, 10, 2],
-                         [ 1, 11, 10, 5 , 10, 10, 5],
-                         [ 1, 23, 10, 10, 10, 10, 2 ],
-                         [ 1, 20, 10, 10, 20, 10 , 1 ],
+                         [ 1, nn, nn, 50, 20, 10, 1],
+                         [ 1, nn, nn, nn, nn, 10, 2],
+                         [ 1, nn, nn, nn, nn, nn, 5],
+                         [ 1, 23, nn, nn, nn, 10, 2 ],
+                         [ 1, 20, 10, nn, 20, 10 , 1 ],
 
                    ])   
-    bottom_raster = bottom_raster - 0.5  
+    bottom_raster =   numpy.pad(bottom_raster, (1,1), 'edge')
+    
+    tile_info["bottom_as_aux"] = True
     '''
 
+    '''
+    # bottom as top with water as mask
+    nan = numpy.NaN
+    tile_elev_raster = numpy.array([
+                         [ 1, nan, 10, 50, 20, 10, 1],
+                         [ 1, nan, nan, 50, 20, 10, 2],
+                         [ 1, nan, nan, 20, 30, 10, 5],
+                         [ 1, 23, 30, nan, 20, 10, 2 ],
+                         [ 1, 20, 10, 10, 20, 10 , 1 ],
+
+                   ]) 
+    #bottom_raster = bottom_raster - 0.5  
+    '''
+
+    nn = numpy.NaN
+    '''
+    tile_elev_raster =  numpy.array([
+                         [ nn, nn,  1, 2],
+                         [ nn, nn,  3, 4],
+                         [ 9, 10, 11, 12],
+                         
+                   ])
+    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+    bottom_orig = None
+    '''
+    tile_elev_raster =  numpy.array([
+                         [ 5, 6,  1, 2],
+                         [ 7, 8,  3, 4],
+                         [ 9, 10, 11, 12],
+                         
+                   ]) 
+    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+
+    bottom_raster =  numpy.array([
+                         [ nn, nn,  1, 2],
+                         [ nn, nn,  3, 4],
+                         [ 9, 10, 11, 12],
+                         
+                   ])
+    bottom_raster =   numpy.pad(bottom_raster, (1,1), 'edge')
+    
+
+    # dilate bottom with top and keep original bottom
+    bottom_orig = bottom_raster 
+    bottom_raster = dilate_array(bottom_orig, tile_elev_raster)
+    
+    
     # create a grid object from the raster(s), which later converted into a triangle mesh
-    g = grid(tile_elev_raster, bottom_raster, tile_info)
+    g = grid(tile_elev_raster, bottom_raster, tile_info, bottom_orig)
     del tile_elev_raster
 
     #
