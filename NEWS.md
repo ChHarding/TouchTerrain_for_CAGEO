@@ -1,3 +1,6 @@
+Feb. 23, 2024
+-added k3d back into standalone notebook
+
 Feb. 13, 2023 (version 3.6.0)
 - changed how touchterrain gets installed on the colab notebook
 - updated colab notebook after feedback from Steve Potter 
