@@ -155,24 +155,6 @@ initial_args = {
     "bottom_elevation":None
 }
 
-#from scipy.ndimage import binary_dilation
-def dilate_array(raster, dilation_source):
-    ''' Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
-    returns the dilated raster'''
-    
-    # Convert raster to a binary array, where True represents non-NaN values
-    nan_mask = ~numpy.isnan(raster) 
-
-    # Perform the binary dilation operation
-    dilated_nan_mask = ndimage.binary_dilation(nan_mask) 
-
-    # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
-    mask = dilated_nan_mask & ~nan_mask  
-
-    # Create a new array that is the same as bottom, but with the pixels in the dilation zone replaced with the corresponding values from top
-    dilated_raster = numpy.where(mask, dilation_source, raster)
-
-    return dilated_raster
 
 
 def make_bottom_raster_from_image(image_file_name, shape):
@@ -255,7 +237,7 @@ def process_tile(tile_tuple):
         bottom_raster = None # None means bottom is flat
 
     
-    # DEBUG: make some simple rasters  (CH hack)
+    # DEBUG: make some simple rasters  (CH: hack)
     nn = numpy.NaN
     '''
     tile_elev_raster =  numpy.array([
@@ -346,26 +328,22 @@ def process_tile(tile_tuple):
                          [ 5, 6,  1, 2],
                          [ 7, 8,  3, 4],
                          [ 9, 10, 11, 12],
-                         
                    ]) 
-    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+    tile_elev_raster = numpy.pad(tile_elev_raster, (1,1), 'edge')
 
     bottom_raster =  numpy.array([
                          [ nn, nn,  1, 2],
                          [ nn, nn,  3, 4],
-                         [ 9, 10, 11, 12],
-                         
+                         [ 9,  10, 11, 12],
                    ])
-    bottom_raster =   numpy.pad(bottom_raster, (1,1), 'edge')
+    bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
     
 
-    # dilate bottom with top and keep original bottom
-    bottom_orig = bottom_raster 
-    bottom_raster = dilate_array(bottom_orig, tile_elev_raster)
+  
     
     
     # create a grid object from the raster(s), which later converted into a triangle mesh
-    g = grid(tile_elev_raster, bottom_raster, tile_info, bottom_orig)
+    g = grid(tile_elev_raster, bottom_raster, tile_info)
     del tile_elev_raster
 
     #

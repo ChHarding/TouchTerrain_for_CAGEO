@@ -45,28 +45,68 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
-#from touchterrain.common.TouchTerrainEarthEngine import dilate_array  # doesn't work so I'll have to put a copy here :(
+
 
 from scipy.ndimage import binary_dilation
-def dilate_array(raster, dilation_source):
-    ''' Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
+def dilate_array(raster, dilation_source=None):
+    '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
+    If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
     
-    # Convert raster to a binary array, where True represents non-NaN values
-    nan_mask = ~np.isnan(raster) 
+    if dilation_source is not None:
+        
+        # Convert raster to a binary array, where True represents non-NaN values
+        nan_mask = ~np.isnan(raster) 
 
-    # Perform the binary dilation operation
-    dilated_nan_mask = binary_dilation(nan_mask) 
+        # Perform the binary dilation operation
+        dilated_nan_mask = binary_dilation(nan_mask) 
 
-    # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
-    mask = dilated_nan_mask & ~nan_mask  
+        # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
+        mask = dilated_nan_mask & ~nan_mask  
 
-    # Create a new array that is the same as bottom, but with the pixels in the dilation zone replaced with the corresponding values from top
-    dilated_raster = np.where(mask, dilation_source, raster)
+        # Create a new array that is the same as bottom, but with the pixels in the dilation zone replaced with the corresponding values from top
+        dilated_raster = np.where(mask, dilation_source, raster)
 
-    return dilated_raster
-
+        return dilated_raster
     
+    else:
+        # [[nan nan  1.  2.]  raster
+        #  [nan nan  3.  4.]
+        #  [ 9. 10. 11. 12.]]
+
+        # Convert raster to a binary array, where True represents non-NaN values
+        mask = ~np.isnan(ras)
+        # [[False False  True  True]
+        #  [False False  True  True]
+        #  [ True  True  True  True]]
+
+        dilated_mask = binary_dilation(mask)   # Perform a binary dilation
+        # [[False True  True  True]
+        # [ True  True  True  True]
+        # [ True  True  True  True]]
+
+        unequal_mask = np.not_equal(mask, dilated_mask) # True where the dilated mask is different from the original mask
+        # [[False True False False]
+        # [ True  True False False]
+        # [False False False False]]
+
+        
+        def nanmean(data):# if all are NaN return NaN, else return nanmean
+            return np.nan if np.all(np.isnan(data)) else np.nanmean(data) # 
+    
+        # Compute the 3x3 (nan) mean for each cell in ras, ignoring partial NaNs
+        mean_ras =  generic_filter(ras, nanmean, size=(3, 3))
+        # [[nan 1.7 2.2 2.3]
+        #  [9.3 6.8 6.1 5.7]
+        #  [9.3 9.  9.1 9. ]]
+
+        # Create a new array where the mean is applied to the cells selected by unequal_mask True
+        out = np.where(unequal_mask, mean_ras, ras)
+        # [[ nan  1.7  1.   2. ]
+        #  [ 9.3  6.8  3.   4. ]
+        #  [ 9.  10.  11.  12. ]]
+        
+        return out
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -430,16 +470,16 @@ class grid:
     fo = None  
     
 
-    def __init__(self, top, bottom, tile_info, bottom_orig=None):
+    def __init__(self, top, bottom, tile_info):
         '''top: top elevation raster, must hang over by 1 row/column on each side (be already padded)
         bottom: None => bottom elevation is 0, otherwise either a 8 bit raster that will be resized to top's size or a bottom elevation raster
         tile_info: dict with info about the current tile + some tile global settings
-        bottom_orig: if not None, will contain the undilated version of the bottom raster, bottom will be dilated. Only used for through water cases'''
+        '''
         self.top = top
         self.bottom = bottom
+        self.bottom_dil = None
+        self.top_dil = None
         self.tile_info = tile_info
-        self.bottom_orig= bottom_orig
-        self.top_dil = None # may later contain a dilated version of top (for through water cases)
 
         if self.tile_info["fileformat"] == 'obj':
             vertex.vertex_index_dict = {} # will be filled with vertex indices
@@ -485,15 +525,15 @@ class grid:
 
         # Jan 2019: no idea why but sometimes changing top also changes the elevation
         # array of another tile in the tile list
-        # for now I make a copy of the incoming top (calling it ro_top)
-        # Also convert any int arrays to float
-        ro_top = self.top
-        self.top = ro_top.copy().astype(float) # writeable
+        # for now I make a copy of all rasters and convert them to float
+        self.top = self.top.copy().astype(float) # writeable
 
-        if bottom is not None:
+        if self.bottom is not None:
             self.bottom = bottom.copy().astype(float) # writeable
 
+        #
         # Some sanity checks
+        #
 
         # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant 0
         if isinstance(self.bottom, np.ndarray) == False:  
@@ -531,11 +571,14 @@ class grid:
             if np.any(close_values) == True: 
 
                 if self.bottom_orig is not None: # through water case?
-                    top_orig = self.top.copy() # save original top before is gets NaN'ed
+                    self.top_orig = self.top.copy() # save original top before is gets NaN'ed
+                    self.bot_orig = self.bottom.copy() # save original bottom before is gets NaN'ed
 
                 self.top[close_values] = np.nan
+                self.top = dilate_array(self.top, top_orig)
                 have_nan = self.tile_info["have_nan"] = True
                 self.bottom[close_values] = np.nan
+                self.bottom = dilate_array(self.bottom, bottom_orig)
                 have_bot_nan = self.tile_info["have_bot_nan"] = True
 
                 if self.bottom_orig is not None: # through water case?
@@ -721,7 +764,7 @@ class grid:
                 if i == self.xmaxidx  : borders["E"] = True
 
                 
-                def interpolate_with_NaN(self, elev, i, j):
+                def interpolate_with_NaN(elev, i, j):
                     '''Get elevation of 4 corners of current cell and return them as NEelev, NWelev, SEelev, SWelev
                     If any of the corners is NaN, return None for all 4 corners'''
 
@@ -779,7 +822,7 @@ class grid:
                     # Do this only for top as we assume that any bottom raster NaNs are the same as on top
 
                     # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
-                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self, self.top, i, j)
+                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
                     if NEelev is None: # if any of the corners is NaN, we have set the cell to None and skip it
                         continue 
                     
@@ -831,7 +874,7 @@ class grid:
                         SWelev = (self.bottom[j+0,i+0] + self.bottom[j+1,i+0] + self.bottom[j+1,i-1] + self.bottom[j+0,i-1]) / 4.0
                     else:
                         # Nan aware interpolation 
-                        NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self, self.bottom, i, j)
+                        NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom, i, j)
                         if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
                             continue 
 
