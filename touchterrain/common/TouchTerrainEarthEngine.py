@@ -236,10 +236,9 @@ def process_tile(tile_tuple):
     else:
         bottom_raster = None # None means bottom is flat
 
-    
+    '''
     # DEBUG: make some simple rasters  (CH: hack)
     nn = numpy.NaN
-    '''
     tile_elev_raster =  numpy.array([
                          [ 10, 13,],
                          [ 10, 13,],
@@ -311,37 +310,42 @@ def process_tile(tile_tuple):
 
                    ]) 
     #bottom_raster = bottom_raster - 0.5  
-    '''
+    
 
-    nn = numpy.NaN
-    '''
-    tile_elev_raster =  numpy.array([
-                         [ nn, nn,  1, 2],
-                         [ nn, nn,  3, 4],
-                         [ 9, 10, 11, 12],
-                         
+    nan = numpy.NaN
+    if 0: # top only
+        tile_elev_raster = numpy.array([
+                         [ 1, nan, 10, 50, 20, 10, 1],
+                         [ 1, nan,nan, 50, 20, 10, 2],
+                         [ 1, nan,nan,nan, 30, 10, 5],
+                         [ 1, 23, nan,nan, 20, 10, 2 ],
+                         [ 1, 20, 10, 10, 20, 10 , 1 ],
+
                    ])
-    tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
-    bottom_orig = None
-    '''
-    tile_elev_raster =  numpy.array([
-                         [ 5, 6,  1, 2],
-                         [ 7, 8,  3, 4],
-                         [ 9, 10, 11, 12],
+        tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
+ 
+    else:
+        tile_elev_raster = numpy.array([
+                         [ 1, 5,  10, 50, 20, 10, 1],
+                         [ 1, 5,  20, 50, 20, 10, 2],
+                         [ 1, 10, 15, 20, 30, 10, 5],
+                         [ 1, 23, 30, 25, 20, 10, 2],
+                         [ 1, 20, 10, 10, 20, 10, 1],
+
                    ]) 
-    tile_elev_raster = numpy.pad(tile_elev_raster, (1,1), 'edge')
+        tile_elev_raster = numpy.pad(tile_elev_raster, (1,1), 'edge')
 
-    bottom_raster =  numpy.array([
-                         [ nn, nn,  1, 2],
-                         [ nn, nn,  3, 4],
-                         [ 9,  10, 11, 12],
+        bottom_raster =  numpy.array([
+                         [ 1, nan, 10, 50, 20, 10, 1],
+                         [ 1, nan,nan, 50, 20, 10, 2],
+                         [ 1, nan,nan,nan, 30, 10, 5],
+                         [ 1, 23, nan,nan, 20, 10, 2],
+                         [ 1, 20, 10, 10, 20, 10 , 1],
+
                    ])
-    bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
-    
+        bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
+    '''
 
-  
-    
-    
     # create a grid object from the raster(s), which later converted into a triangle mesh
     g = grid(tile_elev_raster, bottom_raster, tile_info)
     del tile_elev_raster

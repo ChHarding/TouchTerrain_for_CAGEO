@@ -47,7 +47,7 @@ logger.setLevel(logging.INFO)
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
 
 
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import binary_dilation, generic_filter
 def dilate_array(raster, dilation_source=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
@@ -75,7 +75,7 @@ def dilate_array(raster, dilation_source=None):
         #  [ 9. 10. 11. 12.]]
 
         # Convert raster to a binary array, where True represents non-NaN values
-        mask = ~np.isnan(ras)
+        mask = ~np.isnan(raster)
         # [[False False  True  True]
         #  [False False  True  True]
         #  [ True  True  True  True]]
@@ -95,13 +95,13 @@ def dilate_array(raster, dilation_source=None):
             return np.nan if np.all(np.isnan(data)) else np.nanmean(data) # 
     
         # Compute the 3x3 (nan) mean for each cell in ras, ignoring partial NaNs
-        mean_ras =  generic_filter(ras, nanmean, size=(3, 3))
+        mean_ras =  generic_filter(raster, nanmean, size=(3, 3))
         # [[nan 1.7 2.2 2.3]
         #  [9.3 6.8 6.1 5.7]
         #  [9.3 9.  9.1 9. ]]
 
-        # Create a new array where the mean is applied to the cells selected by unequal_mask True
-        out = np.where(unequal_mask, mean_ras, ras)
+        # Create a new array where the mean is applied to the cells selected by unequal_mask = True
+        out = np.where(unequal_mask, mean_ras, raster)
         # [[ nan  1.7  1.   2. ]
         #  [ 9.3  6.8  3.   4. ]
         #  [ 9.  10.  11.  12. ]]
@@ -477,8 +477,9 @@ class grid:
         '''
         self.top = top
         self.bottom = bottom
-        self.bottom_dil = None
-        self.top_dil = None
+        self.top_orig = None # needed to preserve the original top to skip NaN cells 
+        self.bottom_orig = None
+        self.throughwater = False # Anson's all-the-way-through water case
         self.tile_info = tile_info
 
         if self.tile_info["fileformat"] == 'obj':
@@ -486,25 +487,13 @@ class grid:
 
         self.cells = None # stores the cells, for now a 2D array of cells, but could also be a list of cells (later)
 
-        # Not sure why this warning is here, it should work with int arrays as well (???)
-        tp = self.top.dtype # dtype('float32')
-        #if not str(tp).startswith("float"): print("Warning: expecting float raster!")
-
         # Important: in 2D np arrays, x and y coordinate are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
         #[[11  12 13]       top[0,1] => 12
         # [Nan 22 23]       top[2,0] => NaN (Not a Number -> undefined elevation)
         # [31  32 33]       top[2,1] => 32
         # [41  42 43]]
-        # i.e. height (y) is encoded in the first (0) dimension, width in the second (1),
-        # the 'edge" padded version for a top left tile might be this, the right and bottom fringe
-        # are part of the adjacent tiles, which must be used in the interpolation to result in no-seam edges
-        #      [[11, 11, 12, 13, 14],
-               #[11, 11, 12, 13, 14],
-               #[Nan,Nan,22, 23, 24],
-               #[31, 31, 32, 33, 34],
-               #[41, 41, 42, 43, 44],
-               #[41, 51, 52, 54, 55]])
+        # Note: the actual array will be edge-padded which is important to be able to interpolate the border cells
 
 
         # DEBUG: normalized (0 - 1) xy coord increment per cell
@@ -515,7 +504,7 @@ class grid:
         # cell size (x and y delta)
         self.cell_size = self.tile_info["pixel_mm"]
 
-        have_nan = np.isnan(np.sum(self.top)) # True => we have NaN values, see http://stackoverflow.com/questions/6736590/fast-check-for-nan-in-np
+        have_nan = np.isnan(np.sum(self.top)) # True => we have NaN values
         self.tile_info["have_nan"] = have_nan # save for later
 
         # same for bottom
@@ -561,6 +550,7 @@ class grid:
                     self.bottom[nan_values] = self.tile_info["min_elev"] # set NaNs to min_elev
                     have_bot_nan = self.tile_info["have_bot_nan"] = False
                     lower_bottom_by_base = True
+                self.throughwater = True # flag for easy checking
 
             # if both have the same value (or very close to) set both to Nan
             # No relative tolerance here as we don't care about concept here. Set the abs. tolerance to 0.001 m (1 mm)
@@ -569,31 +559,34 @@ class grid:
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
             if np.any(close_values) == True: 
+                if self.throughwater == True: # save original top before it gets dilated
+                    top_pre_dil = self.top.copy() # copy not needed for bottom as we use a 3x3 mean dilution for it
 
-                if self.bottom_orig is not None: # through water case?
-                    self.top_orig = self.top.copy() # save original top before is gets NaN'ed
-                    self.bot_orig = self.bottom.copy() # save original bottom before is gets NaN'ed
+                self.top[close_values] = np.nan   # set close values to NaN   
+                if self.throughwater == True: # save original top after setting NaNs so we can skip the undilated NaNs later
+                    self.top_orig = self.top.copy() # copy not needed for bottom as we use a 3x3 mean dilation for it
 
-                self.top[close_values] = np.nan
-                self.top = dilate_array(self.top, top_orig)
-                have_nan = self.tile_info["have_nan"] = True
+                if self.throughwater == True:
+                    self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
+                if np.any(np.isnan(self.top)) == True: # do we have now any NaNs in the top?
+                    have_nan = self.tile_info["have_nan"] = True  
+
                 self.bottom[close_values] = np.nan
-                self.bottom = dilate_array(self.bottom, bottom_orig)
-                have_bot_nan = self.tile_info["have_bot_nan"] = True
+                if self.throughwater == True:
+                    self.bottom = dilate_array(self.bottom) # dilate with 3x3 nanmean
+                if np.any(np.isnan(self.bottom)) == True:
+                    have_bot_nan = self.tile_info["have_bot_nan"] = True # bottom NaN
 
-                if self.bottom_orig is not None: # through water case?
-                    self.top_dil = dilate_array(self.top, top_orig) # dilate the NaN'd top with the original top
+        # if we have no buttom and NaNs in top, make a copy and 3x3 dilate it
+        elif have_nan == True:
+            self.top_orig = self.top.copy()
+            self.top = dilate_array(self.top) # dilate with 3x3 nanmean 
           
         if self.tile_info["use_geo_coords"] == None: # Coordinates need to be in mm 
 
             #
             # Convert elevation from real word elevation (m) to model height (mm)
             #
-
-            # store backups - CH - no mm scaling yet
-            top_backup = self.top.copy()
-            if self.tile_info["have_bottom_array"] == True:
-                bottom_backup = self.bottom.copy()
 
             #print top.astype(int)  import np as np; np.set_printoptions(linewidth=400)
             self.top -= self.tile_info["min_elev"] # subtract tile-wide min from top
@@ -621,16 +614,12 @@ class grid:
                     #self.bottom -= self.tile_info["base_thickness_mm"]
                     self.top += self.tile_info["base_thickness_mm"] 
 
-                self.bottom = bottom_backup # restore backup - CH
-
                 # Update with per-tile mm min/max 
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
             else:
                  self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have no bottom raster
-
-            self.top = top_backup # restore backup - CH
 
             # post-scale (i.e. in mm) top elevations (for this tile)
             self.tile_info["min_elev"] = np.nanmin(self.top)
@@ -641,7 +630,6 @@ class grid:
             # TODO: Just noticed that we don't apply a z-scale to the top. Not sure if we should
             self.bottom = self.tile_info["min_elev"] - self.tile_info["base_thickness_mm"] * 10
             logger.info("Using geo coords with a base thickness of " + str(self.tile_info["base_thickness_mm"] * 10) + " meters")
-
 
         # max index in x and y for "inner" raster
         self.xmaxidx = self.top.shape[1]-2
@@ -714,10 +702,6 @@ class grid:
         for vertex coordinates. Here, only the index part (s[1] and fo[1]) is stored, the vertex coordinates will be
         created and stored later based on the keys of the vertex class attribute vertex_index_dict'''
         
-        if self.top_dil is not None: # through water case?
-            top_orig = self.top.copy() # save orignal for later, to be used as a mask
-            self.top = self.top_dil # use dilated for interpolation
-
         # store cells in an array, init to None
         self.cells = np.empty([self.ymaxidx, self.xmaxidx], dtype=cell)
 
@@ -727,22 +711,26 @@ class grid:
         progress = 0
         print("creating internal triangle data structure for", multiprocessing.current_process(), file=sys.stderr)
 
-        debug_arr = np.empty([self.ymaxidx, self.xmaxidx], dtype=object) # CH
-
         for j in range(1, self.ymaxidx+1):# y dimension for looping within the +1 padded raster
             if j % pc_step == 0:
                 progress += percent
                 print(progress, "%", multiprocessing.current_process(), file=sys.stderr)
 
             for i in range(1, self.xmaxidx+1):# x dim.
-                #print "y=",j," x=",i, " elev=",top[j,i]
+                #print("y=",j," x=",i, " elev=",top[j,i])
 
-                # if center elevation of current cell is NaN, set it to None and skip the rest
-                if self.tile_info["have_nan"] and np.isnan(self.top[j,i]):
+                # for throughwater we must use the pre-dilated, but NaN'd, top for this check 
+                # same for top with NaNs which have been 3x dilated
+                if self.throughwater == True or self.tile_info["have_nan"]: 
+                    top = self.top_orig
+                else:
+                    top = self.top
+
+                # if center elevation of current top cell is NaN, set its cell to None and skip the rest
+                if self.tile_info["have_nan"] and np.isnan(top[j, i]):
                     self.cells[j-1,i-1] = None
                     continue
                 
-
                 # x/y coords of cell "walls", origin is upper left
                 E = (i-1) * self.cell_size - self.offsetx # index -1 as it's ref'ing to top, not ptop
                 W = E + self.cell_size  # CH Nov 2021: I think E and W are flipped (?) but I must correct for that later somewhere (?)
@@ -750,9 +738,6 @@ class grid:
                 S = N - self.cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
                 
-                # needed?
-                #E, W, N, S = round(E, 2), round(W, 2), round(N, 2), round(S, 2)
-
                 ## Which directions will need to have a wall?
                 # True means: we have an adjacent cell and need a wall in that direction
                 borders =   dict([[drct, False] for drct in ["N", "S", "E", "W"]]) # init with no walls                   
@@ -797,12 +782,13 @@ class grid:
                                 return None, None, None, None
                         else:
                             
+                            '''
                             print("\n", i,j)
                             print("NE", elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1], NEelev)
                             print("NW", elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0], NWelev)
                             print("SE", elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0], SEelev)
                             print("SW", elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1], SWelev)
-                            
+                            '''
                             return NEelev, NWelev, SEelev, SWelev    
 
 
@@ -823,24 +809,25 @@ class grid:
 
                     # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
                     NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
-                    if NEelev is None: # if any of the corners is NaN, we have set the cell to None and skip it
+                    if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
                         continue 
                     
-                    # for the through water case, base the walls on the original top, i.e. swap self.top back
-                    if self.top_dil is not None: 
-                        self.top = top_orig  
+                    # for the through water case or Top NaN, base the walls on the original (non-dilated) top
+                    if self.throughwater == True or self.tile_info["have_nan"]: 
+                        top = self.top_orig
+                    else:
+                        top = self.top
 
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
                         try:
-                            if np.isnan(self.top[j-1,i]): borders["N"] = True
-                            if np.isnan(self.top[j+1,i]): borders["S"] = True
-                            if np.isnan(self.top[j,i-1]): borders["W"] = True
-                            if np.isnan(self.top[j,i+1]): borders["E"] = True
+                            if np.isnan(top[j-1,i]): borders["N"] = True
+                            if np.isnan(top[j+1,i]): borders["S"] = True
+                            if np.isnan(top[j,i-1]): borders["W"] = True
+                            if np.isnan(top[j,i+1]): borders["E"] = True
                         except RuntimeWarning:
                             pass # nothing wrong - just here to ignore the warning
                     
- 
 
                 #
                 # Make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system 
@@ -880,7 +867,7 @@ class grid:
 
                         
                 else:
-                    NEelev = NWelev = SEelev = SWelev = self.bottom # otherwise use constant bottom elevation value
+                    NEelev = NWelev = SEelev = SWelev = self.bottom # otherwise use the constant bottom elevation value
 
                 # from whatever bottom values we have now, make the bottom quad
                 # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
