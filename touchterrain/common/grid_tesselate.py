@@ -29,15 +29,13 @@
 # CH July 2015
 
 import numpy as np
-#import copy   # to copy objects
 import warnings # for muting warnings about nan in e.g. nanmean()
 import struct # for making binary STL
-#from collections import OrderedDict # for vertex indices dict
 import sys
 import multiprocessing
 import io
 import os
-import shutil
+import shutil   
 
 # get root logger, will later be redirected into a logfile
 import logging
@@ -475,6 +473,8 @@ class grid:
         bottom: None => bottom elevation is 0, otherwise either a 8 bit raster that will be resized to top's size or a bottom elevation raster
         tile_info: dict with info about the current tile + some tile global settings
         '''
+        from touchterrain.common.TouchTerrainEarthEngine import  clean_up_diags
+
         self.top = top
         self.bottom = bottom
         self.top_orig = None # needed to preserve the original top to skip NaN cells 
@@ -485,7 +485,7 @@ class grid:
         if self.tile_info["fileformat"] == 'obj':
             vertex.vertex_index_dict = {} # will be filled with vertex indices
 
-        self.cells = None # stores the cells, for now a 2D array of cells, but could also be a list of cells (later)
+        self.cells = None # stores the cells in  a 2D array of cells
 
         # Important: in 2D np arrays, x and y coordinate are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
@@ -507,7 +507,7 @@ class grid:
         have_nan = np.isnan(np.sum(self.top)) # True => we have NaN values
         self.tile_info["have_nan"] = have_nan # save for later
 
-        # same for bottom
+        # same for bottom, if we have one
         if self.tile_info["bottom_elevation"] is not None:
             have_bot_nan = np.isnan(np.sum(self.bottom)) # True => we have NaN values, 
             self.tile_info["have_bot_nan"] = have_bot_nan
@@ -535,90 +535,106 @@ class grid:
             print("Top has NaN values, requested bottom image will be ignored!")
         # bottom is a elevation raster. It's ok to have NaNs in the bottom raster and/or top raster
         elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
-            self.tile_info["have_bottom_array"] = True 
+            self.tile_info["have_bottom_array"] = True
 
-        # Checking for all-the-way-through bottom NaNs and top == bottom
-        if self.tile_info["bottom_elevation"] is not None:
-            lower_bottom_by_base = False  # flag to lower the bottom elev by the base thickness so it ends on the buildplate
+        #
+        # Checking for all-the-way-through bottom NaNs and for top == bottom or bottom < top
+        #
+        if self.tile_info["bottom_elevation"] is not None: # we have a bottom raster
 
-            # If the bottom has NaNs set them to min_elev. This is very specific to Anson's way of creating all-the-way-through rivers
-            # where his preprocessing sets the bottom to NaN for the rivers. This will also set any non-river NaNs to min_elev but
-            # that's ok as long at those bottom cells correspond to top cells with NaNs, which will make them get ignored.
+            # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
+            self.top = np.where(self.top < self.bottom, self.bottom, self.top)
+
+            # If the bottom has NaNs where top does not, set them to min_elev. 
+            # This is very specific to Anson's way of creating all-the-way-through water
+            # where his preprocessing sets the bottom to NaN for the water. (here called throughwater case)
             if have_bot_nan == True:
-                nan_values = np.isnan(self.bottom) # bool array with True for NaN values
+                
+                # bool array with True where self.bottom has NaN values but self.top does not
+                nan_values = np.logical_and(np.isnan(self.bottom), np.logical_not(np.isnan(self.top)))
+                
                 if np.any(nan_values) == True: 
                     self.bottom[nan_values] = self.tile_info["min_elev"] # set NaNs to min_elev
-                    have_bot_nan = self.tile_info["have_bot_nan"] = False
+                    have_bot_nan = self.tile_info["have_bot_nan"] = False # ????
                     lower_bottom_by_base = True
-                self.throughwater = True # flag for easy checking
+                    self.throughwater = True # flag for easy checking
 
             # if both have the same value (or very close to) set both to Nan
-            # No relative tolerance here as we don't care about concept here. Set the abs. tolerance to 0.001 m (1 mm)
+            # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
             close_values = np.isclose(self.top, self.bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
             if np.any(close_values) == True: 
-                if self.throughwater == True: # save original top before it gets dilated
-                    top_pre_dil = self.top.copy() # copy not needed for bottom as we use a 3x3 mean dilution for it
+                # save pre-dilated top for later dilation
+                top_pre_dil = self.top.copy()  
 
                 self.top[close_values] = np.nan   # set close values to NaN   
-                if self.throughwater == True: # save original top after setting NaNs so we can skip the undilated NaNs later
-                    self.top_orig = self.top.copy() # copy not needed for bottom as we use a 3x3 mean dilation for it
 
-                if self.throughwater == True:
-                    self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
-                if np.any(np.isnan(self.top)) == True: # do we have now any NaNs in the top?
+                # if diagonal cleanup is requested, we need to do it again after setting NaNs
+                if np.any(np.isnan(self.top)) == True: # do we have any NaNs in the top?
                     have_nan = self.tile_info["have_nan"] = True  
+                    if self.tile_info["clean_diags"] == True:
+                        self.top = clean_up_diags(self.top)
 
-                self.bottom[close_values] = np.nan
+                # save original top after setting NaNs so we can skip the undilated NaN cells later
+                self.top_orig = self.top.copy()  
+
+                self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
+
+                self.bottom[close_values] = np.nan # set close values to NaN 
+
+                if np.any(np.isnan(self.bottom)) == True: # do we have any NaNs in the bottom?
+                    have_bot_nan = self.tile_info["have_bot_nan"] = True 
+
                 if self.throughwater == True:
                     self.bottom = dilate_array(self.bottom) # dilate with 3x3 nanmean
-                if np.any(np.isnan(self.bottom)) == True:
-                    have_bot_nan = self.tile_info["have_bot_nan"] = True # bottom NaN
+                else:
+                    self.bottom = dilate_array(self.bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
 
-        # if we have no buttom and NaNs in top, make a copy and 3x3 dilate it
+
+        # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. We'll still use the non-dilated top
+        # when we need to skip NaN cells
         elif have_nan == True:
-            self.top_orig = self.top.copy()
+            self.top_orig = self.top.copy()   # save original top before it gets dilated
             self.top = dilate_array(self.top) # dilate with 3x3 nanmean 
+
           
         if self.tile_info["use_geo_coords"] == None: # Coordinates need to be in mm 
 
             #
             # Convert elevation from real word elevation (m) to model height (mm)
             #
+  
+            self.top -= self.tile_info["min_elev"] # subtract tile-wide min from top to get to 0 
+            self.top += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
 
-            #print top.astype(int)  import np as np; np.set_printoptions(linewidth=400)
-            self.top -= self.tile_info["min_elev"] # subtract tile-wide min from top
-            #print np.nanmin(top), np.nanmax(top)
-            #print top.astype(int)
             scz = 1 / self.tile_info["scale"] * 1000.0 # scale z to mm
-            #print tile_info["scale"], tile_info["z_scale"], scz
             self.top *= scz * self.tile_info["z_scale"] # apply z-scale
-            #print top.astype(int)
+
+            # for all-the-way-through rivers we need to add the base thickness to top and bottom, so the rivers end on the buildplate
+            if self.throughwater == True:
+                self.top += self.tile_info["base_thickness_mm"] 
+
 
             # convert bottom's elevation from real word elevation (m) to model height (mm)
+            # not needed for throughwater case as the bottom will simple be set to 0
             # Note: I'm unclear how a base thickness works here but for now I will add it to the bottom
-            if self.tile_info["have_bottom_array"] == True:
+            if self.tile_info["have_bottom_array"] == True and self.throughwater == False:
                 self.bottom -= self.tile_info["min_elev"] # subtract tilewide min of TOP! 
+                self.bottom += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
 
                 scz = 1 / self.tile_info["scale"] * 1000.0 # scale z to mm
                 self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale
                 # Note: with a bottom raster, we do NOT add base thickness for top and bottom rasters!
 
-                # TODO: bottom may now has < 0 values but I'm think that's ok as the resulting STL will have
-                # to be placed on the buildplate anyway, so the slicer will take care of that.
-
-                # for all-the-way-through rivers we need to add the base thickness to top and bottom, so the rivers end on the buildplate
-                if lower_bottom_by_base == True:
-                    #self.bottom -= self.tile_info["base_thickness_mm"]
-                    self.top += self.tile_info["base_thickness_mm"] 
-
                 # Update with per-tile mm min/max 
                 self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                 self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                 print("bottom min/max:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
-            else:
+            
+            # if we don't have a bottom raster or have a throughwater case, we need to add the base thickness to the top
+            if self.tile_info["have_bottom_array"] == False or self.throughwater == True:
                  self.top += self.tile_info["base_thickness_mm"] # add base thickness to top as we have no bottom raster
 
             # post-scale (i.e. in mm) top elevations (for this tile)
@@ -719,9 +735,9 @@ class grid:
             for i in range(1, self.xmaxidx+1):# x dim.
                 #print("y=",j," x=",i, " elev=",top[j,i])
 
-                # for throughwater we must use the pre-dilated, but NaN'd, top for this check 
-                # same for top with NaNs which have been 3x dilated
-                if self.throughwater == True or self.tile_info["have_nan"]: 
+                # for throughwater we must use the pre-dilated, but for NaN'd top only use this check 
+                # same for top with NaNs which have been 3x3 dilated
+                if self.tile_info["have_nan"] == True: 
                     top = self.top_orig
                 else:
                     top = self.top
@@ -798,11 +814,13 @@ class grid:
                     NWelev = (self.top[j+0,i+0] + self.top[j+0,i-1] + self.top[j-1,i-1] + self.top[j-1,i+0]) / 4.0
                     SEelev = (self.top[j+0,i+0] + self.top[j-0,i+1] + self.top[j+1,i+1] + self.top[j+1,i+0]) / 4.0
                     SWelev = (self.top[j+0,i+0] + self.top[j+1,i+0] + self.top[j+1,i-1] + self.top[j+0,i-1]) / 4.0
+                    '''
                     print("\n", i,j)
                     print("NE",self.top[j+0,i+0],self.top[j-1,i-0],self.top[j-1,i+1],self.top[j-0,i+1], NEelev)
                     print("NW",self.top[j+0,i+0],self.top[j+0,i-1],self.top[j-1,i-1],self.top[j-1,i+0], NWelev)
                     print("SE",self.top[j+0,i+0],self.top[j-0,i+1],self.top[j+1,i+1],self.top[j+1,i+0], SEelev)
                     print("SW",self.top[j+0,i+0],self.top[j+1,i+0],self.top[j+1,i-1],self.top[j+0,i-1], SWelev)
+                    '''
                 else:
                     # NaNs: set borders to True if we have any NaNs in any of the adjacent cells
                     # Do this only for top as we assume that any bottom raster NaNs are the same as on top
@@ -813,7 +831,7 @@ class grid:
                         continue 
                     
                     # for the through water case or Top NaN, base the walls on the original (non-dilated) top
-                    if self.throughwater == True or self.tile_info["have_nan"]: 
+                    if self.tile_info["have_nan"] == True: 
                         top = self.top_orig
                     else:
                         top = self.top
@@ -851,21 +869,21 @@ class grid:
                 # get corner for bottom array
                 if self.tile_info["have_bottom_array"] == True:
 
-                    # for the through water case, self.bottom will be the dilated version, the original will be in self.bottom_orig
-                    
-                    # simple interpolation
-                    if not self.tile_info["have_bot_nan"]:
-                        NEelev = (self.bottom[j+0,i+0] + self.bottom[j-1,i-0] + self.bottom[j-1,i+1] + self.bottom[j-0,i+1]) / 4.0
-                        NWelev = (self.bottom[j+0,i+0] + self.bottom[j+0,i-1] + self.bottom[j-1,i-1] + self.bottom[j-1,i+0]) / 4.0
-                        SEelev = (self.bottom[j+0,i+0] + self.bottom[j-0,i+1] + self.bottom[j+1,i+1] + self.bottom[j+1,i+0]) / 4.0
-                        SWelev = (self.bottom[j+0,i+0] + self.bottom[j+1,i+0] + self.bottom[j+1,i-1] + self.bottom[j+0,i-1]) / 4.0
+                    # for the through water case, simply set the bottom to 0
+                    if self.throughwater == True:
+                        NEelev = NWelev = SEelev = SWelev = 0
                     else:
-                        # Nan aware interpolation 
-                        NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom, i, j)
-                        if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
-                            continue 
-
-                        
+                        # simple interpolation
+                        if not self.tile_info["have_bot_nan"]:
+                            NEelev = (self.bottom[j+0,i+0] + self.bottom[j-1,i-0] + self.bottom[j-1,i+1] + self.bottom[j-0,i+1]) / 4.0
+                            NWelev = (self.bottom[j+0,i+0] + self.bottom[j+0,i-1] + self.bottom[j-1,i-1] + self.bottom[j-1,i+0]) / 4.0
+                            SEelev = (self.bottom[j+0,i+0] + self.bottom[j-0,i+1] + self.bottom[j+1,i+1] + self.bottom[j+1,i+0]) / 4.0
+                            SWelev = (self.bottom[j+0,i+0] + self.bottom[j+1,i+0] + self.bottom[j+1,i-1] + self.bottom[j+0,i-1]) / 4.0
+                        else:
+                            # Nan aware interpolation 
+                            NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom, i, j)
+                            if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
+                                continue # skip this cell
                 else:
                     NEelev = NWelev = SEelev = SWelev = self.bottom # otherwise use the constant bottom elevation value
 
