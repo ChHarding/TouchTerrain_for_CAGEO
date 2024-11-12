@@ -1,6 +1,4 @@
-"""
-Coordinate_system_conv  - some utility functions for coordinate system conversion
-"""
+"""Coordinate_system_conv  - some utility functions for coordinate system conversion"""
 # CH 6/2014
 
 import math
@@ -43,12 +41,34 @@ def LatLon_to_UTM(arg1, arg2=None):
     else:
         easting = arg1
         northing = arg2
-        
+
+    good_input = True
+
+    # if easting or northing are out of bounds print a warning and return -1
+    # easting: -180 to 180, northing: -90 to 90
+    print("easting:", easting, "northing:", northing)
+    if easting < -180 or easting > 180:
+        print("Warning: easting out of bounds (-180 to 180):", easting, "will be wrapped")
+        good_easting = False
+    if northing < -90 or northing > 90:
+        print("Warning: northing out of bounds (-90 to 90):", northing, "will be wrapped")
+        good_northing = False
+
+    # Wrap around easting to be between -180 and +180
+    easting = ((easting + 180) % 360) - 180
+
+    # Wrap around northing to be between -90 and +90
+    if northing > 90:
+        northing = 90 - (northing % 90)
+    elif northing < -90:
+        northing = -90 + (northing % 90)
+    print("easting:", easting, "northing:", northing)
     
-    if not -180.0 <= easting <= 180.0 and -90.0 <= northing <= 90.0: return -1
     utm_zone = int(easting) // 6 + 31 # whole number division
-    if northing >= 0: return (utm_zone, "N")
-    else: return (utm_zone, "S")
+    if northing >= 0: 
+        return (utm_zone, "N")
+    else: 
+        return (utm_zone, "S")
 
     
 def UTM_zone_to_EPSG_code(utm, NorS):
@@ -59,8 +79,8 @@ def UTM_zone_to_EPSG_code(utm, NorS):
     """
     
     # Sanity checks
-    if not 1 <= utm <= 60: return -1
-    if not NorS in "NS": return -1
+    if not 1 <= utm <= 60: return "In valid UTM zone number"
+    if not NorS in "NS": return "Invalid hemisphere"
     
     # base SRID
     if NorS == "N": SRID = 32600
@@ -205,3 +225,28 @@ UTM Zone,EPSG Code
 "UTM Zone 60 Northern Hemisphere (WGS 84)",32660
 "UTM Zone 60 Southern Hemisphere (WGS 84)",32760
 """
+if __name__ == "__main__":
+
+    def test_LatLon_to_UTM():
+        # Test cases with out-of-bounds easting and northing
+        test_cases = [
+            (190, 95),   # easting > 180, northing > 90
+            (-190, -95), # easting < -180, northing < -90
+            (370, 100),  # easting > 180, northing > 90
+            (-370, -100) # easting < -180, northing < -90
+        ]
+
+        expected_results = [
+            (2, 'N'),   # Wrapped easting: 190 -> -170, Wrapped northing: 95 -> 85
+            (59, 'S'),  # Wrapped easting: -190 -> 170, Wrapped northing: -95 -> -85
+            (32, 'N'),  # Wrapped easting: 370 -> 10, Wrapped northing: 100 -> 80
+            (29, 'S')   # Wrapped easting: -370 -> -10, Wrapped northing: -100 -> -80
+        ]
+
+        for i, (easting, northing) in enumerate(test_cases):
+            result = LatLon_to_UTM(easting, northing)
+            print(result)
+            assert result == expected_results[i], f"Test case {i+1} failed: {result} != {expected_results[i]}"
+
+    test_LatLon_to_UTM()
+    print("All tests passed.")
