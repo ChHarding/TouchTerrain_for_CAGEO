@@ -12,6 +12,7 @@ six>=1.16.0
 imageio>=2.36.0
 k3d>=2.16.1
 httplib2>=0.22.0
+matplotlib>=3.9.2
 
 
 # GDAL is tricky to install, at least on Windows, as it needs to be compiled.
