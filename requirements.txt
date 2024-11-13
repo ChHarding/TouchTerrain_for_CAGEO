@@ -21,4 +21,4 @@ httplib2>=0.22.0
 # Go to the current Release - Assests (may need to list ALL assests) and grab the one
 # for you python version and windows system e.g. GDAL-3.4.3-cp310-cp310-win_amd64.whl
 # Then install it with pip GDAL-3.4.3-cp310-cp310-win_amd64.whl
-gdal>=3.2.1
+gdal>=3.2.1,<=3.9.3
