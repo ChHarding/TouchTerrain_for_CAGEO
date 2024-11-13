@@ -28,9 +28,10 @@ import socket
 import io
 from zipfile import ZipFile
 import http.client
+import numpy
 
 DEV_MODE = False
-DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
+#DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
 
 if DEV_MODE:
     oldsp = sys.path
@@ -39,20 +40,19 @@ if DEV_MODE:
 import touchterrain.common
 from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
-from touchterrain.common.utils import calculate_ticks # calculate nice ticks for elevation visualization
+from touchterrain.common.utils import save_tile_as_image, clean_up_diags, fillHoles, add_to_stl_list, k3d_render_to_html, dilate_array, plot_DEM_histogram
 if DEV_MODE:
     sys.path = oldsp # back to old sys.path
 
-import numpy
+import kml2geojson # https://rawgit.com/araichev/kml2geojson/master/docs/_build/singlehtml/index.html
+import defusedxml.minidom as md
+
+from PIL import Image
+
+# just needed for debugging numpy arrays
 numpy.set_printoptions(linewidth=300)
 numpy.set_printoptions(precision=1)
 
-from scipy import ndimage # for clean_up_diags()
-from PIL import Image
-
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib as mpl
 
 # for reading/writing geotiffs
 # Later versions of gdal may be bundled into osgeo so check there as well.
@@ -66,6 +66,8 @@ import osgeo.osr as osr  # projection stuff
 import time
 import random
 import os.path
+import httplib2
+from glob import glob
 
 # get root logger, will later be redirected into a logfile
 import logging
@@ -81,16 +83,21 @@ logger.setLevel(logging.INFO)
 # the failed to EE init messages are just warnings
 try:
     import ee
-    # uses .config/earthengine/credentials
-    import httplib2
-    ee.Initialize(http_transport=httplib2.Http())
-    # Oct 2022: just ee.Initialize() doesn't work any more b/c of this BS:
-    # https://github.com/google/earthengine-api/issues/181
-    # solution: https://github.com/GoogleCloudPlatform/httplib2shim/pull/16
+    # uses .config/earthengine/credentials, since Nov. 2024 this must be a service account json file not a p12 file!
+    
+    # Set the path to your JSON key file
+    home_dir = os.path.expanduser("~")
+    try:
+        key_file_path = glob(home_dir + "/.config/earthengine/*.json")[0]
+    except Exception as e:
+        print("Error: can't find your Earth Engine json key file. Please place it in ~/.config/earthengine/ (" + e)
+    # Authenticate using the service account
+    credentials = ee.ServiceAccountCredentials('touchterrainstandalone2022@touchterrainstandalone2022.iam.gserviceaccount.com', key_file_path)
+    ee.Initialize(credentials, project='touchterrainstandalone2022')
 except Exception as e:
-    logging.warning("EE init() error (with .config/earthengine/credentials) " + str(e) + " (This is OK if you don't use earthengine anyway!)")
+    logging.warning(f"EE init() error (with .config/earthengine/credentials/*.json) {e} (This is OK if you don't use earthengine anyway!)")
 else:
-    logging.info("EE init() worked with .config/earthengine/credentials")
+    logging.info("EE init() worked with .config/earthengine/credentials/*.json")
 
 # utility to print to stdout and to logger.info
 def pr(*arglist):
@@ -104,7 +111,7 @@ def pr(*arglist):
 # Use zig-zag magic?
 use_zigzag_magic = False
 
-#  List of DEM sources  Earth engine offers and their nominal resolutions (only used for guessing the size of a geotiff ...)
+#  List of DEM sources  Earth engine offers and their nominalresolutions (only used for guessing the size of a geotiff ...)
 DEM_sources = ["USGS/3DEP/10m",
                "USGS/GMTED2010",
                "NOAA/NGDC/ETOPO1",
@@ -156,18 +163,18 @@ initial_args = {
     "min_elev": None, # min elev to use, None means set by min of all tiles
     "tilewidth_scale": None, # set x/y scale, with None, scale is set automatically by the selected area (region)
     "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
-    "bottom_elevation":None
+    "bottom_elevation":None,
+    "dirty_triangles:":False, # allow degenerate triangles for water
 }
 
 
 def make_bottom_raster_from_image(image_file_name, shape):
-    """ Make a bottom image (numpy array) to be used in the stl model
+    """Make a bottom image (numpy array) to be used in the stl model
 
         in: image_file_name. Must be 1 band/greyscale image,
             will be scaled to fit the tile with at least a 5% fringe
             shape: width [0] and height [1] of TOP ! raster
-        out: numpy raster with 0 - 255 (with 0 = buildplate, 1 = max relief) or None on error
-    """
+        out: numpy raster with 0 - 255 (with 0 = buildplate, 1 = max relief) or None on error"""
     try:
         bg = Image.open(image_file_name)
     except Exception as e:
@@ -205,6 +212,8 @@ def make_bottom_raster_from_image(image_file_name, shape):
     bottom_raster += 1
     return bottom_raster
 
+
+
 # utility function to unwrap a tile tuple into its info and numpy array parts
 # if multicore processing is used, this is called via multiprocessing.map()
 # tile_info["temp_file"] contains the file name to open and write into (creating a file object)
@@ -215,14 +224,7 @@ def process_tile(tile_tuple):
     tile_info = tile_tuple[0] # has info for this individual tile
     tile_elev_raster = tile_tuple[1] # the actual (top) raster
     tile_bottom_raster = tile_tuple[2] # the actual (bottom) raster (or None)
-
-    # DEBUG: save mask rasters
-    #import imageio
-    #tile_bottom_raster_mask = ~numpy.isnan(tile_bottom_raster) * 255
-    #imageio.imsave('tile_bottom_raster_mask.png', tile_bottom_raster_mask.astype(numpy.uint8))
-    #tile_elev_raster_mask = ~numpy.isnan(tile_elev_raster) * 255
-    #imageio.imsave('tile_elev_raster_mask.png', tile_elev_raster_mask.astype(numpy.uint8))
-
+    tile_elev_orig_raster = tile_tuple[3] # the original (top) raster (or None)
 
     print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -313,17 +315,16 @@ def process_tile(tile_tuple):
 
                    ])
     #bottom_raster = bottom_raster - 0.5
-
-
+    '''
+    '''
     nan = numpy.NaN
     if 1: # top only
         tile_elev_raster = numpy.array([
                          [ 1, nan, 10, 50, 20, 10, 1],
                          [ 1, nan,nan, 50, 20, 10, 2],
-                         [ 1, nan,nan,nan, 30, 10, 5],
+                         [ 1, nan, 50 ,nan, 30, 10, 5],
                          [ 1, 23, nan,nan, 20, 10, 2 ],
                          [ 1, 20, 10, 10, 20, 10 , 1 ],
-
                    ])
         tile_elev_raster =   numpy.pad(tile_elev_raster, (1,1), 'edge')
 
@@ -347,7 +348,8 @@ def process_tile(tile_tuple):
 
                    ])
         bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
-    
+    '''
+    '''
     nan = numpy.NaN
     if 0: # top only
         tile_elev_raster = numpy.array([
@@ -389,9 +391,10 @@ def process_tile(tile_tuple):
     
     
     # create a grid object from the raster(s), which later converted into a triangle mesh
-    g = grid(tile_elev_raster, bottom_raster, tile_info)
+    g = grid(tile_elev_raster, bottom_raster, tile_elev_orig_raster, tile_info)
     del tile_elev_raster
     if bottom_raster is not None: del bottom_raster
+    if tile_elev_orig_raster is not None: del tile_elev_orig_raster
 
     #
     # convert grid object into a triangle mesh file
@@ -410,6 +413,10 @@ def process_tile(tile_tuple):
     # if file: open, write and close it, b will be temp file name
     b = g.make_file_buffer()
 
+    # When using top and bottom and multiple tiles it is possible that a water tile is empty
+    # b/c no water cells cross it. In this case we return the tile_info and None so it gets ignored
+    if g.num_triangles == 0:
+        return tile_info, None
 
     # get size of file/buffer
     if temp_fn != None:
@@ -420,7 +427,7 @@ def process_tile(tile_tuple):
 
     tile_info["file_size"] = fsize
     print("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", file=sys.stderr) #, multiprocessing.current_process()
-    return (tile_info, b) # return info and buffer/temp_file NAME
+    return tile_info, b # return info and buffer/temp_file NAME
 
 
 """
@@ -490,8 +497,6 @@ def resampleDEM(a, factor):
 
     return a
 
-import kml2geojson # https://rawgit.com/araichev/kml2geojson/master/docs/_build/singlehtml/index.html
-import defusedxml.minidom as md
 def get_KML_poly_geometry(kml_doc):
     ''' Parses a kml document (string) via xml.dom.minidom
         finds the geometry of the first(!) polygon feature encountered otherwise returns None
@@ -565,86 +570,7 @@ def get_bounding_box(coords):
     bllon -= width/100
     return trlat, trlon, bllat, bllon
 
-def clean_up_diags(ras):
-    '''clean up diagonal cells as these lead to non-manifold vertices where they meet
-        These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
-                                     1 0        0 1
 
-        The operation uses a  binary hit & miss operation to identify these patterns and
-        subtraction to removed one of the two. Then the mask is flipped to catch the other pattern
-
-        This is repeated until no new changes occur any more.
-
-        returns changed ras
-
-    Example of mask data:
-    mask = np.array([[0, 0, 1, 0],
-                     [0, 1, 0, 1,],
-                     [0, 1, 1, 1,],
-                     [1, 0, 0, 1,],
-                     [0, 1, 1, 0,]])
-
-    '''
-    # If there are NaNs in the raster there cannot by any diagonal patterns, so we're done!
-    if not numpy.any(numpy.isnan(ras)):
-        return ras
-
-    cnt = 0
-
-    while True:
-
-        print("Diagonal pattern cleanup, round: ", cnt)
-        # make a (inverse) mask raster (where 1 == NaN and 0 == non-NaN) (initially a bool raster)
-        # invert it, and cast to int. This is a binary mask that we'll query for diagonal patterns and
-        # modify accordingly (turn half the pattern from 1 to 0)
-        mask = numpy.invert(numpy.isnan(ras)).astype(numpy.int8) # int8 is the cheapest possible int in numpy
-
-
-
-        # how many 0s and 1s do we have before the potential cleanup?
-        unique_pre, counts_pre = numpy.unique(mask, return_counts=True)
-        pre = dict(zip(unique_pre, counts_pre))
-        print("pre-cleanup masks stats: ", pre)
-
-        p = numpy.array([[1, 0],
-                         [0, 1]]) # pattern to detect with hit-or-miss
-
-        #print(mask, "input raster")
-        hm = ndimage.binary_hit_or_miss(mask, structure1=p, origin1=-1).astype(numpy.int8) # shift origin to upper left corner
-        # hm will have 1s where the upper-left 1 of the first pattern are
-
-        #print(hm, "hit or miss with\n", p)
-        mask = mask - hm # subtract hit-or-miss results to change the location of upper left pattern cell from in the mask 1 to 0
-        #print(mask, "raster after 1. subtraction")
-
-        # flip the mask vertically to catch the inverse of the pattern p and again set its upper-left 1 to 0
-        mask = numpy.flip(mask, axis=1) #  flip
-        #print(mask, "raster flipped before 2. subtraction")
-        hm = ndimage.binary_hit_or_miss(mask, structure1=p, origin1=-1).astype(numpy.int8) # shift origin to upper left corner
-        #print(hm, "hit or miss with")
-        #print(p)
-        mask = mask - hm
-        #print(mask, "raster flipped after 2. subtraction")
-        mask = numpy.flip(mask, axis=1) #  flip back
-        #print(mask, "final raster")
-
-        # how many 0s and 1s do we have after the cleanup?
-        unique_post, counts_post = numpy.unique(mask, return_counts=True)
-        post = dict(zip(unique_post, counts_post))
-        print("post-cleanup masks stats:", post)
-
-        # convert 0 to NaN so we can use the 0s in the mask to create NaN cells in the DEM raster
-        mask = numpy.where(mask == 0, numpy.NaN, 1)
-        #print(mask, "after 0 => NaN")
-
-        # multiply mask with original DEM raster
-        ras = ras * mask
-
-        # if there was not change, we're done, otherwise, run another round.
-        if (pre[0] == post[0]) and (pre[1] == post[1]):
-            return ras
-
-        cnt += 1 # next round
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None,
@@ -680,6 +606,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          min_elev=None,
                          tilewidth_scale=None,
                          clean_diags=False,
+                         dirty_triangles=False,
+                         kd3_render=False,
                          **otherargs):
     """
     args:
@@ -725,6 +653,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - min_elev: overwrites minimum elevation for all tiles
     - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
     - clean_diags: if True, repair diagonal patterns which cause non-manifold edges
+    - dirty_triangles: if True creates a technically better fit fit of the water into the terrain but will create triangles that are collapsed into a line or a point. This should not be a problem for a modern slicer but will lead to issues when using the model in a 3D mesh modeling program. It will NOT affect any simple (i.e. non-water) models.
+    - k3d_render: if True will create a html file containing the model as a k3d object. 
 
 
     returns the total size of the zip file in Mb
@@ -942,12 +872,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Figure out which projection to use when getting DEM from GEE
         #
+        
         if unprojected == False:
             if projection != None:
                 epsg = projection
                 crs_str = f"EPSG:{epsg}"
-                #utm_zone_str = epsg_str
-                pr("using " + epsg_str + " as projection")
+                #utm_zone_str = crs_str
+                pr("using " + crs_str + " as projection")
             elif bllat > 70: # too far north for UTM, use Arctic Polar Stereographic
                 #utm_zone_str = "WGS 84 / Arctic Polar Stereographic"
                 epsg = 3995
@@ -963,6 +894,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # get UTM zone of center to project into
                 utm, hemi = LatLon_to_UTM(center)
                 epsg = UTM_zone_to_EPSG_code(utm, hemi)
+                print("898", utm, hemi, epsg, file=sys.stderr)
                 crs_str = f"EPSG:{epsg}"
                 pr(f"center at {center}, UTM{utm}{hemi}, {crs_str}")
         else:
@@ -1072,9 +1004,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #'region': "{\"type\":\"Polygon\",\"coordinates\":[[[-120,34],[-120,35],[-119,35],[-119,34]]],\"evenOdd\":true}"
             'region': polygon_geojson, # geoJSON polygon
             #'crs': 'EPSG:4326',
-            'crs': epsg_str, # projection
- 			# CH Mar 10, 2020: Do NOT specify the format anymore or getDownloadUrl() won't work!
- 			# apparently it's only geotiffs now
+            'crs': crs_str, # projection
         }
 
         # if cellsize is <= 0, just get whatever GEE's default cellsize is (printres = -1)
@@ -1460,7 +1390,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("re-sampling", filename, ":\n ", npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
             npim =  resampleDEM(npim, scale_factor)
             if bottom_elevation != None:
-                pr("re-sampling", bottom_elevation, ":\n ", bot_npim.shape[::-1], source_print3D_resolution, "mm ", bot_cell_size_m, "m ", numpy.nanmin(bot_npim), "-", numpy.nanmax(bot_npim), "m")
+                pr("re-sampling", bottom_elevation, ":\n ", bot_npim.shape[::-1], source_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(bot_npim), "-", numpy.nanmax(bot_npim), "m")
                 bot_npim =  resampleDEM(bot_npim, scale_factor)
 
             # re-sample offset mask
@@ -1539,26 +1469,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("map scale is 1 :", print3D_scale_number) # EW scale
         #print (npim.shape[0] * cell_size_m) / (print3D_height_total_mm / 1000.0) # NS scale
 
-        # set minimum elevation for top (will be used by all tiles)
-        min_bottom_elev = None # bottom min is just for info and will not be used in late processing to mm!
-        user_offset = 0  # no offset unless user specified min_elev
-        if min_elev != None: # user given minimum elevation (via argument
-            print("(elev min is manually set to", min_elev, "m)")
-            user_offset = numpy.nanmin(npim) - min_elev # offset to be added to all elevations
-            min_elev = numpy.nanmin(npim) # put actual min in min_elev
-            print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
-            
-            # Just show actual bottom min/max, will need to adjust with user_offset later!
-            if bottom_elevation != None:
-                print(f"bottom elev min/max : {numpy.nanmin(bot_npim):.2f} to {numpy.nanmax(bot_npim):.2f}")
-
-        else: # calculate from numpy array(s)
-            min_elev = numpy.nanmin(npim)
-            print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
-            if bottom_elevation != None:
-                min_bottom_elev = numpy.nanmin(bot_npim)
-                print(f"bottom elev min/max : {min_bottom_elev:.2f} to {numpy.nanmax(bot_npim):.2f}")
-
         # if scale X is negative, assume it means scale up to X mm high and calculate required z-scale for that height
         if zscale < 0:
             unscaled_elev_range_m = numpy.nanmax(npim) - numpy.nanmin(npim) # range at 1 x scale
@@ -1599,45 +1509,69 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 npim = numpy.where(npim < 0, 0, npim)
                 count += 1
 
-        # fill holes using a 3x3 footprint. Requires scipy. [0] is number of interations, [1] is threshold
+        # fill (< 0 elevation) holes using a 3x3 footprint. Requires scipy. 
+        # [0] is number of iterations, [1] is number of neighbors
         if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
-            import scipy.ndimage as ndimage
+            npim = fillHoles(npim, num_iters=fill_holes[0], num_neighbors=fill_holes[1])
 
-            if fill_holes[1] < 0 or fill_holes[1] > 9:
-                pr("fill_holes neighbor threshold must be in range of [1,9] for 3x3 footprint. Defaulting to 7.")
-                fill_holes[1] = 7
+        #
+        # if we have a bottom elevation raster do some checks and preparations 
+        # This part was originally in grid_tesselate.py and I'm too lasy to refactor its
+        # variable names so I'll just do some aliasing here
+        #
+        np = numpy
+        top = npim
+        top_orig = None # maybe used later as backup if top gets NaN'd
+        have_nan = np.any(np.isnan(npim)) # check if we have NaNs in the top raster
+        throughwater = False # special flag for NaNs in bottom raster
 
-            holesFilledLastRound = 1
-            while holesFilledLastRound > 0 and fill_holes[0] == -1 or fill_holes[0] > 0:
-                holesFilledLastRound = 0
-                if fill_holes[0] > 0:
-                    fill_holes[0] -= 1
+        if bottom_elevation is not None:
+            bottom = bot_npim
 
-                def checkForAndFillHole(values):
-                    nonlocal holesFilledLastRound
-                    # Check to see if there is a hole in the center with elevation of 0
-                    if values[4] > 0:
-                        return values[4]
+            # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
+            top = np.where(top < bottom, bottom, top)
 
-                    # Count number of neighbors with elevations > 0
-                    neighborsGreaterThanZero = 0
-                    for v in values:
-                        if v > 0:
-                            neighborsGreaterThanZero += 1
-                    # If 7 out of 8 neighbors are filled, fill the hole with the average.
-                    # This can be set to 8 out of 8 neighbors to only fill completely enclosed holes.
-                    # 7 out of 8 neighors allows cascading fills to solve diagonal holes and narrow 1xn length holes on repeating iterations.
-                    if neighborsGreaterThanZero >= fill_holes[1]:
-                        holesFilledLastRound += 1
-                        return numpy.nanmean(values)
-                    return values[4]
+            # bool array with True where bottom has NaN values but top does not
+            # this is specific to Anson's way of encoding through-water cells
+            nan_values = np.logical_and(np.isnan(bottom), np.logical_not(np.isnan(top)))
+            if np.any(nan_values) == True: 
+                bottom[nan_values] = 0 # set bottom NaN values to 0 
+                throughwater = True # flag for easy checking
 
-                footprint = numpy.array([[1,1,1],
-                                         [1,1,1],
-                                         [1,1,1]])
-                npim = ndimage.generic_filter(npim, checkForAndFillHole, footprint=footprint, mode='constant', cval=0)
+            # if both have the same value (or very close to) set both to Nan
+            # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
+            close_values = np.isclose(top, bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
 
-                pr("Filled", holesFilledLastRound, "holes. {numRounds} rounds remaining.".format(numRounds="Infinite" if fill_holes[0] == -1 else fill_holes[0]))
+            # for any True values in array, set corresponding top and bottom cells to NaN
+            # Also set NaN flags
+            if np.any(close_values) == True: 
+                # save pre-dilated top for later dilation
+                top_pre_dil = top.copy()  
+                top[close_values] = np.nan   # set close values to NaN   
+
+                # if diagonal cleanup is requested, we need to do it again after setting NaNs
+                #clean_up_diags_check(top)
+
+                # save original top after setting NaNs so we can skip the undilated NaN cells later
+                top_orig = top.copy()  
+                top = dilate_array(top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
+
+                bottom[close_values] = np.nan # set close values to NaN 
+                #clean_up_diags_check(bottom) # re-check for diags
+                
+                if throughwater == True:
+                    bottom = dilate_array(bottom) # dilate with 3x3 nanmean #  
+                else:
+                    bottom = dilate_array(bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
+
+                # pre-dilated top is not needed anymore
+                del top_pre_dil
+
+        # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. 
+        # We'll still use the non-dilated top_orig when we need to skip NaN cells
+        elif np.any(np.isnan(npim)):
+            top_orig = top.copy()   # save original top before it gets dilated
+            top = dilate_array(top) # dilate with 3x3 nanmean 
 
 
         # repair these patterns, which cause non_manifold problems later:
@@ -1645,58 +1579,37 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # 1 0    or     0 1
         if clean_diags == True:
             npim = clean_up_diags(npim)
-            #if bottom_elevation != None:  
-            #    bot_npim = clean_up_diags(bot_npim)
-
+            if bottom_elevation != None:  
+                bot_npim = clean_up_diags(bot_npim) 
+                # TODO: check if this is needed as top NaNs dictate if a cell
+                # should be skipped or not
 
         #
-        # plot dem and histogram, save as png
+        # deal with min_elev and min_bottom_elev (and user set min_elev)
         #
-        fig, (ax1, ax2) = plt.subplots(nrows=2, figsize=(5, 10), gridspec_kw={'height_ratios': [1, 0.4]})
 
-        imgplot = ax1.imshow(npim, aspect=u"equal", interpolation=u"spline36")
-        cmap_name = 'gist_earth' # gist_earth or terrain or nipy_spectral
-        imgplot.set_cmap(cmap_name)
-        ax1.xaxis.set_ticks([])
-        ax1.yaxis.set_ticks([])
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
-        ax1.spines['bottom'].set_visible(False)
-        ax1.spines['left'].set_visible(False)
-        ax1.tick_params(axis='both', which='both', length=0)
-        ax1.set_title("Elevation by color for " + DEM_name)
+        # set minimum elevation for top (will be used by all tiles)
+        user_offset = 0  # no offset unless user specified min_elev
+        min_bottom_elev = None
+        if min_elev != None: # user-given minimum elevation (via min_elev argument)
+            if bottom_elevation != None: # have a bottom elevation
+                 min_bottom_elev = numpy.nanmin(bot_npim) #(actual min elev for all tiles)
+            user_offset = numpy.nanmin(npim) - min_elev 
+            min_elev = numpy.nanmin(npim) #(actual min elev for all tiles)
+        else: # no user-given min_elev
+            min_elev = numpy.nanmin(npim)
+            if bottom_elevation != None:
+                min_bottom_elev = numpy.nanmin(bot_npim)
 
-        npim_flt = npim.flatten() # 1D array
-        elevmin, elevmax = numpy.nanmin(npim_flt), numpy.nanmax(npim_flt)
+        print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
+        if bottom_elevation != None:
+                print(f"bottom elev min/max : {numpy.nanmin(bot_npim):.2f} to {numpy.nanmax(bot_npim):.2f}")
 
-        # calculate ticks at good intervals
-        ticks = calculate_ticks(elevmin, elevmax)
-
-        # Add a colorbar to the first subplot with min and max elevation values
-        cbar = fig.colorbar(imgplot, ax=ax1, format='%d', orientation='horizontal', pad=0.1,
-                     ticks=ticks, shrink=1)
-        cbar.ax.xaxis.set_ticks_position('top')
-        cbar.ax.xaxis.set_label_position('top')
-        #cbar.ax.xaxis.set_tick_params(width=0)
-
-        # histogram with colored bars
-        numcols = imgplot.cmap.N
-        cmap = imgplot.cmap(numpy.arange(numcols)) # will only have 256 colors
-
-        n, bins = numpy.histogram(npim_flt, bins=numcols, range=(elevmin, elevmax))
-        ax2.bar(bins[:-1], n, width=numpy.diff(bins), align='edge', color=cmap)
-        ax2.set_ylim([0, numpy.max(n)])
-        ax2.set_xlim([elevmin, elevmax])
-        ax2.set_xticks(ticks)
-        ax2.grid(True, which='both', color='gray', linestyle='-', linewidth=0.5)
-        ax2.set_facecolor((0.95, 0.95, 0.95))
-        ax2.set_title("Histogram of Elevation")
-
-        plt.draw() # needed to flush everything (?)
-        #plt.show() # DEBUG
-        plot_file_name = temp_folder + os.sep + DEM_name + "_elevation_plot_with_histogram.png"
-        plt.savefig(plot_file_name, dpi=300)
-
+        #
+        # plot DEM and histogram, save as png
+        #
+        plot_file_name = plot_DEM_histogram(npim, DEM_name, temp_folder)
+        print(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
 
         #
         # create tile info dict
@@ -1709,9 +1622,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "scale"  : print3D_scale_number, # horizontal scale number,  1000 means 1:1000 => 1m in model = 1000m in reality
             "z_scale" : zscale,  # z (vertical) scale (elevation exageration) factor
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
-            "min_elev" : min_elev, # min for all tiles, will be used for bottom NaNs
+            "min_elev" : min_elev, # needed for multi-tile models
             "user_offset":  user_offset, # offset between user given min_elev and actual data min_elev
-            "min_bot_elev" : min_bottom_elev, # just for info
+            "min_bot_elev" : min_bottom_elev, # needed for multi-tile models
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
             "folder_name": DEM_title,  # folder/zip file name for all tiles
@@ -1733,6 +1646,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "use_geo_coords": use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
             "smooth_borders": smooth_borders, # optimize borders?
             "clean_diags": clean_diags, # remove diagonal patterns?
+            "dirty_triangles": dirty_triangles, # allow creating of better fitting but potentiall degenerate triangles
+            "throughwater": throughwater, # special flag for NaNs in bottom raster
         }
 
 
@@ -1746,16 +1661,15 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y)
 
 
-        # pad full raster by one at the fringes
-        #print npim, npim.shape
+        # pad full rasters(s) by one at the fringes
         npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan
         if bottom_elevation != None:
             bot_npim = numpy.pad(bot_npim, (1,1), 'edge')
-        #print npim.astype(int)
+        if top_orig is not None:
+            top_orig =  numpy.pad(top_orig, (1,1), 'edge')
 
         # store size of full raster
         tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
-        #print tile_info
 
         # Warn that we're only processing one tile
         process_only = tile_info["only"]
@@ -1782,30 +1696,37 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 tile_elev_raster.flags.writeable = False
 
+
                 if bottom_elevation != None :
                     tile_bot_elev_raster = bot_npim[start_y:end_y, start_x:end_x] #  [y,x]
                     tile_bot_elev_raster.flags.writeable = False
                 else:
                     tile_bot_elev_raster = None
 
+                tile_elev_orig_raster = None
+                if top_orig is not None:
+                    tile_elev_orig_raster =  top_orig[start_y:end_y, start_x:end_x]
+                    tile_elev_orig_raster.flags.writeable = False 
+
                 # add to tile_list
                 tile_info["tile_no_x"] = tx + 1
                 tile_info["tile_no_y"] = ty + 1
-                my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info during processing
+                my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info in during processing
 
                 # if raster is too large, use temp files to create the tile STL/obj files
                 if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > max_cells_for_memory_only:
-                    # open a temp file in local tmp folder
+                    # use a temp file in local tmp folder
                     # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
-                    mytempfname =  temp_folder + os.sep + zip_file_name + str(tile_info["tile_no_x"]) + str(tile_info["tile_no_y"]) + ".tmp"
+                    mytempfname = f"{temp_folder}{os.sep}{zip_file_name}{tile_info['tile_no_x']}{tile_info['tile_no_y']}.tmp"
 
                     # store temp file names (not file objects), MP will create file objects during processing
                     my_tile_info["temp_file"]  = mytempfname
 
-                tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster)   # leave it to process_tile() to unwrap the info and data parts
+                # assemble tile to be processed
+                tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster, tile_elev_orig_raster)   # leave it to process_tile() to unwrap the info and data parts
 
                 # if we only process one tile ...
-                if process_only == None: # no only was given
+                if process_only == None: # "only" parameter was not given
                     tile_list.append(tile)
                 else:
                     if process_only[0] == tile_info['tile_no_x'] and process_only[1] == tile_info['tile_no_y']:
@@ -1818,18 +1739,27 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
         # single core processing: just work on the list sequentially, don't use multi-core processing.
-        # if there's only one tile or one CPU or CPU_cores_to_use is still at default None
+        # if there's only one tile or one CPU or CPU_cores_to_use is still at default None.
         # processed list will contain tuple(s): [0] is always the tile info dict, if its
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
         # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)
         if num_tiles[0] * num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:
             pr("using single-core only (multi-core is currently broken :(")
             processed_list = []
-            # Convert each tile into a list: [0]: updated tile info, [1]: grid object
+            # Convert each tile into a list: [0]: updated tile info, [1,2,3]: rasters (or None)
             for i,t in enumerate(tile_list):
+                # t[0] is the tile info dict, t[1] is the numpy array of elevations, t[2] is the numpy array of bottom elevations or None
                 #print "processing", i, numpy.round(t[1], 1), t[0]
-                pt = process_tile(t)
-                processed_list.append(pt) # append to list of processed tiles
+
+                pt = process_tile(t)  # pt is a tuple: [0]: updated tile info, [1]: grid object (or None)
+                if pt[1] is not None: # if we got a grid object and not None
+                    processed_list.append(pt) # append to list of processed tiles
+                else:
+                    try: # delete temp file b/c it's only a STLb header from a tile with no elevations
+                        os.remove(pt[0]["temp_file"])
+                    except Exception as e:
+                        logger.error("Error removing" + str(pt[0]["temp_file"]) + " " + str(e))
+            
 
         # use multi-core processing
         else:
@@ -1873,26 +1803,25 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # delete tile list, as the elevation arrays are no longer needed
         del tile_list
 
+        # stl_list will contain the stl/obj files or buffers 
+        # we can use it later to create a k3d render
+        stl_list = [] # make list of filenames or buffers
+
         # concat all processed tiles into a zip file
         #print "start of putting tiles into zip file")
         for p in processed_list:
                 tile_info = p[0] # per-tile info
-                tn = DEM_title + "_tile_%d_%d" % (tile_info["tile_no_x"],tile_info["tile_no_y"]) + "." + fileformat[:3] # name of file inside zip
+                tile_name = f"{DEM_title}_tile_{tile_info['tile_no_x']}_{tile_info['tile_no_y']}.{fileformat[:3]}" # name of file inside zip
                 buf= p[1] # either a string or a file object
 
-                if tile_info.get("temp_file") != None: # if buf is a file object
+                if tile_info.get("temp_file") != None: # if buf is a file 
                     fname = tile_info["temp_file"]
-                    zip_file.write( fname , tn) # write temp file into zip
-                    try:
-                        os.remove(fname) # on windows remove closed file manually
-                    except Exception as e:
-                        logger.error("Error removing" + str(fname) + " " + str(e))
-                    else:
-                        #print >> sys.stderr, "Removed temp file", fname
-                        pass
+                    stl_list = add_to_stl_list(fname, stl_list)
+                    zip_file.write(fname , tile_name) # write temp file into zip
                 else:
-                    zip_file.writestr(tn, buf) # buf is a string
-                    del buf
+                    zip_file.writestr(tile_name, buf) # buf is a string
+                    stl_list = add_to_stl_list(buf, stl_list)
+
 
                 total_size += tile_info["file_size"]
                 logger.debug("adding tile %d %d, total size is %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"], total_size))
@@ -1902,7 +1831,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                    ", file size:", round(tile_info["file_size"]), "Mb")
 
 
-        pr("\ntotal size for all tiles:", round(total_size), "Mb")
+        pr("\ntotal size for all tiles:", round(total_size, 1), "Mb")
 
         # delete all the GDAL geotiff stuff
         del npim
@@ -1913,6 +1842,29 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if offset_masks_lower is not None:
             for offset_layer in offset_npim:
                 del offset_layer
+
+
+        # make k3d render
+        if kd3_render == True and (fileformat == "STLa" or fileformat == "STLb"):
+            if tile_info.get("temp_file") != None:
+                html_file = k3d_render_to_html(stl_list, temp_folder, buffer=False)
+            else:
+                html_file = k3d_render_to_html(stl_list, temp_folder, buffer=True)
+            zip_file.write(html_file, "k3d_plot.html") # write into zip
+
+
+        # file or buffer cleanup
+        for p in processed_list:
+            tile_info = p[0]
+            buf= p[1]
+            if tile_info.get("temp_file") != None:
+                try:
+                    os.remove(fname) # on windows remove closed file manually
+                except Exception as e:
+                    logger.error("Error removing" + str(fname) + " " + str(e))
+            else:
+                del buf # delete buffer
+
 
     # end of: if fileformat != "GeoTiff"
 
@@ -1934,6 +1886,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     # add plot with histogram to zip
     zip_file.write(plot_file_name, "elevation_plot_with_histogram.png")
 
+
     # add logfile to zip
     log_file_handler.flush()
     log_file_handler.close()
@@ -1947,6 +1900,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             os.remove(GEE_dem_filename)
         except Exception as e:
              print("Error removing " + str(GEE_dem_filename) + " " + str(e), file=sys.stderr)
+
 
     # remove logfile
     try:
@@ -1969,74 +1923,3 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
-#
-# MAIN
-#
-if __name__ == "__main__":
-
-    # Grand Canyon: -109.947664, 37.173425  -> -109.905481, 37.151472
-    #r = get_zipped_tiles("USGS/3DEP/10m", 44.7220, -108.2886, 44.47764, -107.9453, ntilesx=1, ntilesy=1,printres=1.0,
-    #                     tilewidth=120, basethick=2, zscale=1.0)
-
-
-
-    # test for importing dem raster files
-
-    '''
-    #fname = "Oso_after_5m_cropped.tif"
-    fname = "const100.tif"
-    r = get_zipped_tiles(importedDEM=fname,
-                         ntilesx=1, ntilesy=1,
-                         printres=-1,
-                         tilewidth=100,
-                         basethick=50,
-                         zscale=1,
-                         CPU_cores_to_use=1,
-                         tile_centered=False,
-                         fileformat="STLb",
-                         max_cells_for_memory_only=0,
-                         zip_file_name="const100")
-    '''
-    '''
-    ovrw_args = {"DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
-            "trlat": 44.67336694786201,        # lat/lon of top right corner
-            "trlon": -108.01895043655932,
-            "bllat": 44.53403790429051,        # lat/lon of bottom left corner
-            "bllon": -108.21391959517898,
-            "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-            "printres": 5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-            "ntilesx": 1,      # number of tiles in x and y
-            "ntilesy": 1,
-            "tilewidth": 10, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "basethick": 2, # thickness (in mm) of printed base
-            "zscale": 5,      # elevation (vertical) scaling
-            "fileformat": "STLa",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
-            "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-            "zip_file_name": "test_non_manif",
-            #"polyURL": "https://drive.google.com/file/d/1WIvprWYn-McJwRNFpnu0aK9RBU7ibUMw/view?usp=sharing"
-            "no_bottom": False,
-            "no_normals": True,
-            "CPU_cores_to_use": None,
-            }
-
-    '''
-    ovrw_args = {"importedDEM": "DC_top.tif",
-                 "bottom_elevation": "DC_bottom.tif",
-                }
-    # merge args
-    args = {**initial_args, **ovrw_args}
-
-    # make tiles
-    r = get_zipped_tiles(**args)
-
-    '''
-    # unzip files into folder and delete zip file
-    from os import sep, remove
-    full_zip_file_name = "." + sep + r[1] # r[1] is a zip folder as stringIO, r[0] is the size of the file in Mb
-    print("Unzipping", full_zip_file_name)
-    import zipfile
-    zip_ref = zipfile.ZipFile(full_zip_file_name, 'r')
-    zip_ref.extractall(args["zip_file_name"])
-    zip_ref.close()
-    remove(full_zip_file_name)
-    '''

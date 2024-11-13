@@ -27,6 +27,7 @@ import requests
 from io import BytesIO, StringIO
 from PIL import Image
 from shutil import copyfileobj
+from geojson import Polygon
 
 from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
@@ -449,7 +450,6 @@ def export():
                     except:
                         html += "Warning: " + kml_file.filename + " is not a valid kmz polygon file! (falling back to area selection box.)\n"
 
-                from geojson import Polygon
                 try:
                     coords, msg = TouchTerrainEarthEngine.get_KML_poly_geometry(kml_stream) 
                 except:
@@ -512,16 +512,13 @@ def export():
             tot_pix = int((((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas)) / div_by)
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is",  MAX_CELLS_PERMITED, file=sys.stderr)
 
-        if tot_pix >  MAX_CELLS_PERMITED:
-            html = "Your requested job is too large! Please reduce the area (red box) or lower the print resolution<br>"
-            html += "<br>Current total number of Kilo pixels is " + str(round(tot_pix / 1000, 2))
-            html += " but must be less than " + str(round(MAX_CELLS_PERMITED / 1000, 2)) + " Kilo pixels"
-            html +  "If you're trying to process multiple tiles: Consider using the only manual setting to instead print one tile at a time (https://chharding.github.io/TouchTerrain_for_CAGEO/)"
-            html += "<br><br>Click \n"
+        # warn user if job is large
+        if tot_pix >  MAX_CELLS_PERMITED:  
+            html = "Your requested job is very large! You may run into the GoogleEarthEngine imposed download cap or your job may eventually consume <br>"
+            html += "enough server memory to make the job fail."
         
             # print out the query parameter URL 
-            html += '<a href = "'
-            html += URL_query_str + '">' + "here" + "</a> to go back to the main page to make adjustments."
+            html += 'Go <a href = "' + URL_query_str + '">' + "here" + "</a> to go back to the main page to make adjustments."
  
             # set timout flag to true, so the timeout script doesn't fire ...
             html += '''\n
@@ -530,8 +527,8 @@ def export():
                 </script>'''
 
             html +=  '</body></html>'
-            yield html
-            return "bailing out!"
+        yield html
+
 
 
         # Set number of cores to use 
