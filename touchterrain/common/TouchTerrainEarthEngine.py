@@ -29,6 +29,7 @@ import io
 from zipfile import ZipFile
 import http.client
 import numpy
+from touchterrain.common.config import EE_ACCOUNT,EE_CREDS,EE_PROJECT
 
 DEV_MODE = False
 #DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
@@ -84,20 +85,14 @@ logger.setLevel(logging.INFO)
 try:
     import ee
     # uses .config/earthengine/credentials, since Nov. 2024 this must be a service account json file not a p12 file!
-    
     # Set the path to your JSON key file
-    home_dir = os.path.expanduser("~")
-    try:
-        key_file_path = glob(home_dir + "/.config/earthengine/*.json")[0]
-    except Exception as e:
-        print("Error: can't find your Earth Engine json key file. Please place it in ~/.config/earthengine/ (" + e)
     # Authenticate using the service account
-    credentials = ee.ServiceAccountCredentials('touchterrainstandalone2022@touchterrainstandalone2022.iam.gserviceaccount.com', key_file_path)
-    ee.Initialize(credentials, project='touchterrainstandalone2022')
+    credentials = ee.ServiceAccountCredentials(EE_ACCOUNT, EE_CREDS)
+    ee.Initialize(credentials, project=EE_PROJECT)
 except Exception as e:
-    logging.warning(f"EE init() error (with .config/earthengine/credentials/*.json) {e} (This is OK if you don't use earthengine anyway!)")
+    logging.warning(f"EE init() error (with {EE_CREDS}) {e} (This is OK if you don't use earthengine anyway!)")
 else:
-    logging.info("EE init() worked with .config/earthengine/credentials/*.json")
+    logging.info(f"EE init() worked with {EE_CREDS}")
 
 # utility to print to stdout and to logger.info
 def pr(*arglist):

@@ -6,3 +6,5 @@ timeout = 5 * 60
 # required for newer python container
 accesslog = '-'
 bind = ['0.0.0.0:8080']
+
+wsgi_app = "touchterrain.server.TouchTerrain_app:app"
