@@ -1,5 +1,6 @@
 """config.py for ISU"""
 import os
+from pathlib import Path
 
 PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMMON_DIR = os.path.join(PACKAGE_DIR, "common")
@@ -12,6 +13,9 @@ EE_URL = os.getenv('TOUCHTERRAIN_EE_URL', 'https://earthengine.googleapis.com')
 # Set up a service account as described here:
 # https://sites.google.com/site/earthengineapidocs/creating-oauth2-service-account
 EE_ACCOUNT = os.getenv('TOUCHTERRAIN_EE_ACCOUNT', 'earthengine@touchterrain.iam.gserviceaccount.com')
+
+EE_CREDS = os.getenv('TOUCHTERRAIN_EE_SA_CREDS', os.path.join(Path.home(), "earthengine", ".config", ".private-key.json"))
+EE_PROJECT = os.getenv('TOUCHTERRAIN_EE_PROJECT', 'touchterrainstandalone2022') 
 
 
 # OSGeo/GDAL PROJ variable override (folder that contains proj.db, used for projections)
