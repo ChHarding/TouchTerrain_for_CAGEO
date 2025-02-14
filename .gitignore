@@ -52,17 +52,16 @@ terrain
 !README.md
 !NEWS.md
 
+# whitelisting
 !test/test_TouchTerrain_standalone.py
 !test/test_TouchTerrainGPX.py
 !test/bottom_image_test.png
 !test/sheepMtn_outline.kml
 !test/SheepMtn.tif
 !test/TouchTerrain_test_matrix.csv
-
 !touchterrain/server/downloads/.gitkeep
 !touchterrain/server/previews/.gitkeep
 !touchterrain/server/tmp/.gitkeep
-
 !touchterrain/server/static/*
 
 ### Python ###
