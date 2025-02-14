@@ -894,7 +894,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # get UTM zone of center to project into
                 utm, hemi = LatLon_to_UTM(center)
                 epsg = UTM_zone_to_EPSG_code(utm, hemi)
-                print("898", utm, hemi, epsg, file=sys.stderr)
                 crs_str = f"EPSG:{epsg}"
                 pr(f"center at {center}, UTM{utm}{hemi}, {crs_str}")
         else:

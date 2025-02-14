@@ -28,6 +28,8 @@ from io import BytesIO, StringIO
 from PIL import Image
 from shutil import copyfileobj
 from geojson import Polygon
+from io import BytesIO
+from zipfile import ZipFile
 
 from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
@@ -441,8 +443,7 @@ def export():
 
                 # for a kmz file stream, unzip into a text string (kmz archive contains a single doc.kml file)
                 if kml_file.filename[-4:] == ".kmz":
-                    from io import BytesIO
-                    from zipfile import ZipFile
+
                     try:
                         zipped_stream = BytesIO(kml_stream)  # zipped stream (binary)
                         zipped_archive = ZipFile(zipped_stream)
@@ -527,7 +528,7 @@ def export():
                 </script>'''
 
             html +=  '</body></html>'
-        yield html
+            yield html
 
 
 
