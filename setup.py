@@ -2,7 +2,7 @@ from setuptools import find_namespace_packages, setup
  
 setup(
     name='touchterrain',
-    version='3.6.0',
+    version='3.7.0', # Feb. 17, 2025
     description='Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)',
 	url='https://github.com/ChHarding/TouchTerrain_for_CAGEO',
 	license='MIT',
@@ -30,6 +30,10 @@ setup(
         # with conda: conda install -c conda-forge gdal
         # Prebuilds (.whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal but stopped with 3.4.3
         # Still active: https://www.nuget.org/packages?q=GDAL but uses a .Net package manager
+        "imageio>=2.36.0",
+        "k3d>=2.16.1",
+        "httplib2>=0.22.0",
+        "matplotlib>=3.9.2",
     ],
 
     extras_require={
