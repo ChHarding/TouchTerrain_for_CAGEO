@@ -1869,6 +1869,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
+        plot_file_name = plot_DEM_histogram(npim, DEM_name, temp_folder)
+        pr(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
 
     # add png from Google Maps static (ISU server doesn't use that b/c it eats too much into our free google maps allowance ...)
     if map_img_filename != None:
