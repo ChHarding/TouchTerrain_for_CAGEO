@@ -1865,12 +1865,13 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     print("zip finished:", datetime.datetime.now().time().isoformat())
 
     # add (full) geotiff we got from EE to zip
-    if importedDEM == None:
+    if importedDEM == None and fileformat != "GeoTiff":
         total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
-        plot_file_name = plot_DEM_histogram(npim, DEM_name, temp_folder)
-        pr(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
+        zip_file.write(plot_file_name, DEM_title + "_DEMandHistogram.png")
+        pr("added histogram of elevation values as " + DEM_title + "_DEMandHistogram.png")
+
 
     # add png from Google Maps static (ISU server doesn't use that b/c it eats too much into our free google maps allowance ...)
     if map_img_filename != None:
@@ -1879,8 +1880,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
 
-    # add plot with histogram to zip
-    zip_file.write(plot_file_name, "elevation_plot_with_histogram.png")
+    
 
 
     # add logfile to zip
