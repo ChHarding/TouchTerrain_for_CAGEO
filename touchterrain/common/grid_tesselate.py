@@ -752,7 +752,7 @@ class grid:
             
                         try: 
                             # init all elevs with NaN
-                            NEelev = NWelev = SEelev = SWelev = np.NaN
+                            NEelev = NWelev = SEelev = SWelev = np.nan
 
                             # nanmean() is expensive, so only use it when actually needed
                             NEelev = np.nanmean(NEar) if np.isnan(np.sum(NEar)) else (elev[j+0,i+0] + elev[j-1,i-0] + elev[j-1,i+1] + elev[j-0,i+1]) / 4.0  

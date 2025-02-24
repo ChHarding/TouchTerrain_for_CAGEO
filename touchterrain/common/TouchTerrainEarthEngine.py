@@ -238,7 +238,7 @@ def process_tile(tile_tuple):
 
     '''
     # DEBUG: make some simple rasters  (CH: hack)
-    nn = numpy.NaN
+    nn = numpy.nan
     tile_elev_raster =  numpy.array([
                          [ 10, 13,],
                          [ 10, 13,],
@@ -300,7 +300,7 @@ def process_tile(tile_tuple):
 
     '''
     # bottom as top with water as mask
-    nan = numpy.NaN
+    nan = numpy.nan
     tile_elev_raster = numpy.array([
                          [ 1, nan, 10, 50, 20, 10, 1],
                          [ 1, nan, nan, 50, 20, 10, 2],
@@ -312,7 +312,7 @@ def process_tile(tile_tuple):
     #bottom_raster = bottom_raster - 0.5
     '''
     '''
-    nan = numpy.NaN
+    nan = numpy.nan
     if 1: # top only
         tile_elev_raster = numpy.array([
                          [ 1, nan, 10, 50, 20, 10, 1],
@@ -345,7 +345,7 @@ def process_tile(tile_tuple):
         bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
     '''
     '''
-    nan = numpy.NaN
+    nan = numpy.nan
     if 0: # top only
         tile_elev_raster = numpy.array([
                          [ 1, nan, 10, 50, 20, 10, 1],

@@ -202,7 +202,7 @@ def main():
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
-    if 1: # set this to 0 if you don't want the zip file to be unzipped
+    if 0: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
         folder = os.getcwd() + os.sep + args["zip_file_name"]# new stl folder in current folder
@@ -214,7 +214,7 @@ def main():
         zip_ref.close()
         print("unzipped file inside", full_zip_file_name, "into", folder)
     
-    '''
+    # Optional: show the STL files in a browser
     import k3d
     # get all stl files in that folder
     from glob import glob
@@ -232,9 +232,7 @@ def main():
         plot += k3d.stl(buf)
     
     plot.display()
-    '''
-    #
-    # end of main()
+
     
 
 if __name__ == "__main__":
