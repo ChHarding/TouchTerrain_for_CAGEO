@@ -65,8 +65,8 @@ except:
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
     html = """<title>Settings:""" + page_title + """</title>"""
-    if GOOGLE_ANALYTICS_TRACKING_ID:
-        html += """<script async src="https://www.googletagmanager.com/gtag/js?id""" + GOOGLE_ANALYTICS_TRACKING_ID + "></script>" 
+    if 0: #GOOGLE_ANALYTICS_TRACKING_ID:
+        html += """<script async src="https://www.googletagmanager.com/gtag/js?id=""" + GOOGLE_ANALYTICS_TRACKING_ID + "></script>" 
         html += """<script>
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
@@ -77,7 +77,7 @@ def make_GA_script(page_title):
         function onclick_for_dl(){
                 //ga('send', 'event', 'Download', 'Click', 'direct', '1');
                 gtag('event', 'Click', {'event_category':'Download', 'event_label':'direct_dl', 'value':'1'});
-                
+
                 let comment_text=document.getElementById('comment').value;
                 if (comment_text !== ""){ // log comment with GA
                     //console.log(comment_text); 
@@ -188,7 +188,7 @@ def preview(zip_file):
     def preview_STL_generator():
 
         # create html string
-        html = '<html>'
+        html = '<!DOCTYPE html><html>'
         html += make_GA_script("TouchTerrain preview") # <head> with script that inits GA with my tracking id 
 
         # onload event will only be triggered once </body> is given
