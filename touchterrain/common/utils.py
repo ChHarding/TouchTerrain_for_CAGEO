@@ -95,7 +95,7 @@ def clean_up_diags(ras):
         print("post-cleanup masks stats:", post)
 
         # convert 0 to NaN so we can use the 0s in the mask to create NaN cells in the DEM raster
-        mask = numpy.where(mask == 0, numpy.NaN, 1)
+        mask = numpy.where(mask == 0, numpy.nan, 1)
         #print(mask, "after 0 => NaN")
 
         # multiply mask with original DEM raster
@@ -366,7 +366,7 @@ def dilate_array(raster, dilation_source=None):
 '''
 # Test
 numpy.set_printoptions(linewidth=numpy.inf)
-nn = numpy.NaN
+nn = numpy.nan
 r = numpy.array([
                         [ 23, nn,  33, 33, 20, 10, 33],
                         [ 21, -1, 23, 50, nn, 10, 22],
