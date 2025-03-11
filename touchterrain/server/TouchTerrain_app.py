@@ -238,8 +238,7 @@ def preview(zip_file):
             print("Error:", errstr, file=sys.stderr)
             return "Error:" + errstr
 
-
-        # JS functions for loading bar
+        # JS functions for loading bar and stl_viewer initialization
         html +=  """
             <script>
                   function load_prog(load_status, load_session){
@@ -259,21 +258,15 @@ def preview(zip_file):
                       //set total progress bar
                       document.getElementById("pbtotal").value = loaded/total;
                   }
-            </script>"""
 
-        html += """
-                <div id="stl_cont" style="width:100%;height:80%;margin:0 auto;border:1px dashed rgb(0, 0, 0)"></div>
-
-                <script src="/static/js/stl_viewer.min.js"></script>
-                <script>
-                    var stl_viewer=new StlViewer(
-                        document.getElementById("stl_cont"),
-                        {
-                            loading_progress_callback:load_prog,
-                            //all_loaded_callback:all_loaded,
-                            all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
-                            models:
-                            ["""
+                var stl_viewer=new StlViewer(
+                    document.getElementById("stl_cont"),
+                    {
+                        loading_progress_callback:load_prog,
+                        //all_loaded_callback:all_loaded,
+                        all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
+                        models:
+                        ["""
 
         # make JS object for each tile
         for i,f in enumerate(stl_files):
