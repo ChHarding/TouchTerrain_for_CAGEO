@@ -177,7 +177,7 @@ def main_page():
     args["manual"] = args["manual"].replace('"', chr(92)+chr(34))  # \ + "
 
     # string with index.html "file" with mapid, token, etc. inlined
-    html_str = render_template("index.html", **args)
+    html_str = render_template("index.html", **args, GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
 
     return html_str
 
