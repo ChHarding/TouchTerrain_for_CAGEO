@@ -383,7 +383,14 @@ def process_tile(tile_tuple):
         bottom_raster = numpy.pad(bottom_raster, (1,1), 'edge')
         tile_info["bottom_elevation"] = True #fake, should be filename
     '''
-    
+    '''
+    tile_elev_raster = numpy.array([
+                            [200, 200, 200, 200, 500, 500, 500, 500],
+                            [200, 200, 200, 200, 500, 500, 500, 500],
+                            [200, 200, 200, 200, 500, 500, 500, 500], 
+                   ])
+    tile_elev_raster = numpy.pad(tile_elev_raster, (1,1), 'edge')
+    '''
     
     # create a grid object from the raster(s), which later converted into a triangle mesh
     g = grid(tile_elev_raster, bottom_raster, tile_elev_orig_raster, tile_info)
@@ -648,7 +655,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     - min_elev: overwrites minimum elevation for all tiles
     - tilewidth_scale: divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)
     - clean_diags: if True, repair diagonal patterns which cause non-manifold edges
-    - dirty_triangles: if True creates a technically better fit fit of the water into the terrain but will create triangles that are collapsed into a line or a point. This should not be a problem for a modern slicer but will lead to issues when using the model in a 3D mesh modeling program. It will NOT affect any simple (i.e. non-water) models.
     - k3d_render: if True will create a html file containing the model as a k3d object. 
 
 
@@ -1320,6 +1326,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             pr("Bottom elevation raster file:", bottom_elevation)
         pr("DEM projection & datum:", proj_str, datum_str)
         pr("z-scale:", zscale)
+        pr("min_elev:", min_elev)
         pr("basethickness:", basethick)
         pr("fileformat:", fileformat)
         pr("tile_centered:", tile_centered)
@@ -1509,7 +1516,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             npim = fillHoles(npim, num_iters=fill_holes[0], num_neighbors=fill_holes[1])
 
         #
-        # if we have a bottom elevation raster do some checks and preparations 
+        # if we have a bottom elevation raster, do some checks and preparations 
         # This part was originally in grid_tesselate.py and I'm too lasy to refactor its
         # variable names so I'll just do some aliasing here
         #
