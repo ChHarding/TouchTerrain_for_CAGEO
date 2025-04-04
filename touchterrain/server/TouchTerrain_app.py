@@ -627,8 +627,9 @@ def export():
             # print out the query parameter URL 
             #html += '<a href = "'
             #html += URL_query_str + '">' + URL_query_str + "</a><br>"
-            html += URL_query_str # using non-link for know as bots may follow it 
+            
             html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
+            html += URL_query_str # using non-link for know as bots may follow it 
  
             # set timout flag to true, so the timeout script doesn't fire
             html += '''\n
