@@ -239,7 +239,7 @@ def preview(zip_file):
             return "Error:" + errstr
 
         # JS functions for loading bar and stl_viewer initialization
-        html +=  """
+        html +=  """ <script src="stl_viewer.min.js"></script>
             <script>
                   function load_prog(load_status, load_session){
                       let loaded = 0;
