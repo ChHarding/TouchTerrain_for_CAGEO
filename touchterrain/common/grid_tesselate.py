@@ -483,13 +483,7 @@ class grid:
         elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
             self.tile_info["have_bottom_array"] = True
 
-        # get min/max for top and bottom (these are tile-local values, not the tile_wide values) 
-        self.tile_info["min_elev"] = np.nanmin(self.top) # min elevation of top
-        self.tile_info["max_elev"] = np.nanmax(self.top) # max elevation of top
-        if self.tile_info["bottom_elevation"] is not None:
-            self.tile_info["min_bot_elev"] = np.nanmin(self.bottom)
-            self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
-
+        # need to use the tilewide min/max for each tile, otherwise the boudaries don't line up perfectly! 
 
         if self.tile_info["bottom_elevation"] is not None: # we have a bottom raster
             
@@ -651,12 +645,18 @@ class grid:
         
         # put corner coordinates tile info dict (may later be needed for 2 bottom triangles)
         if self.tile_info["tile_centered"] == False:
+            #print("tile width", self.tile_info["tile_width"])
+            #print("tile_no_x", self.tile_info["tile_no_x"])
+            #print("tile_no_y", self.tile_info["tile_no_y"])
+            #print("tile_height", self.tile_info["tile_height"])
+            #print("ntilesy", self.tile_info["ntilesy"])
             self.tile_info["W"] = self.tile_info["tile_width"]  * (self.tile_info["tile_no_x"]-1)  
             self.tile_info["E"] = self.tile_info["W"] + self.tile_info["tile_width"]
             tot_height = self.tile_info["tile_height"] * self.tile_info["ntilesy"]
             # y tiles index goes top(0) DOWN to bottom
             self.tile_info["N"] = tot_height - (self.tile_info["tile_height"] * (self.tile_info["tile_no_y"]-1))
             self.tile_info["S"] = self.tile_info["N"] - self.tile_info["tile_height"]
+            #print("WENS", self.tile_info["W"] , self.tile_info["E"], self.tile_info["N"] ,self.tile_info["S"] )
         else:
             self.tile_info["W"] = -self.tile_info["tile_width"] / 2
             self.tile_info["E"] =  self.tile_info["tile_width"] / 2

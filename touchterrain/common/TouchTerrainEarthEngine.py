@@ -1624,8 +1624,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "z_scale" : zscale,  # z (vertical) scale (elevation exageration) factor
             "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
             "min_elev" : min_elev, # needed for multi-tile models
-            "user_offset":  user_offset, # offset between user given min_elev and actual data min_elev
             "min_bot_elev" : min_bottom_elev, # needed for multi-tile models
+            "user_offset":  user_offset, # offset between user given min_elev and actual data min_elev
             "base_thickness_mm" : basethick,
             "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
             "folder_name": DEM_title,  # folder/zip file name for all tiles
@@ -1650,7 +1650,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             "dirty_triangles": dirty_triangles, # allow creating of better fitting but potentiall degenerate triangles
             "throughwater": throughwater, # special flag for NaNs in bottom raster
         }
-
 
         #
         # Make tiles (subsets) of the full raster and generate 3D grid model
