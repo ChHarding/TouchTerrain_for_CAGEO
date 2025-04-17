@@ -92,7 +92,7 @@ def make_GA_script(page_title):
 # entry page that shows a world map and loads the main page when clicked
 @app.route("/", methods=['GET', 'POST'])
 def intro_page():
-    return render_template("intro.html")
+    return render_template("intro.html", GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
 
 #
 # The page for selecting the ROI and putting in printer parameters
@@ -170,7 +170,7 @@ def main_page():
 
     # these have to be added to the args so they end up in the template
     args['mapid'] = mapid['mapid']
-    args['token'] = mapid['token']
+    #args['token'] = mapid['token'] # no token needed anymore
    
     # in manual, replace " with \" i.e. ""ignore_leq":123" -> "\"ignore_leq\":123"
     # so that it's a valid JS string after it's been inlined

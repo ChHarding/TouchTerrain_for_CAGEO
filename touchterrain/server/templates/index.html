@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.6)</title>
@@ -21,7 +22,7 @@
 		<!-- Latest compiled JavaScript -->
 		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> 
 
-		<link href="https://cdn.theme.iastate.edu/nimbus-sans/css/nimbus-sans.css" rel="stylesheet">
+		<!--<link href="https://cdn.theme.iastate.edu/nimbus-sans/css/nimbus-sans.css" rel="stylesheet">-->
 		<link href="https://cdn.theme.iastate.edu/merriweather/css/merriweather.css" rel="stylesheet">
 		<!--<link rel="stylesheet" href="static/css/iastate.legacy.css"> -->
 
@@ -34,7 +35,6 @@
 			<!-- key=<nothing> will give you the crappy google map background, which is still usable.
 			If you want a proper google maps version you need replace the above line with
 			one that uses your API key, which you will need to get from Google: https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
-			As this app uses a simple embedded map, it should still be free for < 25,000 requests (?)
 			Put this key into a text file called GoogleMapsKey.txt in the server folder
 			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
 		</script>
@@ -50,7 +50,7 @@
         </script>
         {% endif %}
 
-		<script src="https://cdn.jsdelivr.net/gh/google/earthengine-api/javascript/build/ee_api_js.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/google/earthengine-api@v0.1.367/javascript/build/ee_api_js.js"></script>
 		<script type="text/javascript" src="/static/js/zip-full.min.js"></script>
 		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
 	</head>
@@ -72,7 +72,7 @@
 			</div>
 			<div class="row">
 				<div class="col-sm-8">
-					<div style="height: 730; position: relative; overflow: hidden; margin-top: 4px;" id="map">
+					<div style="height: 900px; position: relative; overflow: hidden; margin-top: 4px;" id="map">
 						Map didn't load
 					</div>
 					<!-- search bar stuff start, will be positioned inside map via JS later -->

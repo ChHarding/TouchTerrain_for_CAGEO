@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>TouchTerrain is broken, sorry!</title>
+    <title>Welcome to TouchTerrain, the free web app for creating 3D printable terrain models!</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="description" content="Application for creating 3D printable terrain models">
@@ -9,6 +9,17 @@
     <meta name="keywords" content="HTML, JavaScript, 3D-printing, CNC, STL, terrain data, free">
     <meta name="author" content="Chris Harding">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    {% if GOOGLE_ANALYTICS_TRACKING_ID %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{GOOGLE_ANALYTICS_TRACKING_ID}}');
+    </script>
+    {% endif %}
+
 </head>
 <style>
     img {
@@ -17,7 +28,9 @@
     }
   </style>
 <body>
-April 16, 2025: Sorry, the TouchTerrain web app is currently broken. We're working in it ...
+    <form method="post" action="/main" id="myForm">
+        <img id="intro_image" src="static/world.jpg" alt="Click to continue" onclick="document.getElementById('myForm').submit();"> 
+    </form>
       
       
 

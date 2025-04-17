@@ -20,7 +20,7 @@ let polygon = -1  // optional masking polygon
 */
 // gets values inlined from python calling the jinja template
 let MAPID = "{{ mapid }}"; // {{ stuff }}
-let TOKEN = "{{ token }}";
+//let TOKEN = "{{ token }}";
 let map_lat = Number("{{ map_lat }}");  // center of map
 let map_lon = Number("{{ map_lon }}");
 let map_zoom = Number("{{ map_zoom }}"); // zoom level
@@ -643,19 +643,24 @@ window.onload = function () {
 // FUNCTIONS
 //
 
-// Create an ImageOverlay using the MapID, which encodes all the vis params (besides opacity, which is set browser-side)
+// Create an ImageTileLayer using the MapID, which encodes all the vis params (besides opacity, which is set browser-side)
+// CH: fixed to adhere to current EE API 4/16/2025
+
+
 function create_overlay(MAPID, map){
-    const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1alpha';
-    const tileSource = new ee.layers.EarthEngineTileSource({
-                                MAPID,
-                                TOKEN,
-                                formatTileUrl: (x, y, z) =>
-                                `${EE_MAP_PATH}/${MAPID}/tiles/${z}/${x}/${y}`
+    const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1';
+    const overlay = new google.maps.ImageMapType({
+        getTileUrl: function(coord, zoom) {
+            return `${EE_MAP_PATH}/${MAPID}/tiles/${zoom}/${coord.x}/${coord.y}`;
+        },
+        tileSize: new google.maps.Size(256, 256),
+        name: 'hillshade',
+        opacity: 0.8
     });
-    eemap = new ee.layers.ImageOverlay(tileSource); // eemap is a global so we can change its gamma later 
-    map.overlayMapTypes.removeAt(0); // remove old overlay
-    map.overlayMapTypes.insertAt(0, eemap); // insert as index 0, use this for opacity: map.overlayMapTypes.getAt(0).setOpacity(0.25)
-    return eemap;
+
+    map.overlayMapTypes.removeAt(0);
+    map.overlayMapTypes.insertAt(0, overlay);
+    return overlay;
 }
 
 // Function to return an arc-degree distance in meters at a given latitude
