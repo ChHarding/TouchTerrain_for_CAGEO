@@ -1,40 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <title>Welcome to TouchTerrain, the free web app for creating 3D printable terrain models!</title>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="Application for creating 3D printable terrain models">
-    <meta property="og:image" content="/static/touchTerrain_logo.png">
-    <meta name="keywords" content="HTML, JavaScript, 3D-printing, CNC, STL, terrain data, free">
-    <meta name="author" content="Chris Harding">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <head>
+        <title>Welcome to TouchTerrain, the free web app for creating 3D printable terrain models!</title>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="description" content="Application for creating 3D printable terrain models">
+        <meta property="og:image" content="/static/touchTerrain_logo.png">
+        <meta name="keywords" content="HTML, JavaScript, 3D-printing, CNC, STL, terrain data, free">
+        <meta name="author" content="Chris Harding">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+        {% if GOOGLE_ANALYTICS_TRACKING_ID %}
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '{{GOOGLE_ANALYTICS_TRACKING_ID}}');
+        </script>
+        {% endif %}
+    
 
-    {% if GOOGLE_ANALYTICS_TRACKING_ID %}
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '{{GOOGLE_ANALYTICS_TRACKING_ID}}');
-    </script>
-    {% endif %}
-
-</head>
-<style>
-    img {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
-<body>
-    <form method="post" action="/main" id="myForm">
-        <img id="intro_image" src="static/world.jpg" alt="Click to continue" onclick="document.getElementById('myForm').submit();"> 
-    </form>
-      
-      
-
-
-
-</body>
+        <meta charset="UTF-8">
+        <script src="https://www.google.com/recaptcha/api.js?render={{ site_key }}"></script>
+        <script>
+            function onImageClick(e) {
+                e.preventDefault();
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('{{ site_key }}', {action: 'submit'}).then(function(token) {
+                        document.getElementById('g-recaptcha-response').value = token;
+                        document.getElementById('recaptcha-form').submit();
+                    });
+                });
+            }
+        </script>
+    </head>
+    <body>
+        {% if error %}
+        <p style="color: red;">{{ error }}</p>
+        {% endif %}
+        <form id="recaptcha-form" method="POST" action="/">
+            <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+            <img src="{{ url_for('static', filename='world.jpg') }}" alt="Click to continue" style="cursor:pointer; width:100%;" onclick="onImageClick(event)">
+        </form>
+    </body>
 </html>

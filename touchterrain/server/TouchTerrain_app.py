@@ -19,7 +19,7 @@
 
 import math
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import ee
 import sys
@@ -35,7 +35,9 @@ from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
 
-from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory, render_template, flash, redirect
+from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory 
+from flask import render_template, flash, redirect, make_response
+
 from urllib.parse import urlparse
 app = Flask(__name__)
 
@@ -60,7 +62,44 @@ except:
      # file does not exist - will show the ugly Google map version
      logging.warning("Problem with Google Maps key file - you will only get the ugly Google Map!")
 
+# RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
+# recaptcha secret key and flask secret key as single strings in separate lines 
+try:
+    with open(RECAPTCHA_V3_KEYS_FILE) as f:
+        lines = f.readlines()
+        keys = [line.rstrip() for line in lines]
+        app.config['RECAPTCHA_SITE_KEY'] = keys[0]
+        app.config['RECAPTCHA_SECRET_KEY'] = keys[1]
+        app.secret_key = keys[2]
+except:
+     # file does not exist - will show the ugly Google map version
+     sys.exit("Problem with RecaptchaKeys.txt in server folder, it must contain keys for the (v3) recaptcha site key, recaptcha secret key and flask secret key as single strings in separate lines. Exiting.")
+else:
+    print("Recaptcha_v3_keys.txt sucessfully parsed.")
 
+# set rcaptch v3 threshold for no-bot detection
+app.config["score"] = None
+app.config["score_threshold"] = 0.5 # 0.0 - 1.0
+
+def verify_recaptcha(token):
+    """Verify reCAPTCHA v3 token with Google."""
+    secret = app.config['RECAPTCHA_SECRET_KEY']
+    payload = {
+        'secret': secret,
+        'response': token
+    }
+    r = requests.post('https://www.google.com/recaptcha/api/siteverify', data=payload)
+    result = r.json()
+    print(result)
+    app.config["score"] = result.get('score', 0)
+
+    # JSON structure ex: {'success': True, 'challenge_ts': '2025-04-24T19:36:47Z', 'hostname': '127.0.0.1', 'score': 0.9, 'action': 'submit'}
+    with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
+        f.write(f"{result.get('challenge_ts', '')}, {result.get('success', False)}, "
+                f"{result.get('score', 0)}, {app.config['score_threshold']}, {result.get('hostname', '')}\n")
+
+    # You can adjust the score threshold as needed (e.g., 0.5)
+    return result.get('success', False) and result.get('score', 0) >= app.config["score_threshold"]
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 def make_GA_script(page_title):
@@ -89,16 +128,39 @@ def make_GA_script(page_title):
         """
     return html
 
-# entry page that shows a world map and loads the main page when clicked
-@app.route("/", methods=['GET', 'POST'])
+# entry page that shows a world map does the Recaptch_v3 and, if passed, 
+# loads the main page when clicked
+@app.route('/', methods=['GET', 'POST'])
 def intro_page():
-    return render_template("intro.html", GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
-
+    # if user has already been verified via cookie, redirect to main page
+    if request.cookies.get('verified') == 'true':
+        # log cookie OK event
+        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
+            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')    
+            f.write(f"{now}, GoodCookie, intro_page, 0, {request.remote_addr}\n")
+        
+        return redirect(url_for('main_page'))
+    
+    # user has clicked on the intro image and is not verified yet
+    if request.method == 'POST':
+        token = request.form.get('g-recaptcha-response')
+        if token and verify_recaptcha(token):
+            response = make_response(redirect(url_for('main_page')))
+            expires = datetime.now() + timedelta(days=30) # valid for 30 days
+            response.set_cookie('verified', 'true', expires=expires)
+            return response # redirect to main_page()  if reCAPTCHA is verified
+        else:
+           return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'], 
+                    error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)")
+    # if user has been verified yet and has not clicked on the intro image yet, show the intro page with reCAPTCHA
+    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 #
 # The page for selecting the ROI and putting in printer parameters
 #
 @app.route("/main", methods=['GET', 'POST'])
 def main_page():
+
+
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
     # init all browser args with defaults, these must be strings and match the SELECT values
@@ -176,10 +238,20 @@ def main_page():
     # so that it's a valid JS string after it's been inlined
     args["manual"] = args["manual"].replace('"', chr(92)+chr(34))  # \ + "
 
-    # string with index.html "file" with mapid, token, etc. inlined
-    html_str = render_template("index.html", **args, GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
+    # serve index.html unless user has not been verified earlier and has the cookie for it
+    if request.cookies.get('verified') == 'true':
+  
+        # string with index.html "file" with mapid, token, etc. inlined
+        html_str = render_template("index.html", **args, 
+                                    GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
 
-    return html_str
+        # log cookie OK event
+        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
+            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')    
+            f.write(f"{now}, GoodCookie, main_page, 0, {request.remote_addr}\n")
+        return html_str
+        
+    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 
 
 @app.route("/preview/<string:zip_file>")
