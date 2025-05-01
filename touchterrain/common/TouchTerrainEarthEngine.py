@@ -1871,10 +1871,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
     print("zip finished:", datetime.datetime.now().time().isoformat())
 
     # add (full) geotiff we got from EE to zip
-    if importedDEM == None and fileformat != "GeoTiff":
+    if importedDEM == None:
         total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
+    if importedDEM == None and fileformat != "GeoTiff":
         zip_file.write(plot_file_name, DEM_title + "_DEMandHistogram.png")
         pr("added histogram of elevation values as " + DEM_title + "_DEMandHistogram.png")
 
