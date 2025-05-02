@@ -6,11 +6,18 @@ import os
 # Location of the file containing the google maps key
 GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', os.path.join(config.SERVER_DIR, 'GoogleMapsKey.txt'))
 
+
+#
+# 5/2025: changed recaptcha file location to /tmp to make them not web accessible
+#
+
 # file for Recptcha v3 keys
-RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_keys.txt')
+#RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_keys.txt')
+RECAPTCHA_V3_KEYS_FILE = "/tmp/Recaptcha_v3_keys.txt"
 
 # log for recaptcha v3
-RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
+#RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
+RECAPTCHA_V3_LOG_FILE = "/tmp/Recaptcha_v3_log.txt"
 
 # DEBUG_MODE will be True if running in a local development environment.
 DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
