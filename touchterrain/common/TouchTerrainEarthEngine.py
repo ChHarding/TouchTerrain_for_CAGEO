@@ -1870,13 +1870,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
     print("zip finished:", datetime.datetime.now().time().isoformat())
 
-    # add (full) geotiff we got from EE to zip
-    if importedDEM == None and fileformat != "GeoTiff":
+    # for mesh output add (full) geotiff we got from EE to zip
+    if importedDEM == None:
         total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
-        zip_file.write(plot_file_name, DEM_title + "_DEMandHistogram.png")
-        pr("added histogram of elevation values as " + DEM_title + "_DEMandHistogram.png")
+        if fileformat != "GeoTiff": # for now only for mesh output
+            zip_file.write(plot_file_name, DEM_title + "_DEMandHistogram.png")
+            pr("added histogram of elevation values as " + DEM_title + "_DEMandHistogram.png")
 
 
     # add png from Google Maps static (ISU server doesn't use that b/c it eats too much into our free google maps allowance ...)
@@ -1885,8 +1886,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("added map of area as " + DEM_title + ".jpg")
 
     pr("\nprocessing finished: " + datetime.datetime.now().time().isoformat())
-
-    
 
 
     # add logfile to zip
@@ -1915,13 +1914,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         try:
             os.remove(map_img_filename)
         except Exception as e:
-            print("Error removing plot_with_histogram.png" + str(map_img_filename) + " " + str(e), file=sys.stderr)
+            print("Error removing map image" + str(map_img_filename) + " " + str(e), file=sys.stderr)
 
     # remove plot+histo file
-    try:
-        os.remove(plot_file_name)
-    except Exception as e:
-        print("Error removing map image " + str(map_img_filename) + " " + str(e), file=sys.stderr)
+    if fileformat != "GeoTiff":
+        try:
+            os.remove(plot_file_name)
+        except Exception as e:
+            print("Error removing plot_with_histogram.png " + str(plot_file_name) + " " + str(e), file=sys.stderr)
 
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
