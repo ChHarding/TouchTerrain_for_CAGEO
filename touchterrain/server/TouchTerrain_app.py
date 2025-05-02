@@ -64,10 +64,11 @@ except:
 
 # RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
 # recaptcha secret key and flask secret key as single strings in separate lines 
+print("recpatcha file", RECAPTCHA_V3_KEYS_FILE)
 try:
     with open(RECAPTCHA_V3_KEYS_FILE) as f:
         lines = f.readlines()
-        print("recpatcha file",RECAPTCHA_V3_KEYS_FILE, "contains:\n", lines)
+        #print("recpatcha file contains:\n", lines)
         keys = [line.rstrip() for line in lines]
         app.config['RECAPTCHA_SITE_KEY'] = keys[0]
         app.config['RECAPTCHA_SECRET_KEY'] = keys[1]
