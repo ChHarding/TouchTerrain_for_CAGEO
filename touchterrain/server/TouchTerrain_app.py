@@ -67,6 +67,7 @@ except:
 try:
     with open(RECAPTCHA_V3_KEYS_FILE) as f:
         lines = f.readlines()
+        print("recpatcha file",RECAPTCHA_V3_KEYS_FILE, "contains:\n", lines)
         keys = [line.rstrip() for line in lines]
         app.config['RECAPTCHA_SITE_KEY'] = keys[0]
         app.config['RECAPTCHA_SECRET_KEY'] = keys[1]
@@ -152,15 +153,14 @@ def intro_page():
         else:
            return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'], 
                     error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)")
-    # if user has been verified yet and has not clicked on the intro image yet, show the intro page with reCAPTCHA
+    # if user has not been verified yet, show the intro page to get the reCAPTCHA
     return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
+
 #
 # The page for selecting the ROI and putting in printer parameters
 #
 @app.route("/main", methods=['GET', 'POST'])
 def main_page():
-
-
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
     # init all browser args with defaults, these must be strings and match the SELECT values
@@ -244,13 +244,13 @@ def main_page():
         # string with index.html "file" with mapid, token, etc. inlined
         html_str = render_template("index.html", **args, 
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
-
         # log cookie OK event
         with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
             now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')    
             f.write(f"{now}, GoodCookie, main_page, 0, {request.remote_addr}\n")
         return html_str
-        
+
+    # if user has not been verified yet, show the intro page to get the reCAPTCHA
     return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 
 
