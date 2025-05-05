@@ -8,7 +8,7 @@ GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', os.path.jo
 
 
 #
-# 5/2025: changed recaptcha file location to /tmp to make them not web accessible
+# 5/2025: changed recaptcha file location to /tmp to make them not web accessible. Miles made /tmp read-only so it doesn't get wiped on rebuilds
 #
 
 # file for Recptcha v3 keys
