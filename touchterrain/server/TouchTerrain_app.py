@@ -37,6 +37,7 @@ from touchterrain.server import app
 
 from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory 
 from flask import render_template, flash, redirect, make_response
+import mimetypes
 
 from urllib.parse import urlparse
 app = Flask(__name__)
@@ -78,7 +79,11 @@ except:
 else:
     print("Recaptcha_v3_keys.txt sucessfully parsed.")
 
-# set rcaptch v3 threshold for no-bot detection
+# May 2025: set the mimetype for javascript files to application/javascript so that 
+# load_stl_min.js can be loaded
+mimetypes.add_type('application/javascript', '.js')
+
+# set recaptcha v3 threshold for no-bot detection
 app.config["score"] = None
 app.config["score_threshold"] = 0.5 # 0.0 - 1.0
 
@@ -103,30 +108,28 @@ def verify_recaptcha(token):
     return result.get('success', False) and result.get('score', 0) >= app.config["score_threshold"]
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
+# Note this is inconsistent when used with the preview page as its download  events is fired off when its download
+# button is clicked as onclick code and does not use onclick_for_dl()
 def make_GA_script(page_title):
-    html = """<title>Settings:""" + page_title + """</title>"""
-    if 0: #GOOGLE_ANALYTICS_TRACKING_ID:
-        html += """<script async src="https://www.googletagmanager.com/gtag/js?id=""" + GOOGLE_ANALYTICS_TRACKING_ID + "></script>" 
-        html += """<script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '""" + GOOGLE_ANALYTICS_TRACKING_ID + """');
-        
+    html = """<title>Settings:""" + page_title + """</title>\n"""
+    html += """<script async src="https://www.googletagmanager.com/gtag/js?id=""" + GOOGLE_ANALYTICS_TRACKING_ID + '"></script>\n' 
+    html += """<script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '""" + GOOGLE_ANALYTICS_TRACKING_ID + """');
+    
         //fire off events to GA when download button is clicked
         function onclick_for_dl(){
-                //ga('send', 'event', 'Download', 'Click', 'direct', '1');
-                gtag('event', 'Click', {'event_category':'Download', 'event_label':'direct_dl', 'value':'1'});
+            gtag('event', 'Click', {'event_category':'Download', 'event_label':'direct_dl', 'value':'1'});
 
-                let comment_text=document.getElementById('comment').value;
-                if (comment_text !== ""){ // log comment with GA
-                    //console.log(comment_text); 
-                    //ga('send', 'event', 'Comment1', 'Click', comment_text, {nonInteraction: true});
-                    gtag('event', 'Comment', {'event_category':'Comment', 'event_label':comment_text, 'value':'1', 'nonInteraction': true});
-                }
+            let comment_text = document.getElementById('comment').value;
+            if (comment_text !== ""){ 
+                gtag('event', 'Comment', {'event_category':'Comment', 'event_label':comment_text, 'value':'1', 'nonInteraction': true});
+            }
         }
-        </script>        
-        """
+    </script>        
+    """
     return html
 
 # entry page that shows a world map does the Recaptch_v3 and, if passed, 
@@ -253,49 +256,24 @@ def main_page():
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
     return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 
-
+# Page that unzips the tiles and shows a preview of the STL files using a template
 @app.route("/preview/<string:zip_file>")
 def preview(zip_file):
 
-    def preview_STL_generator():
+    # get path (not URL) to zip file in download folder
+    full_zip_path = os.path.join(DOWNLOADS_FOLDER, zip_file)
 
-        # create html string
-        html = '<!DOCTYPE html><html>'
-        html += make_GA_script("TouchTerrain preview") # <head> with script that inits GA with my tracking id 
+    # make a dir in preview to contain the STLs
+    job_id = zip_file[:-4] # name for folder
+    preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
+    try:
+        os.makedirs(preview_dir, exist_ok=True)  # Use makedirs with exist_ok
+    except OSError as e:
+        print("Error:", e, file=sys.stderr)
+        return "Error:" + str(e)
 
-        # onload event will only be triggered once </body> is given
-        html += '''<body  onload="document.getElementById('working').innerHTML='&nbsp Preview: (zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag)'">\n'''
-
-        # progress bar, will be hidden after loading is complete
-        html += '<progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>\n'
-
-        # Message shown during unzipping
-        html += '\n<h4 id="working" style="display:inline; white-space:nowrap" >Preparing for preview, please be patient ...</h4>\n'
-        yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
-
-        # download button
-        zip_url = url_for("download", filename=zip_file) # URL(!) of unzipped zip file
-        html = '\n<form style="float:left" action="' + zip_url +'" method="GET" enctype="multipart/form-data">'
-        html += '  <input type="submit" value="Download zip File" '
-        html += ''' onclick="gtag('event', 'Click', {'event_category':'Download', 'event_label':'preview_dl', 'value':'1'})" '''
-        html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile\n">'
-        #html += '  To return to the selection map, click the back button in your browser twice.\n'
-        html += '</form>\n'
-
-        # get path (not URL) to zip file in download folder
-        full_zip_path = os.path.join(DOWNLOADS_FOLDER, zip_file)
-
-        # make a dir in preview to contain the STLs
-        job_id = zip_file[:-4] # name for folder
-        preview_dir = os.path.join(PREVIEWS_FOLDER, job_id)
-        try:
-            os.mkdir(preview_dir)
-        except OSError as e:
-            if e.errno != 17:  # 17 means dir already exists, so that error is OK
-                print("Error:", e, file=sys.stderr)
-                return "Error:" + str(e)
-
-        # extract stl files from zip file
+    # extract stl files from zip file
+    try:
         with ZipFile(full_zip_path, "r") as zip_ref:
             fl = zip_ref.namelist() # list of files inside the zip file
             stl_files = []
@@ -303,78 +281,48 @@ def preview(zip_file):
                 if f[-4:].lower() == ".stl": # only extract stl files
                     stl_files.append(f) # list of extracted files
                     zip_ref.extract(f, preview_dir)
+    except Exception as e:
+        errstr = "Error unzipping file: " + str(e)
+        print("Error:", errstr, file=sys.stderr)
+        return "Error:" + errstr
 
-        # bail out if zip didn't contain any stl files
-        if len(stl_files) == 0:
-            errstr = "No STL files found in " + full_zip_path
-            print("Error:", errstr, file=sys.stderr)
-            return "Error:" + errstr
+    # bail out if zip didn't contain any stl files
+    if len(stl_files) == 0:
+        errstr = "No STL files found in " + full_zip_path
+        print("Error:", errstr, file=sys.stderr)
+        return "Error:" + errstr
 
-        # JS functions for loading bar and stl_viewer initialization
-        html +=  """ <script src="stl_viewer.min.js"></script>
-            <script>
-                  function load_prog(load_status, load_session){
-                      let loaded = 0;
-                      let total = 0;
+    # Prepare data for the template
+    job_id = zip_file[:-4] # folder: zip filename without .zip
+    zip_url = url_for("download", filename=zip_file)
+    models = []
 
-                      //go over all models that are/were loaded
-                      Object.keys(load_status).forEach(function(model_id)
-                      {
-                          //need to make sure we're on the last loading session (not counting previous loaded models)
-                          if (load_status[model_id].load_session == load_session){
-                              loaded += load_status[model_id].loaded;
-                              total += load_status[model_id].total;
-                          }
-                      });
+    for i, f in enumerate(stl_files):
+        url = url_for("serve_stl", job_id=job_id, filename=f) # route to call with its 2 args
+        models.append({'id': i + 1, 'filename': url, 'rotationx': -0.35, 'display': 'flat'})
 
-                      //set total progress bar
-                      document.getElementById("pbtotal").value = loaded/total;
-                  }
+    # Convert models to JSON string
+    models_json = json.dumps(models)
 
-                var stl_viewer=new StlViewer(
-                    document.getElementById("stl_cont"),
-                    {
-                        loading_progress_callback:load_prog,
-                        //all_loaded_callback:all_loaded,
-                        all_loaded_callback: function(){document.getElementById("pbtotal").style.display='none';},
-                        models:
-                        ["""
+    center_models = 'false' if len(stl_files) > 1 else 'true'
 
-        # make JS object for each tile
-        for i,f in enumerate(stl_files):
-            html += '\n                            {'
-            html += 'id:' + str(i+1) + ', '
-            url = url_for("preview_file", zip_file=zip_file, filename=f)
-            html += 'filename:"' + url + '", rotationx:-0.35, display:"flat",'
-            #html += 'animation:{delta:{rotationx:1, msec:3000, loop:true}}'
-            html += '},'
-        html += """\n                            ],
-                            load_three_files: "/static/js/",
-                            center_models:"""
+    ga_script = make_GA_script("Preview") #  JS script for GA
 
-        # if we have multiple tiles, don't center models, otherwise each is centered and they overlap.
-        # Downside: the trackball will rotate around lower left tile corner (which is 0/0), not the center
-        html += 'false' if len(stl_files) > 1 else 'true'
+    # Render the template
+    html = render_template('preview.html', # template name
+                            zip_url=zip_url,
+                            models=models_json,
+                            center_models=center_models,
+                            ga_script=ga_script) 
+    return html
 
-        html += """
-                        }
-                    );
-                </script>
 
-            </body>
-        </html>
-        """
-        #print(html)
-        yield html
-
-    return Response(stream_with_context(preview_STL_generator()), mimetype='text/html')
-
-@app.route("/preview/<string:zip_file>/<string:filename>")
-def preview_file(zip_file, filename):
-    job_id = zip_file[:-4]
-    return send_from_directory(os.path.join(PREVIEWS_FOLDER, job_id),
-                               filename, as_attachment=True)
-
+# called vehind the scenes load the STL file
+@app.route("/previews/<job_id>/<filename>")
+def serve_stl(job_id, filename):
+    # Adjust the path as needed
+    previews_dir = os.path.join(os.path.dirname(__file__), "previews", job_id)
+    return send_from_directory(previews_dir, filename)
 
 def make_current_URL(query_string_names_and_values_list):
     '''Assembles a string from a list of query names and value tuples:
@@ -584,7 +532,7 @@ def export():
             html += "enough server memory to make the job fail."
         
             # print out the query parameter URL 
-            html += 'Go <a href = "' + URL_query_str + '">' + "here" + "</a> to go back to the main page to make adjustments."
+            html += '\nIf that happens, go <a href="' + URL_query_str + '">' + " back to the main page </a> to make adjustments."
  
             # set timout flag to true, so the timeout script doesn't fire ...
             html += '''\n

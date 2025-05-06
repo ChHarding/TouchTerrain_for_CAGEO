@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {{ ga_script|safe }}
+</head>
+<body>
+    <script src="{{ url_for('static', filename='js/stl_viewer.min.js') }}"></script>
+    <progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>
+    <h4 id="working" style="display:inline; white-space:nowrap">Preparing for preview, please be patient ...</h4>
+    <div id="stl_cont" style="height:90vh;"></div>
+
+    <script>
+        function load_prog(load_status, load_session){
+            let loaded = 0;
+            let total = 0;
+            Object.keys(load_status).forEach(function(model_id)
+            {
+                if (load_status[model_id].load_session == load_session){
+                    loaded += load_status[model_id].loaded;
+                    total += load_status[model_id].total;
+                }
+            });
+            document.getElementById("pbtotal").value = loaded/total;
+        }
+    
+        var stl_viewer = new StlViewer(
+            document.getElementById("stl_cont"),
+            {
+                loading_progress_callback: load_prog,
+                all_loaded_callback: function(){
+                    document.getElementById("pbtotal").style.display='none';
+                    document.getElementById("working").innerHTML = "Model Previewer: Zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag";
+                },
+                models: {{ models|safe }},
+                load_three_files: "/static/js/",
+                center_models: {{ center_models }}
+            }
+        );
+    </script>
+
+    <form style="float:left" action="{{ zip_url }}" method="GET" enctype="multipart/form-data">
+        <input type="submit" value="Download zip File" onclick="gtag('event', 'Click', {'event_category':'Download', 'event_label':'preview_dl', 'value':'1'})" title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">
+    </form>
+
+</body>
+</html>
