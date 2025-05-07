@@ -36,7 +36,7 @@ from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
 
 from flask import Flask, stream_with_context, request, Response, url_for, send_from_directory 
-from flask import render_template, flash, redirect, make_response
+from flask import render_template, flash, redirect, make_response, session
 import mimetypes
 
 from urllib.parse import urlparse
@@ -87,6 +87,7 @@ mimetypes.add_type('application/javascript', '.js')
 app.config["score"] = None
 app.config["score_threshold"] = 0.5 # 0.0 - 1.0
 
+
 def verify_recaptcha(token):
     """Verify reCAPTCHA v3 token with Google."""
     secret = app.config['RECAPTCHA_SECRET_KEY']
@@ -135,27 +136,20 @@ def make_GA_script(page_title):
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
 def intro_page():
-    # if user has already been verified via cookie, redirect to main page
-    if request.cookies.get('verified') == 'true':
-        # log cookie OK event
-        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
-            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')    
-            f.write(f"{now}, GoodCookie, intro_page, 0, {request.remote_addr}\n")
-        
-        return redirect(url_for('main_page'))
-    
-    # user has clicked on the intro image and is not verified yet
     if request.method == 'POST':
         token = request.form.get('g-recaptcha-response')
         if token and verify_recaptcha(token):
-            response = make_response(redirect(url_for('main_page')))
-            expires = datetime.now() + timedelta(days=30) # valid for 30 days
-            response.set_cookie('verified', 'true', expires=expires)
-            return response # redirect to main_page()  if reCAPTCHA is verified
+            session['recaptcha_verified'] = True  # Store in Flask session
+            print("User has been verified (intro), showing main page.", file=sys.stderr)
+            return redirect(url_for('main_page'))
         else:
-           return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'], 
-                    error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)")
-    # if user has not been verified yet, show the intro page to get the reCAPTCHA
+            session['recaptcha_verified'] = False # default to False, set to True if recaptcha is verified
+            print("Verification failed", file=sys.stderr)
+            return render_template(
+                'intro.html',
+                site_key=app.config['RECAPTCHA_SITE_KEY'],
+                error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)"
+            )
     return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 
 #
@@ -240,19 +234,16 @@ def main_page():
     # so that it's a valid JS string after it's been inlined
     args["manual"] = args["manual"].replace('"', chr(92)+chr(34))  # \ + "
 
-    # serve index.html unless user has not been verified earlier and has the cookie for it
-    if request.cookies.get('verified') == 'true':
-  
+    # serve index.html unless user has not been verified earlier  
+    if session.get('recaptcha_verified') == True:
+        print("User has been verified, showing main page.", file=sys.stderr)
         # string with index.html "file" with mapid, token, etc. inlined
         html_str = render_template("index.html", **args, 
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
-        # log cookie OK event
-        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
-            now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')    
-            f.write(f"{now}, GoodCookie, main_page, 0, {request.remote_addr}\n")
         return html_str
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
+    print("User has not been verified, showing intro page.", file=sys.stderr)
     return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
 
 # Page that unzips the tiles and shows a preview of the STL files using a template
