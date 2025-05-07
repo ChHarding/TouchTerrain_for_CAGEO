@@ -96,7 +96,7 @@ def verify_recaptcha(token):
     }
     r = requests.post('https://www.google.com/recaptcha/api/siteverify', data=payload)
     result = r.json()
-    print(result)
+    print("recaptcha results:", result)
     app.config["score"] = result.get('score', 0)
 
     # JSON structure ex: {'success': True, 'challenge_ts': '2025-04-24T19:36:47Z', 'hostname': '127.0.0.1', 'score': 0.9, 'action': 'submit'}
@@ -104,8 +104,7 @@ def verify_recaptcha(token):
         f.write(f"{result.get('challenge_ts', '')}, {result.get('success', False)}, "
                 f"{result.get('score', 0)}, {app.config['score_threshold']}, {result.get('hostname', '')}\n")
 
-    # You can adjust the score threshold as needed (e.g., 0.5)
-    return result.get('success', False) and result.get('score', 0) >= app.config["score_threshold"]
+    return result.get('success', False) and result.get('score', 0) > app.config["score_threshold"]
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 # Note this is inconsistent when used with the preview page as its download  events is fired off when its download
@@ -543,18 +542,13 @@ def export():
             html +=  '</body></html>'
             yield html
 
-
-
+        
+        
         # Set number of cores to use 
         # server/config.py defined NUM_CORES 0 means all, 1 means single, etc. which can be overwritten
-        # via manual option CPU_cores_to_use. However, Forced_single_core_only will 
-        # set the cores to 1 and not allow manual override. MP on ISU servers was disabled 
-        # Nov. 2021 as we could not figure out why it was giving us problems (jobs bailed out early)
-        # Forced_single_core_only was added 3/13/23 as response to user request to put MP back
+        # via manual option CPU_cores_to_use. 
         args["CPU_cores_to_use"] = NUM_CORES
-        if args["CPU_cores_to_use"] == "Forced_single_core_only":
-            args["CPU_cores_to_use"] = 1
-        elif extra_args.get("CPU_cores_to_use") != None: # Override if given as manual option
+        if extra_args.get("CPU_cores_to_use") != None: # Override if given as manual option
             args["CPU_cores_to_use"] = extra_args.get("CPU_cores_to_use")
 
 

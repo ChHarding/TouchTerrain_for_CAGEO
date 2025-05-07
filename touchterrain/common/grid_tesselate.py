@@ -1322,7 +1322,7 @@ class grid:
                 stlb_header.write(struct.pack(BINARY_HEADER, b'Binary STL Writer', self.num_triangles))
                 stlb_header.write(self.s.getbuffer()) # append body to header
                 del self.s # no longer needed
-                buf = stlb_header.getbuffer()  
+                buf = stlb_header.getvalue()  # CH 5/2025 changed from getbuffer to not return a memory object that c an't be pickled  
 
             # fill s[0] and append s[1]
             elif self.tile_info["fileformat"] == "obj":

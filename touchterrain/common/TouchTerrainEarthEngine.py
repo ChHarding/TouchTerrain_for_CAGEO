@@ -221,7 +221,7 @@ def process_tile(tile_tuple):
     tile_bottom_raster = tile_tuple[2] # the actual (bottom) raster (or None)
     tile_elev_orig_raster = tile_tuple[3] # the original (top) raster (or None)
 
-    print("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
+    logger.debug("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
 
     # create a bottom relief raster (values 0.0 - 1.0)
@@ -1743,6 +1743,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # processed list will contain tuple(s): [0] is always the tile info dict, if its
         # "temp_file" is None, we got a buffer, but if "temp_file" is a string, we got a file of that name
         # [1] can either be the buffer or again the name of the temp file we just wrote (which is redundant, i know ...)
+        # None means no MP
         if num_tiles[0] * num_tiles[1] == 1 or CPU_cores_to_use == 1 or CPU_cores_to_use == None:
             pr("using single-core only (multi-core is currently broken :(")
             processed_list = []
@@ -1763,7 +1764,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # use multi-core processing
         else:
-
+    
             #if CPU_cores_to_use is 0(!) us all cores, otherwise use that number
             if CPU_cores_to_use == 0:
                 num_cores = None
@@ -1786,9 +1787,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # Convert each tile in tile_list and return as list of lists: [0]: updated tile info, [1]: grid object
             try:
-                print("Before map()\n", file=sys.stderr)  # DEBUG
+                print("MP before map()\n", file=sys.stderr)  # DEBUG
                 processed_list = pool.map(process_tile, tile_list)
-                print("After map()\n", file=sys.stderr)   # DEBUG
+                print("MP after map()\n", file=sys.stderr)   # DEBUG
             except Exception as e:
                 pr(e)
             else:
@@ -1797,6 +1798,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             pr("... multi-core processing done, logging resumed")
 
+           
+        
+        
         # the tile width/height was written into tileinfo during processing
         pr(f"\n{num_tiles[0]} x {num_tiles[1]} tiles, tile size {tile_info['tile_width']:.2f} x {tile_info['tile_height']:.2f} mm\n")
 
