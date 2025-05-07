@@ -8,7 +8,8 @@ GOOGLE_MAPS_KEY_FILE = os.getenv('TOUCHTERRAIN_GOOGLE_MAPS_KEY_FILE', os.path.jo
 
 
 #
-# 5/2025: changed recaptcha file location to /tmp to make them not web accessible. Miles made /tmp read-only so it doesn't get wiped on rebuilds
+# 5/2025: changed recaptcha file location to /tmp to make them not web accessible. 
+# Miles made /tmp read-only so it doesn't get wiped on rebuilds
 #
 
 # file for Recptcha v3 keys
@@ -29,8 +30,9 @@ DEBUG_MODE = ('SERVER_SOFTWARE' in os.environ and
 #SERVER_TYPE = "flask_local" # so I can run the server inside a debugger, needs to run with single core!
 SERVER_TYPE = "gnunicorn"
 
-# multiprocessing:
-NUM_CORES = 0 # 0 means: use all cores, 1 means: use one core, etc. None mean 1 core
+# multiprocessing: This will not work under gnunicorn but does work on my local Win10 dev server
+# It should also work whe using standalone mode.
+NUM_CORES = 1 # 0 means: use all cores, 1 means: use one core, etc. None mean 1 core
 if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at all
 
 
@@ -42,13 +44,10 @@ MAX_CELLS_PERMITED =   1000 * 1000 * 0.7
 
 # if DEM has > this number of cells, use tempfile instead of memory
 MAX_CELLS = MAX_CELLS_PERMITED / 4
-#MAX_CELLS = MAX_CELLS_PERMITED # CH: testing if tempfile doesn't work anymore?
 
-
+# folders
 TMP_FOLDER = os.getenv('TOUCHTERRAIN_TMP_FOLDER', os.path.join(config.SERVER_DIR, "tmp"))
-
 DOWNLOADS_FOLDER = os.getenv('TOUCHTERRAIN_DOWNLOADS_FOLDER', os.path.join(config.SERVER_DIR, "downloads"))
-
 PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.SERVER_DIR, "previews"))
 
 # This will be inlined in index.html to enable Google Analytics, However, this is
