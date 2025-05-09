@@ -626,7 +626,7 @@ def export():
             
             html += "   <br><br>If you take picture of your touchterrain 3D prints (or CNC carves) and put them on Instagram why not tag them with #touchterrain?"
 
-            html += "   <br><br>To return to the selection map, click on the back button in your browser once<br>"
+            
             #html += "<br>Click on the URL below to return to the selection map:<br>"
 
             # print out the query parameter URL 
@@ -635,6 +635,8 @@ def export():
             
             html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
             html += URL_query_str # using non-link for know as bots may follow it 
+
+            html += "<br><br><br>If you make to process a new model, close this tab and open the tab with the area selection map.<br>"
  
             # set timout flag to true, so the timeout script doesn't fire
             html += '''\n
