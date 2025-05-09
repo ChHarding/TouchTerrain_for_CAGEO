@@ -636,7 +636,7 @@ def export():
             html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
             html += URL_query_str # using non-link for know as bots may follow it 
 
-            html += "<br><br><br>If you want to process a new model, close this tab and open the tab with the area selection map.<br>"
+            html += "<br><br><br><h3>If you want to process a new model, close this tab and open the tab with the area selection map.<br></h3>"
  
             # set timout flag to true, so the timeout script doesn't fire
             html += '''\n
