@@ -1,6 +1,6 @@
 # TouchTerrain (version 3.6)
 
-TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as a standalone version and as a server version for a web application. To see the server version in action, go to [http://touchterrain.org](http://touchterrain.org)  or
+TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as a standalone version and as a server version for a web application. To see the server version in action, go to [http://touchterrain.org](http://touchterrain.org) or
 [http://touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu)
 
 TouchTerrain is developed by Chris Harding (Iowa State University) and Franek Hasiuk (Sandia Labs). For questions email `tt@iastate.edu`.
