@@ -140,7 +140,7 @@ initial_args = {
     "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
     #"CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
     "CPU_cores_to_use" : None,  # Special case for setting to SP that cannot be overwritten later
-    "max_cells_for_memory_only" : 5000 * 5000, # if raster has more cells, use temp_files instead of memory (slower, but can be huge)
+    "max_cells_for_memory_only" : 3000 * 3000, # if raster has more cells, use temp_files instead of memory (slower, but can be huge)
 
     # these are the args that could be given "manually" via the web UI
     "no_bottom": False, # omit bottom triangles?
