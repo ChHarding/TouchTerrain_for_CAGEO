@@ -64,7 +64,7 @@ except:
      logging.warning("Problem with Google Maps key file - you will only get the ugly Google Map!")
 
 # CH Jun 27, 2025 disabled Google Maps
-#google_maps_key = ""      
+google_maps_key = ""      
 
 # RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
 # recaptcha secret key and flask secret key as single strings in separate lines 
