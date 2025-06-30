@@ -215,7 +215,7 @@ def main():
         print("unzipped file inside", full_zip_file_name, "into", folder)
     
         # Optional: show the STL files in a browser
-        if 0: # set this to if you don't want to show STL files in browser
+        if 1: # set this to 0 if you don't want to show STL files in browser
             import k3d
             # get all stl files in that folder
             from glob import glob
