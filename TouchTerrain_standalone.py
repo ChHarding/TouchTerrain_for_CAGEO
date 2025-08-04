@@ -38,7 +38,6 @@ except:
     print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
     sys.exit()
 
-
 #
 # How to run the standalone version:
 #
@@ -70,6 +69,10 @@ def main():
         "poly_file": None, # path to a local kml file
         "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
         "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+        "bottom_elevation":None,
+        "dirty_triangles":False, # allow degenerate triangles for water
+        "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (default to min_elev)
+        "bottom_thru_base":False, # if difference mesh should go to all the way to the base
         "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
         "ntilesx": 1,      # number of tiles in x and y
         "ntilesy": 1,
@@ -146,6 +149,10 @@ def main():
             "poly_file": None, # path to a local kml file
             "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+            "bottom_elevation":None,
+            "dirty_triangles":False, # allow degenerate triangles for water
+            "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (use min_elev for thru meshes)
+            "bottom_thru_base":False, # if difference mesh should go to all the way to the base
             "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
             "ntilesx": 1,     # number of tiles in x and y
             "ntilesy": 1,
@@ -202,7 +209,7 @@ def main():
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
-    if 0: # set this to 0 if you don't want the zip file to be unzipped
+    if 1: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
         folder = os.getcwd() + os.sep + args["zip_file_name"]# new stl folder in current folder
@@ -214,24 +221,24 @@ def main():
         zip_ref.close()
         print("unzipped file inside", full_zip_file_name, "into", folder)
     
-    # Optional: show the STL files in a browser
-    import k3d
-    # get all stl files in that folder
-    from glob import glob
-    mesh_files = glob(folder + os.sep + "*.stl")
-    print "in folder", folder, "using", mesh_files
+    # # Optional: show the STL files in a browser
+    # import k3d
+    # # get all stl files in that folder
+    # from glob import glob
+    # mesh_files = glob(folder + os.sep + "*.stl")
+    # print("in folder", folder, "using", mesh_files)
     
-    plot = k3d.plot()
+    # plot = k3d.plot()
     
-    for m in mesh_files:
-        print m
-        buf = open(m, 'rb').read()
-        #buf = str(stl_model)
-        #buf = buf.encode('utf_32')
-        print buf[:100]
-        plot += k3d.stl(buf)
+    # for m in mesh_files:
+    #     print(m)
+    #     buf = open(m, 'rb').read()
+    #     #buf = str(stl_model)
+    #     #buf = buf.encode('utf_32')
+    #     print(buf[:100])
+    #     plot += k3d.stl(buf)
     
-    plot.display()
+    # plot.display()
 
     
 

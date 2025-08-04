@@ -45,7 +45,7 @@ logger.setLevel(logging.INFO)
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
 import touchterrain.common.utils as utils
 
-
+from typing import Union, Any
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -388,18 +388,41 @@ def profile_me(func):
         metrics.strip_dirs().sort_stats('time').print_stats(100)
     return wraps
 '''
-
-
-
-
-
+class RasterVariants:
+    """Holds a raster with processed copies of it
+    """
+    
+    original: Union[None, np.ndarray] # Original full raster
+    nan_close: Union[None, np.ndarray] # Raster after NaN close values to bottom and before dilation
+    dilated: Union[None, np.ndarray] # Raster after dilation
+    
+    def __init__(self, original: Union[None, np.ndarray], nan_close: Union[None, np.ndarray], dilated: Union[None, np.ndarray]):
+        self.original = original
+        self.nan_close = nan_close
+        self.dilated = dilated
+    
+from typing import Union, Any
+class ProcessingTile:
+    tile_info: dict[str, Any]
+    top_raster_variants: RasterVariants
+    bottom_raster_variants: Union[None, RasterVariants]
+    
+    def __init__(self, tile_info: dict[str, Any], top: Union[None, RasterVariants], bottom: Union[None, RasterVariants]):
+        self.tile_info = tile_info
+        self.top_raster_variants = top
+        self.bottom_raster_variants = bottom
+        
 class grid:
     """makes cell data structure from two np arrays (top, bottom) of the same shape."""
     #@profile # https://pypi.org/project/memory-profiler/
 
     # I'm unclear why these class attributes need to be created here (added by keerl)
+    top_orig_full = None
+    top_pre_dil = None
     top = None
+    bottom_orig_full = None
     bottom = None
+    
     tile_info = None
     xmaxidx = None
     ymaxidx = None
@@ -410,19 +433,32 @@ class grid:
     fo = None  
     
 
-    def __init__(self, top, bottom, top_orig, tile_info):
+    def __init__(self, tile: ProcessingTile):
         '''top: top elevation raster, must hang over by 1 row/column on each side (be already padded)
         bottom: None => bottom elevation is 0, otherwise either a 8 bit raster that will be resized to top's size or a bottom elevation raster
-        top_orig: top elevation raster before top dilation
+        top_pre_dil: top elevation raster before top dilation
         tile_info: dict with info about the current tile + some tile global settings
         '''
+        self.tile_info = tile.tile_info
         
+        if tile.top_raster_variants is None or tile.top_raster_variants.dilated is None:
+            return False
 
-        self.top = top
-        self.bottom = bottom
-        self.top_orig = top_orig
-        self.throughwater = tile_info["throughwater"]    # Anson's all-the-way-through water case
-        self.tile_info = tile_info
+        self.top = tile.top_raster_variants.dilated
+        
+        if tile.top_raster_variants.nan_close is not None:
+            self.top_pre_dil = tile.top_raster_variants.nan_close
+        if tile.top_raster_variants.original is not None:
+            self.top_orig_full = tile.top_raster_variants.original
+        
+        if tile.bottom_raster_variants is not None:
+            if tile.bottom_raster_variants.dilated is not None:
+                self.bottom = tile.bottom_raster_variants.dilated
+            if tile.bottom_raster_variants.original is not None:
+                self.bottom_orig_full = tile.bottom_raster_variants.original
+        
+        self.throughwater = tile.tile_info["throughwater"]    # Anson's all-the-way-through water case
+        self.tile_info = tile.tile_info
 
 
         if self.tile_info["fileformat"] == 'obj':
@@ -451,7 +487,7 @@ class grid:
         self.tile_info["have_nan"] = np.any(np.isnan(self.top)) # True => we have NaN values    
     
         # same for bottom, if we have one
-        if self.tile_info["bottom_elevation"] is not None:
+        if self.tile_info["bottom_elevation"] is not None and self.bottom is not None:
             self.tile_info["have_bot_nan"] = np.any(np.isnan(self.bottom))# True => we have NaN values, 
 
         # Jan 2019: no idea why, but sometimes changing top also changes the elevation
@@ -460,12 +496,16 @@ class grid:
         self.top = self.top.copy().astype(np.float64) # writeable
 
         if self.bottom is not None:
-            self.bottom = bottom.copy().astype(np.float64) # writeable
+            self.bottom = self.bottom.copy().astype(np.float64) # writeable
+            
+        if self.bottom_orig_full is not None:
+            self.bottom_orig_full = self.bottom_orig_full.copy().astype(np.float64) # writeable
 
-        if self.top_orig is not None:
-            self.top_orig = top_orig.copy().astype(np.float64)
+        if self.top_pre_dil is not None:
+            self.top_pre_dil = self.top_pre_dil.copy().astype(np.float64)
 
-
+        if self.top_orig_full is not None:
+            self.top_orig_full = self.top_orig_full.copy().astype(np.float64) # writeable
         #
         # Some sanity checks
         #
@@ -475,12 +515,12 @@ class grid:
             self.bottom = 0
             self.tile_info["have_bottom_array"] = False
         # can't have a bottom_image and NaNs in top
-        elif tile_info["bottom_image"] is not None and isinstance(self.bottom, np.ndarray) == True and self.tile_info["have_nan"] == True:  
+        elif self.tile_info["bottom_image"] is not None and isinstance(self.bottom, np.ndarray) == True and self.tile_info["have_nan"] == True:  
             self.tile_info["have_bottom_array"] = False
             self.bottom = 0
             print("Top has NaN values, requested bottom image will be ignored!")
         # bottom is a elevation raster. It's ok to have NaNs in the bottom raster and/or top raster
-        elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
+        elif self.tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
             self.tile_info["have_bottom_array"] = True
 
         # need to use the tilewide min/max for each tile, otherwise the boudaries don't line up perfectly! 
@@ -523,7 +563,7 @@ class grid:
                 #clean_up_diags_check(self.top)
 
                 # save original top after setting NaNs so we can skip the undilated NaN cells later
-                self.top_orig = self.top.copy()  
+                self.top_pre_dil = self.top.copy()  
                 self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
 
                 self.bottom[close_values] = np.nan # set close values to NaN 
@@ -551,7 +591,7 @@ class grid:
         # when we need to skip NaN cells
         elif self.tile_info["have_nan"] == True:
 
-            self.top_orig = self.top.copy()   # save original top before it gets dilated
+            self.top_pre_dil = self.top.copy()   # save original top before it gets dilated
             self.top = dilate_array(self.top) # dilate with 3x3 nanmean 
     
         # CH2
@@ -565,26 +605,46 @@ class grid:
 
             if self.tile_info["have_bottom_array"] == False:
                 self.top -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+                self.top_orig_full -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
                 
             else:
                 if self.throughwater == False:  # normal water case,  
                     self.top -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    self.top_orig_full -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    self.top_pre_dil -= self.tile_info["min_bot_elev"] # subtract global bottom min 
                     self.bottom -= self.tile_info["min_bot_elev"]
                     self.bottom += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
                     self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
                     self.bottom += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+                    
+                    self.bottom_orig_full -= self.tile_info["min_bot_elev"]
+                    self.bottom_orig_full += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                    self.bottom_orig_full *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
+                    self.bottom_orig_full += self.tile_info["base_thickness_mm"] # add base thickness to bottom
 
                     # Update with per-tile mm min/max 
                     self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
                     self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
                     print("bottom min/max (mm) for tile:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
                 else: # throughwater case
-                    self.top -= self.tile_info["min_elev"] 
+                    self.top -= self.tile_info["min_elev"]
+                    self.top_orig_full -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    self.top_pre_dil -= self.tile_info["min_bot_elev"] # subtract global bottom min 
                     # bottom was set to 0 earlier
 
             self.top += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
             self.top *= scz * self.tile_info["z_scale"] # apply z-scale to top
             self.top += self.tile_info["base_thickness_mm"] # add base thickness to top
+            
+            if self.top_orig_full is not None:
+                self.top_orig_full += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                self.top_orig_full *= scz * self.tile_info["z_scale"] # apply z-scale to top
+                self.top_orig_full += self.tile_info["base_thickness_mm"] # add base thickness to top
+                
+            if self.top_pre_dil is not None:
+                self.top_pre_dil += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                self.top_pre_dil *= scz * self.tile_info["z_scale"] # apply z-scale to top
+                self.top_pre_dil += self.tile_info["base_thickness_mm"] # add base thickness to top
 
             # post-scale (i.e. in mm) top elevations (for this tile)
             self.tile_info["min_elev"] = np.nanmin(self.top)
@@ -685,8 +745,8 @@ class grid:
         if self.tile_info["clean_diags"] == True:
             self.top = utils.fillHoles(self.top, 1, 8, True) # fill single holes
             self.top = utils.clean_up_diags(self.top)
-            if self.top_orig is not None:
-                self.top_orig = utils.clean_up_diags(self.top_orig)
+            if self.top_pre_dil is not None:
+                self.top_pre_dil = utils.clean_up_diags(self.top_pre_dil)
 
         # report progress in %
         percent = 10
@@ -708,7 +768,7 @@ class grid:
                 # that are collapsed into a line or a point. This should not be a problem for a modern slicer but will
                 # lead to issues when using the model in a 3D mesh modeling program
                 if self.tile_info["have_nan"] == True and self.tile_info["dirty_triangles"] == False: 
-                    top = self.top_orig
+                    top = self.top_pre_dil
                 else:
                     top = self.top
 
@@ -797,16 +857,21 @@ class grid:
                     # Do this only for top as we assume that any bottom raster NaNs are the same as on top
 
                     # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
-                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
+                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top_orig_full, i, j)
+                    #NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
                     if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
                         continue 
                     
                     # for the through water case or Top NaN, base the walls on the original (non-dilated) top
                     if self.tile_info["have_nan"] == True: 
-                        top = self.top_orig
+                        top = self.top_pre_dil
                     else:
                         top = self.top
 
+                    if self.tile_info["have_bottom_array"] == True:
+                        #force dilated top because using predilated version has NaNs at edge which makes extra walls
+                        top = self.top
+                    
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
                         try:
@@ -852,7 +917,7 @@ class grid:
                             SWelev = (self.bottom[j+0,i+0] + self.bottom[j+1,i+0] + self.bottom[j+1,i-1] + self.bottom[j+0,i-1]) / 4.0
                         else:
                             # Nan aware interpolation 
-                            NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom, i, j)
+                            NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom_orig_full, i, j)
                             if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
                                 continue # skip this cell
                 else:

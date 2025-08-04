@@ -30,6 +30,7 @@ from zipfile import ZipFile
 import http.client
 import numpy
 from touchterrain.common.config import EE_ACCOUNT,EE_CREDS,EE_PROJECT
+from typing import Union, Any
 
 DEV_MODE = False
 #DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
@@ -39,7 +40,7 @@ if DEV_MODE:
     sys.path = ["."] + sys.path # force imports form local touchterain folder
 
 import touchterrain.common
-from touchterrain.common.grid_tesselate import grid      # my own grid class, creates a mesh from DEM raster
+from touchterrain.common.grid_tesselate import grid, RasterVariants, ProcessingTile      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 from touchterrain.common.utils import save_tile_as_image, clean_up_diags, fillHoles, add_to_stl_list, k3d_render_to_html, dilate_array, plot_DEM_histogram
 if DEV_MODE:
@@ -160,6 +161,7 @@ initial_args = {
     "clean_diags":False, # clean of corner diagonal 1 x 1 islands?
     "bottom_elevation":None,
     "dirty_triangles:":False, # allow degenerate triangles for water
+    "bottom_floor_elev:":None, # elevation of the bottom mesh where is it not too close to top (use min_elev for thru meshes)
 }
 
 
@@ -215,11 +217,29 @@ def make_bottom_raster_from_image(image_file_name, shape):
 # but if it's None, a buffer is made instead.
 # the tile info dict (with the file/buffer size) and the buffer (or the file's name) are returns as a tuple
 #@profile
-def process_tile(tile_tuple):
-    tile_info = tile_tuple[0] # has info for this individual tile
-    tile_elev_raster = tile_tuple[1] # the actual (top) raster
-    tile_bottom_raster = tile_tuple[2] # the actual (bottom) raster (or None)
-    tile_elev_orig_raster = tile_tuple[3] # the original (top) raster (or None)
+def process_tile(processingTile: ProcessingTile):
+    tile_info = processingTile.tile_info #tile_tuple[0] # has info for this individual tile
+    tile_elev_raster: numpy.ndarray
+    # tile_elev_nan_close_pre_dil_raster: numpy.ndarray
+    # tile_elev_orig_full_raster: numpy.ndarray
+    if isinstance(processingTile.top_raster_variants.dilated, numpy.ndarray) == False:
+        pr("top RasterVariants had no dilated raster")
+        return False
+    
+    if isinstance(processingTile.top_raster_variants.dilated, numpy.ndarray):
+        tile_elev_raster = processingTile.top_raster_variants.dilated #tile_tuple[1] # the actual (top) raster
+        # if isinstance(processingTile.top_raster_variants.nan_close, numpy.ndarray):
+        #     tile_elev_nan_close_pre_dil_raster = processingTile.top_raster_variants.nan_close #tile_tuple[3] # the pre dilation (top) raster (or None)
+        # if isinstance(processingTile.top_raster_variants.original, numpy.ndarray):
+        #     tile_elev_orig_full_raster = processingTile.top_raster_variants.original  # the original full (top) raster (or None)
+
+    tile_bottom_raster: Union[None, numpy.ndarray] = None
+    # tile_bottom_orig_full_raster: Union[None, numpy.ndarray] = None
+    if isinstance(processingTile.bottom_raster_variants, RasterVariants):
+        if isinstance(processingTile.bottom_raster_variants.dilated, numpy.ndarray):
+            tile_bottom_raster = processingTile.bottom_raster_variants.dilated #tile_tuple[2] # the actual (bottom) raster (or None)
+        # if isinstance(processingTile.bottom_raster_variants.original, numpy.ndarray):
+        #     tile_bottom_orig_full_raster = processingTile.bottom_raster_variants.original
 
     logger.debug("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
     #print numpy.round(tile_elev_raster,1)
@@ -231,7 +251,7 @@ def process_tile(tile_tuple):
         #print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)
         bottom_raster *= (tile_info["base_thickness_mm"] * 0.8) # max relief is 80% of base thickness to still have a bit of "roof"
         print("bottom image (in meters!) min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)) # range of bottom raster
-    elif tile_bottom_raster is not None:
+    elif tile_bottom_raster is not None: # bottom elevation subtraction raster
         bottom_raster = tile_bottom_raster # bottom elevation(!) raster
     else:
         bottom_raster = None # None means bottom is flat
@@ -393,10 +413,10 @@ def process_tile(tile_tuple):
     '''
     
     # create a grid object from the raster(s), which later converted into a triangle mesh
-    g = grid(tile_elev_raster, bottom_raster, tile_elev_orig_raster, tile_info)
-    del tile_elev_raster
-    if bottom_raster is not None: del bottom_raster
-    if tile_elev_orig_raster is not None: del tile_elev_orig_raster
+    g = grid(tile=processingTile)
+    #del tile_elev_raster
+    #if bottom_raster is not None: del bottom_raster
+    #if tile_elev_nan_close_pre_dil_raster is not None: del tile_elev_nan_close_pre_dil_raster
 
     #
     # convert grid object into a triangle mesh file
@@ -609,6 +629,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          tilewidth_scale=None,
                          clean_diags=False,
                          dirty_triangles=False,
+                         bottom_floor_elev=None,
+                         bottom_thru_base=False,
                          kd3_render=False,
                          **otherargs):
     """
@@ -1521,59 +1543,68 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # variable names so I'll just do some aliasing here
         #
         np = numpy
-        top = npim
-        top_orig = None # maybe used later as backup if top gets NaN'd
+        top_orig_full = npim.copy()
+        top_pre_dil = None # maybe used later as backup if top gets NaN'd
         have_nan = np.any(np.isnan(npim)) # check if we have NaNs in the top raster
-        throughwater = False # special flag for NaNs in bottom raster
+        throughwater = bottom_thru_base # special flag for NaNs in bottom raster
+
+        bottom_orig_full: Union[None, numpy.ndarray] = None
 
         if bottom_elevation is not None:
-            bottom = bot_npim
 
             # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
-            top = np.where(top < bottom, bottom, top)
+            npim = np.where(npim < bot_npim, bot_npim, npim)
 
             # bool array with True where bottom has NaN values but top does not
             # this is specific to Anson's way of encoding through-water cells
-            nan_values = np.logical_and(np.isnan(bottom), np.logical_not(np.isnan(top)))
+            nan_values = np.logical_and(np.isnan(bot_npim), np.logical_not(np.isnan(npim)))
             if np.any(nan_values) == True: 
-                bottom[nan_values] = 0 # set bottom NaN values to 0 
-                throughwater = True # flag for easy checking
-
+                bot_npim[nan_values] = 0 # set bottom NaN values to 0 
+            #    throughwater = True # flag for easy checking
+                
             # if both have the same value (or very close to) set both to Nan
             # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
-            close_values = np.isclose(top, bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
+            close_values = np.isclose(npim, bot_npim, rtol=0, atol=0.001, equal_nan=False) # bool array
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
             if np.any(close_values) == True: 
                 # save pre-dilated top for later dilation
-                top_pre_dil = top.copy()  
-                top[close_values] = np.nan   # set close values to NaN   
+                top_orig_full = npim.copy()  
+                npim[close_values] = np.nan   # set close values to NaN   
 
                 # if diagonal cleanup is requested, we need to do it again after setting NaNs
                 #clean_up_diags_check(top)
 
                 # save original top after setting NaNs so we can skip the undilated NaN cells later
-                top_orig = top.copy()  
-                top = dilate_array(top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
+                top_pre_dil = npim.copy()  
+                npim = dilate_array(npim, top_orig_full) # dilate the NaN'd top with the original (pre NaN'd) top
+                npim = dilate_array(npim, top_orig_full) # dilate the NaN'd top with the original (pre NaN'd) top
 
-                bottom[close_values] = np.nan # set close values to NaN 
+                bottom_orig_full = bot_npim.copy()
+                bot_npim[close_values] = np.nan # set close values to NaN 
                 #clean_up_diags_check(bottom) # re-check for diags
                 
+                # Set bottom NaN values to a fixed height where top is not NaN
+                # bottom_mesh_locations = np.logical_and(np.isnan(bottom), np.logical_not(np.isnan(top)))
+                # if np.any(bottom_mesh_locations) == True: 
+                #     bottom[bottom_mesh_locations] = bottom_floor_elev if bottom_floor_elev != None else min_elev # set bottom NaN values to user defined value
+                
                 if throughwater == True:
-                    bottom = dilate_array(bottom) # dilate with 3x3 nanmean #  
+                    #0==0
+                    bot_npim = dilate_array(bot_npim) # dilate with 3x3 nanmean #  
+                    # Set bottom locations where difference mesh should be generated to 0. Avoid setting bottom values at top dilation ring locations because that is where the top mesh will generate a cell.
+                    #bottom = top_pre_dil.copy() #use top after setting close values to NaN 
+                    #bottom[~np.isnan(bottom)] = min_elev # set non NaN locations to min_elev or 0
                 else:
-                    bottom = dilate_array(bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-
-                # pre-dilated top is not needed anymore
-                del top_pre_dil
+                    bot_npim = dilate_array(bot_npim, top_orig_full) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
+                    bot_npim = dilate_array(bot_npim, top_orig_full) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
 
         # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. 
-        # We'll still use the non-dilated top_orig when we need to skip NaN cells
+        # We'll still use the non-dilated top_pre_dil when we need to skip NaN cells
         elif np.any(np.isnan(npim)):
-            top_orig = top.copy()   # save original top before it gets dilated
-            top = dilate_array(top) # dilate with 3x3 nanmean 
-
+            top_pre_dil = npim.copy()   # save original top before it gets dilated
+            npim = dilate_array(npim) # dilate with 3x3 nanmean 
 
         # repair these patterns, which cause non_manifold problems later:
         # 0 1    or     1 0
@@ -1665,8 +1696,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         npim = numpy.pad(npim, (1,1), 'edge') # will duplicate edges, including nan
         if bottom_elevation != None:
             bot_npim = numpy.pad(bot_npim, (1,1), 'edge')
-        if top_orig is not None:
-            top_orig =  numpy.pad(top_orig, (1,1), 'edge')
+            if bottom_orig_full is not None:
+                bottom_orig_full = numpy.pad(bottom_orig_full, (1,1), 'edge')
+        if top_orig_full is not None:
+            top_orig_full =  numpy.pad(top_orig_full, (1,1), 'edge')
+        if top_pre_dil is not None:
+            top_pre_dil =  numpy.pad(top_pre_dil, (1,1), 'edge')
 
         # store size of full raster
         tile_info["full_raster_height"], tile_info["full_raster_width"]  = npim.shape
@@ -1678,7 +1713,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             CPU_cores_to_use = 1 # set to SP
 
         # within the padded full raster, grab tiles - but each with a 1 cell fringe!
-        tile_list = [] # list of tiles to be processed via multiprocessing.map()
+        tile_list: list[ProcessingTile] = [] # list of tiles to be processed via multiprocessing.map()
         for tx in range(num_tiles[0]):
             for ty in range(num_tiles[1]):
                 #print tx,ty
@@ -1696,17 +1731,34 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 tile_elev_raster.flags.writeable = False
 
+                # top rasters
+                tile_elev_orig_full_raster = None
+                tile_elev_pre_dil_raster = None
+                
+                # bottom rasters
+                tile_bot_elev_orig_full_raster = None
+                tile_bot_elev_raster = None
 
-                if bottom_elevation != None :
+                if top_orig_full is not None:
+                    tile_elev_orig_full_raster =  top_orig_full[start_y:end_y, start_x:end_x]
+                    tile_elev_orig_full_raster.flags.writeable = False 
+
+                if top_pre_dil is not None:
+                    tile_elev_pre_dil_raster = top_pre_dil[start_y:end_y, start_x:end_x]
+                    tile_elev_pre_dil_raster.flags.writeable = False 
+                    
+                if bottom_elevation is not None :
                     tile_bot_elev_raster = bot_npim[start_y:end_y, start_x:end_x] #  [y,x]
                     tile_bot_elev_raster.flags.writeable = False
-                else:
-                    tile_bot_elev_raster = None
-
-                tile_elev_orig_raster = None
-                if top_orig is not None:
-                    tile_elev_orig_raster =  top_orig[start_y:end_y, start_x:end_x]
-                    tile_elev_orig_raster.flags.writeable = False 
+                
+                    
+                        
+                    if bottom_orig_full is not None:
+                        tile_bot_elev_orig_full_raster =  bottom_orig_full[start_y:end_y, start_x:end_x]
+                        tile_bot_elev_orig_full_raster.flags.writeable = False 
+                    
+                tile_top_raster_variants = RasterVariants(tile_elev_orig_full_raster, tile_elev_pre_dil_raster, tile_elev_raster)
+                tile_bottom_raster_variants = RasterVariants(tile_bot_elev_orig_full_raster, None, tile_bot_elev_raster)
 
                 # add to tile_list
                 tile_info["tile_no_x"] = tx + 1
@@ -1723,7 +1775,8 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                     my_tile_info["temp_file"]  = mytempfname
 
                 # assemble tile to be processed
-                tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster, tile_elev_orig_raster)   # leave it to process_tile() to unwrap the info and data parts
+                #tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster, tile_elev_pre_dil_raster, tile_elev_orig_full_raster)   # leave it to process_tile() to unwrap the info and data parts
+                tile = ProcessingTile(tile_info=my_tile_info, top=tile_top_raster_variants, bottom=tile_bottom_raster_variants)
 
                 # if we only process one tile ...
                 if process_only == None: # "only" parameter was not given
