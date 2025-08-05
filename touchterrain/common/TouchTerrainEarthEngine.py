@@ -1557,14 +1557,23 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
             # bool array with True where bottom has NaN values but top does not
             # this is specific to Anson's way of encoding through-water cells
-            nan_values = np.logical_and(np.isnan(bot_npim), np.logical_not(np.isnan(npim)))
-            if np.any(nan_values) == True: 
-                bot_npim[nan_values] = 0 # set bottom NaN values to 0 
+            # nan_values = np.logical_and(np.isnan(bot_npim), np.logical_not(np.isnan(npim)))
+            # if np.any(nan_values) == True: 
+            #     bot_npim[nan_values] = 0 # set bottom NaN values to 0 
             #    throughwater = True # flag for easy checking
                 
             # if both have the same value (or very close to) set both to Nan
             # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
             close_values = np.isclose(npim, bot_npim, rtol=0, atol=0.001, equal_nan=False) # bool array
+            
+            #for difference mesh case and thru water case
+            # bottom mesh must have holes filled to match what happened when the bottom raster was previously used for the interlocking top piece
+            # NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
+            # In difference mesh and thru water, we could actually replace the close value NaN above with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
+            # OR we just don't fill holes for thru water cases
+            if throughwater:
+                0==0
+                # only 
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
@@ -1586,9 +1595,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 #clean_up_diags_check(bottom) # re-check for diags
                 
                 # Set bottom NaN values to a fixed height where top is not NaN
-                # bottom_mesh_locations = np.logical_and(np.isnan(bottom), np.logical_not(np.isnan(top)))
-                # if np.any(bottom_mesh_locations) == True: 
-                #     bottom[bottom_mesh_locations] = bottom_floor_elev if bottom_floor_elev != None else min_elev # set bottom NaN values to user defined value
+                # This just fixes any incontinuities in the bottom mesh such as holes that were filled in the top
+                bottom_mesh_locations = np.logical_and(np.isnan(bot_npim), np.logical_not(np.isnan(top_orig_full)))
+                if np.any(bottom_mesh_locations) == True: 
+                    bot_npim[bottom_mesh_locations] = bottom_floor_elev if bottom_floor_elev != None else min_elev # set bottom NaN values to user defined value
                 
                 if throughwater == True:
                     #0==0

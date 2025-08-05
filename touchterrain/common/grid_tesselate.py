@@ -871,6 +871,12 @@ class grid:
                     if self.tile_info["have_bottom_array"] == True:
                         #force dilated top because using predilated version has NaNs at edge which makes extra walls
                         top = self.top
+                        
+                        #for difference mesh in throughwater case, check for walls with the nan_close version before dilation
+                        if self.throughwater == True:
+                            top = self.top_pre_dil
+                        
+                    
                     
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
