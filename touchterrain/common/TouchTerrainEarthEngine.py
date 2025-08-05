@@ -1536,7 +1536,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # [0] is number of iterations, [1] is number of neighbors
         if fill_holes is not None and (fill_holes[0] > 0 or fill_holes[0] == -1):
             npim = fillHoles(npim, num_iters=fill_holes[0], num_neighbors=fill_holes[1])
-
+            
+            #for difference mesh case and thru water case
+            # bottom mesh must have holes filled to match what happened when the bottom raster was previously used for the interlocking top piece
+            # AND/OR NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
+            # In difference mesh and thru water, we could actually replace the close value NaN operation with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
+            # OR we just don't fill holes for thru water cases
+            if bottom_elevation is not None and bottom_thru_base is True:
+                bot_npim = fillHoles(bot_npim, num_iters=fill_holes[0], num_neighbors=fill_holes[1])
         #
         # if we have a bottom elevation raster, do some checks and preparations 
         # This part was originally in grid_tesselate.py and I'm too lasy to refactor its
@@ -1565,15 +1572,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # if both have the same value (or very close to) set both to Nan
             # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
             close_values = np.isclose(npim, bot_npim, rtol=0, atol=0.001, equal_nan=False) # bool array
-            
-            #for difference mesh case and thru water case
-            # bottom mesh must have holes filled to match what happened when the bottom raster was previously used for the interlocking top piece
-            # NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
-            # In difference mesh and thru water, we could actually replace the close value NaN above with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
-            # OR we just don't fill holes for thru water cases
-            if throughwater:
-                0==0
-                # only 
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
