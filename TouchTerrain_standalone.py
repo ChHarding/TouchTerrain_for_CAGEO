@@ -69,6 +69,7 @@ def main():
         "poly_file": None, # path to a local kml file
         "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
         "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+        "importedDEM_interp": None, #the raster file for interpolating at edges
         "bottom_elevation":None,
         "dirty_triangles":False, # allow degenerate triangles for water
         "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (default to min_elev)
@@ -149,6 +150,7 @@ def main():
             "poly_file": None, # path to a local kml file
             "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
             "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
+            "importedDEM_interp": None, #the raster file for interpolating at edges
             "bottom_elevation":None,
             "dirty_triangles":False, # allow degenerate triangles for water
             "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (use min_elev for thru meshes)
@@ -198,6 +200,10 @@ def main():
     # for local DEM, get the full path to it
     if not args["importedDEM"] == None:
         args["importedDEM"] = abspath(args["importedDEM"])
+        
+    # for local DEM, get the full path to it
+    if not args["importedDEM_interp"] == None:
+        args["importedDEM_interp"] = abspath(args["importedDEM_interp"])
 
     # get full path to offset mask TIFF
     if not args["offset_masks_lower"] == None and len(args["offset_masks_lower"]) > 0:
