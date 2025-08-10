@@ -403,6 +403,22 @@ class RasterVariants:
         self.nan_close = nan_close
         self.dilated = dilated
         self.edge_interpolation = edge_interpolation
+            
+    def create_tile_raster_variants(self, start_y, end_y, start_x, end_x):
+        """Create a RasterVariants based on a subset of the current RasterVariants. Arrays are copied.
+        """
+        tile_raster = RasterVariants(None, None, None, None)
+        
+        if self.original is not None:
+            tile_raster.original = self.original[start_y:end_y, start_x:end_x].copy()
+        if self.nan_close is not None:
+            tile_raster.nan_close = self.nan_close[start_y:end_y, start_x:end_x].copy()
+        if self.dilated is not None:
+            tile_raster.dilated = self.dilated[start_y:end_y, start_x:end_x].copy()
+        if self.edge_interpolation is not None:
+            tile_raster.edge_interpolation = self.edge_interpolation[start_y:end_y, start_x:end_x].copy()
+            
+        return tile_raster
     
     def apply_closure_to_variants(self, f: Callable[[np.ndarray], np.ndarray]):
         """Run a function on all variants. The function takes a ndarray as input and return a ndarray. 
@@ -415,8 +431,43 @@ class RasterVariants:
             self.dilated = f(self.dilated)
         if self.edge_interpolation is not None:
             self.edge_interpolation = f(self.edge_interpolation)
+            
+    def __add__(self, other):
+        if self.original is not None:
+            self.original += other
+        if self.nan_close is not None:
+            self.nan_close += other
+        if self.dilated is not None:
+            self.dilated += other
+        if self.edge_interpolation is not None:
+            self.edge_interpolation += other
+            
+        return self
+            
+    def __sub__(self, other):
+        if self.original is not None:
+            self.original -= other
+        if self.nan_close is not None:
+            self.nan_close -= other
+        if self.dilated is not None:
+            self.dilated -= other
+        if self.edge_interpolation is not None:
+            self.edge_interpolation -= other
+            
+        return self
+            
+    def __mul__ (self, other):
+        if self.original is not None:
+            self.original *= other
+        if self.nan_close is not None:
+            self.nan_close *= other
+        if self.dilated is not None:
+            self.dilated *= other
+        if self.edge_interpolation is not None:
+            self.edge_interpolation *= other
+            
+        return self
         
-    
 from typing import Union, Any
 class ProcessingTile:
     tile_info: dict[str, Any]
@@ -616,48 +667,61 @@ class grid:
             scz = 1 / self.tile_info["scale"] * 1000.0 # scale z to mm
 
             if self.tile_info["have_bottom_array"] == False:
-                tile.top_raster_variants.dilated -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
-                tile.top_raster_variants.original -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
-                tile.top_raster_variants.nan_close -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+                # tile.top_raster_variants.dilated -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+                # tile.top_raster_variants.original -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+                # tile.top_raster_variants.nan_close -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+                tile.top_raster_variants -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
                 
             else:
                 if self.throughwater == False:  # normal water case,  
-                    tile.top_raster_variants.dilated -= self.tile_info["min_bot_elev"] # subtract global bottom min 
-                    tile.top_raster_variants.original -= self.tile_info["min_bot_elev"] # subtract global bottom min 
-                    tile.top_raster_variants.nan_close -= self.tile_info["min_bot_elev"] # subtract global bottom min 
-                    tile.bottom_raster_variants.dilated -= self.tile_info["min_bot_elev"]
-                    tile.bottom_raster_variants.dilated += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-                    tile.bottom_raster_variants.dilated *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
-                    tile.bottom_raster_variants.dilated += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+                    # tile.top_raster_variants.dilated -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    # tile.top_raster_variants.original -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    # tile.top_raster_variants.nan_close -= self.tile_info["min_bot_elev"] # subtract global bottom min 
+                    tile.top_raster_variants -= self.tile_info["min_bot_elev"]  # subtract global bottom min 
                     
-                    tile.bottom_raster_variants.original -= self.tile_info["min_bot_elev"]
-                    tile.bottom_raster_variants.original += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-                    tile.bottom_raster_variants.original *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
-                    tile.bottom_raster_variants.original += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+                    tile.bottom_raster_variants -= self.tile_info["min_bot_elev"]
+                    tile.bottom_raster_variants += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                    tile.bottom_raster_variants *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
+                    tile.bottom_raster_variants += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+                    
+                    # tile.bottom_raster_variants.dilated -= self.tile_info["min_bot_elev"]
+                    # tile.bottom_raster_variants.dilated += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                    # tile.bottom_raster_variants.dilated *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
+                    # tile.bottom_raster_variants.dilated += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+                    
+                    # tile.bottom_raster_variants.original -= self.tile_info["min_bot_elev"]
+                    # tile.bottom_raster_variants.original += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+                    # tile.bottom_raster_variants.original *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
+                    # tile.bottom_raster_variants.original += self.tile_info["base_thickness_mm"] # add base thickness to bottom
 
                     # Update with per-tile mm min/max 
                     self.tile_info["min_bot_elev"] = np.nanmin(tile.bottom_raster_variants.dilated) 
                     self.tile_info["max_bot_elev"] = np.nanmax(tile.bottom_raster_variants.dilated)
                     print("bottom min/max (mm) for tile:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
                 else: # throughwater case
-                    tile.top_raster_variants.dilated -= self.tile_info["min_elev"]
-                    tile.top_raster_variants.original -= self.tile_info["min_elev"] 
-                    tile.top_raster_variants.nan_close -= self.tile_info["min_elev"] 
+                    tile.top_raster_variants -= self.tile_info["min_elev"]
+                    # tile.top_raster_variants.dilated -= self.tile_info["min_elev"]
+                    # tile.top_raster_variants.original -= self.tile_info["min_elev"] 
+                    # tile.top_raster_variants.nan_close -= self.tile_info["min_elev"] 
                     # bottom was set to 0 earlier
 
-            tile.top_raster_variants.dilated += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-            tile.top_raster_variants.dilated *= scz * self.tile_info["z_scale"] # apply z-scale to top
-            tile.top_raster_variants.dilated += self.tile_info["base_thickness_mm"] # add base thickness to top
+            tile.top_raster_variants += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+            tile.top_raster_variants *= scz * self.tile_info["z_scale"] # apply z-scale to top
+            tile.top_raster_variants += self.tile_info["base_thickness_mm"] # add base thickness to top
+
+            # tile.top_raster_variants.dilated += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+            # tile.top_raster_variants.dilated *= scz * self.tile_info["z_scale"] # apply z-scale to top
+            # tile.top_raster_variants.dilated += self.tile_info["base_thickness_mm"] # add base thickness to top
             
-            if tile.top_raster_variants.original is not None:
-                tile.top_raster_variants.original += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-                tile.top_raster_variants.original *= scz * self.tile_info["z_scale"] # apply z-scale to top
-                tile.top_raster_variants.original += self.tile_info["base_thickness_mm"] # add base thickness to top
+            # if tile.top_raster_variants.original is not None:
+            #     tile.top_raster_variants.original += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+            #     tile.top_raster_variants.original *= scz * self.tile_info["z_scale"] # apply z-scale to top
+            #     tile.top_raster_variants.original += self.tile_info["base_thickness_mm"] # add base thickness to top
                 
-            if tile.top_raster_variants.nan_close is not None:
-                tile.top_raster_variants.nan_close += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-                tile.top_raster_variants.nan_close *= scz * self.tile_info["z_scale"] # apply z-scale to top
-                tile.top_raster_variants.nan_close += self.tile_info["base_thickness_mm"] # add base thickness to top
+            # if tile.top_raster_variants.nan_close is not None:
+            #     tile.top_raster_variants.nan_close += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
+            #     tile.top_raster_variants.nan_close *= scz * self.tile_info["z_scale"] # apply z-scale to top
+            #     tile.top_raster_variants.nan_close += self.tile_info["base_thickness_mm"] # add base thickness to top
 
             # post-scale (i.e. in mm) top elevations (for this tile)
             self.tile_info["min_elev"] = np.nanmin(tile.top_raster_variants.dilated)

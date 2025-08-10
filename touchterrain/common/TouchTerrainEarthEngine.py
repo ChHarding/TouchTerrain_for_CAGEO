@@ -593,6 +593,17 @@ def get_bounding_box(coords):
     bllon -= width/100
     return trlat, trlon, bllat, bllon
 
+def get_print3D_dimensions(dem: gdal.Dataset, tile_scale) -> tuple[float, float]:
+    """Calculate the printed 3D dimensions based on scale of 1:tile_scale
+    :return: Tuple of width and height in mm as a float
+    """
+    print("Using tileScale of " + str(tile_scale))
+    dem_pixel_width_x = dem.GetGeoTransform()[1] # Assume pixel units are meters
+    print3D_width_per_tile = dem_pixel_width_x * 1000 * dem.RasterXSize / tile_scale
+    dem_pixel_width_y = abs(dem.GetGeoTransform()[5])
+    print3D_height_per_tile = dem_pixel_width_y * 1000 * dem.RasterYSize / tile_scale
+    return (print3D_width_per_tile, print3D_height_per_tile)
+
 def raster_preparation(top: RasterVariants, bottom: RasterVariants, bottom_thru_base: bool, bottom_floor_elev, clean_diags: bool) -> bool:
     """Prepare rasters by NaN close values, dilate, and clean diags
     """
@@ -693,7 +704,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          importedDEM=None,
                          bottom_elevation=None,
                          top_thickness=None,
-                         printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100,
+                         printres=1.0, ntilesx=1, ntilesy=1, tilewidth=100, tileScale=None,
                          basethick=2, zscale=1.0, fileformat="STLb",
                          tile_centered=False, CPU_cores_to_use=0,
                          max_cells_for_memory_only=500*500*4,
@@ -1494,12 +1505,16 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         pr("tile_height:", tileheight)
         print3D_width_per_tile = tilewidth
         print3D_height_per_tile = tileheight
+        
+        if tileScale is not None:
+            print3D_width_per_tile, print3D_height_per_tile = get_print3D_dimensions(dem=dem, tile_scale=tileScale)
+        
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
         real_world_total_width_m = npim.shape[1] * cell_size_m
         pr("source raster width", real_world_total_width_m, "m,", "cell size:", cell_size_m, "m, elev. min/max is", numpy.nanmin(npim), numpy.nanmax(npim), "m")
 
         # What would be the 3D print resolution using the original/unresampled source resolution?
-        source_print3D_resolution =  (tilewidth*ntilesx) / float(npim.shape[1])
+        source_print3D_resolution =  (print3D_width_per_tile*ntilesx) / float(npim.shape[1])
         pr("source raster 3D print resolution would be", source_print3D_resolution, "mm")
 
         # Resample raster to get requested printres?
@@ -1530,9 +1545,14 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # based on the full raster's shape and given the model width, recalc the model height
             # and the adjusted printres that will give that width from the resampled raster
             #
+            
+            
             region_ratio =  npim.shape[0] / float(npim.shape[1])
             print3D_width_per_tile = tilewidth # EW
             print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+            if tileScale is not None:
+                print3D_width_per_tile, print3D_height_per_tile = get_print3D_dimensions(dem=dem, tile_scale=tileScale)
+            
             print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
             print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
             adjusted_print3D_resolution = print3D_width_total_mm / float(npim.shape[1])
@@ -1774,42 +1794,17 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 start_y = ty * cells_per_tile_y
                 end_y = start_y + cells_per_tile_y + 1 + 1
 
-                tile_elev_raster = top_raster_variants.dilated[start_y:end_y, start_x:end_x].copy() #  [y,x]
+                #tile_elev_raster = top_raster_variants.dilated[start_y:end_y, start_x:end_x].copy() #  [y,x]
                 #print tile_elev_raster.astype(int)
 
                 # Jan 2019: for some reason, changing one tile's raster in process_tile also changes parts of another
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 #tile_elev_raster.flags.writeable = False
-
-                # top rasters
-                tile_elev_orig_full_raster = None
-                tile_elev_pre_dil_raster = None
-                tile_elev_edge_interp_raster = None
-                
-                # bottom rasters
-                tile_bot_elev_orig_full_raster = None
-                tile_bot_elev_raster = None
-
-                if top_raster_variants.original is not None:
-                    tile_elev_orig_full_raster =  top_raster_variants.original[start_y:end_y, start_x:end_x].copy()
-
-                if top_raster_variants.nan_close is not None:
-                    tile_elev_pre_dil_raster = top_raster_variants.nan_close[start_y:end_y, start_x:end_x].copy()
                     
-                if top_raster_variants.edge_interpolation is not None:
-                    tile_elev_edge_interp_raster = top_raster_variants.edge_interpolation[start_y:end_y, start_x:end_x].copy()
-                    
-                if bottom_raster_variants.original is not None:
-                    tile_bot_elev_orig_full_raster =  bottom_raster_variants.original[start_y:end_y, start_x:end_x].copy()    
+                tile_top_raster_variants = top_raster_variants.create_tile_raster_variants(start_y, end_y, start_x, end_x)
                 
-                if bottom_raster_variants.dilated is not None :
-                    tile_bot_elev_raster = bottom_raster_variants.dilated[start_y:end_y, start_x:end_x].copy()
+                tile_bottom_raster_variants = bottom_raster_variants.create_tile_raster_variants(start_y, end_y, start_x, end_x)
                 
-                
-                    
-                tile_top_raster_variants = RasterVariants(tile_elev_orig_full_raster, tile_elev_pre_dil_raster, tile_elev_raster, tile_elev_edge_interp_raster)
-                tile_bottom_raster_variants = RasterVariants(tile_bot_elev_orig_full_raster, None, tile_bot_elev_raster, None)
-
                 # add to tile_list
                 tile_info["tile_no_x"] = tx + 1
                 tile_info["tile_no_y"] = ty + 1
