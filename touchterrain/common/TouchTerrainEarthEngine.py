@@ -1201,6 +1201,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     else:
         importedDEM_filename = os.path.basename(config.importedDEM)
         
+        importedDEM_interp_filename = None
         if config.importedDEM_interp:
             importedDEM_interp_filename = os.path.basename(config.importedDEM_interp)
 
@@ -1237,7 +1238,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         npim = cast(numpy.ndarray, band.ReadAsArray()).astype(numpy.float64) # top elevation values
         
         if importedDEM_filename:
-            interp_dem = gdal.Open(importedDEM_filename)
+            interp_dem = gdal.Open(importedDEM_interp_filename)
             interp_band = interp_dem.GetRasterBand(1)
             interp_npim = cast(numpy.ndarray, interp_band.ReadAsArray()).astype(numpy.float64) # top interpolation elevation values
 
