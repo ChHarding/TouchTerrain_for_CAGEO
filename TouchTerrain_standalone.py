@@ -34,7 +34,9 @@ from os.path import abspath, dirname
 try:
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
     from touchterrain.common.TouchTerrainGPX import *
-except:
+    from touchterrain.common.user_config import TouchTerrainConfig
+except Exception as e:
+    print(e)
     print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
     sys.exit()
 
@@ -55,56 +57,13 @@ except:
 # main function, will be called at the end of the script
 def main():
 
-    # Default parameters:
-    # The JSON file overwrites values for the following keys, which are used as
-    # args for get_zipped_tiles() 
+    default_args = TouchTerrainConfig()
+
+    # Fill args dict with the bare minimum of default values
     args = {
-        "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
-                            # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-        "trlat": 44.69741706507476,        # lat/lon of top right corner
-        "trlon": -107.97962089843747,
-        "bllat": 44.50185267072875,        # lat/lon of bottom left corner
-        "bllon": -108.25427910156247,
-        "clean_diags": False, # clean 2x2 diagonals
-        "poly_file": None, # path to a local kml file
-        "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
-        "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-        "importedDEM_interp": None, #the raster file for interpolating at edges
-        "bottom_elevation":None,
-        "dirty_triangles":False, # allow degenerate triangles for water
-        "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (default to min_elev)
-        "bottom_thru_base":False, # if difference mesh should go to all the way to the base
-        "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-        "ntilesx": 1,      # number of tiles in x and y
-        "ntilesy": 1,
-        "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
-        "tileScale": None, # optional tile scale that takes precedence over tilewidth
-        "basethick": 1, # thickness (in mm) of printed base
-        "zscale": 1.0,      # elevation (vertical) scaling
-        "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
-        "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-        "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
-        "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
-        "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
-        
-        # these are the args that could be given "manually" via the web UI
-        "no_bottom": False, # omit bottom triangles?
-        #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
-        "bottom_image": None,  # 1 band greyscale image used for bottom relief
-        "ignore_leq": None, # set values <= this to NaN, so they are ignored
-        "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
-        "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
-        "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-        "importedGPX": None, # Plot GPX paths from files onto the model.
-        "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
-                               # therefore this is in meters. Negative numbers are ok and put a dent in the model
-        "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
-                                       # on the model and can have the effect of making the paths look a bit cleaner
-        "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
-        "smooth_borders": True, # smooth borders
-        "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
-        "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
-        "min_elev" : None, # None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness
+        "importedDEM": default_args.importedDEM,
+        "importedDEM_interp": default_args.importedDEM_interp,
+        "offset_masks_lower": default_args.offset_masks_lower
     }
 
     # write an example json file, in case it gets deleted ...
@@ -130,68 +89,16 @@ def main():
     
         print("reading", json_fname)
     
-        for k in list(args.keys()):
-            try:
-                args[k] = json_args[k]    # try to find a value for k in json config file
-                #print(k, args[k])
-            except:
-                print("info:", k, "has missing or invalid value, using defaults where possible")     # no match? no problem, just keep the default value
-                #print("%s = %s" % (k, str(args[k])))
-    else:
-        # no JSON config file given, setting config values in code
-        # you can comment out lines for which you don't want to overwrite the default settings
-        overwrite_args = {
-            "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
-                                        # for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py
-            "trlat": 44.69741706507476,        # lat/lon of top right corner
-            "trlon": -107.97962089843747,
-            "bllat": 44.50185267072875,        # lat/lon of bottom left corner
-            "bllon": -108.25427910156247,
-            "clean_diags": False, # clean 2x2 diagonals
-            "poly_file": None, # path to a local kml file
-            "polyURL": None, # URL to a publicly readable(!) kml file on Google Drive
-            "importedDEM": None, # if not None, the raster file to use as DEM instead of using GEE (null in JSON)
-            "importedDEM_interp": None, #the raster file for interpolating at edges
-            "bottom_elevation":None,
-            "dirty_triangles":False, # allow degenerate triangles for water
-            "bottom_floor_elev":None, # elevation of the bottom mesh where is it not too close to top (use min_elev for thru meshes)
-            "bottom_thru_base":False, # if difference mesh should go to all the way to the base
-            "printres": 0.5,  # resolution (horizontal) of 3D printer (= size of one pixel) in mm
-            "ntilesx": 1,     # number of tiles in x and y
-            "ntilesy": 1,
-            "tilewidth": 80, # width of each tile in mm (<- !!!!!), tile height is calculated
-            "tileScale": None, # optional tile scale that takes precedence over tilewidth
-            "basethick": 1, # thickness (in mm) of printed base
-            "zscale": 1.0,      # elevation (vertical) scaling
-            "fileformat": "STLb",  # format of 3D model files: "obj" wavefront obj (ascii),"STLa" ascii STL or "STLb" binary STL
-            "tile_centered": False, # True-> all tiles are centered around 0/0, False, all tiles "fit together"
-            "zip_file_name": "terrain",   # base name of zipfile, .zip will be added
-            "CPU_cores_to_use" : 0,  # 0 means all cores, None (null in JSON!) => don't use multiprocessing
-            "max_cells_for_memory_only" : 1000 * 1000, # if raster is bigger, use temp_files instead of memory
-            
-            # these are the args that could be given "manually" via the web UI
-            "no_bottom": False, # omit bottom triangles?
-            #"rot_degs": 0, # rotate by degrees ccw  # CH disabled for now
-            "bottom_image": None,  # 1 band greyscale image used for bottom relief
-            "ignore_leq": None, # set values <= this to NaN, so they are ignored
-            "lower_leq": None,  # e.g. [0.0, 2.0] values <= 0.0 will be lowered by 2mm in the final model
-            "unprojected": False, # don't project to UTM, only usefull when using GEE for DEM rasters
-            "only": None,# list of tile index [x,y] with is the only tile to be processed. None means process all tiles (index is 1 based)
-            "importedGPX": None, # Plot GPX paths from files onto the model.
-            "gpxPathHeight": 100,  # Currently we plot the GPX path by simply adjusting the raster elevation at the specified lat/lon,
-                                # therefore this is in meters. Negative numbers are ok and put a dent in the model
-            "gpxPixelsBetweenPoints" : 20, # GPX Files haves a lot of points. A higher number will create more space between lines drawn
-                                        # on the model and can have the effect of making the paths look a bit cleaner
-            "gpxPathThickness" : 5, # Stack parallel lines on either side of primary line to create thickness.
-            "smooth_borders": True, # smooth borders
-            "offset_masks_lower": None, # e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model.
-            "fill_holes": None, # e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint. 
-            "min_elev" : None, # None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness
-        }
+        for k in list(json_args.keys()):
+            args[k] = json_args[k]    # try to find a user set value for k in json config file
 
-        # overwrite settings in args
-        for k in overwrite_args:
-            args[k] = overwrite_args[k]
+    # else:
+    #     # no JSON config file given, setting config values in code
+    #     # you can comment out lines for which you don't want to overwrite the default settings
+        
+    #     # overwrite settings in args
+    #     for k in default_args:
+    #         args[k] = default_args[k]
        
     
     # print out current args 
@@ -213,7 +120,7 @@ def main():
             offset_mask_pair[0] = abspath(offset_mask_pair[0])
 
     # Give all config values to get_zipped_tiles for processing:
-    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) # all args are in a dict
+    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(args) # all args are in a dict
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
     # Optional: unzip the zip file into the current folder
