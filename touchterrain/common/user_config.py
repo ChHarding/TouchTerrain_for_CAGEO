@@ -1,7 +1,4 @@
-class TouchTerrainConfig:
-    DEM_name: str = 'USGS/3DEP/10m'
-    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py"
-    
+class TouchTerrainConfig:    
     """
     Raster bounds
     """
@@ -127,7 +124,7 @@ class TouchTerrainConfig:
     """
     Miscellaneous until sorted
     """
-    
+
     # these are the args that could be given manually via the web UI. Is there a limit to the options allowed from the manual options input on web?
     no_bottom = False
     "don't create any bottom triangles. The STL file is not watertight but should still print fine with most slicers (e.g. Cura) and is much smaller"
@@ -135,18 +132,18 @@ class TouchTerrainConfig:
     "unused"
     bottom_image = None
     "1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)"
-    
-    unprojected = False
-    "don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters"
-    only = None
-    "2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed"
-    
-    original_query_string = None
-    "the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view"
+    DEM_name: str = 'USGS/3DEP/10m'
+    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py"
     kd3_render = False
     "if True will create a html file containing the model as a k3d object."
     map_img_filename = None
     "image with a map of the area"
+    only = None
+    "2-list with tile index starting at 1 (e.g. [1,2]), which is the only tile to be processed"
+    original_query_string = None
+    "the query string from the app, including map info. Put into log only. Good for making a URL that encodes the app view"
+    unprojected = False
+    "don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters"
     use_geo_coords = None
     "None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)"
     
