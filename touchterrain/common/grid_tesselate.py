@@ -170,11 +170,19 @@ class quad:
         t0 = (v0, v1, v2)  # verts of first triangle
 
         # if v3 is None, we only return t0
-        if v3 != None:
-            t1 = (v0, v2, v3)  # verts of second triangle
-            return (t0,t1)
-        else:
-            return(t0, None)
+        if v3 is None:
+            return (t0, None)
+
+        splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
+        splitting_edge_slope_2 = abs(v1.coords[2] - v3.coords[2])
+        
+        t1 = (v0, v2, v3)  # verts of second triangle
+        
+        if splitting_edge_slope_1 > splitting_edge_slope_2:
+            t0 = (v0, v1, v3)
+            t1 = (v1, v2, v3)
+
+        return (t0,t1)
 
     # this isn't used anymore 
     def get_triangles_with_indexed_verts(self):
@@ -383,9 +391,9 @@ class cell:
         tvl = tq.vl #                           0  2  1  3
         bvl = bq.vl # vertex order in quad is   0  2  3  1
         
-        """Vertices mapping     NW SE SW NE
-        Top                      0  2  1  3
-        Bottom                   0  2  3  1
+        """Vertices mapping     NW SW SE NE
+        Top                      0  1  2  3
+        Bottom                   0  3  2  1
         The vertices seem to be a different mapping than commented in convert_to_tri_cell() and the above mapping makes much more sense for normals directions. This assuming we are viewing the quad from straight above from the positive Z direction.
         """
         
@@ -398,13 +406,13 @@ class cell:
             self.bottomquad = quad(None, None, None, None)
             b["N"] = b["W"] = b["S"] = b["E"] = False
         # (NW case) NW NE SW vertices are same Z, keep tri of SE SW NE
-        # elif (tvl[0].coords[2] == bvl[0].coords[2] and 
-        #         tvl[3].coords[2] == bvl[1].coords[2] and 
-        #         tvl[1].coords[2] == bvl[3].coords[2]):
-        #     self.topquad = quad(tvl[3], tvl[1], tvl[2], None)
-        #     self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) 
-        #     b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3])
-        #     b["W"] = False
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2]):
+            self.topquad = quad(tvl[3], tvl[1], tvl[2], None)
+            self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) 
+            b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3])
+            b["W"] = False
         # (NE case) NW NE SW vertices are same Z, keep tri of SE SW NW
         elif (tvl[0].coords[2] == bvl[0].coords[2] and 
                 tvl[3].coords[2] == bvl[1].coords[2] and 
@@ -414,13 +422,13 @@ class cell:
             b["N"] = quad(tvl[0], tvl[2], bvl[2], bvl[0])
             b["E"] = False 
         # (SE case) NE SE SW vertices are same Z, keep tri of SW NW NE
-        # elif (tvl[3].coords[2] == bvl[1].coords[2] and 
-        #         tvl[1].coords[2] == bvl[3].coords[2] and 
-        #         tvl[2].coords[2] == bvl[2].coords[2]):
-        #     self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
-        #     self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
-        #     b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
-        #     b["E"] = False
+        elif (tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
+            self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
+            b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
+            b["E"] = False
         # (SW case) SE SW NW vertices are same Z, keep tri of NW NE SE
         elif (tvl[0].coords[2] == bvl[0].coords[2] and 
                 tvl[1].coords[2] == bvl[3].coords[2] and 
@@ -1078,7 +1086,8 @@ class grid:
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
 
-                c.remove_zero_height_volumes()
+                if self.tile.bottom_raster_variants is not None:
+                    c.remove_zero_height_volumes()
 
                 # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
