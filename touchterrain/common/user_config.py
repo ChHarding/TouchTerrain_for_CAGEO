@@ -18,7 +18,7 @@ class TouchTerrainConfig:
     poly_file = None
     "path to a local kml file"
     polyURL = None
-    "polygon URL for KML"
+    "URL to a publicly readable(!) kml file on Google Drive"
     
     """
     Raster input
@@ -27,7 +27,7 @@ class TouchTerrainConfig:
     importedDEM = None
     "None (means: get the DEM from GEE) or local file name with (top) DEM to be used instead"
     importedDEM_interp = None
-    "the raster file for interpolating at edges"
+    "Optional raster file for interpolating at edges"
     projection = None
     "EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone"
     

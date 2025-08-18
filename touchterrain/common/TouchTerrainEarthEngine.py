@@ -1237,7 +1237,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         band = dem.GetRasterBand(1)
         npim = cast(numpy.ndarray, band.ReadAsArray()).astype(numpy.float64) # top elevation values
         
-        if importedDEM_filename:
+        if importedDEM_interp_filename:
             interp_dem = gdal.Open(importedDEM_interp_filename)
             interp_band = interp_dem.GetRasterBand(1)
             interp_npim = cast(numpy.ndarray, interp_band.ReadAsArray()).astype(numpy.float64) # top interpolation elevation values
@@ -1373,7 +1373,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         if config.ignore_leq != None:
             npim = numpy.where(npim <= config.ignore_leq, numpy.nan, npim)
             pr("ignoring elevations <= ", config.ignore_leq, " (were set to NaN)")
-            interp_npim = numpy.where(interp_npim <= config.ignore_leq, numpy.nan, interp_npim)
+            if interp_npim is not None:
+                interp_npim = numpy.where(interp_npim <= config.ignore_leq, numpy.nan, interp_npim)
 
 
         # if tilewidth_scale is given, overwrite mm tilewidth by region width / tilewidth_scale

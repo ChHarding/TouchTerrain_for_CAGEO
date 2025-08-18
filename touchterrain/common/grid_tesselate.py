@@ -73,7 +73,9 @@ class vertex:
 
     # dict of index value for each vertex
     # key is tuple of coordinates, value is a unique index
-    vertex_index_dict = -1  
+    vertex_index_dict = -1
+    
+    coords: tuple[float, ...]
 
     def __init__(self, x,y,z):
         self.coords = tuple([float(d) for d in (x,y,z)])  # made this a tuple (zigzag won't work wth this anymore but it's not used anyway ...)
@@ -124,6 +126,8 @@ class quad:
     """
     # class attribute, use quad.too_skinny_ratio
     too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
+    
+    vl: list[vertex] = []
 
     # order is NE, NW, SW, SE
     # can be just a triangle, if it just any 3 ccw consecutive corners 
@@ -367,7 +371,64 @@ class cell:
         self.is_tri_cell = True
 
         return None
+    
+    def remove_zero_height_volumes(self):
+        """Remove volumes that should have zero height due to the top and bottom Z being equal.
+        
+        This only handles NE and SW corner volume removal right now due to the quad triangulation splitting from NW to SE."""
 
+        b = self.borders    
+        tq =  self.topquad.get_copy()
+        bq =  self.bottomquad.get_copy()     # NW SE SW NE
+        tvl = tq.vl #                           0  2  1  3
+        bvl = bq.vl # vertex order in quad is   0  2  3  1
+        
+        """Vertices mapping     NW SE SW NE
+        Top                      0  2  1  3
+        Bottom                   0  2  3  1
+        The vertices seem to be a different mapping than commented in convert_to_tri_cell() and the above mapping makes much more sense for normals directions. This assuming we are viewing the quad from straight above from the positive Z direction.
+        """
+        
+        # All vertexes of the top and bottom quad are at the same Z coordinate so the entire quad has 0 volume.
+        if (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2] and
+                tvl[3].coords[2] == bvl[1].coords[2]):
+            self.topquad = quad(None, None, None, None)
+            self.bottomquad = quad(None, None, None, None)
+            b["N"] = b["W"] = b["S"] = b["E"] = False
+        # (NW case) NW NE SW vertices are same Z, keep tri of SE SW NE
+        # elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+        #         tvl[3].coords[2] == bvl[1].coords[2] and 
+        #         tvl[1].coords[2] == bvl[3].coords[2]):
+        #     self.topquad = quad(tvl[3], tvl[1], tvl[2], None)
+        #     self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) 
+        #     b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3])
+        #     b["W"] = False
+        # (NE case) NW NE SW vertices are same Z, keep tri of SE SW NW
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[0], tvl[1], tvl[2], None)
+            self.bottomquad = quad(bvl[0], bvl[2], bvl[3], None) 
+            b["N"] = quad(tvl[0], tvl[2], bvl[2], bvl[0])
+            b["E"] = False 
+        # (SE case) NE SE SW vertices are same Z, keep tri of SW NW NE
+        # elif (tvl[3].coords[2] == bvl[1].coords[2] and 
+        #         tvl[1].coords[2] == bvl[3].coords[2] and 
+        #         tvl[2].coords[2] == bvl[2].coords[2]):
+        #     self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
+        #     self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
+        #     b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
+        #     b["E"] = False
+        # (SW case) SE SW NW vertices are same Z, keep tri of NW NE SE
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[2], tvl[3], tvl[0], None)
+            self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
+            b["S"] = quad(tvl[2], tvl[0], bvl[0], bvl[2])
+            b["W"] = False
 
 '''
 #profiling decorator
@@ -1017,6 +1078,8 @@ class grid:
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
 
+                c.remove_zero_height_volumes()
+
                 # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
                 # are flagged as is_tri_cell = True, and have only v0, v1 and v2. One border is deleted, the other
@@ -1047,8 +1110,9 @@ class grid:
 
                     # for STL this will write triangles (vertices) but for obj this will
                     # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
-                    self.write_triangle_to_buffer(t0)
-                    self.write_triangle_to_buffer(t1) # could be empty ...        
+                    if any(t0):
+                        self.write_triangle_to_buffer(t0)
+                        self.write_triangle_to_buffer(t1) # could be empty ...        
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     
