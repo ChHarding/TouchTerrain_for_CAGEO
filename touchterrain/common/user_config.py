@@ -70,6 +70,12 @@ class TouchTerrainConfig:
     "if total number of cells is bigger, use temp_file instead using memory only"
     no_normals = True 
     "True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway"
+    split_rotation = None
+    """Should quad triangulation rotate the splitting edge based on the slope of the created edge?
+    None -> NW>SW edges
+    1 -> Rotate for less steep split edges > Steeper split faces and slope variation.
+    2 -> Rotate for more steep split edges > Slighty wider and less steep split faces.
+    """
     smooth_borders = True
     "should borders be optimized (smoothed) by removing triangles?"
     temp_folder = "tmp"
@@ -133,7 +139,7 @@ class TouchTerrainConfig:
     bottom_image = None
     "1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)"
     DEM_name: str = 'USGS/3DEP/10m'
-    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py"
+    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py. Also used if specifying a custom mesh output filename"
     kd3_render = False
     "if True will create a html file containing the model as a k3d object."
     map_img_filename = None
@@ -145,7 +151,7 @@ class TouchTerrainConfig:
     unprojected = False
     "don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters"
     use_geo_coords = None
-    "None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m)"
+    "None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m). create STL coords in UTM: None, \"centered\" or \"UTM\""
     
     def mergeDict(self, dict: dict):
         "Overwrite the config values with values from a dict. All values from the dict are added to the config including new values."

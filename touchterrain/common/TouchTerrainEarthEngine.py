@@ -31,6 +31,7 @@ import http.client
 import numpy
 from touchterrain.common.config import EE_ACCOUNT,EE_CREDS,EE_PROJECT
 from typing import Union, Any, cast
+import copy
 
 DEV_MODE = False
 #DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
@@ -42,6 +43,7 @@ if DEV_MODE:
 import touchterrain.common
 from touchterrain.common.grid_tesselate import grid, RasterVariants, ProcessingTile      # my own grid class, creates a mesh from DEM raster
 from touchterrain.common.user_config import TouchTerrainConfig
+from touchterrain.common.tile_info import TouchTerrainTileInfo
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 from touchterrain.common.utils import save_tile_as_image, clean_up_diags, fillHoles, add_to_stl_list, k3d_render_to_html, dilate_array, plot_DEM_histogram
 if DEV_MODE:
@@ -197,15 +199,15 @@ def process_tile(processingTile: ProcessingTile):
         # if isinstance(processingTile.bottom_raster_variants.original, numpy.ndarray):
         #     tile_bottom_orig_full_raster = processingTile.bottom_raster_variants.original
 
-    logger.debug("processing tile:", tile_info['tile_no_x'], tile_info['tile_no_y'])
+    logger.debug("processing tile:", tile_info.tile_no_x, tile_info.tile_no_y)
     #print numpy.round(tile_elev_raster,1)
 
     # create a bottom relief raster (values 0.0 - 1.0)
-    if tile_info["bottom_image"] != None and tile_info["no_bottom"] != None:
-        logger.debug("using " + tile_info["bottom_image"] + " as relief on bottom")
-        bottom_raster = make_bottom_raster_from_image(tile_info["bottom_image"], tile_elev_raster.shape)
+    if tile_info.config.bottom_image != None and tile_info.config.no_bottom != None:
+        logger.debug("using " + tile_info.config.bottom_image + " as relief on bottom")
+        bottom_raster = make_bottom_raster_from_image(tile_info.config.bottom_image, tile_elev_raster.shape)
         #print "min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)
-        bottom_raster *= (tile_info["base_thickness_mm"] * 0.8) # max relief is 80% of base thickness to still have a bit of "roof"
+        bottom_raster *= (tile_info.config.basethick * 0.8) # max relief is 80% of base thickness to still have a bit of "roof"
         print("bottom image (in meters!) min/max:", numpy.nanmin(bottom_raster), numpy.nanmax(bottom_raster)) # range of bottom raster
     elif tile_bottom_raster is not None: # bottom elevation subtraction raster
         bottom_raster = tile_bottom_raster # bottom elevation(!) raster
@@ -380,12 +382,12 @@ def process_tile(processingTile: ProcessingTile):
     #
     # convert grid object into a triangle mesh file
     #
-    fileformat = tile_info["fileformat"]
+    fileformat = tile_info.config.fileformat
 
     # info on buffer/temp file
-    if tile_info.get("temp_file") != None:  # contains None or a file name.
-        print("Writing tile into temp. file", os.path.realpath(tile_info["temp_file"]), file=sys.stderr)
-        temp_fn = tile_info.get("temp_file")
+    if tile_info.temp_file != None:  # contains None or a file name.
+        print("Writing tile into temp. file", os.path.realpath(tile_info.temp_file), file=sys.stderr)
+        temp_fn = tile_info.temp_file
     else:
         print("Writing tile into memory buffer", file=sys.stderr)
         temp_fn = None # means: use memory
@@ -406,8 +408,8 @@ def process_tile(processingTile: ProcessingTile):
         fsize = len(b) / float(1024*1024)
 
 
-    tile_info["file_size"] = fsize
-    print("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], fileformat, fsize, "Mb ", file=sys.stderr) #, multiprocessing.current_process()
+    tile_info.file_size = fsize
+    print("tile", tile_info.tile_no_x, tile_info.tile_no_y, fileformat, fsize, "Mb ", file=sys.stderr) #, multiprocessing.current_process()
     return tile_info, b # return info and buffer/temp_file NAME
 
 
@@ -1451,7 +1453,11 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             else:
                 pr("print res is", print3D_resolution_mm, "mm")
 
-        DEM_title = importedDEM_filename[:importedDEM_filename.rfind('.')]
+        # use DEM_name from config for export mesh filename if it is specified (compare with the default value)
+        if config.DEM_name == TouchTerrainConfig().DEM_name:
+            DEM_title = importedDEM_filename[:importedDEM_filename.rfind('.')]
+        else:
+            DEM_title = config.DEM_name
     # end of B: (local raster file)
 
     # Make empty zip file in temp_folder, add files into it later
@@ -1594,44 +1600,16 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         plot_file_name = plot_DEM_histogram(top_raster_variants.dilated, config.DEM_name, config.temp_folder)
         print(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
 
-        #
-        # create tile info dict
-        #
-        tile_info = {
-            "DEMname": config.DEM_name, # name of raster requested from earth eng.
-            "bottom_elevation": config.bottom_elevation, # None or name of bottom elevation raster
-            "crs" : crs_str, # cordinate reference system, can be EPSG code or UTM zone or any projection
-            #"UTMzone" : utm_zone_str, # UTM zone e.g. UTM13N or
-            "scale"  : print3D_scale_number, # horizontal scale number,  1000 means 1:1000 => 1m in model = 1000m in reality
-            "z_scale" : config.zscale,  # z (vertical) scale (elevation exageration) factor
-            "pixel_mm" : print3D_resolution_mm, # lateral (x/y) size of a 3D printed "pixel" in mm
-            "min_elev" : config.min_elev, # needed for multi-tile models
-            "min_bot_elev" : min_bottom_elev, # needed for multi-tile models
-            "user_offset":  user_offset, # offset between user given min_elev and actual data min_elev
-            "base_thickness_mm" : config.basethick,
-            "bottom_relief_mm": 1.0,  # thickness of the bottom relief image (float), must be less than base_thickness
-            "folder_name": DEM_title,  # folder/zip file name for all tiles
-            "tile_centered" : config.tile_centered, # True: each tile's center is 0/0, False: global (all-tile) 0/0
-            "tile_no_x": -1, # current(!) tile number along x
-            "tile_no_y": -1, # current(!) tile number along y
-            "tile_width":   print3D_width_per_tile, # in mmm
-            "tile_height":  print3D_height_per_tile, # in mmm
-            "full_raster_width": -1, # in pixels
-            "full_raster_height": -1,
-            "fileformat": config.fileformat,
-            "temp_file": None,
-            "no_bottom": config.no_bottom, # omit bottom triangles?
-            "bottom_image": config.bottom_image, # None or name of bottom image file (for relief)
-            "ntilesy": config.ntilesy, # number of tiles in y, ntilesx is not needed here
-            "only": config.only, # if nont None, process only this tile e.g. [1,2]
-            "no_normals": config.no_normals, # calculate normals?
-            "geo_transform": geo_transform, # GeoTransform of geotiff
-            "use_geo_coords": config.use_geo_coords, # create STL coords in UTM: None, "centered" or "UTM"
-            "smooth_borders": config.smooth_borders, # optimize borders?
-            "clean_diags": config.clean_diags, # remove diagonal patterns?
-            "dirty_triangles": config.dirty_triangles, # allow creating of better fitting but potentiall degenerate triangles
-            "bottom_thru_base": config.bottom_thru_base, # special flag for NaNs in bottom raster
-        }
+        tile_info = TouchTerrainTileInfo(config=config)
+        tile_info.crs = crs_str
+        tile_info.scale = print3D_scale_number
+        tile_info.pixel_mm = print3D_resolution_mm
+        tile_info.min_bot_elev = min_bottom_elev
+        tile_info.folder_name = DEM_title
+        tile_info.user_offset = user_offset
+        tile_info.tile_width = print3D_width_per_tile
+        tile_info.tile_height = print3D_height_per_tile
+        tile_info.geo_transform = geo_transform
 
         #
         # Make tiles (subsets) of the full raster and generate 3D grid model
@@ -1659,10 +1637,10 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         bottom_raster_variants.apply_closure_to_variants(pad_1x1)
 
         # store size of full raster
-        tile_info["full_raster_height"], tile_info["full_raster_width"]  = top_raster_variants.dilated.shape
+        tile_info.full_raster_height, tile_info.full_raster_width = top_raster_variants.dilated.shape
 
         # Warn that we're only processing one tile
-        process_only = tile_info["only"]
+        process_only = tile_info.config.only
         if process_only != None:
             pr("Only processing tile:", process_only)
             config.CPU_cores_to_use = 1 # set to SP
@@ -1691,18 +1669,18 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                 tile_bottom_raster_variants = bottom_raster_variants.create_tile_raster_variants(start_y, end_y, start_x, end_x)
                 
                 # add to tile_list
-                tile_info["tile_no_x"] = tx + 1
-                tile_info["tile_no_y"] = ty + 1
-                my_tile_info = tile_info.copy() # make a copy of the global info, so we can store tile specific info in during processing
+                tile_info.tile_no_x = tx + 1
+                tile_info.tile_no_y = ty + 1
+                my_tile_info = copy.copy(tile_info) # make a copy of the global info, so we can store tile specific info in during processing
 
                 # if raster is too large, use temp files to create the tile STL/obj files
-                if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > config.max_cells_for_memory_only:
+                if tile_info.full_raster_height * tile_info.full_raster_width  > config.max_cells_for_memory_only:
                     # use a temp file in local tmp folder
                     # Note: yes, I tried using a named tempfile, which works nicely except for MP and it's too hard to figure out the issue with MP
-                    mytempfname = f"{config.temp_folder}{os.sep}{config.zip_file_name}{tile_info['tile_no_x']}{tile_info['tile_no_y']}.tmp"
+                    mytempfname = f"{config.temp_folder}{os.sep}{config.zip_file_name}{tile_info.tile_no_x}{tile_info.tile_no_y}.tmp"
 
                     # store temp file names (not file objects), MP will create file objects during processing
-                    my_tile_info["temp_file"]  = mytempfname
+                    my_tile_info.temp_file = mytempfname
 
                 # assemble tile to be processed
                 #tile = (my_tile_info, tile_elev_raster, tile_bot_elev_raster, tile_elev_pre_dil_raster, tile_elev_orig_full_raster)   # leave it to process_tile() to unwrap the info and data parts
@@ -1712,13 +1690,13 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                 if process_only == None: # "only" parameter was not given
                     tile_list.append(tile)
                 else:
-                    if process_only[0] == tile_info['tile_no_x'] and process_only[1] == tile_info['tile_no_y']:
+                    if process_only[0] == tile_info.tile_no_x and process_only[1] == tile_info.tile_no_y:
                         tile_list.append(tile) # got the only tile
                     else:
-                        print("process only is:", process_only, ", skipping tile", tile_info['tile_no_x'], tile_info['tile_no_y'])
+                        print("process only is:", process_only, ", skipping tile", tile_info.tile_no_x, tile_info.tile_no_y)
 
-        if tile_info["full_raster_height"] * tile_info["full_raster_width"]  > config.max_cells_for_memory_only:
-            logger.debug("tempfile or memory? number of pixels:" + str(tile_info["full_raster_height"] * tile_info["full_raster_width"]) + ">" + str(config.max_cells_for_memory_only) + " => using temp file")
+        if tile_info.full_raster_height * tile_info.full_raster_width > config.max_cells_for_memory_only:
+            logger.debug("tempfile or memory? number of pixels:" + str(tile_info.full_raster_height * tile_info.full_raster_width) + ">" + str(config.max_cells_for_memory_only) + " => using temp file")
 
 
         # single core processing: just work on the list sequentially, don't use multi-core processing.
@@ -1785,7 +1763,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         
         
         # the tile width/height was written into tileinfo during processing
-        pr(f"\n{num_tiles[0]} x {num_tiles[1]} tiles, tile size {tile_info['tile_width']:.2f} x {tile_info['tile_height']:.2f} mm\n")
+        pr(f"\n{num_tiles[0]} x {num_tiles[1]} tiles, tile size {tile_info.tile_width:.2f} x {tile_info.tile_height:.2f} mm\n")
 
         # delete tile list, as the elevation arrays are no longer needed
         del tile_list
@@ -1798,11 +1776,14 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         #print "start of putting tiles into zip file")
         for p in processed_list:
                 tile_info = p[0] # per-tile info
-                tile_name = f"{DEM_title}_tile_{tile_info['tile_no_x']}_{tile_info['tile_no_y']}.{config.fileformat[:3]}" # name of file inside zip
+                
+                tile_label = f"_tile_{tile_info.tile_no_x}_{tile_info.tile_no_y}" if len(processed_list) > 1 else ""
+                
+                tile_name = f"{DEM_title}{tile_label}.{config.fileformat[:3]}" # name of file inside zip
                 buf= p[1] # either a string or a file object
 
-                if tile_info.get("temp_file") != None: # if buf is a file 
-                    fname = tile_info["temp_file"]
+                if tile_info.temp_file != None: # if buf is a file 
+                    fname = tile_info.temp_file
                     stl_list = add_to_stl_list(fname, stl_list)
                     zip_file.write(fname , tile_name) # write temp file into zip
                 else:
@@ -1810,12 +1791,12 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                     stl_list = add_to_stl_list(buf, stl_list)
 
 
-                total_size += tile_info["file_size"]
-                logger.debug("adding tile %d %d, total size is %d" % (tile_info["tile_no_x"],tile_info["tile_no_y"], total_size))
+                total_size += tile_info.file_size
+                logger.debug("adding tile %d %d, total size is %d" % (tile_info.tile_no_x,tile_info.tile_no_y, total_size))
 
                 # print size and elev range
-                pr("tile", tile_info["tile_no_x"], tile_info["tile_no_y"], ": height: ", tile_info["min_elev"], "-", tile_info["max_elev"], "mm",
-                   ", file size:", round(tile_info["file_size"]), "Mb")
+                pr("tile", tile_info.tile_no_x, tile_info.tile_no_y, ": height: ", tile_info.config.min_elev, "-", tile_info.max_elev, "mm",
+                   ", file size:", round(tile_info.file_size), "Mb")
 
 
         pr("\ntotal size for all tiles:", round(total_size, 1), "Mb")
@@ -1833,7 +1814,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
 
         # make k3d render
         if config.kd3_render == True and (config.fileformat == "STLa" or config.fileformat == "STLb"):
-            if tile_info.get("temp_file") != None:
+            if tile_info.temp_file != None:
                 html_file = k3d_render_to_html(stl_list, config.temp_folder, buffer=False)
             else:
                 html_file = k3d_render_to_html(stl_list, config.temp_folder, buffer=True)
@@ -1844,7 +1825,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         for p in processed_list:
             tile_info = p[0]
             buf= p[1]
-            if tile_info.get("temp_file") != None:
+            if tile_info.temp_file != None:
                 try:
                     os.remove(fname) # on windows remove closed file manually
                 except Exception as e:
