@@ -136,24 +136,25 @@ def main():
         zip_ref.close()
         print("unzipped file inside", full_zip_file_name, "into", folder)
     
-    # # Optional: show the STL files in a browser
-    # import k3d
-    # # get all stl files in that folder
-    # from glob import glob
-    # mesh_files = glob(folder + os.sep + "*.stl")
-    # print("in folder", folder, "using", mesh_files)
-    
-    # plot = k3d.plot()
-    
-    # for m in mesh_files:
-    #     print(m)
-    #     buf = open(m, 'rb').read()
-    #     #buf = str(stl_model)
-    #     #buf = buf.encode('utf_32')
-    #     print(buf[:100])
-    #     plot += k3d.stl(buf)
-    
-    # plot.display()
+        # Optional: show the STL files in a browser
+        if 0: # set this to 0 if you don't want to show STL files in browser
+            import k3d
+            # get all stl files in that folder
+            from glob import glob
+            mesh_files = glob(folder + os.sep + "*.stl")
+            print("in folder", folder, "using", mesh_files)
+
+            plot = k3d.plot()
+
+            for m in mesh_files:
+                print(m)
+                buf = open(m, 'rb').read()
+                #buf = str(stl_model)
+                #buf = buf.encode('utf_32')
+                print(buf[:100])
+                plot += k3d.stl(buf)
+
+            plot.display()
 
     
 
