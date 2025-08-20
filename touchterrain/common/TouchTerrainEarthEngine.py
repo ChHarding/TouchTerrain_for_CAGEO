@@ -1200,8 +1200,10 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     # B) DEM data comes from a local raster file (geotiff, etc.)
     #
     # TODO: deal with clip polygon?  Done for KML (poly_file)
+    # TODO: split the GEE and imported DEM code into separate functions
     else:
         importedDEM_filename = os.path.basename(config.importedDEM)
+        importedDEM_folder = os.path.dirname(config.importedDEM)
         
         importedDEM_interp_filename = None
         if config.importedDEM_interp:
@@ -1218,17 +1220,17 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
 
         # If we have a KML file, use it to mask (clip) and crop the importedDEM
         if config.poly_file != None and config.poly_file != '':
-            clipped_geotiff = "clipped_" + importedDEM_filename
+            clipped_geotiff = os.path.join(importedDEM_folder, "clipped_" + importedDEM_filename)
 
             try:
-                gdal.Warp(clipped_geotiff, importedDEM_filename,
+                gdal.Warp(clipped_geotiff, config.importedDEM,
                     format='GTiff',
                     warpOptions=['CUTLINE_ALL_TOUCHED=TRUE'],
                     cutlineDSName=config.poly_file,
                     cropToCutline=True,
                     dstNodata=-32768)
             except Exception as e:
-                pr("clipping", importedDEM_filename, "with", config.poly_file, "failed, using unclipped geotiff. ", e)
+                pr("clipping", config.importedDEM, "with", config.poly_file, "failed, using unclipped geotiff. ", e)
             else:
                 pr("clipped", importedDEM_filename, "with", config.poly_file, "now using", clipped_geotiff, "instead")
                 folder = os.path.split(config.importedDEM)[0]
