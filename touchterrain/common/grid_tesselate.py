@@ -773,16 +773,11 @@ class grid:
         if self.tile_info.config.use_geo_coords is None: # Coordinates need to be in mm 
 
             scz = 1 / self.tile_info.scale * 1000.0 # scale z to mm
-
-            if tile.bottom_raster_variants is None: # Top only mode
-                tile.top_raster_variants -= self.tile_info.config.min_elev # subtract global min from top to get to 0 
                 
-            else: # Top-Bottom difference mesh mode
-                if self.bottom_thru_base == False:  # normal water case,  
-                    tile.top_raster_variants -= self.tile_info.min_bot_elev  # subtract global bottom min 
+            if tile.bottom_raster_variants is not None: # Top-Bottom difference mesh mode
+                if self.bottom_thru_base == False:  # normal case,  
+                    tile.bottom_raster_variants -= self.tile_info.config.min_elev
                     
-                    tile.bottom_raster_variants -= self.tile_info.min_bot_elev
-                    tile.bottom_raster_variants += self.tile_info.user_offset # add potential user offset from top (default: 0)
                     tile.bottom_raster_variants *= scz * self.tile_info.config.zscale # apply z-scale to bottom
                     tile.bottom_raster_variants += self.tile_info.config.basethick # add base thickness to bottom
 
@@ -794,11 +789,10 @@ class grid:
                     else:
                         print("tile.bottom_raster_variants.dilated not found")
                         return None
-                else: # bottom_thru_base case
-                    tile.top_raster_variants -= self.tile_info.config.min_elev
-                    # bottom was set to 0 earlier
+                #else: 
+                    # do nothing in the bottom_thru_base case because we previously set bottom raster to 0
 
-            tile.top_raster_variants += self.tile_info.user_offset # add potential user offset from top (default: 0)
+            tile.top_raster_variants -= self.tile_info.config.min_elev
             tile.top_raster_variants *= scz * self.tile_info.config.zscale # apply z-scale to top
             tile.top_raster_variants += self.tile_info.config.basethick # add base thickness to top
 

@@ -1580,13 +1580,10 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         #
 
         # set minimum elevation for top (will be used by all tiles)
-        user_offset = 0  # no offset unless user specified min_elev
         min_bottom_elev = None
         if config.min_elev != None: # user-given minimum elevation (via min_elev argument)
             if bottom_raster_variants.dilated is not None: # have a bottom elevation
-                 min_bottom_elev = numpy.nanmin(bottom_raster_variants.dilated) #(actual min elev for all tiles)
-            user_offset = numpy.nanmin(top_raster_variants.dilated) - config.min_elev 
-            config.min_elev = numpy.nanmin(top_raster_variants.dilated) #(actual min elev for all tiles)
+                 min_bottom_elev = numpy.nanmin(bottom_raster_variants.dilated) #(actual minimum elev for bottom raster (and presumably all) tiles)
         else: # no user-given min_elev
             config.min_elev = numpy.nanmin(top_raster_variants.dilated)
             if bottom_raster_variants.dilated != None:
@@ -1608,7 +1605,6 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         tile_info.pixel_mm = print3D_resolution_mm
         tile_info.min_bot_elev = min_bottom_elev
         tile_info.folder_name = DEM_title
-        tile_info.user_offset = user_offset
         tile_info.tile_width = print3D_width_per_tile
         tile_info.tile_height = print3D_height_per_tile
         tile_info.geo_transform = geo_transform

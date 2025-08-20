@@ -38,7 +38,7 @@ class TouchTerrainTileInfo:
     "in mm"
     tile_height: float
     "in mm"
-    user_offset: float
+    #user_offset: float # Removed because we can just minus the user given or calculated min_elev instead of first subtracting min elevation of the raster and adding it back again minus the min_elev and calling it user_offset
     "offset between actual data min_elev and user given min_elev"
     
     """Set later"""
