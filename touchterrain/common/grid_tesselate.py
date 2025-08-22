@@ -165,7 +165,7 @@ class quad:
             sb = int(quad.too_skinny_ratio / ratio)
             self.subdivide_by = sb
 
-    def get_triangles(self):
+    def get_triangles(self, split_rotation=None):
         "return list of 2 triangles (counterclockwise)"
         v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
         t0 = (v0, v1, v2)  # verts of first triangle
@@ -174,35 +174,27 @@ class quad:
         if v3 is None:
             return (t0, None)
 
-        splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
-        splitting_edge_slope_2 = abs(v1.coords[2] - v3.coords[2])
+        
         
         t1 = (v0, v2, v3)  # verts of second triangle
         
-        if splitting_edge_slope_1 > splitting_edge_slope_2:
-            t0 = (v0, v1, v3)
-            t1 = (v1, v2, v3)
+        if split_rotation is None or split_rotation != 1 or split_rotation != 2:
+            return (t0,t1)
+        
+        splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
+        splitting_edge_slope_2 = abs(v1.coords[2] - v3.coords[2])
+        if split_rotation == 1:
+            if splitting_edge_slope_1 > splitting_edge_slope_2:
+                t0 = (v0, v1, v3)
+                t1 = (v1, v2, v3)
+        elif split_rotation == 2:
+            if splitting_edge_slope_1 < splitting_edge_slope_2:
+                t0 = (v0, v1, v3)
+                t1 = (v1, v2, v3)
+        else:
+            print(f"Invalid split_rotation config value of {split_rotation}")
 
         return (t0,t1)
-
-    # this isn't used anymore 
-    def get_triangles_with_indexed_verts(self):
-        "return list of 2 triangles (counterclockwise) as vertex indices"
-
-        vertidx = [] # list of the 4 verts as index
-        for v in self.vl: # quad as list of 4 verts, each as (x,y,z)
-            if v != None: # v3 could be None
-                vi = v.get_id()
-                vertidx.append(vi)
-            #print v,vi
-
-        t0 = (vertidx[0], vertidx[1], vertidx[2])  # verts of first triangle
-        # if v3 is None(i.e. we didn't get a 4. index), we only return t0
-        if len(vertidx) > 3:
-            t1 = (vertidx[0], vertidx[2], vertidx[3])  # verts of second triangle
-            return (t0,t1)
-        else:
-            return(t0, None)
 
     '''
     # splits skinny triangles
@@ -1085,7 +1077,7 @@ class grid:
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
 
-                if self.tile.bottom_raster_variants is not None:
+                if self.tile.bottom_raster_variants is not None and self.tile_info.config.split_rotation == 1:
                     c.remove_zero_height_volumes()
 
                 # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
@@ -1114,7 +1106,7 @@ class grid:
                 
                 # write the triangles of this quad to buffer
                 for q in quads:
-                    t0, t1 = q.get_triangles() # tri vertices
+                    t0, t1 = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
 
                     # for STL this will write triangles (vertices) but for obj this will
                     # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
