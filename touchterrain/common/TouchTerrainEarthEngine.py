@@ -711,6 +711,23 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         except:
             assert False, config.temp_folder + "doesn't exists but could also not be created"
 
+    # Determine config filename from the full config path
+    config_filename = None
+    if config.config_path is not None:
+        config_filename = os.path.splitext(os.path.basename(config.config_path))[0]
+
+    # if zip_file_name not specified, use DEM_name or config_filename from config_path for zip_file_name if it is specified (compare with the default value)
+    if config.zip_file_name is None:
+        if config.DEM_name == TouchTerrainConfig().DEM_name or config.DEM_name is None:
+            if config_filename is not None:
+                config.zip_file_name = config_filename
+            else:
+                print('No non-default DEM_name or config_path passed for determining zip_file_name')
+                return
+        else:
+            config.zip_file_name = config.DEM_name    
+
+    
 
     # set up log file
     log_file_name = config.temp_folder + os.sep + config.zip_file_name + ".log"
@@ -1455,9 +1472,13 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             else:
                 pr("print res is", print3D_resolution_mm, "mm")
 
-        # use DEM_name from config for export mesh filename if it is specified (compare with the default value)
-        if config.DEM_name == TouchTerrainConfig().DEM_name:
-            DEM_title = importedDEM_filename[:importedDEM_filename.rfind('.')]
+        # use DEM_name or config_filename from config_path for export mesh filename if it is specified (compare with the default value)
+        if config.DEM_name == TouchTerrainConfig().DEM_name or config.DEM_name is None:
+            if config_filename is not None:
+                DEM_title = config_filename
+            else:
+                # fall back to imported DEM filename
+                DEM_title = importedDEM_filename[:importedDEM_filename.rfind('.')]
         else:
             DEM_title = config.DEM_name
     # end of B: (local raster file)

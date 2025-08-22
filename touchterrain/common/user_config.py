@@ -40,7 +40,7 @@ class TouchTerrainConfig:
     bottom_elevation = None
     "elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM"
     bottom_floor_elev = None
-    "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev."
+    "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev. This option does not seem to have any effect/work at the moment so it should be removed or replaced with min_elev in the future."
     fill_holes = None
     "e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint."
     ignore_leq = None
@@ -94,8 +94,8 @@ class TouchTerrainConfig:
     "STLb" = binary STL
     "GeoTiff" = DEM raster only, no 3D geometry
     """
-    zip_file_name = "terrain"
-    "name of zipfile containing the tiles (st/obj) and helper files"
+    zip_file_name: None | str = "terrain"
+    "name of zipfile containing the tiles (st/obj) and helper files. If None, zip_file_name will use the config filename without the extension."
     
     """
     Tiling
@@ -138,8 +138,8 @@ class TouchTerrainConfig:
     "unused"
     bottom_image = None
     "1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)"
-    DEM_name: str = 'USGS/3DEP/10m'
-    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py. Also used if specifying a custom mesh output filename"
+    DEM_name: None | str = 'USGS/3DEP/10m'
+    "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py. Also used if specifying a custom mesh and zip and extracted folder name."
     kd3_render = False
     "if True will create a html file containing the model as a k3d object."
     map_img_filename = None
@@ -152,6 +152,13 @@ class TouchTerrainConfig:
     "don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters"
     use_geo_coords = None
     "None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m). create STL coords in UTM: None, \"centered\" or \"UTM\""
+    
+    """
+    Runtime only values
+    """
+    
+    config_path: None | str = None
+    "The path of the Touch Terrain config file. Set this during runtime. If DEM_name is None or default value, use config filename for default zip and mesh filenames and unzipped folder name."
     
     def mergeDict(self, dict: dict):
         "Overwrite the config values with values from a dict. All values from the dict are added to the config including new values."

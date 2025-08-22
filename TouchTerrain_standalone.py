@@ -39,6 +39,8 @@ except Exception as e:
     print(e)
     print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
     sys.exit()
+    
+from typing import Any
 
 #
 # How to run the standalone version:
@@ -60,7 +62,7 @@ def main():
     default_args = TouchTerrainConfig()
 
     # Fill args dict with the bare minimum of default values
-    args = {
+    args: dict[str, Any] = {
         "importedDEM": default_args.importedDEM,
         "importedDEM_interp": default_args.importedDEM_interp,
         "offset_masks_lower": default_args.offset_masks_lower
@@ -88,6 +90,8 @@ def main():
             sys.exit("Error: can't json parse " + json_fname + ": " + str(e))
     
         print("reading", json_fname)
+    
+        args["config_path"] = json_fname
     
         for k in list(json_args.keys()):
             args[k] = json_args[k]    # try to find a user set value for k in json config file
@@ -127,7 +131,7 @@ def main():
     if 1: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
-        folder = os.getcwd() + os.sep + args["zip_file_name"]# new stl folder in current folder
+        folder = os.getcwd() + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0] # new stl folder in current folder
         
         # unzip the zipfile into the folder it's already in
         import zipfile
