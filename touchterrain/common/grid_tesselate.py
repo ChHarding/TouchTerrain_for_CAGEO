@@ -174,11 +174,9 @@ class quad:
         if v3 is None:
             return (t0, None)
 
-        
-        
         t1 = (v0, v2, v3)  # verts of second triangle
         
-        if split_rotation is None or split_rotation != 1 or split_rotation != 2:
+        if split_rotation != 1 and split_rotation != 2:
             return (t0,t1)
         
         splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
@@ -570,7 +568,7 @@ def interpolate_with_NaN(elev: np.ndarray, i, j):
             #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
             num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
             if num_nans > 0: # yes, set cell to None and skip it ...
-                self.cells[j-1, i-1] = None
+                # self.cells[j-1, i-1] = None # I commented this out since I have moved interpolate_with_NaN() out of grid class. Not sure what this part does if we return None for the corners already?? -Anson
                 return None, None, None, None
         else:
             

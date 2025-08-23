@@ -681,7 +681,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     else: # local raster file as DEM source
         assert os.path.exists(config.importedDEM), "Error: local DEM raster file " + config.importedDEM + " does not exist"
         assert config.fileformat != "GeoTiff", "Error: it's silly to make a Geotiff from a local DEM file (" + config.importedDEM + ") instead of a mesh file format ..."
-        if config.bottom_elevation != None:
+        if config.bottom_elevation is not None:
             assert os.path.exists(config.bottom_elevation), "Error: bottom elevation raster file " + config.bottom_elevation + " does not exist"
             
     if config.importedDEM_interp != None:
@@ -1259,7 +1259,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         npim = cast(numpy.ndarray, band.ReadAsArray()).astype(numpy.float64) # top elevation values
         
         if importedDEM_interp_filename:
-            interp_dem = gdal.Open(importedDEM_interp_filename)
+            interp_dem = gdal.Open(config.importedDEM_interp)
             interp_band = interp_dem.GetRasterBand(1)
             interp_npim = cast(numpy.ndarray, interp_band.ReadAsArray()).astype(numpy.float64) # top interpolation elevation values
 
