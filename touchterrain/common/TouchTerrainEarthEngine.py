@@ -605,7 +605,6 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: nu
         top_npim = numpy.where(top_npim < bot_npim, bot_npim, top_npim)
         top.original = top_npim.copy()
         
-        
         # find locations where bottom is NaN and top is not NaN and dilate with that mask and the bottom_floor_elev value
         # Set bottom original locations to bottom_floor_elev (push to base) where original bottom is NaN and original top is not NaN. In Anson's maps: this is for the case where the bottom is originally NaN (bottom is < 0 and under water = NaN bottom) or out at sea (NaN bottom)
         hint_nan_to_base_mask = numpy.logical_and(numpy.isnan(bottom.original), numpy.logical_not(numpy.isnan(top.original)))
@@ -635,8 +634,7 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: nu
             # if diagonal cleanup is requested, we need to do it again after setting NaNs
             #clean_up_diags_check(top)
             
-            top_npim = dilate_array(top_npim, top.original) # dilate the NaN'd top with the original (pre NaN'd) top
-            top_npim = dilate_array(top_npim, top.original) # dilate the NaN'd top with the original (pre NaN'd) top
+            top_npim = dilate_array(top_npim, top.original, dilation_cycles=2) # dilate the NaN'd top with the original (pre NaN'd) top
             top.dilated = top_npim.copy()
 
             bot_npim[close_values] = numpy.nan # set close values to NaN 
@@ -657,12 +655,9 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: nu
             #bottom = top_pre_dil.copy() #use top after setting close values to NaN 
             #bottom[~numpy.isnan(bottom)] = min_elev # set non NaN locations to min_elev or 0
         else:
-            bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-            bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
+            bot_npim = dilate_array(bot_npim, top.original, dilation_cycles=2) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
         
-    # repair these patterns, which cause non_manifold problems later:
-    # 0 1    or     1 0
-    # 1 0    or     0 1
+    
     # if clean_diags == True:
     #     top_npim = clean_up_diags(top_npim)
     #     if bot_npim is not None:  
@@ -1623,6 +1618,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                            bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1)) is False or top_raster_variants.dilated is None:
             return
 
+        # repair these patterns, which cause non_manifold problems later:
+        # 0 1    or     1 0
+        # 1 0    or     0 1
         if config.clean_diags:
             top_raster_variants.apply_closure_to_variants(clean_up_diags)
             bottom_raster_variants.apply_closure_to_variants(clean_up_diags)

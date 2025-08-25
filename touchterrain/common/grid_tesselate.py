@@ -453,7 +453,33 @@ class RasterVariants:
     """
     
     original: Union[None, np.ndarray] # Original full raster
+    """
+    Original raster.
+    
+    ## Normal mode:
+    
+    Top: The original.
+    
+    ## Difference mode:
+    
+    Top: original
+    
+    Bottom: Original, but ALL areas matched to top_hint mask are set to bottom_floor_elev.
+    """
     nan_close: Union[None, np.ndarray] # Raster after NaN close values to bottom and before dilation
+    """
+    Raster after nan close values between top and bottom.
+    
+    ## Normal mode:
+    
+    Top: Same as original. 
+    
+    ## Difference mode:
+    
+    Top: NaN close values
+    
+    Bottom: Original + top_hint mask + NaN close values. 
+    """
     dilated: Union[None, np.ndarray]
     """
     Raster after dilation.
@@ -466,10 +492,9 @@ class RasterVariants:
     
     ## Difference mode:
     
-    Top: Dilated outwards from the nan_close variant
+    Top: Dilated outwards from the nan_close variant outwards 2x with top.original values
     
-    Bottom: Dilated outwards from the nan_close variant
-    ALL areas matched to top_hint mask are set to bottom_floor_elev before dilating outwards with top.original from the nan_close variant.
+    Bottom: Original + top_hint mask + NaN close values + Dilated outwards 2x with top.original values
     """
     
     edge_interpolation: Union[None, np.ndarray] # Original full raster with values past edges for interpolation

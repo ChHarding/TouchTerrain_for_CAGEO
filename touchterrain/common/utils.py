@@ -303,7 +303,7 @@ def plot_DEM_histogram(npim, DEM_name, temp_folder):
     return plot_file_name
 
 
-def dilate_array(raster, dilation_source=None, limit_mask=None):
+def dilate_array(raster, dilation_source:numpy.ndarray=None, dilation_cycles:int=1, limit_mask=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
@@ -313,8 +313,11 @@ def dilate_array(raster, dilation_source=None, limit_mask=None):
         # Convert raster to a binary array, where True represents non-NaN values
         nan_mask = ~np.isnan(raster) 
 
-        # Perform the binary dilation operation
+        # Perform the binary dilation operation as many times as specified
+        # generate dilation mask with multiple cycles at once because some locations may be separated by NaN and not reachable with individual dilations
         dilated_nan_mask = binary_dilation(nan_mask, mask=limit_mask) 
+        for _ in range(dilation_cycles-1):
+            dilated_nan_mask = binary_dilation(dilated_nan_mask, mask=limit_mask) 
 
         # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
         mask = dilated_nan_mask & ~nan_mask  

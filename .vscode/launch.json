@@ -32,6 +32,15 @@
       "args": "IP-water.json"
     },
     {
+      "name": "Python Debugger: TT Standalone IP-water-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-water-clip.json"
+    },
+    {
       "name": "Python Debugger: TT Standalone DC-new-land-only.json",
       "type": "debugpy",
       "request": "launch",
