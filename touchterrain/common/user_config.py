@@ -22,6 +22,7 @@ class TouchTerrainConfig:
     
     """
     Raster input
+    All DEMs must exactly match the sizes and cell resolution of importedDEM
     """
     
     importedDEM = None
@@ -31,7 +32,7 @@ class TouchTerrainConfig:
     top_elevation_hint = None
     "elevation raster for the future top of the model that would be used for a future difference mesh. Used for Normal mode where Difference Mesh will be created in the future with the same top raster."
     bottom_elevation = None
-    "elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM"
+    "elevation raster for the bottom of the model."
     projection = None
     "EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone"
     
