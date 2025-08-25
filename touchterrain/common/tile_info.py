@@ -55,7 +55,7 @@ class TouchTerrainTileInfo:
     "max elevation of processed bot raster"
     
     have_nan: bool
-    "processed top raster has NaN"
+    "processed top raster.dilated has NaN"
     have_bot_nan: bool
     "processed bottom raster has NaN"
     

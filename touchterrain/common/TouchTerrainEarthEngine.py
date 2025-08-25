@@ -564,8 +564,10 @@ def get_print3D_dimensions(dem: gdal.Dataset, tile_scale) -> tuple[float, float]
     print3D_height_per_tile = dem_pixel_width_y * 1000 * dem.RasterYSize / tile_scale
     return (print3D_width_per_tile, print3D_height_per_tile)
 
-def raster_preparation(top: RasterVariants, bottom: RasterVariants, bottom_thru_base: bool, bottom_floor_elev, clean_diags: bool) -> bool:
+def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: numpy.ndarray|None = None, bottom_thru_base: bool = False, bottom_floor_elev: float|None = None, clean_diags: bool = False) -> bool:
     """Prepare rasters by NaN close values, dilate, and clean diags
+    
+    Modifies bottom raster.original by setting min_elev in bottom cells where bottom is NaN and top is not NaN!
     """
     
     # bottom_thru_base is special flag for thru-bottom rasters
@@ -577,14 +579,43 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, bottom_thru_
     top_npim = top.original.copy()
     bot_npim = None
 
-    # if bottom raster is supplied
-    if bottom.original is not None:
-        
+    
+    # Normal mode
+    if bottom.original is None:
+        # If we have no bottom, we are only generating a "top".
+        if numpy.any(numpy.isnan(top_npim)):
+        # nan_close is set to the original values because we do not NaN close values in this case
+            top.nan_close = top_npim.copy()   # save original top before it gets dilated
+            
+            if top_hint is not None:
+                
+                
+                
+                # find locations where top is NaN and top_hint is not NaN and dilate with that mask and the bottom_floor_elev value
+                hint_nan_to_base_mask = numpy.logical_and(numpy.isnan(top.original), numpy.logical_not(numpy.isnan(top_hint)))
+                
+                if numpy.any(hint_nan_to_base_mask) == True:
+                    # Modify original to keep it the same as the bottom raster if difference mesh used in the future
+                    top.original[hint_nan_to_base_mask] = bottom_floor_elev # set ALL locs within top_hint mask area with a constant value
+                    
+                    top_npim = dilate_array(top_npim, dilation_source=numpy.full(top_npim.shape, bottom_floor_elev), limit_mask=hint_nan_to_base_mask) # dilate in top_hint mask area with a constant value 
+
+    # Difference mode
+    else:
         bot_npim = bottom.original.copy()
 
         # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
         top_npim = numpy.where(top_npim < bot_npim, bot_npim, top_npim)
         top.original = top_npim.copy()
+        
+        
+        # find locations where bottom is NaN and top is not NaN and dilate with that mask and the bottom_floor_elev value
+        # Set bottom original locations to bottom_floor_elev (push to base) where original bottom is NaN and original top is not NaN. In Anson's maps: this is for the case where the bottom is originally NaN (bottom is < 0 and under water = NaN bottom) or out at sea (NaN bottom)
+        hint_nan_to_base_mask = numpy.logical_and(numpy.isnan(bottom.original), numpy.logical_not(numpy.isnan(top.original)))
+        if numpy.any(hint_nan_to_base_mask) == True:
+            # Patch the original bottom raster with the new elevations (it not actually "original" anymore but we don't reuse actual original so it is okay)
+            bot_npim[hint_nan_to_base_mask] = bottom_floor_elev # set ALL locs within top_hint mask area with a constant value
+            bottom.original = bot_npim.copy()
 
         # bool array with True where bottom has NaN values but top does not
         # this is specific to Anson's way of encoding through-water cells
@@ -616,31 +647,22 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, bottom_thru_
             bottom.nan_close = bot_npim.copy()
             #clean_up_diags_check(bottom) # re-check for diags
             
-            # Set bottom NaN values to a fixed height where top is not NaN
-            # This just fixes any incontinuities in the bottom mesh such as holes that were filled in the top
-            bottom_mesh_locations = numpy.logical_and(numpy.isnan(bot_npim), numpy.logical_not(numpy.isnan(top.original)))
-            if numpy.any(bottom_mesh_locations) == True: 
-                bot_npim[bottom_mesh_locations] = bottom_floor_elev
-            
-            if bottom_thru_base == True:
-                #0==0
-                bot_npim = dilate_array(bot_npim) # dilate with 3x3 nanmean #  
-                # Set bottom locations where difference mesh should be generated to 0. Avoid setting bottom values at top dilation ring locations because that is where the top mesh will generate a cell.
-                #bottom = top_pre_dil.copy() #use top after setting close values to NaN 
-                #bottom[~numpy.isnan(bottom)] = min_elev # set non NaN locations to min_elev or 0
-            else:
-                bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-                bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-
-            bottom.dilated = bot_npim
-
-    # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. 
-    # We'll still use the non-dilated top_pre_dil when we need to skip NaN cells
-    elif numpy.any(numpy.isnan(top_npim)):
-        # nan_close is set to the original values because we do not NaN close values in this case
-        top.nan_close = top_npim.copy()   # save original top before it gets dilated
-        top_npim = dilate_array(top_npim) # dilate with 3x3 nanmean 
-
+        # Set bottom NaN values to a fixed height where top is not NaN
+        # This just fixes any incontinuities in the bottom mesh such as holes that were filled in the top
+        # bottom_nan_patch_locations = numpy.logical_and(numpy.isnan(bot_npim), numpy.logical_not(numpy.isnan(top.original)))
+        # if numpy.any(bottom_nan_patch_locations) == True: 
+        #     bot_npim[bottom_nan_patch_locations] = bottom_floor_elev
+        
+        if bottom_thru_base == True:
+            #0==0
+            bot_npim = dilate_array(bot_npim) # dilate with 3x3 nanmean #  
+            # Set bottom locations where difference mesh should be generated to 0. Avoid setting bottom values at top dilation ring locations because that is where the top mesh will generate a cell.
+            #bottom = top_pre_dil.copy() #use top after setting close values to NaN 
+            #bottom[~numpy.isnan(bottom)] = min_elev # set non NaN locations to min_elev or 0
+        else:
+            bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
+            bot_npim = dilate_array(bot_npim, top.original) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
+        
     # repair these patterns, which cause non_manifold problems later:
     # 0 1    or     1 0
     # 1 0    or     0 1
@@ -717,7 +739,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         config_filename = os.path.splitext(os.path.basename(config.config_path))[0]
 
     # if zip_file_name not specified, use DEM_name or config_filename from config_path for zip_file_name if it is specified (compare with the default value)
-    if config.zip_file_name is None:
+    if config.zip_file_name is None or len(config.zip_file_name) == 0:
         if config.DEM_name == TouchTerrainConfig().DEM_name or config.DEM_name is None:
             if config_filename is not None:
                 config.zip_file_name = config_filename
@@ -752,6 +774,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
 
     npim: Union[numpy.ndarray, None] = None
     interp_npim: Union[numpy.ndarray, None] = None
+    top_elevation_hint_npim: Union[numpy.ndarray, None] = None
 
     #
     # get polygon data, either from GeoJSON (or just it's coordinates as a list) or from kml URL or file
@@ -1262,6 +1285,11 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             interp_dem = gdal.Open(config.importedDEM_interp)
             interp_band = interp_dem.GetRasterBand(1)
             interp_npim = cast(numpy.ndarray, interp_band.ReadAsArray()).astype(numpy.float64) # top interpolation elevation values
+            
+        if config.top_elevation_hint:
+            top_elevation_hint_dem = gdal.Open(config.top_elevation_hint)
+            top_elevation_hint_band = top_elevation_hint_dem.GetRasterBand(1)
+            top_elevation_hint_npim = cast(numpy.ndarray, top_elevation_hint_band.ReadAsArray()).astype(numpy.float64)
 
         # Read in offset mask file (Anson's stuff ...)
         if config.offset_masks_lower is not None:
@@ -1312,6 +1340,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             npim = numpy.where(undef_cells, numpy.nan, npim) # replace GDAL undef values with nan
             if interp_npim is not None:
                 interp_npim = numpy.where(numpy.isclose(interp_npim, dem_undef_val), numpy.nan, interp_npim) # replace GDAL undef 
+                
+            if top_elevation_hint_npim is not None:
+                top_elevation_hint_npim = numpy.where(numpy.isclose(top_elevation_hint_npim, dem_undef_val), numpy.nan, top_elevation_hint_npim) # replace GDAL undef 
 
 
         # for a bottom raster or a thickness raster, check that it matches the top raster
@@ -1590,9 +1621,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             bottom_raster_variants.original = bot_npim.copy()
         
         if raster_preparation(top=top_raster_variants, 
-                           bottom=bottom_raster_variants, 
+                           bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
                            bottom_thru_base=config.bottom_thru_base, 
-                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev else config.min_elev), 
+                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1), 
                            clean_diags=config.clean_diags) is False or top_raster_variants.dilated is None:
             return
 

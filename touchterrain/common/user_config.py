@@ -28,6 +28,10 @@ class TouchTerrainConfig:
     "None (means: get the DEM from GEE) or local file name with (top) DEM to be used instead"
     importedDEM_interp = None
     "Optional raster file for interpolating at edges"
+    top_elevation_hint = None
+    "elevation raster for the future top of the model that would be used for a future difference mesh. Must exactly match the sizes and cell resolution of importedDEM"
+    bottom_elevation = None
+    "elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM"
     projection = None
     "EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone"
     
@@ -37,14 +41,13 @@ class TouchTerrainConfig:
     
     basethick = 2
     "thickness (in mm) of printed base"
-    bottom_elevation = None
-    "elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM"
+
     bottom_floor_elev = None
-    "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev. This option does not seem to have any effect/work at the moment so it should be removed or replaced with min_elev in the future."
+    "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev-1. If set to less than min_elev, difference mesh at that point will go thru base."
     fill_holes = None
     "e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint."
     ignore_leq = None
-    "ignore elevation values <= this value, good for removing offshore data"
+    "ignore elevation values <= this value, good for removing offshore data. This filter is applied to the original DEM that is read in so further processing may set the height lower."
     lower_leq = None
     "[threshold, offset] if elevation is lower than threhold, lower it by offset mm. Good for adding emphasis to coastlines. Unaffected by z_scale."
     min_elev = None
