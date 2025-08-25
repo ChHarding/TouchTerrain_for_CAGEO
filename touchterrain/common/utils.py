@@ -303,7 +303,7 @@ def plot_DEM_histogram(npim, DEM_name, temp_folder):
     return plot_file_name
 
 
-def dilate_array(raster, dilation_source:numpy.ndarray=None, dilation_cycles:int=1, limit_mask=None):
+def dilate_array(raster, dilation_source:numpy.ndarray|None=None, dilation_cycles:int=1, limit_mask=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
