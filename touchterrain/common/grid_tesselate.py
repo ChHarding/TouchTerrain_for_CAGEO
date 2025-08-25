@@ -579,17 +579,6 @@ def interpolate_with_NaN(elev: np.ndarray, i, j) -> tuple[float|None, float|None
             NWelev = np.nanmean(NWar) if np.isnan(np.sum(NWar)) else (elev[j+0,i+0] + elev[j+0,i-1] + elev[j-1,i-1] + elev[j-1,i+0]) / 4.0
             SEelev = np.nanmean(SEar) if np.isnan(np.sum(SEar)) else (elev[j+0,i+0] + elev[j-0,i+1] + elev[j+1,i+1] + elev[j+1,i+0]) / 4.0
             SWelev = np.nanmean(SWar) if np.isnan(np.sum(SWar)) else (elev[j+0,i+0] + elev[j+1,i+0] + elev[j+1,i-1] + elev[j+0,i-1]) / 4.0
-            
-                
-            # if basethick is not None:
-            #     if elev[j+0,i+0] < basethick or elev[j-1,i-0] < basethick or elev[j-1,i+1] < basethick or elev[j-0,i+1] < basethick:
-            #         NEelev = elev[j,i]
-            #     if elev[j+0,i+0] < basethick or elev[j+0,i-1] < basethick or elev[j-1,i-1] < basethick or elev[j-1,i+0] < basethick:
-            #         NWelev = elev[j,i]
-            #     if elev[j+0,i+0] < basethick or elev[j-0,i+1] < basethick or elev[j+1,i+1] < basethick or elev[j+1,i+0] < basethick:
-            #         SEelev = elev[j,i]
-            #     if elev[j+0,i+0] < basethick or elev[j+1,i+0] < basethick or elev[j+1,i-1] < basethick or elev[j+0,i-1] < basethick:
-            #         SWelev = elev[j,i]
 
         except RuntimeWarning: #  corner is surrounded by NaN elevations - skip this cell
             #print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
@@ -695,7 +684,6 @@ class grid:
                 
         #     if tile.bottom_raster_variants.original is not None:
         #         tile.bottom_raster_variants.original = tile.bottom_raster_variants.original.copy().astype(np.float64) # writeable
-
         
         #
         # Some sanity checks
@@ -713,80 +701,9 @@ class grid:
             tile.bottom_raster_variants = tile.bottom_raster_variants
 
         # need to use the tilewide min/max for each tile, otherwise the boudaries don't line up perfectly! 
-
-        if self.tile_info.config.bottom_elevation is not None: # we have a bottom raster
             
-            '''
-
-            # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
-            self.top = np.where(self.top < self.bottom, self.bottom, self.top)
-            
-            #
-            # Checking for all-the-way-through bottom NaNs and for top == bottom or bottom < top
-            #
-
-            # If the bottom has NaNs where top does not, set them to 0
-            # This is very specific to Anson's way of creating all-the-way-through water
-            # where his preprocessing sets the bottom to NaN for the water. (here called bottom_thru_base case)
-            if self.tile_info.have_bot_nan == True:
-                # CH1
-                # bool array with True where self.bottom has NaN values but self.top does not
-                nan_values = np.logical_and(np.isnan(self.bottom), np.logical_not(np.isnan(self.top)))
-                if np.any(nan_values) == True: 
-                    self.bottom[nan_values] = 0 # set bottom NaN values to 0 
-                    self.bottom_thru_base = True # flag for easy checking
-
-
-            # if both have the same value (or very close to) set both to Nan
-            # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
-            close_values = np.isclose(self.top, self.bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
-
-            # for any True values in array, set corresponding top and bottom cells to NaN
-            # Also set NaN flags
-            if np.any(close_values) == True: 
-                # save pre-dilated top for later dilation
-                top_pre_dil = self.top.copy()  
-                self.top[close_values] = np.nan   # set close values to NaN   
-
-                # if diagonal cleanup is requested, we need to do it again after setting NaNs
-                #clean_up_diags_check(self.top)
-
-                # save original top after setting NaNs so we can skip the undilated NaN cells later
-                tile.top_raster_variants.nan_close = self.top.copy()  
-                self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
-
-                self.bottom[close_values] = np.nan # set close values to NaN 
-                #clean_up_diags_check(self.bottom) # re-check for diags
-                
-                
-                if self.bottom_thru_base == True:
-                    self.bottom = dilate_array(self.bottom) # dilate with 3x3 nanmean #  
-                else:
-                    self.bottom = dilate_array(self.bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-                
-
-                # as we may have changed the rasters, recalculate min elev (TODO: not sure if this is needed any more)
-                self.tile_info.min_elev = np.nanmin(self.top)  
-                self.tile_info.min_bot_elev = np.nanmin(self.bottom)  
-
-                # check if we have NaNs in the top and/or bottom now (any() returns Bools)
-                self.tile_info.have_nan = np.any(np.isnan(self.top))
-                self.tile_info.have_bot_nan = np.any(np.isnan(self.bottom))
-
-                # pre-dilated top is not needed anymore
-                del top_pre_dil
-
-        # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. We'll still use the non-dilated top
-        # when we need to skip NaN cells
-        elif self.tile_info.have_nan == True:
-
-            tile.top_raster_variants.nan_close = self.top.copy()   # save original top before it gets dilated
-            self.top = dilate_array(self.top) # dilate with 3x3 nanmean 
-    
-        # CH2
-        '''
         #
-        # Convert elevation from real word elevation (m) to model height (mm)
+        # Convert elevation from real word elevation (m) to model print3D height (mm)
         # 
         if self.tile_info.config.use_geo_coords is None: # Coordinates need to be in mm 
 
@@ -918,11 +835,11 @@ class grid:
 
         # TODO: not sure we need this any more, given that this was done on the full raster
         # and after the operations that could have changed the raster 
-        if self.tile_info.config.clean_diags == True:
-            self.tile.top_raster_variants.dilated = utils.fillHoles(self.tile.top_raster_variants.dilated, 1, 8, True) # fill single holes
-            self.tile.top_raster_variants.dilated = utils.clean_up_diags(self.tile.top_raster_variants.dilated)
-            if self.tile.top_raster_variants.nan_close is not None:
-                self.tile.top_raster_variants.nan_close = utils.clean_up_diags(self.tile.top_raster_variants.nan_close)
+        # if self.tile_info.config.clean_diags == True:
+        #     self.tile.top_raster_variants.dilated = utils.fillHoles(self.tile.top_raster_variants.dilated, 1, 8, True) # fill single holes
+        #     self.tile.top_raster_variants.dilated = utils.clean_up_diags(self.tile.top_raster_variants.dilated)
+        #     if self.tile.top_raster_variants.nan_close is not None:
+        #         self.tile.top_raster_variants.nan_close = utils.clean_up_diags(self.tile.top_raster_variants.nan_close)
 
         # report progress in %
         percent = 10
@@ -943,11 +860,15 @@ class grid:
                 # dirty_trianglescreates a technically better fit fit of the water into the terrain but will create triangles
                 # that are collapsed into a line or a point. This should not be a problem for a modern slicer but will
                 # lead to issues when using the model in a 3D mesh modeling program
-                if self.tile_info.have_nan == True and self.tile_info.config.dirty_triangles == False: # also true for bottom_thru_case
+                # Top set here determines which cells to skip based on the cells' values
+                if self.tile_info.have_nan == True and self.tile_info.config.dirty_triangles == False:
                     top = self.tile.top_raster_variants.dilated
                 else:
                     top = self.tile.top_raster_variants.dilated
-
+                    
+                # For Difference Mesh mode + bottom_thru_base
+                if self.tile.bottom_raster_variants is not None and self.tile_info.config.bottom_thru_base:
+                        top = self.tile.bottom_raster_variants.nan_close
 
                 # if center elevation of current top cell is NaN, set its cell to None and skip the rest
                 if self.tile_info.have_nan and np.isnan(top[j, i]):
@@ -1006,17 +927,16 @@ class grid:
                             interpolation_top_raster = self.tile.top_raster_variants.original
                             if self.tile_info.config.bottom_thru_base:
                                 # Use original top raster so we get accurate NaN location and borders
-                                interpolation_top_raster = self.tile.top_raster_variants.nan_close
+                                interpolation_top_raster = self.tile.top_raster_variants.original
 
                     # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
                     NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(interpolation_top_raster, i, j)
-                    # if j == 34 and i == 9:
-                    #     0==0
-                    #NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
+
                     if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
                         continue
                     
                     # compare values with real print3D heights at this point
+                    # Pull values set to bottom_floor_elev (which will be just below basethick) to actual 0 because we added basethick to all raster.
                     if NEelev < self.tile_info.config.basethick:
                         NEelev = 0
                     if NWelev < self.tile_info.config.basethick:
@@ -1081,9 +1001,12 @@ class grid:
                 # Make bottom quad  
                 #
 
-                # get corner for bottom array
-                if self.tile.bottom_raster_variants is not None: #self.tile_info.have_bottom_array == True:
-
+                # get corners for bottom array
+                if self.tile.bottom_raster_variants is None:
+                    # Normal mode
+                    NEelev = NWelev = SEelev = SWelev = 0
+                else:
+                    # Difference mode
                     # for the through water case, simply set the bottom to 0
                     if self.bottom_thru_base == True:
                         NEelev = NWelev = SEelev = SWelev = 0
@@ -1100,12 +1023,10 @@ class grid:
                             # Nan aware interpolation 
                             NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.tile.bottom_raster_variants.original, i, j)
                             
-                            if j == 41 and i == 9:
-                                0==0
-                            
                             if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
                                 continue # skip this cell
                             
+                            # Pull values set to bottom_floor_elev to actual 0
                             # compare values with real print3D heights at this point
                             if NEelev < self.tile_info.config.basethick:
                                 NEelev = 0
@@ -1115,10 +1036,6 @@ class grid:
                                 SEelev = 0
                             if SWelev < self.tile_info.config.basethick:
                                 SWelev = 0
-                                
-                            
-                else:
-                    NEelev = NWelev = SEelev = SWelev = 0 #self.tile.bottom_raster_variants.dilated # otherwise use the constant bottom elevation value
 
                 # from whatever bottom values we have now, make the bottom quad
                 # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)

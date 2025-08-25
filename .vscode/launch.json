@@ -5,6 +5,33 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python Debugger: TT Standalone PA-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "PA-river.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-water.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-water.json"
+    },
+    {
       "name": "Python Debugger: TT Standalone DC-new-land-only.json",
       "type": "debugpy",
       "request": "launch",

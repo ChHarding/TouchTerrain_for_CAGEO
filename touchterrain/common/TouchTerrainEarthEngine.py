@@ -564,8 +564,8 @@ def get_print3D_dimensions(dem: gdal.Dataset, tile_scale) -> tuple[float, float]
     print3D_height_per_tile = dem_pixel_width_y * 1000 * dem.RasterYSize / tile_scale
     return (print3D_width_per_tile, print3D_height_per_tile)
 
-def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: numpy.ndarray|None = None, bottom_thru_base: bool = False, bottom_floor_elev: float|None = None, clean_diags: bool = False) -> bool:
-    """Prepare rasters by NaN close values, dilate, and clean diags
+def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: numpy.ndarray|None = None, bottom_thru_base: bool = False, bottom_floor_elev: float|None = None) -> bool:
+    """Prepare rasters by NaN close values, dilate
     
     Modifies bottom raster.original by setting min_elev in bottom cells where bottom is NaN and top is not NaN!
     """
@@ -587,10 +587,7 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: nu
         # nan_close is set to the original values because we do not NaN close values in this case
             top.nan_close = top_npim.copy()   # save original top before it gets dilated
             
-            if top_hint is not None:
-                
-                
-                
+            if top_hint is not None: 
                 # find locations where top is NaN and top_hint is not NaN and dilate with that mask and the bottom_floor_elev value
                 hint_nan_to_base_mask = numpy.logical_and(numpy.isnan(top.original), numpy.logical_not(numpy.isnan(top_hint)))
                 
@@ -666,12 +663,12 @@ def raster_preparation(top: RasterVariants, bottom: RasterVariants, top_hint: nu
     # repair these patterns, which cause non_manifold problems later:
     # 0 1    or     1 0
     # 1 0    or     0 1
-    if clean_diags == True:
-        top_npim = clean_up_diags(top_npim)
-        if bot_npim is not None:  
-            bot_npim = clean_up_diags(bot_npim) 
-            # TODO: check if this is needed as top NaNs dictate if a cell
-            # should be skipped or not
+    # if clean_diags == True:
+    #     top_npim = clean_up_diags(top_npim)
+    #     if bot_npim is not None:  
+    #         bot_npim = clean_up_diags(bot_npim) 
+    #         # TODO: check if this is needed as top NaNs dictate if a cell
+    #         # should be skipped or not
            
     # last step output is always in the dilated slot 
     top.dilated = top_npim.copy()
@@ -1623,10 +1620,13 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         if raster_preparation(top=top_raster_variants, 
                            bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
                            bottom_thru_base=config.bottom_thru_base, 
-                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1), 
-                           clean_diags=config.clean_diags) is False or top_raster_variants.dilated is None:
+                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1)) is False or top_raster_variants.dilated is None:
             return
 
+        if config.clean_diags:
+            top_raster_variants.apply_closure_to_variants(clean_up_diags)
+            bottom_raster_variants.apply_closure_to_variants(clean_up_diags)
+            
         #
         # deal with min_elev and min_bottom_elev (and user set min_elev)
         #

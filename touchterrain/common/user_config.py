@@ -29,7 +29,7 @@ class TouchTerrainConfig:
     importedDEM_interp = None
     "Optional raster file for interpolating at edges"
     top_elevation_hint = None
-    "elevation raster for the future top of the model that would be used for a future difference mesh. Must exactly match the sizes and cell resolution of importedDEM"
+    "elevation raster for the future top of the model that would be used for a future difference mesh. Used for Normal mode where Difference Mesh will be created in the future with the same top raster."
     bottom_elevation = None
     "elevation raster for the bottom of the model. Must exactly match the sizes and cell resolution of importedDEM"
     projection = None
@@ -41,8 +41,7 @@ class TouchTerrainConfig:
     
     basethick = 2
     "thickness (in mm) of printed base"
-
-    bottom_floor_elev = None
+    bottom_floor_elev: None|float = None
     "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev-1. If set to less than min_elev, difference mesh at that point will go thru base."
     fill_holes = None
     "e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint."
@@ -50,7 +49,7 @@ class TouchTerrainConfig:
     "ignore elevation values <= this value, good for removing offshore data. This filter is applied to the original DEM that is read in so further processing may set the height lower."
     lower_leq = None
     "[threshold, offset] if elevation is lower than threhold, lower it by offset mm. Good for adding emphasis to coastlines. Unaffected by z_scale."
-    min_elev = None
+    min_elev: None|float = None
     "None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness"
     offset_masks_lower = None
     "e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model."
@@ -68,7 +67,7 @@ class TouchTerrainConfig:
     CPU_cores_to_use = 0
     "0 means all cores, None (null in JSON!) => don't use multiprocessing"
     dirty_triangles = False
-    "allow degenerate triangles for difference mesh"
+    "allow degenerate triangles for difference mesh. Should only be used for Difference Mesh mode."
     max_cells_for_memory_only = 500 * 500 * 4
     "if total number of cells is bigger, use temp_file instead using memory only"
     no_normals = True 

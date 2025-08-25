@@ -23,7 +23,7 @@ def save_tile_as_image(tile, name):
     imageio.imsave(name + '.png', tile_elev_raster_mask.astype(numpy.uint8))
 
 
-def clean_up_diags(ras):
+def clean_up_diags(ras: numpy.ndarray):
     '''clean up diagonal cells as these lead to non-manifold vertices where they meet
     These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
                                  1 0        0 1
