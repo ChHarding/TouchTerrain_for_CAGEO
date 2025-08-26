@@ -1599,9 +1599,15 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         if config.fill_holes is not None and (config.fill_holes[0] > 0 or config.fill_holes[0] == -1):
             npim = fillHoles(npim, num_iters=config.fill_holes[0], num_neighbors=config.fill_holes[1])
             
-            #for difference mesh case and thru water case
+            # TODO: We should fillHoles for the interpolation DEM in normal mode as well since the fillHole'd top right now is used as the top for a complementary difference mesh mode run of TouchTerrain. I haven't seen an actual difference show up yet in meshes.
+            
+            # TODO: we can optimize fillHoles by returning the filled indices and reused those precomputed indices for future filling
+            
+            #for Difference Mesh mode
             # bottom mesh must have holes filled to match what happened when the bottom raster was previously used for the interlocking top piece
-            if config.bottom_elevation is not None and config.bottom_thru_base is True:
+            # We need to fillHoles in both cases when bottom_thru_base is enabled or not.
+            # # Not filling bottom holes in the bottom_thru_base=false leads to mesh generation thinks top=notNaN and bottom=NaN means bottom should be forced to base.
+            if config.bottom_elevation is not None:
                 bot_npim = fillHoles(bot_npim, num_iters=config.fill_holes[0], num_neighbors=config.fill_holes[1])
             # AND/OR NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
             # In difference mesh and thru water, we could actually replace the close value NaN operation with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
