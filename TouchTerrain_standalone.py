@@ -96,6 +96,10 @@ def main():
         for k in list(json_args.keys()):
             args[k] = json_args[k]    # try to find a user set value for k in json config file
 
+    extract_dir = None
+    if len(sys.argv) > 2:
+        extract_dir = sys.argv[2]
+
     # else:
     #     # no JSON config file given, setting config values in code
     #     # you can comment out lines for which you don't want to overwrite the default settings
@@ -127,11 +131,11 @@ def main():
     totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(args) # all args are in a dict
     print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
     
-    # Optional: unzip the zip file into the current folder
+    # Optional: unzip the zip file into the current folder or folder specified as the second CLI param
     if 1: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
-        folder = os.getcwd() + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0] # new stl folder in current folder
+        folder = (extract_dir if extract_dir else os.getcwd()) + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0] # new stl folder in current folder
         
         # unzip the zipfile into the folder it's already in
         import zipfile
