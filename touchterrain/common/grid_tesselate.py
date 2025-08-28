@@ -959,8 +959,8 @@ class grid:
 
                     # top
                     # set breakpoint for specific points for debugging
-                    if j == 10 and i ==9:
-                        0==0
+                    # if j == 10 and i ==9:
+                    #     0==0
 
                     if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
                         continue
@@ -1053,10 +1053,10 @@ class grid:
                             # Nan aware interpolation 
                             NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.tile.bottom_raster_variants.original, i, j)
                             
-                            # top
+                            # bottom
                             # set breakpoint for specific points for debugging
-                            if j == 10 and i ==9:
-                                0==0
+                            # if j == 10 and i ==9:
+                            #     0==0
                             
                             if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
                                 continue # skip this cell
