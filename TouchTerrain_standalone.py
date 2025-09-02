@@ -135,7 +135,7 @@ def main():
     if 1: # set this to 0 if you don't want the zip file to be unzipped
         #import os.path
         #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
-        folder = (extract_dir if extract_dir else os.getcwd()) + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0] # new stl folder in current folder
+        folder = extract_dir if extract_dir else (os.getcwd() + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0]) # new stl directly in extract_dir or new stl in zipfile name folder in current folder
         
         # unzip the zipfile into the folder it's already in
         import zipfile
