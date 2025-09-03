@@ -127,7 +127,7 @@ The JSON config file has the following format:
   - `poly_file` : path to a local kml file
   - `polyURL` : URL to a publicly readable(!) kml file on Google Drive
 
-  The standalone version also supports: `polygon` :  a GeoJSON polygon,
+  The standalone version also supports: `polygon` :  a GeoJSON polygon, 
 
 - `bottom_image`: (default: `null`). If a filename to a valid greyscale (1-band) 8-bit local image is given (e.g. *TouchTerrain_bottom_example.png* in the *stuff* folder), the image is centered, uniformly resized to have a generous fringe and used to create a relief on the bottom. Low values (black pixels, 0) create a high relief (with a large gap from the buildplate), white pixels (255) make no relief. Must have a base thickness > 0.5 mm. The highest relief is scaled to be 80% of the base thickness. Note that this relief may adversely affect bed adhesion and will certainly make the first few layers considerably slower to print!
 
