@@ -23,7 +23,7 @@ def save_tile_as_image(tile, name):
     imageio.imsave(name + '.png', tile_elev_raster_mask.astype(numpy.uint8))
 
 
-def clean_up_diags(ras):
+def clean_up_diags(ras: numpy.ndarray):
     '''clean up diagonal cells as these lead to non-manifold vertices where they meet
     These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
                                  1 0        0 1
@@ -303,7 +303,7 @@ def plot_DEM_histogram(npim, DEM_name, temp_folder):
     return plot_file_name
 
 
-def dilate_array(raster, dilation_source=None):
+def dilate_array(raster, dilation_source:numpy.ndarray|None=None, dilation_cycles:int=1, limit_mask=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
@@ -313,8 +313,11 @@ def dilate_array(raster, dilation_source=None):
         # Convert raster to a binary array, where True represents non-NaN values
         nan_mask = ~np.isnan(raster) 
 
-        # Perform the binary dilation operation
-        dilated_nan_mask = binary_dilation(nan_mask) 
+        # Perform the binary dilation operation as many times as specified
+        # generate dilation mask with multiple cycles at once because some locations may be separated by NaN and not reachable with individual dilations
+        dilated_nan_mask = binary_dilation(nan_mask, mask=limit_mask) 
+        for _ in range(dilation_cycles-1):
+            dilated_nan_mask = binary_dilation(dilated_nan_mask, mask=limit_mask) 
 
         # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
         mask = dilated_nan_mask & ~nan_mask  
@@ -335,7 +338,7 @@ def dilate_array(raster, dilation_source=None):
         #  [False False  True  True]
         #  [ True  True  True  True]]
 
-        dilated_mask = binary_dilation(mask)   # Perform a binary dilation
+        dilated_mask = binary_dilation(mask, mask=limit_mask)   # Perform a binary dilation
         # [[False True  True  True]
         # [ True  True  True  True]
         # [ True  True  True  True]]
