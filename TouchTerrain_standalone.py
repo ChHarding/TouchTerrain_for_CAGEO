@@ -70,7 +70,7 @@ def main():
 
     # write an example json file, in case it gets deleted ...
     with open('example_config.json', 'w+') as fp:
-        json.dump(args, fp, indent=0, sort_keys=True) # indent = 0: newline after each comma
+        json.dump(default_args, fp, indent=2, default=vars)
     print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
     
     
