@@ -44,7 +44,7 @@ def run_get_zipped_tiles(overwrite_args, testname):
     for k in sorted(args.keys()):
         print("%s = %s" % (k, str(args[k])))
 
-    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(**args) 
+    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(args) 
     #print("In tmp, created zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
 
     from os import getcwd, sep, remove

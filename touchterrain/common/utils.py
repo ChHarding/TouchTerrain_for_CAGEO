@@ -23,7 +23,7 @@ def save_tile_as_image(tile, name):
     imageio.imsave(name + '.png', tile_elev_raster_mask.astype(numpy.uint8))
 
 
-def clean_up_diags(ras):
+def clean_up_diags(ras: numpy.ndarray):
     '''clean up diagonal cells as these lead to non-manifold vertices where they meet
     These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
                                  1 0        0 1
@@ -184,13 +184,66 @@ def fillHoles(raster, num_iters=-1,  num_neighbors=7, NaN_are_holes=False):
 
     return raster
 
+geoXMin = 0
+geoXPixelSize = 0
+geoYMin = 0
+geoYPixelSize = 0
 
+def arrayCoordToGeoCoord(arrayCoord2D: tuple[float, float], geoTransform: tuple) -> tuple[float, float]:
+    """Transform a tuple of array based coordinates to geo coordinates. Returns the new tuple.
+
+    :param arrayCoord2D: Tuple of array coordinates 2D.
+    :type arrayCoord2D: tuple[float, float]
+    :param geoTransform: GDAL geotransform information in a tuple of order [tl X, pixel width, X-skew, tl Y, Y-skew, pixel height]
+    :type geoTransform: tuple
+    :return: Tuple of geo coordinates
+    :rtype: tuple[float, float]
+    """
+    geoXMin = geoTransform[0]
+    geoXPixelSize = geoTransform[1]
+    geoYMin = geoTransform[3]
+    geoYPixelSize = geoTransform[5]
+    
+    geoX = geoXMin + (arrayCoord2D[0]+0.5)*geoXPixelSize
+    geoY = geoYMin + (arrayCoord2D[1]+0.5)*geoYPixelSize
+    return (geoX, geoY)
+    
+import shapely
+def geoCoordToPrint3DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
+    """Transform a geometry or tuple from geo coordinates to print3D coordinates. Returns the new geometry or tuple.
+
+    :param geoCoord2D: Shapely geometry type object to transform
+    :type geoCoord2D: shapely.Geometry
+    :param scale: raster to print 3D scale (use tileScale)
+    :type scale: float
+    :param geoXMin: geocoordinate X min
+    :type geoXMin: float
+    :param geoYMin: geo coordinate Y min
+    :type geoYMin: float
+    """
+    
+    returnAsTuple = False
+    if isinstance(geoCoord2D, tuple):
+        returnAsTuple = True
+        geoCoord2D = shapely.Point(geoCoord2D)
+    
+    def transform(x: numpy.ndarray):
+        return (x - [geoXMin, geoYMin]) / scale
+    
+    print3DCoord2D = shapely.transform(geoCoord2D, transformation=transform)
+    
+    if returnAsTuple:
+        if isinstance(print3DCoord2D, shapely.Point):
+            return (print3DCoord2D.x, print3DCoord2D.y)
+        else:
+            print(f'geoCoordToPrint3DCoord: could not return tuple')
+    
+    return print3DCoord2D
+    
 def add_to_stl_list(stl, stl_list):
     stl_list.append(stl)
     return stl_list
     
-
-
 def k3d_render_to_html(stl_list, folder, buffer=False):
     """stl_list is either a list of buffers or a list of filenames
     folder is the folder where the html file will be saved
@@ -303,7 +356,7 @@ def plot_DEM_histogram(npim, DEM_name, temp_folder):
     return plot_file_name
 
 
-def dilate_array(raster, dilation_source=None):
+def dilate_array(raster, dilation_source:numpy.ndarray|None=None, dilation_cycles:int=1, limit_mask=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
@@ -313,8 +366,11 @@ def dilate_array(raster, dilation_source=None):
         # Convert raster to a binary array, where True represents non-NaN values
         nan_mask = ~np.isnan(raster) 
 
-        # Perform the binary dilation operation
-        dilated_nan_mask = binary_dilation(nan_mask) 
+        # Perform the binary dilation operation as many times as specified
+        # generate dilation mask with multiple cycles at once because some locations may be separated by NaN and not reachable with individual dilations
+        dilated_nan_mask = binary_dilation(nan_mask, mask=limit_mask) 
+        for _ in range(dilation_cycles-1):
+            dilated_nan_mask = binary_dilation(dilated_nan_mask, mask=limit_mask) 
 
         # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
         mask = dilated_nan_mask & ~nan_mask  
@@ -335,7 +391,7 @@ def dilate_array(raster, dilation_source=None):
         #  [False False  True  True]
         #  [ True  True  True  True]]
 
-        dilated_mask = binary_dilation(mask)   # Perform a binary dilation
+        dilated_mask = binary_dilation(mask, mask=limit_mask)   # Perform a binary dilation
         # [[False True  True  True]
         # [ True  True  True  True]
         # [ True  True  True  True]]
