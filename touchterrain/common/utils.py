@@ -184,13 +184,66 @@ def fillHoles(raster, num_iters=-1,  num_neighbors=7, NaN_are_holes=False):
 
     return raster
 
+geoXMin = 0
+geoXPixelSize = 0
+geoYMin = 0
+geoYPixelSize = 0
 
+def arrayCoordToGeoCoord(arrayCoord2D: tuple[float, float], geoTransform: tuple) -> tuple[float, float]:
+    """Transform a tuple of array based coordinates to geo coordinates. Returns the new tuple.
+
+    :param arrayCoord2D: Tuple of array coordinates 2D.
+    :type arrayCoord2D: tuple[float, float]
+    :param geoTransform: GDAL geotransform information in a tuple of order [tl X, pixel width, X-skew, tl Y, Y-skew, pixel height]
+    :type geoTransform: tuple
+    :return: Tuple of geo coordinates
+    :rtype: tuple[float, float]
+    """
+    geoXMin = geoTransform[0]
+    geoXPixelSize = geoTransform[1]
+    geoYMin = geoTransform[3]
+    geoYPixelSize = geoTransform[5]
+    
+    geoX = geoXMin + (arrayCoord2D[0]+0.5)*geoXPixelSize
+    geoY = geoYMin + (arrayCoord2D[1]+0.5)*geoYPixelSize
+    return (geoX, geoY)
+    
+import shapely
+def geoCoordToPrint3DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
+    """Transform a geometry or tuple from geo coordinates to print3D coordinates. Returns the new geometry or tuple.
+
+    :param geoCoord2D: Shapely geometry type object to transform
+    :type geoCoord2D: shapely.Geometry
+    :param scale: raster to print 3D scale (use tileScale)
+    :type scale: float
+    :param geoXMin: geocoordinate X min
+    :type geoXMin: float
+    :param geoYMin: geo coordinate Y min
+    :type geoYMin: float
+    """
+    
+    returnAsTuple = False
+    if isinstance(geoCoord2D, tuple):
+        returnAsTuple = True
+        geoCoord2D = shapely.Point(geoCoord2D)
+    
+    def transform(x: numpy.ndarray):
+        return (x - [geoXMin, geoYMin]) / scale
+    
+    print3DCoord2D = shapely.transform(geoCoord2D, transformation=transform)
+    
+    if returnAsTuple:
+        if isinstance(print3DCoord2D, shapely.Point):
+            return (print3DCoord2D.x, print3DCoord2D.y)
+        else:
+            print(f'geoCoordToPrint3DCoord: could not return tuple')
+    
+    return print3DCoord2D
+    
 def add_to_stl_list(stl, stl_list):
     stl_list.append(stl)
     return stl_list
     
-
-
 def k3d_render_to_html(stl_list, folder, buffer=False):
     """stl_list is either a list of buffers or a list of filenames
     folder is the folder where the html file will be saved

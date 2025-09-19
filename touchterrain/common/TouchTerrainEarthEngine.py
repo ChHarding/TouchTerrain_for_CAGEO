@@ -1137,8 +1137,10 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         pr(" cell size", cell_size_m, "m, upper left corner (x/y): ", geo_transform[0], geo_transform[3])
 
         if config.fileformat == "GeoTiff": # for Geotiff output, we don't need to make a numpy array, etc, just close the GDAL dem so we can move it into the zip later
-            dem = None #  Python GDAL's way of closing/freeing the raster
             del band
+        # Keep dem object around so we can use it later. We need info from it to reproject the vector files    
+        #    dem = None #  Python GDAL's way of closing/freeing the raster
+            
 
         else:  # mesh file export
             assert abs(geo_transform[1]) == abs(geo_transform[5]), "Error: raster cells are not square!" # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
@@ -1228,6 +1230,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     # end of getting DEM data via GEE (A)
 
 
+    #region DEM data from local files    
     #
     # B) DEM data comes from a local raster file (geotiff, etc.)
     #
@@ -1505,6 +1508,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         else:
             DEM_title = config.DEM_name
     # end of B: (local raster file)
+    #endregion
 
     # Make empty zip file in temp_folder, add files into it later
     total_size = 0 # size of stl/objs/geotiff file(s) in byes
@@ -1612,6 +1616,44 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             # AND/OR NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
             # In difference mesh and thru water, we could actually replace the close value NaN operation with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
             # OR we just don't fill holes for thru water cases
+            
+        if config.edge_fit_polygon_file:
+            
+            
+            import geopandas
+            from shapely.geometry import Polygon
+            
+            # Read the GeoPackage into a GeoDataFrame
+            gdf = geopandas.read_file(config.edge_fit_polygon_file)
+
+            # reproject vector boundary to same projected CRS as raster
+            gdf = gdf.to_crs(dem.GetProjectionRef())
+
+            # Initialize an empty list to store Shapely Polygon objects
+            shapely_polygons = []
+
+            # Iterate through the GeoDataFrame and extract polygon geometries
+            for index, row in gdf.iterrows():
+                geometry = row.geometry
+                # Check if the geometry is a Polygon or MultiPolygon
+                if isinstance(geometry, Polygon):
+                    shapely_polygons.append(geometry)
+                elif geometry.geom_type == 'MultiPolygon':
+                    # If it's a MultiPolygon, iterate through its individual polygons
+                    for poly in geometry.geoms:
+                        shapely_polygons.append(poly)
+
+            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
+            # You can access them and perform further operations
+            if shapely_polygons:
+                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
+                print(f"First polygon's area: {shapely_polygons[0].area}")
+            else:
+                print("No polygons found in the GeoPackage or the specified layer.")
+                
+            for poly in shapely_polygons:
+               pass 
+                
             
         top_raster_variants = RasterVariants(original=npim.copy(), nan_close=None, dilated=None, edge_interpolation=interp_npim)
         bottom_raster_variants = RasterVariants(original=None, nan_close=None, dilated=None, edge_interpolation=None)

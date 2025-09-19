@@ -69,6 +69,8 @@ class TouchTerrainConfig:
     "0 means all cores, None (null in JSON!) => don't use multiprocessing"
     dirty_triangles = False
     "allow degenerate triangles for difference mesh. Should only be used for Difference Mesh mode."
+    edge_fit_polygon_file: None | str = None
+    "polygon file in GPKG for edge fitting"
     max_cells_for_memory_only = 500 * 500 * 4
     "if total number of cells is bigger, use temp_file instead using memory only"
     no_normals = True 
