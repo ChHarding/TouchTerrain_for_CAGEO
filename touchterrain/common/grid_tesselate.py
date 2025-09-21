@@ -373,8 +373,7 @@ class cell:
     
     def remove_zero_height_volumes(self):
         """Remove volumes that should have zero height due to the top and bottom Z being equal.
-        
-        This only handles NE and SW corner volume removal right now due to the quad triangulation splitting from NW to SE."""
+        """
 
         b = self.borders    
         tq =  self.topquad.get_copy()
