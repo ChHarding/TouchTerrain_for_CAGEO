@@ -47,6 +47,7 @@ import touchterrain.common.utils as utils
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 
 from typing import Union, Any, Callable
+import shapely
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -567,8 +568,18 @@ class RasterVariants:
             self.edge_interpolation *= other
             
         return self
-        
-from typing import Union, Any
+       
+class CellClippingInfo:
+    """Precomputed cell clipping info for a single cell. The cell may not be initialized yet. 
+    
+    Raster values set to NaN if the cell quad is disjoint from the clipping polygon.
+    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon
+    Raster value kept as imported and clipping_intersection_geometry in partial intersection
+    """
+    clipping_intersection_geometry: shapely.Geometry | None
+    "Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates."
+    
+    
 class ProcessingTile:
     tile_info: TouchTerrainTileInfo
     top_raster_variants: RasterVariants
@@ -588,6 +599,10 @@ def interpolate_with_NaN(elev: np.ndarray, i, j) -> tuple[float|None, float|None
     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
     with warnings.catch_warnings():
         warnings.filterwarnings('error')
+        # NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
+        # NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
+        # SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
+        # SWar = np.array([elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1]]).astype(np.float64)
         NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
         NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
         SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
@@ -900,8 +915,8 @@ class grid:
                     continue
                 
                 # x/y coords of cell "walls", origin is upper left
-                E = (i-1) * self.cell_size - self.offsetx # index -1 as it's ref'ing to top, not ptop
-                W = E + self.cell_size  # CH Nov 2021: I think E and W are flipped (?) but I must correct for that later somewhere (?)
+                W = (i-1) * self.cell_size - self.offsetx # index -1 as it's ref'ing to top, not ptop
+                E = W + self.cell_size
                 N = -(j-1) * self.cell_size + self.offsety # y is flipped to negative
                 S = N - self.cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
@@ -1017,12 +1032,13 @@ class grid:
                 #
 
                 # make top quad (x,y,z)    vi is the vertex index dict of the grids
-                NEt = vertex(E, N, NWelev)  # yes, NEt gets the z of NWelev, has to do with coordinate system change
-                NWt = vertex(W, N, NEelev)
-                SEt = vertex(E, S, SWelev)
-                SWt = vertex(W, S, SEelev)
+                NEt = vertex(E, N, NEelev)
+                NWt = vertex(W, N, NWelev)
+                SEt = vertex(E, S, SEelev)
+                SWt = vertex(W, S, SWelev)
                 # a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
-                topq = quad(NEt, SEt, SWt, NWt) 
+                # top quad vertex order is so that the normal points up
+                topq = quad(NWt, SWt, SEt, NEt) 
                 #print(i, j, topq)
                 
 
@@ -1073,20 +1089,20 @@ class grid:
 
                 # from whatever bottom values we have now, make the bottom quad
                 # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
-                NEb = vertex(E, N, NWelev)
-                NWb = vertex(W, N, NEelev)
-                SEb = vertex(E, S, SWelev)
-                SWb = vertex(W, S, SEelev)
-                botq = quad(NEb, NWb, SWb, SEb)
+                NEb = vertex(E, N, NEelev)
+                NWb = vertex(W, N, NWelev)
+                SEb = vertex(E, S, SEelev)
+                SWb = vertex(W, S, SWelev)
+                botq = quad(NWb, NEb, SEb, SWb)
 
                 #print(topq)
                 #print(botq)
                  
                 # Quads for walls: in borders dict, replace any True with a quad of that wall
-                if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)
-                if borders["S"] == True: borders["S"] = quad(SWb, SWt, SEt, SEb)
-                if borders["E"] == True: borders["E"] = quad(NWt, SWt, SWb, NWb)
-                if borders["W"] == True: borders["W"] = quad(SEt, NEt, NEb, SEb)
+                if borders["N"] == True: borders["N"] = quad(NWb, NWt, NEt, NEb)
+                if borders["S"] == True: borders["S"] = quad(SEb, SEt, SWt, SWb)
+                if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
+                if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
 
                 # Make cell
                 if self.tile_info.config.no_bottom == True:
