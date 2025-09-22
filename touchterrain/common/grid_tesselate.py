@@ -599,10 +599,6 @@ def interpolate_with_NaN(elev: np.ndarray, i, j) -> tuple[float|None, float|None
     # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
     with warnings.catch_warnings():
         warnings.filterwarnings('error')
-        # NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
-        # NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
-        # SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
-        # SWar = np.array([elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1]]).astype(np.float64)
         NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
         NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
         SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
