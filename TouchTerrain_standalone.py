@@ -28,8 +28,11 @@ Alternative to running the TouchTerrain web server.
 '''
 import time
 import json
-import sys, os
+import os
+import sys
+
 from os.path import abspath, dirname
+from typing import Any
 
 try:
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
@@ -37,10 +40,8 @@ try:
     from touchterrain.common.user_config import TouchTerrainConfig
 except Exception as e:
     print(e)
-    print("Error: touchterrain module is not installed. Use pip install . in the same folder as setup.py")
+    print("Error: touchterrain module is not installed or could not be imported. Use pip install . in the same folder as setup.py")
     sys.exit()
-    
-from typing import Any
 
 #
 # How to run the standalone version:

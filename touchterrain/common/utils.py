@@ -1,22 +1,29 @@
 '''Utilities for touchterrain'''
 
-import numpy
-import imageio
-import scipy.stats as stats
-from scipy import ndimage  
-from scipy.ndimage import binary_dilation, generic_filter
 import os.path
-import k3d
 import random
-from glob import glob
 import zipfile
+
+from glob import glob
+
+import imageio
+import k3d
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.colors as mcolors
+import numpy
+import scipy.stats as stats
+
+from scipy import ndimage  
+from scipy.ndimage import binary_dilation, generic_filter
+
 from matplotlib.colors import ListedColormap
-np = numpy
 
 from touchterrain.common.calculate_ticks import calculate_ticks # calculate nice ticks for elevation visualization
+
+np = numpy
+
+
 # Utility to save tile as binary png image
 def save_tile_as_image(tile, name):
     tile_elev_raster_mask = ~numpy.isnan(tile) * 255
@@ -189,28 +196,66 @@ geoXPixelSize = 0
 geoYMin = 0
 geoYPixelSize = 0
 
-def arrayCoordToGeoCoord(arrayCoord2D: tuple[float, float], geoTransform: tuple) -> tuple[float, float]:
-    """Transform a tuple of array based coordinates to geo coordinates. Returns the new tuple.
+def arrayCellCoordToGeoCoord(array_coord_2D: tuple[float, float], geo_transform: tuple) -> tuple[float, float]:
+    """Transform a tuple of array based cell coordinates in X,Y order to geo coordinates. Returns the new tuple.
 
-    :param arrayCoord2D: Tuple of array coordinates 2D.
-    :type arrayCoord2D: tuple[float, float]
-    :param geoTransform: GDAL geotransform information in a tuple of order [tl X, pixel width, X-skew, tl Y, Y-skew, pixel height]
-    :type geoTransform: tuple
+    :param array_coord_2D: Tuple(X,Y) of array based cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param geo_transform: GDAL geotransform information in a tuple of order [tl X, pixel width, X-skew, tl Y, Y-skew, pixel height]
+    :type geo_transform: tuple
     :return: Tuple of geo coordinates
     :rtype: tuple[float, float]
     """
-    geoXMin = geoTransform[0]
-    geoXPixelSize = geoTransform[1]
-    geoYMin = geoTransform[3]
-    geoYPixelSize = geoTransform[5]
+    geoXMin = geo_transform[0]
+    geoXPixelSize = geo_transform[1]
+    geoYMin = geo_transform[3]
+    geoYPixelSize = geo_transform[5]
     
-    geoX = geoXMin + (arrayCoord2D[0]+0.5)*geoXPixelSize
-    geoY = geoYMin + (arrayCoord2D[1]+0.5)*geoYPixelSize
+    geoX = geoXMin + (array_coord_2D[0]+0.5)*geoXPixelSize
+    geoY = geoYMin + (array_coord_2D[1]+0.5)*geoYPixelSize
     return (geoX, geoY)
+
+def arrayCellCoordToPrint2DCoord(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> tuple[float, float]:
+    """Transform a tuple of 0-based array cell coordinates in X,Y order to Print2D coordinates. Returns the new tuple.
+
+    :param array_coord_2D: Tuple(X,Y) of array based cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param cell_size: Cell size in Print2D coordinates, likely print3D_resolution_mm
+    :type cell_size: float
+    :param tile_y_shape: Tile Y height in number of array indices, likely npim.shape[0]
+    :type tile_y_shape: int
+    :return: Tuple of Print2D coordinates in X,Y order
+    :rtype: tuple[float, float]
+    """
+
+    # The returned float may not be representable in float such as "0.1" or "8.7" which are actually very close number represented in float. But when they are written to STL with struct.pack("f", 0.1), they will be rounded to be equivalent to any other 0.1-ish value.
+
+    printX = 0 + (array_coord_2D[0]+0.5)*cell_size
+    printY = (tile_y_shape - array_coord_2D[1]-0.5)*cell_size
+    return (printX, printY)
+
+def arrayCellCoordToQuadPrint2DCoords(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]:
+    """Transform a tuple of 0-based array cell coordinates in X,Y order to Print2D coordinates of the quad corners. Returns the new tuple of Print2D coordinates in NW SW SE NE order.
+
+    :param array_coord_2D: Tuple of 0-based array cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param cell_size: Cell size in Print3D dimension (mm)
+    :type cell_size: float
+    :param tile_y_shape: Tile Y height in number of array indices
+    :type tile_y_shape: int
+    :return:  of quad corner locations in Print2D coordinates in NW SW SE NE order
+    :rtype:  tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]
+    """
+    NW = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]-0.5, array_coord_2D[1]-0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    SW = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]-0.5, array_coord_2D[1]+0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    SE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]+0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    NE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]-0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    
+    return (NW, SW, SE, NE)
     
 import shapely
-def geoCoordToPrint3DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
-    """Transform a geometry or tuple from geo coordinates to print3D coordinates. Returns the new geometry or tuple.
+def geoCoordToPrint2DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
+    """Transform a geometry or tuple from geo coordinates to print2D coordinates. Returns the new geometry or tuple.
 
     :param geoCoord2D: Shapely geometry type object to transform
     :type geoCoord2D: shapely.Geometry

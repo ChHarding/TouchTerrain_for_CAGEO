@@ -19,19 +19,22 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import sys
-import os
-import datetime
-from io import StringIO
-import urllib.request, urllib.error, urllib.parse
-import socket
-import io
-from zipfile import ZipFile
-import http.client
-import numpy
-from touchterrain.common.config import EE_ACCOUNT,EE_CREDS,EE_PROJECT
-from typing import Union, Any, cast
 import copy
+import io
+import datetime
+import http.client
+import os
+import socket
+import sys
+import urllib.request, urllib.error, urllib.parse
+
+from typing import Union, Any, cast
+from zipfile import ZipFile
+
+import numpy
+
+from touchterrain.common.config import EE_ACCOUNT,EE_CREDS,EE_PROJECT
+from touchterrain.common.utils import *
 
 DEV_MODE = False
 #DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
@@ -863,8 +866,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     # This is needed to avoid python unbound error since offset_npim is currently only available for local DEMs in standalone python script
     offset_npim = []
 
+    #region A) use Earth Engine to download DEM geotiff
     #
-    # A) use Earth Engine to download DEM geotiff
     #
     if config.importedDEM == None:
         try:
@@ -1228,11 +1231,10 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
 
             pr("total model size in mm:", print3D_width_total_mm, "x", print3D_height_total_mm)
     # end of getting DEM data via GEE (A)
+    #endregion
 
 
-    #region DEM data from local files    
-    #
-    # B) DEM data comes from a local raster file (geotiff, etc.)
+    #region B) DEM data comes from a local raster file (geotiff, etc.)    
     #
     # TODO: deal with clip polygon?  Done for KML (poly_file)
     # TODO: split the GEE and imported DEM code into separate functions
@@ -1429,17 +1431,25 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             config.tilewidth = region_size_in_meters[1] / config.tilewidth_scale * 1000 # new tilewidth in mm
             pr("Overriding tilewidth using a tilewidth_scale of 1 :", config.tilewidth_scale, ", region width is", region_size_in_meters[1], "m, new tilewidth is", config.tilewidth, "mm. (Note that the final scale may be slighly different!)")
 
-
-        # tile height
-        whratio = npim.shape[0] / float(npim.shape[1])
-        tileheight = config.tilewidth  * whratio
-        pr("tile_width:", config.tilewidth)
-        pr("tile_height:", tileheight)
-        print3D_width_per_tile = config.tilewidth
-        print3D_height_per_tile = tileheight
+        #region Print width and height of tile
+        print3D_width_per_tile = -1
+        print3D_height_per_tile = -1
         
-        if config.tileScale is not None:
+        if config.tileScale is not None: # use config.tileScale
+            pr("tileScale:", config.tileScale)
             print3D_width_per_tile, print3D_height_per_tile = get_print3D_dimensions(dem=dem, tile_scale=config.tileScale)
+        else: # use config.tilewidth
+            whratio = npim.shape[0] / float(npim.shape[1])
+            tileheight = config.tilewidth  * whratio
+            pr("tile_width:", config.tilewidth)
+            pr("tile_height:", tileheight)
+            print3D_width_per_tile = config.tilewidth
+            print3D_height_per_tile = tileheight
+        
+        if print3D_width_per_tile < 0 or print3D_height_per_tile < 0:
+            pr("no tilewidth or tileScale provided")
+            return
+        #endregion
         
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
         real_world_total_width_m = npim.shape[1] * cell_size_m
@@ -1552,6 +1562,43 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             pr(" to", print3D_width_per_tile, "mm x", print3D_height_per_tile, "mm")
             print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
 
+        #region Mark cells for polygon fitting
+        if config.edge_fit_polygon_file:
+            import geopandas
+            from shapely.geometry import Polygon
+            
+            # Read the GeoPackage into a GeoDataFrame
+            gdf = geopandas.read_file(config.edge_fit_polygon_file)
+
+            # reproject vector boundary to same projected CRS as raster
+            gdf = gdf.to_crs(dem.GetProjectionRef())
+
+            # Initialize an empty list to store Shapely Polygon objects
+            shapely_polygons = []
+
+            # Iterate through the GeoDataFrame and extract polygon geometries
+            for index, row in gdf.iterrows():
+                geometry = row.geometry
+                # Check if the geometry is a Polygon or MultiPolygon
+                if isinstance(geometry, Polygon):
+                    shapely_polygons.append(geometry)
+                elif geometry.geom_type == 'MultiPolygon':
+                    # If it's a MultiPolygon, iterate through its individual polygons
+                    for poly in geometry.geoms:
+                        shapely_polygons.append(poly)
+
+            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
+            # You can access them and perform further operations
+            if shapely_polygons:
+                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
+                print(f"First polygon's area: {shapely_polygons[0].area}")
+            else:
+                print("No polygons found in the GeoPackage or the specified layer.")
+                
+            for poly in shapely_polygons:
+               pass 
+        #endregion
+
         # get horizontal map scale (1:x) so we know how to scale the elevation later
         print3D_scale_number =  (npim.shape[1] * cell_size_m) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
 
@@ -1616,44 +1663,6 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             # AND/OR NaN out the top raster locations where the bottom raster is not NaN and does NOT equal the top raster
             # In difference mesh and thru water, we could actually replace the close value NaN operation with a top NaN of all non NaN locations in the bottom raster. Because the thru case assumes that the bottom is the same as the top except for NaN spots.
             # OR we just don't fill holes for thru water cases
-            
-        if config.edge_fit_polygon_file:
-            
-            
-            import geopandas
-            from shapely.geometry import Polygon
-            
-            # Read the GeoPackage into a GeoDataFrame
-            gdf = geopandas.read_file(config.edge_fit_polygon_file)
-
-            # reproject vector boundary to same projected CRS as raster
-            gdf = gdf.to_crs(dem.GetProjectionRef())
-
-            # Initialize an empty list to store Shapely Polygon objects
-            shapely_polygons = []
-
-            # Iterate through the GeoDataFrame and extract polygon geometries
-            for index, row in gdf.iterrows():
-                geometry = row.geometry
-                # Check if the geometry is a Polygon or MultiPolygon
-                if isinstance(geometry, Polygon):
-                    shapely_polygons.append(geometry)
-                elif geometry.geom_type == 'MultiPolygon':
-                    # If it's a MultiPolygon, iterate through its individual polygons
-                    for poly in geometry.geoms:
-                        shapely_polygons.append(poly)
-
-            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
-            # You can access them and perform further operations
-            if shapely_polygons:
-                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
-                print(f"First polygon's area: {shapely_polygons[0].area}")
-            else:
-                print("No polygons found in the GeoPackage or the specified layer.")
-                
-            for poly in shapely_polygons:
-               pass 
-                
             
         top_raster_variants = RasterVariants(original=npim.copy(), nan_close=None, dilated=None, edge_interpolation=interp_npim)
         bottom_raster_variants = RasterVariants(original=None, nan_close=None, dilated=None, edge_interpolation=None)

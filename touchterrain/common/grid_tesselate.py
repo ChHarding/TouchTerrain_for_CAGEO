@@ -28,26 +28,31 @@
 #  multiple grids are processed together.
 # CH July 2015
 
-import numpy as np
-import warnings # for muting warnings about nan in e.g. nanmean()
-import struct # for making binary STL
-import sys
-import multiprocessing
 import io
+import warnings # for muting warnings about nan in e.g. nanmean()
+import multiprocessing
 import os
 import shutil   
+import struct # for making binary STL
+import sys
 
 # get root logger, will later be redirected into a logfile
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+from typing import Union, Any, Callable
+
+import numpy as np
+import shapely
+
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
 import touchterrain.common.utils as utils
+
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 
-from typing import Union, Any, Callable
-import shapely
+
+
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
