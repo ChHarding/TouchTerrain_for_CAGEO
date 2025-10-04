@@ -68,6 +68,15 @@
       "args": "DC-new-land.json"
     },
     {
+      "name": "Python Debugger: TT Standalone DC-new-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-land-clip.json"
+    },
+    {
       "name": "Python Debugger: TT Standalone DC-new-river.json",
       "type": "debugpy",
       "request": "launch",

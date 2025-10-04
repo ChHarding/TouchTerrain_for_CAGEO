@@ -1562,43 +1562,6 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             pr(" to", print3D_width_per_tile, "mm x", print3D_height_per_tile, "mm")
             print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
 
-        #region Mark cells for polygon fitting
-        if config.edge_fit_polygon_file:
-            import geopandas
-            from shapely.geometry import Polygon
-            
-            # Read the GeoPackage into a GeoDataFrame
-            gdf = geopandas.read_file(config.edge_fit_polygon_file)
-
-            # reproject vector boundary to same projected CRS as raster
-            gdf = gdf.to_crs(dem.GetProjectionRef())
-
-            # Initialize an empty list to store Shapely Polygon objects
-            shapely_polygons = []
-
-            # Iterate through the GeoDataFrame and extract polygon geometries
-            for index, row in gdf.iterrows():
-                geometry = row.geometry
-                # Check if the geometry is a Polygon or MultiPolygon
-                if isinstance(geometry, Polygon):
-                    shapely_polygons.append(geometry)
-                elif geometry.geom_type == 'MultiPolygon':
-                    # If it's a MultiPolygon, iterate through its individual polygons
-                    for poly in geometry.geoms:
-                        shapely_polygons.append(poly)
-
-            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
-            # You can access them and perform further operations
-            if shapely_polygons:
-                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
-                print(f"First polygon's area: {shapely_polygons[0].area}")
-            else:
-                print("No polygons found in the GeoPackage or the specified layer.")
-                
-            for poly in shapely_polygons:
-               pass 
-        #endregion
-
         # get horizontal map scale (1:x) so we know how to scale the elevation later
         print3D_scale_number =  (npim.shape[1] * cell_size_m) / (print3D_width_total_mm / 1000.0) # map scale ratio (mm -> m)
 
@@ -1668,6 +1631,65 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         bottom_raster_variants = RasterVariants(original=None, nan_close=None, dilated=None, edge_interpolation=None)
         if config.bottom_elevation:
             bottom_raster_variants.original = bot_npim.copy()
+        
+        #region Mark cells for polygon fitting
+        
+        if config.edge_fit_polygon_file:
+            import geopandas
+            from shapely.geometry import Polygon
+            
+            # Read the GeoPackage into a GeoDataFrame
+            gdf = geopandas.read_file(config.edge_fit_polygon_file)
+
+            # reproject vector boundary to same projected CRS as raster
+            gdf = gdf.to_crs(dem.GetProjectionRef())
+
+            # Initialize an empty list to store Shapely Polygon objects
+            shapely_polygons = []
+
+            # Iterate through the GeoDataFrame and extract polygon geometries
+            for index, row in gdf.iterrows():
+                geometry = row.geometry
+                # Check if the geometry is a Polygon or MultiPolygon
+                if isinstance(geometry, Polygon):
+                    shapely_polygons.append(geometry)
+                elif geometry.geom_type == 'MultiPolygon':
+                    # If it's a MultiPolygon, iterate through its individual polygons
+                    for poly in geometry.geoms:
+                        shapely_polygons.append(poly)
+
+            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
+            # You can access them and perform further operations
+            if shapely_polygons:
+                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
+                print(f"First polygon's area: {shapely_polygons[0].area}")
+            else:
+                print("No polygons found in the GeoPackage or the specified layer.")
+                
+            ulx, pixelwidthx, xskew, uly, yskew, pixelheighty = dem.GetGeoTransform()
+            ncol = dem.RasterXSize
+            nrow = dem.RasterYSize
+            # Calculate lower-right corner coordinates
+            lrx = ulx + (ncol * pixelwidthx) + (nrow * xskew)
+            lry = uly + (ncol * yskew) + (nrow * pixelheighty)
+                
+            # determine intersection for polygon(s) in boundary and each cell quad
+            for clippingGeoPoly in shapely_polygons:
+                clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
+                for j in range(0, top_raster_variants.original.shape[0]): # Y
+                    for i in range(0, top_raster_variants.original.shape[1]): # X
+                        #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
+                        quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=npim.shape[0])
+                        quadPrint2DPoly = Polygon(quadPrint2DCoords)
+                        
+                        if isinstance(clippingPrint2DPoly, shapely.Polygon) == False:
+                            print("clippingPrint2DPoly is not a shapely Polygon")
+                            break
+                        if clippingPrint2DPoly.disjoint(quadPrint2DPoly):
+                            top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan)
+                            
+                
+        #endregion
         
         if raster_preparation(top=top_raster_variants, 
                            bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,

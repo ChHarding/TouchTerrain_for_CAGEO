@@ -208,11 +208,11 @@ def arrayCellCoordToGeoCoord(array_coord_2D: tuple[float, float], geo_transform:
     """
     geoXMin = geo_transform[0]
     geoXPixelSize = geo_transform[1]
-    geoYMin = geo_transform[3]
+    geoYMax = geo_transform[3]
     geoYPixelSize = geo_transform[5]
     
     geoX = geoXMin + (array_coord_2D[0]+0.5)*geoXPixelSize
-    geoY = geoYMin + (array_coord_2D[1]+0.5)*geoYPixelSize
+    geoY = geoYMax + (array_coord_2D[1]+0.5)*geoYPixelSize
     return (geoX, geoY)
 
 def arrayCellCoordToPrint2DCoord(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> tuple[float, float]:
@@ -220,7 +220,7 @@ def arrayCellCoordToPrint2DCoord(array_coord_2D: tuple[float, float], cell_size:
 
     :param array_coord_2D: Tuple(X,Y) of array based cell coordinates 2D.
     :type array_coord_2D: tuple[float, float]
-    :param cell_size: Cell size in Print2D coordinates, likely print3D_resolution_mm
+    :param cell_size: Cell size in Print2D coordinates (mm), likely print3D_resolution_mm
     :type cell_size: float
     :param tile_y_shape: Tile Y height in number of array indices, likely npim.shape[0]
     :type tile_y_shape: int
@@ -234,7 +234,7 @@ def arrayCellCoordToPrint2DCoord(array_coord_2D: tuple[float, float], cell_size:
     printY = (tile_y_shape - array_coord_2D[1]-0.5)*cell_size
     return (printX, printY)
 
-def arrayCellCoordToQuadPrint2DCoords(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]:
+def arrayCellCoordToQuadPrint2DCoords(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> list[tuple[float, float]]:
     """Transform a tuple of 0-based array cell coordinates in X,Y order to Print2D coordinates of the quad corners. Returns the new tuple of Print2D coordinates in NW SW SE NE order.
 
     :param array_coord_2D: Tuple of 0-based array cell coordinates 2D.
@@ -251,19 +251,24 @@ def arrayCellCoordToQuadPrint2DCoords(array_coord_2D: tuple[float, float], cell_
     SE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]+0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
     NE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]-0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
     
-    return (NW, SW, SE, NE)
+    return [NW, SW, SE, NE]
     
 import shapely
 def geoCoordToPrint2DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
-    """Transform a geometry or tuple from geo coordinates to print2D coordinates. Returns the new geometry or tuple.
+    """Transform a geometry or tuple from geo coordinates to print2D coordinates. Returns the new geometry or tuple. 
+    
+    Array coordinates have min Y at top
+    
+    Projected geo coordinates have origin at lower left.
+    Print2D coordinates have origin at lower left.
 
-    :param geoCoord2D: Shapely geometry type object to transform
+    :param geoCoord2D: Shapely geometry type object to transform. Coordinates are in projected geo coordinates. The polygon from clipping boundary file CRS should be reprojected to the projected CRS of the raster.
     :type geoCoord2D: shapely.Geometry
     :param scale: raster to print 3D scale (use tileScale)
     :type scale: float
-    :param geoXMin: geocoordinate X min
+    :param geoXMin: geocoordinate X min of the raster
     :type geoXMin: float
-    :param geoYMin: geo coordinate Y min
+    :param geoYMin: geo coordinate Y min of the raster
     :type geoYMin: float
     """
     
@@ -271,6 +276,8 @@ def geoCoordToPrint2DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , 
     if isinstance(geoCoord2D, tuple):
         returnAsTuple = True
         geoCoord2D = shapely.Point(geoCoord2D)
+    
+    scale /= 1000 # print2D coordinates are in mm but the scale is for real world meters to print meters. 
     
     def transform(x: numpy.ndarray):
         return (x - [geoXMin, geoYMin]) / scale

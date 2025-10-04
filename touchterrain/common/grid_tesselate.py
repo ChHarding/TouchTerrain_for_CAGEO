@@ -504,6 +504,15 @@ class RasterVariants:
     
     edge_interpolation: Union[None, np.ndarray] # Original full raster with values past edges for interpolation
     
+    """Precomputed cell clipping info for a single cell. The cell may not be initialized yet. 
+    
+    Raster values set to NaN if the cell quad is disjoint from the clipping polygon.
+    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon
+    Raster value kept as imported and clipping_intersection_geometry in partial intersection
+    """
+    clipping_intersection_geometry: list[shapely.Geometry] | None
+    "Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates."
+    
     def __init__(self, original: Union[None, np.ndarray], nan_close: Union[None, np.ndarray], dilated: Union[None, np.ndarray], edge_interpolation: Union[None, np.ndarray]):
         self.original = original
         self.nan_close = nan_close
@@ -538,6 +547,18 @@ class RasterVariants:
         if self.edge_interpolation is not None:
             self.edge_interpolation = f(self.edge_interpolation)
             
+    def set_location_in_variants(self, location: tuple[int, int], new_value:float):
+        """Set a location to new value on all variants. The function takes a tuple in Y,X order as location and a new value to set. 
+        """
+        if self.original is not None:
+            self.original[location[0]][location[1]] = new_value
+        if self.nan_close is not None:
+            self.nan_close[location[0]][location[1]] = new_value
+        if self.dilated is not None:
+            self.dilated[location[0]][location[1]] = new_value
+        if self.edge_interpolation is not None:
+            self.edge_interpolation[location[0]][location[1]] = new_value
+        
     def __add__(self, other):
         if self.original is not None:
             self.original += other
@@ -573,17 +594,6 @@ class RasterVariants:
             self.edge_interpolation *= other
             
         return self
-       
-class CellClippingInfo:
-    """Precomputed cell clipping info for a single cell. The cell may not be initialized yet. 
-    
-    Raster values set to NaN if the cell quad is disjoint from the clipping polygon.
-    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon
-    Raster value kept as imported and clipping_intersection_geometry in partial intersection
-    """
-    clipping_intersection_geometry: shapely.Geometry | None
-    "Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates."
-    
     
 class ProcessingTile:
     tile_info: TouchTerrainTileInfo
