@@ -1686,7 +1686,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                             print("clippingPrint2DPoly is not a shapely Polygon")
                             break
                         if clippingPrint2DPoly.disjoint(quadPrint2DPoly):
-                            top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan)
+                            top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
                             
                 
         #endregion

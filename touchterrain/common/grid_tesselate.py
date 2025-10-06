@@ -547,7 +547,7 @@ class RasterVariants:
         if self.edge_interpolation is not None:
             self.edge_interpolation = f(self.edge_interpolation)
             
-    def set_location_in_variants(self, location: tuple[int, int], new_value:float):
+    def set_location_in_variants(self, location: tuple[int, int], new_value:float, set_edge_interpolation: bool = True):
         """Set a location to new value on all variants. The function takes a tuple in Y,X order as location and a new value to set. 
         """
         if self.original is not None:
@@ -556,7 +556,7 @@ class RasterVariants:
             self.nan_close[location[0]][location[1]] = new_value
         if self.dilated is not None:
             self.dilated[location[0]][location[1]] = new_value
-        if self.edge_interpolation is not None:
+        if set_edge_interpolation and self.edge_interpolation is not None:
             self.edge_interpolation[location[0]][location[1]] = new_value
         
     def __add__(self, other):
