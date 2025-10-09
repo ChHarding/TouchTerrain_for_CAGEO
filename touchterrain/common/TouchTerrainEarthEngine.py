@@ -1633,10 +1633,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             bottom_raster_variants.original = bot_npim.copy()
         
         #region Mark cells for polygon fitting
-        
         if config.edge_fit_polygon_file:
             import geopandas
-            from shapely.geometry import Polygon
+            from shapely.geometry import Polygon, GeometryCollection
             
             # Read the GeoPackage into a GeoDataFrame
             gdf = geopandas.read_file(config.edge_fit_polygon_file)
@@ -1673,6 +1672,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             lrx = ulx + (ncol * pixelwidthx) + (nrow * xskew)
             lry = uly + (ncol * yskew) + (nrow * pixelheighty)
                 
+            # Create clipping_intersection_geometry for the first time
+            top_raster_variants.clipping_intersection_geometry = numpy.empty(top_raster_variants.original.shape, dtype=object)
+                
             # determine intersection for polygon(s) in boundary and each cell quad
             for clippingGeoPoly in shapely_polygons:
                 clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
@@ -1680,14 +1682,44 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                     for i in range(0, top_raster_variants.original.shape[1]): # X
                         #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
                         quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=npim.shape[0])
+                        # TODO: use shapely.box for optimization?
                         quadPrint2DPoly = Polygon(quadPrint2DCoords)
                         
-                        if isinstance(clippingPrint2DPoly, shapely.Polygon) == False:
+                        if isinstance(clippingPrint2DPoly, shapely.Polygon):
+                            if clippingPrint2DPoly.disjoint(quadPrint2DPoly):
+                                # set the all variants to NaN in that location
+                                top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
+                            elif clippingPrint2DPoly.contains_properly(quadPrint2DPoly):
+                                # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
+                                # leave the cell unchanged
+                                pass
+                            else:
+                                intersection_geometry = clippingPrint2DPoly.intersection(quadPrint2DPoly)
+                                
+                                # Recursively flatten a list of geometries
+                                # Do not keep any point geometries
+                                def flatten_geometries(geometries):
+                                    flat_list = []
+                                    for geom in geometries:
+                                        if geom.geom_type.startswith('Multi') or geom.geom_type == 'GeometryCollection':
+                                            # For collections, iterate over the individual parts
+                                            flat_list.extend(flatten_geometries(geom.geoms))
+                                        elif not geom.is_empty:
+                                            # Add simple, non-empty, non-point geometries to the list.
+                                            if isinstance(geom, shapely.Point):
+                                                continue
+                                            
+                                            flat_list.append(geom)
+                                    return flat_list
+                                
+                                # Get flat list of all intersecting geometries excluding point geometries. Point geometries do not matter for wall generation. If an intersection only has points, we treat the cell like there were no intersections.
+                                flat_intersection_geometries = flatten_geometries([intersection_geometry])
+                                if len(flat_intersection_geometries) > 0:
+                                    top_raster_variants.clipping_intersection_geometry[j][i] = flat_intersection_geometries
+                        else:
                             print("clippingPrint2DPoly is not a shapely Polygon")
                             break
-                        if clippingPrint2DPoly.disjoint(quadPrint2DPoly):
-                            top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
-                            
+                        
                 
         #endregion
         

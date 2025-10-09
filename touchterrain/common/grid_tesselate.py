@@ -504,14 +504,17 @@ class RasterVariants:
     
     edge_interpolation: Union[None, np.ndarray] # Original full raster with values past edges for interpolation
     
-    """Precomputed cell clipping info for a single cell. The cell may not be initialized yet. 
     
-    Raster values set to NaN if the cell quad is disjoint from the clipping polygon.
-    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon
+    clipping_intersection_geometry: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a list[shapely.Geometry]
+    """
+    Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates.
+    
+    This is not a variant! Precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
+    
+    Raster values set to NaN and no clipping_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
+    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
     Raster value kept as imported and clipping_intersection_geometry in partial intersection
     """
-    clipping_intersection_geometry: list[shapely.Geometry] | None
-    "Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates."
     
     def __init__(self, original: Union[None, np.ndarray], nan_close: Union[None, np.ndarray], dilated: Union[None, np.ndarray], edge_interpolation: Union[None, np.ndarray]):
         self.original = original
