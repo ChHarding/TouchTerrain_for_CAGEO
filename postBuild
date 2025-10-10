@@ -5,5 +5,3 @@ set - e # Don't hang on error
 echo "Running pip install .  to install touchterrain package"
 
 pip install .
-
-

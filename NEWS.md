@@ -1,6 +1,6 @@
 Feb. 13, 2023 (version 3.6.0)
 - changed how touchterrain gets installed on the colab notebook
-- updated colab notebook after feedback from Steve Potter 
+- updated colab notebook after feedback from Steve Potter
 - updated TouchTerrain_standalone_jupyter_notebook (GMX with geemap)
 - added min_elev setting to overwrite the minimum elevation for all tiles (request by Anson Liu)
 - added (uniform scaling) to area selection box UI group
@@ -18,7 +18,7 @@ Jan. 5, 2022 (version 3.5.1)
 - added more unit tests (test matrix included)
 
 Oct. 24, 2021 (version 3.5)
-- rewrote how large STL/OBJ files are created, they are now written during the process to disk 
+- rewrote how large STL/OBJ files are created, they are now written during the process to disk
 	  rather first into memory which turned out to be too much for our 4 Gb server which would
 	  kill the process and end in a time-out. Still not sure what happens if several large jobs are
 	  run but this will certainly improve the odds of finishing.
@@ -46,7 +46,7 @@ Mar. 12, 2021 (version 3.2)
 
 Mar. 11, 2021
 - temporary fix for bad google-api-python-client version
-	
+
 Jan. 10, 2021
 - per request, added a requirements.txt file
 - added JS script for downloading large Geotiffs from Google Earth Engine to the Readme (Appendix)
@@ -69,7 +69,7 @@ Sep. 30, 2020 (3.0.0)
 - Added place search bar
 
 Sep. 7, 2020 (2.5.2)
-- Added upload of kml file with masking polygon to server version 
+- Added upload of kml file with masking polygon to server version
 - Added option to jupyter notebook to use geemap for digitizing a rectangle, circle or polygon and use it. If gpx files are used, they are also shown on the geemap
 
 Aug. 28, 2020:
@@ -85,13 +85,13 @@ May. 7, 2020:
 - running setup.py will now build and install a __touchterrain module__ (versioning coming soon)
 - use pip install .  (dot!) to have pip install it for you (better than python setup.py install clean)
 - all imports were re-written to import from the installed touchterrain module (e.g. touchterrain.common.config)
-	
+
 
 Apr. 23, 2020: added lower_leq manual option to lower any cells below a threshold by a offset in mm. (thanks to idenc, who did nearly all the work!)
 
 Apr. 19, 2020: added hillshade settings for azimuth and elevation angles in the GUI. Gamma is linked to changes of these settings.
 
-Mar. 31, 2020: fixed issues arising from changes in Earth Engine API 
+Mar. 31, 2020: fixed issues arising from changes in Earth Engine API
 
 Mar. 16, 2020: Took out the source option for print resolution b/c the d/l size restrictions of new Mar 2020 EarthEngine API update.
 
@@ -193,7 +193,7 @@ version 0.12 is now live at: touchterrain.geol.iastate.edu
 
 Jan. 23: changed the order in which ee is intialized. This enables the stand alone version to use any google account for authentication, rather than having to go through config.py (server still uses config.py)
 
-April 3, 2017:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM).  
+April 3, 2017:  added check to set all <0 elevations to 0 for non-bathymetry DEM sources (NED, STRM).
 
 0.12 (Dec. 12, 2016 - X-mas edition):
 - Transparency defaults to 40%
@@ -221,6 +221,6 @@ Version 0.10 of the TouchTerrain project, primarily a set of python source code 
     in a JSON file, rather then via a web page.
 - TouchTerrainEarthEngine.py: With the user input, gets the DEM raster (geotiff) from the Google Earth Engine data server and, using the grid class, creates the 3D models (tiles).
 - grid_tesselate.py: defines the grid class used to create a triangle "mesh" and save it in the desired file format (STL or OBJ)
-- Coordinate_system_conv.py, InMemoryZip.py: utility functions  
+- Coordinate_system_conv.py, InMemoryZip.py: utility functions
 - config.py: used for oauth credentials for the Google dev (Earth Engine) account
 - tmp folder: contains an example terrain model, a zipped stl file

@@ -1,40 +1,54 @@
 """Coordinate_system_conv  - some utility functions for coordinate system conversion"""
+
 # CH 6/2014
 
 import math
 
-def arcDegr_in_meter(latitude_in_degr):   
+
+def arcDegr_in_meter(latitude_in_degr):
     """Calculate the meter distance for one arc-degree latitude and longitude at a given latitude
     see http://www.csgnetwork.com/degreelenllavcalc.html
     should conform to WGS84 (???)
 
     Arg: latitude_in_degr: float
     returns tuple of floats (latitude_in_m, longitude_in_m)
-    
-    """    
-    lat = math.radians(latitude_in_degr) # convert lat to rads
-    m1 = 111132.954;		# latitude calculation term 1
-    m2 = -559.822;		# latitude calculation term 2
-    m3 = 1.175;			# latitude calculation term 3
-    m4 = -0.0023;		# latitude calculation term 4
-    p1 = 111412.84;		# longitude calculation term 1
-    p2 = -93.5;			# longitude calculation term 2
-    p3 = 0.118;			# longitude calculation term 3
 
-    latlen =  m1 + (m2 * math.cos(2.0 * lat)) + (m3 * math.cos(4.0 * lat)) + (m4 * math.cos(6.0 * lat))
+    """
+    lat = math.radians(latitude_in_degr)  # convert lat to rads
+    m1 = 111132.954
+    # latitude calculation term 1
+    m2 = -559.822
+    # latitude calculation term 2
+    m3 = 1.175
+    # latitude calculation term 3
+    m4 = -0.0023
+    # latitude calculation term 4
+    p1 = 111412.84
+    # longitude calculation term 1
+    p2 = -93.5
+    # longitude calculation term 2
+    p3 = 0.118
+    # longitude calculation term 3
+
+    latlen = (
+        m1
+        + (m2 * math.cos(2.0 * lat))
+        + (m3 * math.cos(4.0 * lat))
+        + (m4 * math.cos(6.0 * lat))
+    )
     longlen = (p1 * math.cos(lat)) + (p2 * math.cos(3 * lat)) + (p3 * math.cos(5 * lat))
     return (latlen, longlen)
-      
+
 
 def LatLon_to_UTM(arg1, arg2=None):
-    """ given longitude (easting) and latitude (northing) as floats,
-        return the UTM zone number (1 to 60) and "N" for North or "S" for South as a tuple
-        or -1 on error
-        
-        Can be called with only one arg as a tuple: LatLon_to_UTM((e,n)) or with
-        two args: LatLon_to_UTM(e,n)
+    """given longitude (easting) and latitude (northing) as floats,
+    return the UTM zone number (1 to 60) and "N" for North or "S" for South as a tuple
+    or -1 on error
+
+    Can be called with only one arg as a tuple: LatLon_to_UTM((e,n)) or with
+    two args: LatLon_to_UTM(e,n)
     """
-    #if there's no arg2 the lat/long is in a tuple in arg1
+    # if there's no arg2 the lat/long is in a tuple in arg1
     if not arg2:
         easting = arg1[0]
         northing = arg1[1]
@@ -48,10 +62,14 @@ def LatLon_to_UTM(arg1, arg2=None):
     # easting: -180 to 180, northing: -90 to 90
     print("easting:", easting, "northing:", northing)
     if easting < -180 or easting > 180:
-        print("Warning: easting out of bounds (-180 to 180):", easting, "will be wrapped")
+        print(
+            "Warning: easting out of bounds (-180 to 180):", easting, "will be wrapped"
+        )
         good_easting = False
     if northing < -90 or northing > 90:
-        print("Warning: northing out of bounds (-90 to 90):", northing, "will be wrapped")
+        print(
+            "Warning: northing out of bounds (-90 to 90):", northing, "will be wrapped"
+        )
         good_northing = False
 
     # Wrap around easting to be between -180 and +180
@@ -63,45 +81,48 @@ def LatLon_to_UTM(arg1, arg2=None):
     elif northing < -90:
         northing = -90 + (northing % 90)
     print("easting:", easting, "northing:", northing)
-    
-    utm_zone = int(easting) // 6 + 31 # whole number division
-    if northing >= 0: 
+
+    utm_zone = int(easting) // 6 + 31  # whole number division
+    if northing >= 0:
         return (utm_zone, "N")
-    else: 
+    else:
         return (utm_zone, "S")
 
-    
+
 def UTM_zone_to_EPSG_code(utm, NorS):
-    """ converts a utm zone to EPSG (WGS84) e.g. UTM zone 17 "N" to EPSG code 32717
+    """converts a utm zone to EPSG (WGS84) e.g. UTM zone 17 "N" to EPSG code 32717
     utm : zone as int
     NorS:  "N" for north, "S" for South
     return: EPSG code (SRID) for WGS84 as int, -1 on error
     """
-    
+
     # Sanity checks
-    if not 1 <= utm <= 60: return "In valid UTM zone number"
-    if not NorS in "NS": return "Invalid hemisphere"
-    
+    if not 1 <= utm <= 60:
+        return "In valid UTM zone number"
+    if not NorS in "NS":
+        return "Invalid hemisphere"
+
     # base SRID
-    if NorS == "N": SRID = 32600
-    else: SRID = 32700
-    
+    if NorS == "N":
+        SRID = 32600
+    else:
+        SRID = 32700
+
     SRID += utm
     return SRID
 
 
 # test
 
-#utm,h = LatLon_to_UTM((-108.343,45.2))
-#utm,h = LatLon_to_UTM(-108.343,45.2)
-#print UTM_zone_to_EPSG_code(utm, h)
+# utm,h = LatLon_to_UTM((-108.343,45.2))
+# utm,h = LatLon_to_UTM(-108.343,45.2)
+# print UTM_zone_to_EPSG_code(utm, h)
 
-#for lat in range(0,80,10): 
+# for lat in range(0,80,10):
 #    print lat, arcDegr_in_meter(lat)
 
 
-
-####################################    
+####################################
 """ as csv table:
 UTM Zone,EPSG Code
 "UTM Zone 1 Northern Hemisphere (WGS 84)",32601
@@ -230,23 +251,25 @@ if __name__ == "__main__":
     def test_LatLon_to_UTM():
         # Test cases with out-of-bounds easting and northing
         test_cases = [
-            (190, 95),   # easting > 180, northing > 90
-            (-190, -95), # easting < -180, northing < -90
+            (190, 95),  # easting > 180, northing > 90
+            (-190, -95),  # easting < -180, northing < -90
             (370, 100),  # easting > 180, northing > 90
-            (-370, -100) # easting < -180, northing < -90
+            (-370, -100),  # easting < -180, northing < -90
         ]
 
         expected_results = [
-            (2, 'N'),   # Wrapped easting: 190 -> -170, Wrapped northing: 95 -> 85
-            (59, 'S'),  # Wrapped easting: -190 -> 170, Wrapped northing: -95 -> -85
-            (32, 'N'),  # Wrapped easting: 370 -> 10, Wrapped northing: 100 -> 80
-            (29, 'S')   # Wrapped easting: -370 -> -10, Wrapped northing: -100 -> -80
+            (2, "N"),  # Wrapped easting: 190 -> -170, Wrapped northing: 95 -> 85
+            (59, "S"),  # Wrapped easting: -190 -> 170, Wrapped northing: -95 -> -85
+            (32, "N"),  # Wrapped easting: 370 -> 10, Wrapped northing: 100 -> 80
+            (29, "S"),  # Wrapped easting: -370 -> -10, Wrapped northing: -100 -> -80
         ]
 
         for i, (easting, northing) in enumerate(test_cases):
             result = LatLon_to_UTM(easting, northing)
             print(result)
-            assert result == expected_results[i], f"Test case {i+1} failed: {result} != {expected_results[i]}"
+            assert (
+                result == expected_results[i]
+            ), f"Test case {i+1} failed: {result} != {expected_results[i]}"
 
     test_LatLon_to_UTM()
     print("All tests passed.")

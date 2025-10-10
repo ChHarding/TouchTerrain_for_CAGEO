@@ -64,7 +64,7 @@ window.onload = function () {
         streetViewControl: false,
         mapTypeId: maptype
     };
-    
+
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
     document.getElementById("maptype").value = maptype
     document.getElementById("maptype3").value = maptype
@@ -72,10 +72,10 @@ window.onload = function () {
     if(map_width > 900){ map_width = 900} // for very wide screens, setting height to a very large number (>900) doesn't seem to work(?)
     document.getElementById("map").style.height = map_width; // make square map
 
-    
+
     // Create the search box and link it to the UI element.
     // https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete
-    
+
     // Make an icon and a marker for showing result of place search
     const icon = {
         url: "https://maps.gstatic.com/mapfiles/place_api/icons/v1/png_71/geocode-71.png",
@@ -92,7 +92,7 @@ window.onload = function () {
         //animation: google.maps.Animation.DROP,
         //animation: google.maps.Animation.BOUNCE,
     });
-   
+
     // Drawing manager  (for later?)
     /*
     const drawingManager = new google.maps.drawing.DrawingManager({
@@ -133,17 +133,17 @@ window.onload = function () {
             fillColor: '#FF0000',
             fillOpacity: 0.02,
         },
-      
+
       });
       drawingManager.setMap(map);
-      
+
       google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
         if (event.type == 'rectangle') {
           rectangle = event.overlay;
         }
       });
       */
-    
+
     eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
     update_options_hidden(); // also store values in hidden ids
@@ -155,15 +155,15 @@ window.onload = function () {
                     fillColor: "#FFFF00",
                     fillOpacity: 0.05
               });
-    
+
     // Init map Overlay GUI settings
-    updateTransparency(transp); // set initial transparency 
+    updateTransparency(transp); // set initial transparency
     updateGamma(gamma); // initial gamma value
     document.getElementById('hsazi2').value = hsazi;
     document.getElementById('hselev2').value = hselev;
     document.getElementById('hsazi3').value = hsazi;
     document.getElementById('hselev3').value = hselev;
-    
+
     // Area selection box
     rectangle = new google.maps.Rectangle({
         editable: true,
@@ -191,13 +191,13 @@ window.onload = function () {
     }
     else{// at this stage we don't have map bounds to make the box bounds b/c it hasn't been
         // drawn yet, so we need to defer that until the map's bounds_changed is called.
-        google.maps.event.addListenerOnce(map, 'bounds_changed', 
+        google.maps.event.addListenerOnce(map, 'bounds_changed',
             function(){
                 center_rectangle();
             }
         );
     }
-    
+
     // show link for current DEM source
     let link = "https://developers.google.com/earth-engine/datasets"
     switch(DEM_name){
@@ -214,10 +214,10 @@ window.onload = function () {
     }
     document.getElementById('DEM_link').href = link;
 
-    // 
+    //
     // Callbacks
     //
-    
+
     // Add an event listener on the rectangle (red box).
     rectangle.addListener('bounds_changed', update_corners_form);
     rectangle.addListener('dragstart', remove_divison_lines);
@@ -239,14 +239,14 @@ window.onload = function () {
     let fileInput = document.getElementById('kml_file');
     fileInput.addEventListener('change', function(e) {
       if (fileInput.files.length) {
-        let file = fileInput.files[0]; 
+        let file = fileInput.files[0];
         if(file.name.endsWith(".kml")){
             let reader = new FileReader();
             reader.onload = function(e) {
                 let s = reader.result;
                 const [bbox, latloncoords] = processKMLFile(s);
                 if(!!bbox){ // not null => valid bounding box
-                    rectangle.setBounds(bbox); 
+                    rectangle.setBounds(bbox);
                     update_corners_form();
                     map.fitBounds(bbox); // makes the map fit around the box
                     polygon.setPath(latloncoords); // make polygon ...
@@ -262,7 +262,7 @@ window.onload = function () {
             }
             reader.readAsText(file);
         }
-      
+
         // unzip kmz file into kml first
         else if(file.name.endsWith(".kmz")){
             const reader = new zip.ZipReader(new zip.BlobReader(file));
@@ -276,7 +276,7 @@ window.onload = function () {
                     ).then(function(text) {
                         const [bbox, latloncoords] = processKMLFile(text);
                         if(!!bbox){ // not null => valid bounding box
-                            rectangle.setBounds(bbox); 
+                            rectangle.setBounds(bbox);
                             update_corners_form();
                             map.fitBounds(bbox); // makes the map fit around the box
                             polygon.setPath(latloncoords); // make polygon ...
@@ -355,7 +355,7 @@ window.onload = function () {
         });
     }
     });
-    
+
     // help popovers
     $('#Whats_new__popover').popover({
         content: 'Mouse over the question marks to see the help text or click on it to toggle the text on/off<br><br>\
@@ -403,23 +403,23 @@ window.onload = function () {
         delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
- 
+
     $('#gamma_popover').popover({
         content: 'Gamma (default 1.0) can be used to change contrast and brightness of the hillshade overlay \
                   Gamma > 1.0 will brighten, Gamma < 1.0 will darken the overlay. To set the gamma value directly, \
                   type in your new value and hit Enter. Note, however, that setting a sun angle will automatically set a gamma value in order\
-                  to account for illumination differences.',  
+                  to account for illumination differences.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
         placement: 'auto'
     });
-    
+
     $('#sun_direction_popover').popover({
         content: 'Hillshading is based on rays from a virtual sun illuminating the terrain. Sun direction defines at which compass heading (0 - 360) the sun sits\
                   on the horizon (default: North-West). Changing the direction can be useful to better illuminate directional slope patterns\
                   e.g. sun shining from the North will accentuate East-West stretching hills. Note that some directions, especially sun from the South,\
-                  can lead to hills and valleys appearing inverted!',  
+                  can lead to hills and valleys appearing inverted!',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -429,7 +429,7 @@ window.onload = function () {
     $('#sun_angle_popover').popover({
         content: 'Hillshading is based on rays from a virtual sun illuminating the terrain. Sun angle defines the vertical angle of the sun above the horizon \
                   (default: 45 degr.). Lower sun angles can be useful to better illuminate low relief areas, such as river deltas. \
-                  Note that changing sun angle adjusts the gamma value to counteract the darkening effect of lower angles.',  
+                  Note that changing sun angle adjusts the gamma value to counteract the darkening effect of lower angles.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -444,7 +444,7 @@ window.onload = function () {
                   You can also type in the lat./long. coordinates of the top-right and\
                   bottom-left corners of the box.<a href="https://iastate.box.com/s/pg6xwp92jynvhb439vevi4he0cminom6" target="_blank">(video)</a><br>\
                   Or, you can upload Google Earth kml/kmz files with a single polygon to define the boundary of your print area. \
-                  The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',  
+                  The polygon will be shown in yellow with the re box wrapped around it.<a href="https://iastate.box.com/s/qbs56sh0grboq7nxyg19ixj20m4p4i6o" target="_blank">(video)</a>',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -457,7 +457,7 @@ window.onload = function () {
                   This works best if you know a bit about the 3D printer, such as the width and height of the printer\'s\
                   buildplate to help you decide the maximum size of the terrain model it can print.<br>\
                   A a minimum you only need to set the size, however, you should also look at the z-scale.<br>\
-                  Once values are set, hit the green Export button below to download your model.',  
+                  Once values are set, hit the green Export button below to download your model.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -469,7 +469,7 @@ window.onload = function () {
                   For model size (Width, Height) and Nozzle diameter (below), select from the CNC presets.\
                   These should give you a reasonable overall level of detail for your model, but verify this with the Preview.<br>\
                   If the Effective DEM Resolution field turn yellow, lower either your size or detail.<br>\
-                  Leave all other 3D printer options at their defaults.',  
+                  Leave all other 3D printer options at their defaults.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -480,7 +480,7 @@ window.onload = function () {
         content: 'This defines the desired size for your 3D terrain model in mm. <a href="https://iastate.box.com/s/0gid32di66grinm85pj2733fnmx16f5l" target="_blank">(video)</a>\
                   You only need to set the width (corresponding to the East/West\
                   extent of your box), the height (North-South extent) will be calculated automatically. Ensure that your model fits within the dimensions of\
-                  your 3D printer\'s buildplate. If you are subdividing your model into multiple tiles, each tile will be of the size set here.<br>',  
+                  your 3D printer\'s buildplate. If you are subdividing your model into multiple tiles, each tile will be of the size set here.<br>',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -491,7 +491,7 @@ window.onload = function () {
         content: 'This value defines how much detail your terrain model can contain. 3D printed terrain models are essentially limited by the size of the\
                   nozzle used by your 3D printer (typically 0.4 mm diameter). Adjust this value if you are using a different nozzle size. \
                   Setting it to an artificially smaller value may improve some prints marginally. If you run into server limitations, \
-                  increase the nozzle size.',  
+                  increase the nozzle size.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -502,18 +502,18 @@ window.onload = function () {
         content: 'If you want to print out a terrain model at a larger size than your buildplate permits, you can subdivide it into smaller parts (tiles)\
                   <a href="https://iastate.box.com/s/ccem0equbdmzvz1v9oimujqa7c7cfv1e" target="_blank">(video)</a>. Set the number of subdivions\
                   in the x and y direction here, which will be shown inside your box.<br>\
-                  Each tile will be of the size defined under Width/Height (see above).',  
+                  Each tile will be of the size defined under Width/Height (see above).',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
-    
+
     $('#effective_resolution_popover').popover({
         content: 'This value indicates to which (effective) resolution the DEM will be down-sampled to from it\'s original resolution. Depending\
                   on the width and nozzle size, this value will typically be considerably larger than the original resolution.<br>\
                   However, if this field turns yellow, you should increase the nozzle size a bit, otherwise you\'re oversampling the DEM, \
-                  which is pointless.',  
+                  which is pointless.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -522,28 +522,28 @@ window.onload = function () {
 
     $('#base_thickness_popover').popover({
         content: 'This value defines how thick a base will be placed beneath the actual terrain model.\
-                  <a href="https://iastate.box.com/s/rcg8b1ttsjy09tdoe3hxxk1tc9q8oi22" target="_blank">(video)</a>',  
+                  <a href="https://iastate.box.com/s/rcg8b1ttsjy09tdoe3hxxk1tc9q8oi22" target="_blank">(video)</a>',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
-    
+
     $('#zscale_popover').popover({
         content: 'This value defines if the terrain should be artificially exaggerated (scaled). The default (x 1.0) performs no exaggeration and is\
                   fine for mountainous terrain. Larger z-scale values are recommended if the terrain does not have a lot of relief. \
                   <a href="https://iastate.box.com/s/vakstntrd80oxmgfa83mq0tjg52kgbsg" target="_blank">(video)</a>.<br>\
                   Instead of setting an explicit z-scale value, you can also request your model to be scaled automatically to a certain\
-                  height ("tallness"), which is the z-distance (in mm or inches) from the lowest to the highest elevation on you model.',  
+                  height ("tallness"), which is the z-distance (in mm or inches) from the lowest to the highest elevation on you model.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
         placement: 'top'
     });
-    
+
     $('#fileformat_popover').popover({
         content: 'This selects the mesh file format (type) in which you model will be saved as. STLb (binary STL) is recommended.\
-                  Use OBJ if you plan to use the terrain with 3D modeling software.',  
+                  Use OBJ if you plan to use the terrain with 3D modeling software.',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -624,7 +624,7 @@ function arcDegr_in_meter(latitude_in_degr){
 // create a centered LatLngBounds box
 function make_center_box(){
     let bounds = map.getBounds();
-    let topRight = bounds.getNorthEast();  
+    let topRight = bounds.getNorthEast();
     let bottomLeft = bounds.getSouthWest();
     let c = bounds.getCenter();
     let cx = c.lng()
@@ -703,7 +703,7 @@ function update_box(event){
     rectangle.setBounds(newbounds);
     polygon.setMap(null); // remove polygon
     $('#kml_file_name').html('Optional Polygon KML file: ') // default string
-  
+
 }
 
 // read corners, scale them by sc and update corners
@@ -720,12 +720,12 @@ function scale_box(scale_factor){
     let c = b.getCenter();
     let cx = c.lng();
     let cy = c.lat();
-    
+
     let hwidth  = (w - e) / 2.0; // 1/2 width
     let hheight = (n - s) / 2.0; // 1/2 width
 
     // scaled coords
-    let esc = cx + (hwidth * sc) ; 
+    let esc = cx + (hwidth * sc) ;
     let wsc = cx - (hwidth * sc);
     let nsc = cy + (hheight * sc);
     let ssc = cy - (hheight * sc);
@@ -733,7 +733,7 @@ function scale_box(scale_factor){
     // update rectangle bounds with new coords
     let tr = new google.maps.LatLng(nsc, esc);
     let bl = new google.maps.LatLng(ssc, wsc);
-    let bounds_scaled = new google.maps.LatLngBounds();  
+    let bounds_scaled = new google.maps.LatLngBounds();
     bounds_scaled.extend(tr);
     bounds_scaled.extend(bl);
 
@@ -783,7 +783,7 @@ function setApproxDEMResolution_meters() {
         else{
             document.getElementById('DEMresolution').style.background = ""; // default bg
         }
-        
+
     }
 }
 
@@ -854,7 +854,7 @@ function SetDEM_name(){
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
     }
-    
+
     // set resolution of DEM source
     document.getElementById('source_resolution').value = parseInt(res);
     document.getElementById('source_resolution').innerHTML = res + " m";
@@ -896,8 +896,8 @@ function updateHillshadeElevation(elev) {
         updateGamma(4.5); break;
     default:
         alert(elev + "is bad!");
-    } 
-}  
+    }
+}
 
 // update the hidden ids in reload form
 function update_options_hidden(){
@@ -938,23 +938,23 @@ function init_print_options(){
     document.getElementById('options_z_scale').value = zscale;
     document.getElementById('options_fileformat').value = fileformat;
     document.getElementById('options_manual').value = manual;
-    document.getElementById('options_polyURL').value = polyURL; 
-    document.getElementById('warning').value = warning; 
+    document.getElementById('options_polyURL').value = polyURL;
+    document.getElementById('warning').value = warning;
 }
 
 // called on idle (after map pan/zoom), sets current lat, lon and zoom
 function saveMapSettings(){
     let  c = map.getCenter();
-    
+
     // hidden ids in reloadform 1
     document.getElementById('map_lat').value = c.lat();
     document.getElementById('map_lon').value = c.lng();
-    document.getElementById('map_zoom').value = map.getZoom(); 
+    document.getElementById('map_zoom').value = map.getZoom();
 
     // hidden ids in reloadform 1
     document.getElementById('map_lat3').value = c.lat();
     document.getElementById('map_lon3').value = c.lng();
-    document.getElementById('map_zoom3').value = map.getZoom(); 
+    document.getElementById('map_zoom3').value = map.getZoom();
 }
 
 // updates hidden fields and submits a form (1 or 2) to the server
@@ -975,7 +975,7 @@ function submit_for_reload(trans_method){
         // fully inside
     }
     else{
-        document.getElementById('warning').value = 
+        document.getElementById('warning').value =
                   "Warning: your red area selection box was at least partially outside the \
                   Google Map viewport when you click on Export. This could be OK but maybe \
                   you forgot to click on the Re-center box button?" ;
@@ -987,7 +987,7 @@ function submit_for_reload(trans_method){
     // trigger a reload with all the vars in reloadform
     let f = document.forms["reloadform"];
     f.method = trans_method;
-    
+
     f.submit();
 }
 
@@ -1082,8 +1082,8 @@ function processKMLFile(xmlfile){
             let northEast = new google.maps.LatLng(ymax, xmax);
             let bounds = new google.maps.LatLngBounds(southWest,northEast);
             //console.log(southWest.toString(), northEast.toString(), bounds.toString());
-            
-            return [bounds, llcoords] 
+
+            return [bounds, llcoords]
         }
     }
 }
