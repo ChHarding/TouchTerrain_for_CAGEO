@@ -82,13 +82,13 @@ class Point(object):
             raise TypeError
 
     @classmethod
-    def from_list(cls, l):
+    def from_list(cls, lst):
         """Return a Point instance from a given list"""
-        if len(l) == 3:
-            x, y, z = map(float, l)
+        if len(lst) == 3:
+            x, y, z = map(float, lst)
             return cls(x, y, z)
-        elif len(l) == 2:
-            x, y = map(float, l)
+        elif len(lst) == 2:
+            x, y = map(float, lst)
             return cls(x, y)
         else:
             raise AttributeError
@@ -113,7 +113,7 @@ class Vector(Point):
 
     def __add__(self, vec):
         """Add two vectors together"""
-        if type(vec) == type(self):
+        if isinstance(vec, type(self)):
             return Vector(self.x + vec.x, self.y + vec.y, self.z + vec.z)
         elif isinstance(vec, Real):
             return self.add(vec)
@@ -122,7 +122,7 @@ class Vector(Point):
 
     def __sub__(self, vec):
         """Subtract two vectors"""
-        if type(vec) == type(self):
+        if isinstance(vec, type(self)):
             return Vector(self.x - vec.x, self.y - vec.y, self.z - vec.z)
         elif isinstance(vec, Real):
             return Vector(self.x - vec, self.y - vec, self.z - vec)

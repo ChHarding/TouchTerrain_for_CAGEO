@@ -153,7 +153,7 @@ def plotPoint(x, y, height, npim, pathedPoints, xOffset, yOffset):
 
         try:
             npim[plotX][plotY] = newHeight  # might be outside of npim
-        except:
+        except (IndexError, KeyError):
             print(f"    npim coords {plotX} {plotY} are out of bounds!")
 
         pathedPoints[pointKey] = True
@@ -251,7 +251,7 @@ def addGPXToModel(
     # put it into common/config.py under PROJ_DIR
     from touchterrain.common import config  # non-server config settings
 
-    if config.PROJ_DIR != None:  # we got an override setting!
+    if config.PROJ_DIR is not None:  # we got an override setting!
         import os
 
         os.environ["PROJ_LIB"] = config.PROJ_DIR
@@ -260,10 +260,8 @@ def addGPXToModel(
     # Later versions of osr may be bundled into osgeo so check there as well.
     try:
         import osr
-    except ImportError as err:
+    except ImportError:
         from osgeo import osr
-    import math
-    import time
 
     gpxStartTime = time.time()
     pathedPoints = {}

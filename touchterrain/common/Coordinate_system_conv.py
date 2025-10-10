@@ -99,7 +99,7 @@ def UTM_zone_to_EPSG_code(utm, NorS):
     # Sanity checks
     if not 1 <= utm <= 60:
         return "In valid UTM zone number"
-    if not NorS in "NS":
+    if NorS not in "NS":
         return "Invalid hemisphere"
 
     # base SRID

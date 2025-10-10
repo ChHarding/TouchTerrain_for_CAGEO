@@ -2,8 +2,6 @@
 
 import os.path
 import random
-import zipfile
-from glob import glob
 
 import imageio
 import k3d
@@ -16,11 +14,9 @@ from matplotlib.colors import ListedColormap
 from scipy import ndimage
 from scipy.ndimage import binary_dilation, generic_filter
 
-np = numpy
+from touchterrain.common.calculate_ticks import calculate_ticks
 
-from touchterrain.common.calculate_ticks import (  # calculate nice ticks for elevation visualization
-    calculate_ticks,
-)
+np = numpy
 
 
 # Utility to save tile as binary png image
@@ -161,7 +157,7 @@ def fillHoles(raster, num_iters=-1, num_neighbors=7, NaN_are_holes=False):
         def checkForAndFillHole(values):
             nonlocal holesFilledLastRound
             # Check to see if there is a hole in the center with elevation of 0
-            if values[4] > 0 or (NaN_are_holes == True and ~numpy.isnan(values[4])):
+            if values[4] > 0 or (NaN_are_holes and ~numpy.isnan(values[4])):
                 return values[4]
 
             # Count number of neighbors with elevations > 0
@@ -191,7 +187,7 @@ def fillHoles(raster, num_iters=-1, num_neighbors=7, NaN_are_holes=False):
 
         # fill negative values in the corners with 0 (nothing to do for NaN_are_holes)
         corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
-        if NaN_are_holes == False:
+        if not NaN_are_holes:
             for i, j in corners:
                 raster[i, j] = 0 if raster[i, j] < 0 else raster[i, j]
 
@@ -223,7 +219,7 @@ def k3d_render_to_html(stl_list, folder, buffer=False):
     }
 
     for stl in stl_list:
-        if buffer == False:
+        if not buffer:
             fp = open(stl, "rb")
             buf = fp.read()
             fp.close()

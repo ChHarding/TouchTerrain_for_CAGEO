@@ -31,7 +31,7 @@ import logging
 import os
 import sys
 import time
-from os.path import abspath, dirname
+from os.path import abspath
 
 # Suppress EE warnings for local DEM processing
 logging.getLogger().setLevel(logging.ERROR)
@@ -199,7 +199,7 @@ def main():
             args[k] = overwrite_args[k]
 
     # for local DEM, get the full path to it
-    if not args["importedDEM"] == None:
+    if args["importedDEM"] is not None:
         args["importedDEM"] = abspath(args["importedDEM"])
         print(f"\nProcessing local DEM file: {args['importedDEM']}")
         if not os.path.exists(args["importedDEM"]):
@@ -213,7 +213,7 @@ def main():
         )
 
     # get full path to offset mask TIFF
-    if not args["offset_masks_lower"] == None and len(args["offset_masks_lower"]) > 0:
+    if args["offset_masks_lower"] is not None and len(args["offset_masks_lower"]) > 0:
         for offset_mask_pair in args["offset_masks_lower"]:
             offset_mask_pair[0] = abspath(offset_mask_pair[0])
 

@@ -8,9 +8,10 @@ setup(
     license="MIT",
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.12",
     ],
     keywords="elevation terrain 3D-printing geotiff STL",
-    python_requires=">=3.8, <4",
+    python_requires=">=3.12, <4",
     author="Chris Harding",
     author_email="charding@iastate.edu",
     packages=find_namespace_packages(

@@ -1,0 +1,26 @@
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["touchterrain"]
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+# Ignore certain rules in notebooks
+extend-select = []
+
+[tool.ruff.lint.per-file-ignores]
+# Allow star imports and None comparisons in notebooks
+"*.ipynb" = ["F403", "F405", "E711", "E402", "E701"]
+# Allow module-level imports after docstrings and star imports in standalone scripts
+"TouchTerrain_standalone.py" = ["E402", "F403", "E722"]
+# Allow module-level imports after DEV_MODE conditional logic
+"touchterrain/common/TouchTerrainEarthEngine.py" = ["E402"]
+# Allow unused variables in coordinate conversion (legacy code)
+"touchterrain/common/Coordinate_system_conv.py" = ["F841"]
+# Allow module-level imports after logger setup
+"touchterrain/common/grid_tesselate.py" = ["E402"]

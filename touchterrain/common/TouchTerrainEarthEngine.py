@@ -19,33 +19,36 @@ TouchTerrainEarthEngine  - creates 3D model tiles from DEM (via Google Earth Eng
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import datetime
-import http.client
-import io
-import os
-import socket
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
-from io import StringIO
-from zipfile import ZipFile
 
-import numpy
-
-from touchterrain.common.config import EE_ACCOUNT, EE_CREDS, EE_PROJECT
-
+# Optionally allow using local touchterrain modules when debugging/developing.
 DEV_MODE = False
 # DEV_MODE = True  # will use modules in local touchterrain folder instead of installed ones
 
 if DEV_MODE:
     oldsp = sys.path
-    sys.path = ["."] + sys.path  # force imports form local touchterain folder
+    sys.path = ["."] + sys.path  # force imports from local touchterrain folder
 
-import touchterrain.common
-from touchterrain.common.Coordinate_system_conv import *  # arc to meters conversion
-from touchterrain.common.grid_tesselate import (  # my own grid class, creates a mesh from DEM raster
-    grid,
+import datetime
+import http.client
+import io
+import os
+import socket
+import urllib.error
+import urllib.parse
+import urllib.request
+from zipfile import ZipFile
+
+import numpy
+
+from touchterrain.common.config import EE_ACCOUNT, EE_CREDS, EE_PROJECT
+from touchterrain.common.Coordinate_system_conv import (
+    LatLon_to_UTM,
+    UTM_zone_to_EPSG_code,
+    arcDegr_in_meter,
+)
+from touchterrain.common.grid_tesselate import (
+    grid,  # my own grid class, creates a mesh from DEM raster
 )
 from touchterrain.common.utils import (
     add_to_stl_list,
@@ -54,9 +57,9 @@ from touchterrain.common.utils import (
     fillHoles,
     k3d_render_to_html,
     plot_DEM_histogram,
-    save_tile_as_image,
 )
 
+# restore sys.path if changed
 if DEV_MODE:
     sys.path = oldsp  # back to old sys.path
 
@@ -73,7 +76,7 @@ numpy.set_printoptions(precision=1)
 # Later versions of gdal may be bundled into osgeo so check there as well.
 try:
     import gdal
-except ImportError as err:
+except ImportError:
     from osgeo import gdal
 
 # get root logger, will later be redirected into a logfile
@@ -81,9 +84,7 @@ import logging
 import os.path
 import random
 import time
-from glob import glob
 
-import httplib2
 import osgeo.osr as osr  # projection stuff
 
 logger = logging.getLogger()
@@ -250,7 +251,7 @@ def process_tile(tile_tuple):
     # print numpy.round(tile_elev_raster,1)
 
     # create a bottom relief raster (values 0.0 - 1.0)
-    if tile_info["bottom_image"] != None and tile_info["no_bottom"] != None:
+    if tile_info["bottom_image"] is not None and tile_info["no_bottom"] is not None:
         logger.debug("using " + tile_info["bottom_image"] + " as relief on bottom")
         bottom_raster = make_bottom_raster_from_image(
             tile_info["bottom_image"], tile_elev_raster.shape
@@ -439,7 +440,7 @@ def process_tile(tile_tuple):
     fileformat = tile_info["fileformat"]
 
     # info on buffer/temp file
-    if tile_info.get("temp_file") != None:  # contains None or a file name.
+    if tile_info.get("temp_file") is not None:  # contains None or a file name.
         print(
             "Writing tile into temp. file",
             os.path.realpath(tile_info["temp_file"]),
@@ -460,7 +461,7 @@ def process_tile(tile_tuple):
         return tile_info, None
 
     # get size of file/buffer
-    if temp_fn != None:
+    if temp_fn is not None:
         fsize = os.stat(temp_fn).st_size / float(1024 * 1024)
     else:
         fsize = len(b) / float(1024 * 1024)
@@ -740,18 +741,18 @@ def get_zipped_tiles(
         + ", must be obj, STLa, STLb (or GeoTiff when using local raster)"
     )
 
-    if bottom_elevation != None:
+    if bottom_elevation is not None:
         assert (
-            importedDEM != None
+            importedDEM is not None
         ), "Error: importDEM local DEM raster file needed for bottom_elevation"
 
-    if importedDEM == None:  # GEE as DEM source
+    if importedDEM is None:  # GEE as DEM source
         assert (
             DEM_name in DEM_sources
         ), "Error: DEM source must be one of: " + ", ".join(DEM_sources)
         if fileformat != "GeoTiff":
             assert (
-                unprojected == False
+                not unprojected
             ), "Error: STL/OBJ export cannot use unprojected, only available for GeoTiff export"
     else:  # local raster file as DEM source
         assert os.path.exists(importedDEM), (
@@ -762,45 +763,45 @@ def get_zipped_tiles(
             + importedDEM
             + ") instead of a mesh file format ..."
         )
-        if bottom_elevation != None:
+        if bottom_elevation is not None:
             assert os.path.exists(bottom_elevation), (
                 "Error: bottom elevation raster file "
                 + bottom_elevation
                 + " does not exist"
             )
 
-    assert not (bottom_image != None and no_bottom == True), (
+    assert not (bottom_image is not None and no_bottom), (
         "Error: Can't use no_bottom=True and also want a bottom_image ("
         + bottom_image
         + ")"
     )
-    assert not (bottom_image != None and basethick <= 0.5), (
+    assert not (bottom_image is not None and basethick <= 0.5), (
         "Error: base thickness ("
         + str(basethick)
         + ") must be > 0.5 mm when using a bottom relief image"
     )
 
     assert not (
-        bottom_elevation != None and bottom_image != None
+        bottom_elevation is not None and bottom_image is not None
     ), "Error: Can't use both bottom_elevation and bottom_image"
     assert not (
-        bottom_image != None and top_thickness != None
+        bottom_image is not None and top_thickness is not None
     ), "Error: Can't use both bottom_image and top_thickness"
-    assert not (bottom_elevation != None and no_bottom == True), (
+    assert not (bottom_elevation is not None and no_bottom), (
         "Error: Can't use no_bottom=True and also want a bottom_elevation ("
         + bottom_elevation
         + ")"
     )
     assert not (
-        bottom_elevation != None and top_thickness != None
+        bottom_elevation is not None and top_thickness is not None
     ), "Error: Can't use both bottom_elevation and top_thickness"
 
     assert not (
-        bottom_elevation != None and use_geo_coords != None
+        bottom_elevation is not None and use_geo_coords is not None
     ), "Error: use_geo_coords is currently not supported with a bottom_elevation raster"
 
     # Check offset mask file
-    if offset_masks_lower != None:
+    if offset_masks_lower is not None:
         for offset_pair in offset_masks_lower:
             print(offset_pair[0])
             assert os.path.exists(offset_pair[0]), (
@@ -812,7 +813,7 @@ def get_zipped_tiles(
     if not os.path.exists(temp_folder):  # do we have a temp folder?
         try:
             os.mkdir(temp_folder)
-        except:
+        except Exception:
             assert False, temp_folder + "doesn't exists but could also not be created"
 
     # set up log file
@@ -825,7 +826,7 @@ def get_zipped_tiles(
     # number of tiles in EW (x,long) and NS (y,lat), must be ints
     num_tiles = [int(ntilesx), int(ntilesy)]
 
-    if only != None:
+    if only is not None:
         assert (
             only[0] > 0 and only[0] <= num_tiles[0]
         ), "Error: x index of only tile out of range"
@@ -843,14 +844,14 @@ def get_zipped_tiles(
     # get polygon data, either from GeoJSON (or just it's coordinates as a list) or from kml URL or file
     #
     clip_poly_coords = None  # list of lat/lons, will create ee.Feature used for clipping the terrain image
-    if polygon != None:
+    if polygon is not None:
 
         # If we have a GeoJSON and also a kml
-        if polyURL != None and polyURL != "":
+        if polyURL is not None and polyURL != "":
             pr(
                 "Warning: polygon via Google Drive KML will be ignored b/c a GeoJSON polygon was also given!"
             )
-        elif poly_file != None and poly_file != "":
+        elif poly_file is not None and poly_file != "":
             pr(
                 "Warning: polygon via KML file will be ignored b/c a GeoJSON polygon was also given!"
             )
@@ -917,7 +918,7 @@ def get_zipped_tiles(
 
     # Get poly from a KML file via google drive URL
     # TODO: TEST THIS!!!!!!
-    elif polyURL != None and polyURL != "":
+    elif polyURL is not None and polyURL != "":
         import re
 
         import requests
@@ -950,7 +951,7 @@ def get_zipped_tiles(
             t = r.text
             clip_poly_coords, msg = get_KML_poly_geometry(t)
             if (
-                msg != None
+                msg is not None
             ):  # Either go a line instead of polygon (take but warn) or nothing (ignore)
                 logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
             else:
@@ -961,7 +962,7 @@ def get_zipped_tiles(
                     + polyURL
                 )
 
-    elif poly_file != None and poly_file != "":
+    elif poly_file is not None and poly_file != "":
         try:
             with open(poly_file, "r") as pf:
                 poly_file_str = pf.read()
@@ -980,7 +981,7 @@ def get_zipped_tiles(
         else:
             clip_poly_coords, msg = get_KML_poly_geometry(poly_file_str)
             if (
-                msg != None
+                msg is not None
             ):  # Either got a line instead of polygon (take but warn) or nothing (ignore)
                 logging.warning(msg + "(" + str(len(clip_poly_coords)) + " points)")
             else:
@@ -1002,7 +1003,7 @@ def get_zipped_tiles(
     #
     # A) use Earth Engine to download DEM geotiff
     #
-    if importedDEM == None:
+    if importedDEM is None:
         try:
             import ee
         except Exception as e:
@@ -1066,7 +1067,7 @@ def get_zipped_tiles(
             "projection",
             "use_geo_coords",
         ):
-            if args.get(k) != None:  # may not have been used ...
+            if args.get(k) is not None:  # may not have been used ...
                 v = args[k]
                 pr(k, "=", v)
                 dict_for_url[k] = v
@@ -1087,8 +1088,8 @@ def get_zipped_tiles(
         # Figure out which projection to use when getting DEM from GEE
         #
 
-        if unprojected == False:
-            if projection != None:
+        if not unprojected:
+            if projection is not None:
                 epsg = projection
                 crs_str = f"EPSG:{epsg}"
                 # utm_zone_str = crs_str
@@ -1142,7 +1143,7 @@ def get_zipped_tiles(
         region_ratio = region_size_in_meters[1] / float(region_size_in_meters[0])
 
         # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
-        if tilewidth_scale != None:
+        if tilewidth_scale is not None:
             tilewidth = (
                 region_size_in_meters[1] / tilewidth_scale * 1000
             )  # new tilewidth in mm
@@ -1212,12 +1213,12 @@ def get_zipped_tiles(
         pr("Earth Engine raster:", info["id"])
         try:  #
             pr(" " + info["properties"]["title"])
-        except Exception as e:
+        except Exception:
             # print e
             pass
         try:
             pr(" " + info["properties"]["link"])
-        except Exception as e:
+        except Exception:
             # print e
             pass
 
@@ -1228,7 +1229,7 @@ def get_zipped_tiles(
         image1 = image1.resample("bilinear")
 
         # if we got clip_poly_coords, clip the image, using -32768 as NoData value
-        if clip_poly_coords != None:
+        if clip_poly_coords is not None:
             clip_polygon = ee.Geometry.Polygon([clip_poly_coords])
             clip_feature = ee.Feature(clip_polygon)
             image1 = image1.clip(clip_feature).unmask(-32768, False)
@@ -1237,7 +1238,7 @@ def get_zipped_tiles(
         reg_rect = ee.Geometry.Rectangle(
             [[bllon, bllat], [trlon, trlat]]
         )  # opposite corners
-        if polygon == None:
+        if polygon is None:
             polygon_geojson = (
                 reg_rect.toGeoJSONString()
             )  # polyon is just the bounding box
@@ -1259,7 +1260,7 @@ def get_zipped_tiles(
             del request_dict["scale"]
 
         # force to use unprojected (lat/long) instead of UTM projection, can only work for Geotiff export
-        if unprojected == True:
+        if unprojected:
             del request_dict["crs"]
 
         request = image1.getDownloadUrl(request_dict)
@@ -1267,7 +1268,7 @@ def get_zipped_tiles(
 
         # Retry download zipfile from url until request was successfull
         web_sock = None
-        while web_sock == None:
+        while web_sock is None:
             try:
                 web_sock = urllib.request.urlopen(request, timeout=20)  # 20 sec timeout
             except socket.timeout as e:
@@ -1278,7 +1279,7 @@ def get_zipped_tiles(
                     time.sleep(random.randint(1, 10))  # wait for a couple of secs
             except urllib.error.URLError as e:
                 logger.error("URLError = " + str(e.reason))
-            except http.client.HTTPException as e:
+            except http.client.HTTPException:
                 logger.error("HTTPException")
             except Exception:
                 import traceback
@@ -1286,7 +1287,7 @@ def get_zipped_tiles(
                 logger.error("generic exception: " + traceback.format_exc())
 
             # at any exception, wait for a couple of secs
-            if web_sock == None:
+            if web_sock is None:
                 time.sleep(random.randint(1, 10))
 
         # read the zipped folder into memory
@@ -1361,7 +1362,7 @@ def get_zipped_tiles(
             ), "Error: raster cells are not square!"  # abs() b/c one can be just the negative of the other in GDAL's geotranform matrix
 
             # typically, EE does not use proper undefined values in the geotiffs it serves, but just in case ...
-            if dem_undef_val != None:
+            if dem_undef_val is not None:
                 logger.debug(
                     "undefined DEM value used by GEE geotiff: " + str(dem_undef_val)
                 )
@@ -1392,7 +1393,7 @@ def get_zipped_tiles(
                 npim = numpy.where(npim == 0.0, numpy.nan, npim)
 
             # Add GPX points to the model (thanks KohlhardtC!)
-            if importedGPX != None and importedGPX != []:
+            if importedGPX is not None and importedGPX != []:
                 from touchterrain.common.TouchTerrainGPX import addGPXToModel
 
                 addGPXToModel(
@@ -1410,7 +1411,7 @@ def get_zipped_tiles(
                 )
 
             # clip values?
-            if ignore_leq != None:
+            if ignore_leq is not None:
                 npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
                 pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
 
@@ -1494,9 +1495,9 @@ def get_zipped_tiles(
     else:
         filename = os.path.basename(importedDEM)
 
-        if bottom_elevation != None:
+        if bottom_elevation is not None:
             btxt = "and " + bottom_elevation
-        elif top_thickness != None:
+        elif top_thickness is not None:
             btxt = "and " + top_thickness
         else:
             btxt = ""
@@ -1513,7 +1514,7 @@ def get_zipped_tiles(
         pr("started:", datetime.datetime.now().time().isoformat())
 
         # If we have a KML file, use it to mask (clip) and crop the importedDEM
-        if poly_file != None and poly_file != "":
+        if poly_file is not None and poly_file != "":
             # Create clipped geotiff in the same folder as the source DEM
             folder = os.path.split(importedDEM)[0]
             clipped_filename = "clipped_" + filename
@@ -1611,7 +1612,7 @@ def get_zipped_tiles(
         dem_undef_val = band.GetNoDataValue()
         pr("undefined DEM value:", dem_undef_val)
         if (
-            dem_undef_val != None
+            dem_undef_val is not None
         ):  # None means the raster is not a geotiff, so no undef values
             undef_cells = numpy.isclose(
                 npim, dem_undef_val
@@ -1621,8 +1622,8 @@ def get_zipped_tiles(
             )  # replace GDAL undef values with nan
 
         # for a bottom raster or a thickness raster, check that it matches the top raster
-        if bottom_elevation != None or top_thickness != None:
-            if bottom_elevation != None:
+        if bottom_elevation is not None or top_thickness is not None:
+            if bottom_elevation is not None:
                 ras = gdal.Open(
                     bottom_elevation
                 )  # using ras here b/c it can be one of two rasters
@@ -1668,7 +1669,7 @@ def get_zipped_tiles(
             ras_undef_val = ras_band.GetNoDataValue()
             pr("undefined bottom elevation or thickness value:", ras_undef_val)
             if (
-                ras_undef_val != None
+                ras_undef_val is not None
             ):  # None means the raster is not a geotiff so we don't support undef values
                 undef_cells = numpy.isclose(
                     ras_npim, ras_undef_val
@@ -1678,7 +1679,7 @@ def get_zipped_tiles(
                 )  # replace undef values with nan
 
             # get bottom elevation as numpy array or create it be subtracting thickness from top elevation
-            if bottom_elevation != None:
+            if bottom_elevation is not None:
                 bot_npim = ras_npim  # numpy array to be used later
             else:
                 bot_npim = npim - ras_npim  # bottom = top - thickness
@@ -1692,9 +1693,9 @@ def get_zipped_tiles(
 
         # Print out some info about the raster
         pr("DEM (top) raster file:", importedDEM)
-        if top_thickness != None and top_thickness != "":
+        if top_thickness is not None and top_thickness != "":
             pr("Top thickness raster file:", top_thickness)
-        elif bottom_elevation != None:
+        elif bottom_elevation is not None:
             pr("Bottom elevation raster file:", bottom_elevation)
         pr("DEM projection & datum:", proj_str, datum_str)
         pr("z-scale:", zscale)
@@ -1710,13 +1711,13 @@ def get_zipped_tiles(
         # pr("polyURL:", polyURL)
 
         # Warn that anything with polygon will be ignored with a local raster (other than offset_masks!)
-        if polygon != None or (polyURL != None and polyURL != ""):
+        if polygon is not None or (polyURL is not None and polyURL != ""):
             pr(
                 "Warning: Given outline polygon will be ignored when using local raster file!"
             )
 
         # Add GPX points to the model (thanks KohlhardtC and ansonl!)
-        if importedGPX != None and importedGPX != []:
+        if importedGPX is not None and importedGPX != []:
             from touchterrain.common.TouchTerrainGPX import addGPXToModel
 
             addGPXToModel(
@@ -1734,12 +1735,12 @@ def get_zipped_tiles(
             )
 
         # clip values?
-        if ignore_leq != None:
+        if ignore_leq is not None:
             npim = numpy.where(npim <= ignore_leq, numpy.nan, npim)
             pr("ignoring elevations <= ", ignore_leq, " (were set to NaN)")
 
         # if tilewidth_scale is given, overwrite mm tilewidth by region width / tilewidth_scale
-        if tilewidth_scale != None:
+        if tilewidth_scale is not None:
             tilewidth = (
                 region_size_in_meters[1] / tilewidth_scale * 1000
             )  # new tilewidth in mm
@@ -1825,7 +1826,7 @@ def get_zipped_tiles(
                 "m",
             )
             npim = resampleDEM(npim, scale_factor)
-            if bottom_elevation != None:
+            if bottom_elevation is not None:
                 pr(
                     "re-sampling",
                     bottom_elevation,
@@ -1920,7 +1921,7 @@ def get_zipped_tiles(
 
     if fileformat != "GeoTiff":  # Mesh export
 
-        if importedDEM == None:
+        if importedDEM is None:
             DEM_name = DEM_name.replace("/", "-")  # replace / with - to be safe
         else:
             DEM_name = filename
@@ -1936,7 +1937,7 @@ def get_zipped_tiles(
             npim = npim[0 : npim.shape[0] - remy, 0 : npim.shape[1] - remx]
             pr("cropped", old_shape[::-1], "to", npim.shape[::-1])
 
-            if bottom_elevation != None:
+            if bottom_elevation is not None:
                 bot_npim = bot_npim[
                     0 : bot_npim.shape[0] - remy, 0 : bot_npim.shape[1] - remx
                 ]
@@ -2070,7 +2071,7 @@ def get_zipped_tiles(
             # bool array with True where bottom has NaN values but top does not
             # this is specific to Anson's way of encoding through-water cells
             nan_values = np.logical_and(np.isnan(bottom), np.logical_not(np.isnan(top)))
-            if np.any(nan_values) == True:
+            if np.any(nan_values):
                 bottom[nan_values] = 0  # set bottom NaN values to 0
                 throughwater = True  # flag for easy checking
 
@@ -2082,7 +2083,7 @@ def get_zipped_tiles(
 
             # for any True values in array, set corresponding top and bottom cells to NaN
             # Also set NaN flags
-            if np.any(close_values) == True:
+            if np.any(close_values):
                 # save pre-dilated top for later dilation
                 top_pre_dil = top.copy()
                 top[close_values] = np.nan  # set close values to NaN
@@ -2099,7 +2100,7 @@ def get_zipped_tiles(
                 bottom[close_values] = np.nan  # set close values to NaN
                 # clean_up_diags_check(bottom) # re-check for diags
 
-                if throughwater == True:
+                if throughwater:
                     bottom = dilate_array(bottom)  # dilate with 3x3 nanmean #
                 else:
                     bottom = dilate_array(
@@ -2118,9 +2119,9 @@ def get_zipped_tiles(
         # repair these patterns, which cause non_manifold problems later:
         # 0 1    or     1 0
         # 1 0    or     0 1
-        if clean_diags == True:
+        if clean_diags:
             npim = clean_up_diags(npim)
-            if bottom_elevation != None:
+            if bottom_elevation is not None:
                 bot_npim = clean_up_diags(bot_npim)
                 # TODO: check if this is needed as top NaNs dictate if a cell
                 # should be skipped or not
@@ -2132,8 +2133,8 @@ def get_zipped_tiles(
         # set minimum elevation for top (will be used by all tiles)
         user_offset = 0  # no offset unless user specified min_elev
         min_bottom_elev = None
-        if min_elev != None:  # user-given minimum elevation (via min_elev argument)
-            if bottom_elevation != None:  # have a bottom elevation
+        if min_elev is not None:  # user-given minimum elevation (via min_elev argument)
+            if bottom_elevation is not None:  # have a bottom elevation
                 min_bottom_elev = numpy.nanmin(
                     bot_npim
                 )  # (actual min elev for all tiles)
@@ -2141,11 +2142,11 @@ def get_zipped_tiles(
             min_elev = numpy.nanmin(npim)  # (actual min elev for all tiles)
         else:  # no user-given min_elev
             min_elev = numpy.nanmin(npim)
-            if bottom_elevation != None:
+            if bottom_elevation is not None:
                 min_bottom_elev = numpy.nanmin(bot_npim)
 
         print(f"elev min/max : {min_elev:.2f} to {numpy.nanmax(npim):.2f}")
-        if bottom_elevation != None:
+        if bottom_elevation is not None:
             print(
                 f"bottom elev min/max : {numpy.nanmin(bot_npim):.2f} to {numpy.nanmax(bot_npim):.2f}"
             )
@@ -2206,7 +2207,7 @@ def get_zipped_tiles(
 
         # pad full rasters(s) by one at the fringes
         npim = numpy.pad(npim, (1, 1), "edge")  # will duplicate edges, including nan
-        if bottom_elevation != None:
+        if bottom_elevation is not None:
             bot_npim = numpy.pad(bot_npim, (1, 1), "edge")
         if top_orig is not None:
             top_orig = numpy.pad(top_orig, (1, 1), "edge")
@@ -2216,7 +2217,7 @@ def get_zipped_tiles(
 
         # Warn that we're only processing one tile
         process_only = tile_info["only"]
-        if process_only != None:
+        if process_only is not None:
             pr("Only processing tile:", process_only)
             CPU_cores_to_use = 1  # set to SP
 
@@ -2239,7 +2240,7 @@ def get_zipped_tiles(
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 tile_elev_raster.flags.writeable = False
 
-                if bottom_elevation != None:
+                if bottom_elevation is not None:
                     tile_bot_elev_raster = bot_npim[
                         start_y:end_y, start_x:end_x
                     ]  #  [y,x]
@@ -2280,7 +2281,7 @@ def get_zipped_tiles(
                 )  # leave it to process_tile() to unwrap the info and data parts
 
                 # if we only process one tile ...
-                if process_only == None:  # "only" parameter was not given
+                if process_only is None:  # "only" parameter was not given
                     tile_list.append(tile)
                 else:
                     if (
@@ -2318,7 +2319,7 @@ def get_zipped_tiles(
         if (
             num_tiles[0] * num_tiles[1] == 1
             or CPU_cores_to_use == 1
-            or CPU_cores_to_use == None
+            or CPU_cores_to_use is None
         ):
             pr("using single-core only (multi-core is currently broken :(")
             processed_list = []
@@ -2401,7 +2402,7 @@ def get_zipped_tiles(
             tile_name = f"{DEM_title}_tile_{tile_info['tile_no_x']}_{tile_info['tile_no_y']}.{fileformat[:3]}"  # name of file inside zip
             buf = p[1]  # either a string or a file object
 
-            if tile_info.get("temp_file") != None:  # if buf is a file
+            if tile_info.get("temp_file") is not None:  # if buf is a file
                 fname = tile_info["temp_file"]
                 stl_list = add_to_stl_list(fname, stl_list)
                 zip_file.write(fname, tile_name)  # write temp file into zip
@@ -2443,8 +2444,8 @@ def get_zipped_tiles(
                 del offset_layer
 
         # make k3d render
-        if kd3_render == True and (fileformat == "STLa" or fileformat == "STLb"):
-            if tile_info.get("temp_file") != None:
+        if kd3_render and (fileformat == "STLa" or fileformat == "STLb"):
+            if tile_info.get("temp_file") is not None:
                 html_file = k3d_render_to_html(stl_list, temp_folder, buffer=False)
             else:
                 html_file = k3d_render_to_html(stl_list, temp_folder, buffer=True)
@@ -2454,7 +2455,7 @@ def get_zipped_tiles(
         for p in processed_list:
             tile_info = p[0]
             buf = p[1]
-            if tile_info.get("temp_file") != None:
+            if tile_info.get("temp_file") is not None:
                 fname = tile_info["temp_file"]
                 try:
                     os.remove(fname)  # on windows remove closed file manually
@@ -2468,7 +2469,7 @@ def get_zipped_tiles(
     print("zip finished:", datetime.datetime.now().time().isoformat())
 
     # for mesh output add (full) geotiff we got from EE to zip
-    if importedDEM == None:
+    if importedDEM is None:
         total_size += os.path.getsize(GEE_dem_filename) / 1048576
         zip_file.write(GEE_dem_filename, DEM_title + ".tif")
         pr("added full geotiff as " + DEM_title + ".tif")
@@ -2481,7 +2482,7 @@ def get_zipped_tiles(
             )
 
     # add png from Google Maps static (ISU server doesn't use that b/c it eats too much into our free google maps allowance ...)
-    if map_img_filename != None:
+    if map_img_filename is not None:
         zip_file.write(map_img_filename, DEM_title + ".jpg")
         pr("added map of area as " + DEM_title + ".jpg")
 
@@ -2495,7 +2496,7 @@ def get_zipped_tiles(
     zip_file.close()  # flushes zip file
 
     # remove geotiff d/led from EE
-    if importedDEM == None:
+    if importedDEM is None:
         try:
             os.remove(GEE_dem_filename)
         except Exception as e:
@@ -2514,7 +2515,7 @@ def get_zipped_tiles(
         )
 
     # remove map image
-    if map_img_filename != None:
+    if map_img_filename is not None:
         try:
             os.remove(map_img_filename)
         except Exception as e:

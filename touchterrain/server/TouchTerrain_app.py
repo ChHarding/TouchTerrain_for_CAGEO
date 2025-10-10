@@ -1,40 +1,35 @@
 """TouchTerrain-app - flask server module"""
 
-"""
-@author:     Chris Harding
-@license:    GPL
-@contact:    charding@iastate.edu
+# @author:     Chris Harding
+# @license:    GPL
+# @contact:    charding@iastate.edu
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
 
 import json
-import math
+import logging
 import mimetypes
 import os
 import sys
-from datetime import datetime, timedelta
-from io import BytesIO, StringIO
-from shutil import copyfileobj
+from datetime import datetime
+from io import BytesIO
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
 import ee
 import requests
 from flask import (
-    Flask,
     Response,
-    flash,
-    make_response,
     redirect,
     render_template,
     request,
@@ -44,9 +39,8 @@ from flask import (
     url_for,
 )
 from geojson import Polygon
-from PIL import Image
 
-from touchterrain.common import config  # general settings
+from touchterrain.common import TouchTerrainEarthEngine  # will also init EE
 from touchterrain.server import app
 from touchterrain.server.config import (
     DOWNLOADS_FOLDER,
@@ -61,16 +55,6 @@ from touchterrain.server.config import (
     TMP_FOLDER,
 )
 
-app = Flask(__name__)
-
-import logging
-import time
-from zipfile import ZipFile
-
-# import modules from common
-from touchterrain.common import TouchTerrainEarthEngine  # will also init EE
-from touchterrain.common.Coordinate_system_conv import *  # arc to meters conversion
-
 # Google Maps key file: must be called GoogleMapsKey.txt and contain key as a single string
 google_maps_key = ""
 try:
@@ -80,10 +64,11 @@ try:
             google_maps_key = ""
         else:
             print("Google Maps key is:", google_maps_key)
-except:
+except Exception as e:
     # file does not exist - will show the ugly Google map version
     logging.warning(
-        "Problem with Google Maps key file - you will only get the ugly Google Map!"
+        "Problem with Google Maps key file - you will only get the ugly Google Map! %s",
+        e,
     )
 
 # CH Jun 27, 2025 disabled Google Maps
@@ -99,7 +84,7 @@ try:
         app.config["RECAPTCHA_SITE_KEY"] = keys[0]
         app.config["RECAPTCHA_SECRET_KEY"] = keys[1]
         app.secret_key = keys[2]
-except:
+except Exception:
     # file does not exist - will show the ugly Google map version
     sys.exit(
         "Problem with RecaptchaKeys.txt in server folder, it must contain keys for the (v3) recaptcha site key, recaptcha secret key and flask secret key as single strings in separate lines. Exiting."
@@ -280,7 +265,7 @@ def main_page():
     args["manual"] = args["manual"].replace('"', chr(92) + chr(34))  # \ + "
 
     # serve index.html unless user has not been verified earlier
-    if session.get("recaptcha_verified") == True:
+    if session.get("recaptcha_verified"):
         print("User has been verified, showing main page.", file=sys.stderr)
         # string with index.html "file" with mapid, token, etc. inlined
         html_str = render_template(
@@ -502,7 +487,7 @@ def export():
         # Note: the type of each arg is decided by json.loads(), so 1.0 will be a float, etc.
         manual = args.get("manual", None)
         extra_args = {}
-        if manual != None:
+        if manual is not None:
 
             JSON_str = "{ " + manual + "}"
             try:
@@ -520,12 +505,12 @@ def export():
         # log and show args in browser
         html = "<br>"
         for k in key_list:
-            if args[k] != None and args[k] != "":
+            if args[k] is not None and args[k] != "":
                 html += "%s = %s <br>" % (k, str(args[k]))
                 logging.info("%s = %s" % (k, str(args[k])))
         html += "<br>"
         for k in extra_args:
-            if args[k] != None and args[k] != "":
+            if args[k] is not None and args[k] != "":
                 html += "%s = %s <br>" % (k, str(args[k]))
                 logging.info("%s = %s" % (k, str(args[k])))
 
@@ -546,7 +531,10 @@ def export():
                         zipped_stream = BytesIO(kml_stream)  # zipped stream (binary)
                         zipped_archive = ZipFile(zipped_stream)
                         kml_stream = zipped_archive.read("doc.kml")
-                    except:
+                    except Exception as e:
+                        logging.warning(
+                            "Invalid kmz polygon file %s: %s", kml_file.filename, e
+                        )
                         html += (
                             "Warning: "
                             + kml_file.filename
@@ -557,7 +545,8 @@ def export():
                     coords, msg = TouchTerrainEarthEngine.get_KML_poly_geometry(
                         kml_stream
                     )
-                except:
+                except Exception as e:
+                    logging.warning("Invalid kml polygon %s: %s", kml_file.filename, e)
                     html += (
                         "Warning: "
                         + kml_file.filename

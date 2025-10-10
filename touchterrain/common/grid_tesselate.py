@@ -179,7 +179,7 @@ class quad:
         t0 = (v0, v1, v2)  # verts of first triangle
 
         # if v3 is None, we only return t0
-        if v3 != None:
+        if v3 is not None:
             t1 = (v0, v2, v3)  # verts of second triangle
             return (t0, t1)
         else:
@@ -191,7 +191,7 @@ class quad:
 
         vertidx = []  # list of the 4 verts as index
         for v in self.vl:  # quad as list of 4 verts, each as (x,y,z)
-            if v != None:  # v3 could be None
+            if v is not None:  # v3 could be None
                 vi = v.get_id()
                 vertidx.append(vi)
             # print v,vi
@@ -321,27 +321,27 @@ class cell:
             + "\n borders:\n"
         )
         for d in ["N", "S", "E", "W"]:
-            if self.borders[d] != False:
+            if self.borders[d]:
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
 
     def check_for_tri_cell(self):
         """Returns True if cell has borders on 2 consecutive sides False otherwise.
         Returns False is cell is already a tri-cell"""
-        if self.is_tri_cell == True:
+        if self.is_tri_cell:
             return None
         b = self.borders
 
         # Count borders (non-False will be a pointer to a wall quad, i.e. True is not used here!
         num_borders = 0
         for d in ["N", "S", "E", "W"]:
-            if b[d] != False:
+            if b[d]:
                 num_borders += 1
 
         if num_borders == 2:
-            if b["N"] != False and b["S"] != False:
+            if b["N"] and b["S"]:
                 return False
-            if b["E"] != False and b["W"] != False:
+            if b["E"] and b["W"]:
                 return False
         else:
             return False  # cannot be triangelized
@@ -353,7 +353,7 @@ class cell:
         """Collapses the top and bottom quad into a triangle based on its 2 border walls,
         replaces one of the 2 border walls with a diagonal wall and the other with False.
         returns None, sets is_tri_cell to True"""
-        if self.is_tri_cell == True:
+        if self.is_tri_cell:
             return None
 
         b = self.borders
@@ -366,24 +366,24 @@ class cell:
         # In addition we need to get rid of one wall and overwrite the other
         # with a new diagonal wall
 
-        if b["N"] != False and b["W"] != False:
+        if b["N"] and b["W"]:
             self.topquad = quad(
                 tvl[3], tvl[1], tvl[2], None
             )  # ccw, order doesn't matter
             self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None)  # cw!
             b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3])  # diagonal wall (ccw!)
             b["W"] = False  # no used anymore
-        elif b["N"] != False and b["E"] != False:
+        elif b["N"] and b["E"]:
             self.topquad = quad(tvl[0], tvl[1], tvl[2], None)
             self.bottomquad = quad(bvl[0], bvl[2], bvl[3], None)
             b["N"] = quad(tvl[0], tvl[2], bvl[2], bvl[0])
             b["E"] = False
-        elif b["S"] != False and b["E"] != False:
+        elif b["S"] and b["E"]:
             self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
             self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
             b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
             b["E"] = False
-        elif b["S"] != False and b["W"] != False:
+        elif b["S"] and b["W"]:
             self.topquad = quad(tvl[2], tvl[3], tvl[0], None)
             self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
             b["S"] = quad(tvl[2], tvl[0], bvl[0], bvl[2])
@@ -502,22 +502,21 @@ class grid:
         #
 
         # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant 0
-        if isinstance(self.bottom, np.ndarray) == False:
+        if not isinstance(self.bottom, np.ndarray):
             self.bottom = 0
             self.tile_info["have_bottom_array"] = False
         # can't have a bottom_image and NaNs in top
         elif (
             tile_info["bottom_image"] is not None
-            and isinstance(self.bottom, np.ndarray) == True
-            and self.tile_info["have_nan"] == True
+            and isinstance(self.bottom, np.ndarray)
+            and self.tile_info["have_nan"]
         ):
             self.tile_info["have_bottom_array"] = False
             self.bottom = 0
             print("Top has NaN values, requested bottom image will be ignored!")
         # bottom is a elevation raster. It's ok to have NaNs in the bottom raster and/or top raster
-        elif (
-            tile_info["bottom_elevation"] is not None
-            and isinstance(self.bottom, np.ndarray) == True
+        elif tile_info["bottom_elevation"] is not None and isinstance(
+            self.bottom, np.ndarray
         ):
             self.tile_info["have_bottom_array"] = True
 
@@ -537,11 +536,11 @@ class grid:
                 # If the bottom has NaNs where top does not, set them to 0
                 # This is very specific to Anson's way of creating all-the-way-through water
                 # where his preprocessing sets the bottom to NaN for the water. (here called throughwater case)
-                if self.tile_info["have_bot_nan"] == True:
+                if self.tile_info["have_bot_nan"]:
                     # CH1
                     # bool array with True where self.bottom has NaN values but self.top does not
                     nan_values = np.logical_and(np.isnan(self.bottom), np.logical_not(np.isnan(self.top)))
-                    if np.any(nan_values) == True:
+                    if np.any(nan_values):
                         self.bottom[nan_values] = 0 # set bottom NaN values to 0
                         self.throughwater = True # flag for easy checking
 
@@ -552,7 +551,7 @@ class grid:
 
                 # for any True values in array, set corresponding top and bottom cells to NaN
                 # Also set NaN flags
-                if np.any(close_values) == True:
+                if np.any(close_values):
                     # save pre-dilated top for later dilation
                     top_pre_dil = self.top.copy()
                     self.top[close_values] = np.nan   # set close values to NaN
@@ -568,7 +567,7 @@ class grid:
                     #clean_up_diags_check(self.bottom) # re-check for diags
 
 
-                    if self.throughwater == True:
+                    if self.throughwater:
                         self.bottom = dilate_array(self.bottom) # dilate with 3x3 nanmean #
                     else:
                         self.bottom = dilate_array(self.bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
@@ -587,7 +586,7 @@ class grid:
 
             # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. We'll still use the non-dilated top
             # when we need to skip NaN cells
-            elif self.tile_info["have_nan"] == True:
+            elif self.tile_info["have_nan"]:
 
                 self.top_orig = self.top.copy()   # save original top before it gets dilated
                 self.top = dilate_array(self.top) # dilate with 3x3 nanmean
@@ -601,13 +600,13 @@ class grid:
 
             scz = 1 / self.tile_info["scale"] * 1000.0  # scale z to mm
 
-            if self.tile_info["have_bottom_array"] == False:
+            if not self.tile_info["have_bottom_array"]:
                 self.top -= self.tile_info[
                     "min_elev"
                 ]  # subtract global min from top to get to 0
 
             else:
-                if self.throughwater == False:  # normal water case,
+                if not self.throughwater:  # normal water case,
                     self.top -= self.tile_info[
                         "min_bot_elev"
                     ]  # subtract global bottom min
@@ -666,9 +665,9 @@ class grid:
         # print range(1, xmaxidx+1), range(1, ymaxidx+1)
 
         # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the lower left corner of all tiles (global)
-        if (
-            self.tile_info["tile_centered"] == False
-        ):  # global offset, best for looking at all tiles together
+        if not self.tile_info[
+            "tile_centered"
+        ]:  # global offset, best for looking at all tiles together
             self.offsetx = -self.tile_info["tile_width"] * (
                 self.tile_info["tile_no_x"] - 1
             )  # tile_no starts with 1! This is the top end of the tile, not 0!
@@ -682,7 +681,7 @@ class grid:
             self.offsety = self.tile_info["tile_height"] / 2.0
 
         # geo coords are in meters (UTM). tile_centered is ignored for geo coords
-        if self.tile_info["use_geo_coords"] != None:
+        if self.tile_info["use_geo_coords"] is not None:
 
             geo_transform = self.tile_info["geo_transform"]
             self.cell_size = abs(geo_transform[1])  # rw pixel size of geotiff in m
@@ -724,7 +723,7 @@ class grid:
                 self.offsety = geo_transform[3] + self.offsety  # UTM y
 
         # put corner coordinates tile info dict (may later be needed for 2 bottom triangles)
-        if self.tile_info["tile_centered"] == False:
+        if not self.tile_info["tile_centered"]:
             # print("tile width", self.tile_info["tile_width"])
             # print("tile_no_x", self.tile_info["tile_no_x"])
             # print("tile_no_y", self.tile_info["tile_no_y"])
@@ -749,8 +748,8 @@ class grid:
 
     def clean_up_diags_check(self, ras):
         """Local function to check for NaNs in the raster and clean up diagonal NaNs if requested"""
-        if np.any(np.isnan(ras)) == True:  # do we have any NaNs?
-            if self.tile_info["clean_diags"] == True:  # cleanup requested?
+        if np.any(np.isnan(ras)):
+            if self.tile_info["clean_diags"]:
                 ras = utils.clean_up_diags(ras)
 
     def create_cells(self):
@@ -767,7 +766,7 @@ class grid:
 
         # TODO: not sure we need this any more, given that this was done on the full raster
         # and after the operations that could have changed the raster
-        if self.tile_info["clean_diags"] == True:
+        if self.tile_info["clean_diags"]:
             self.top = utils.fillHoles(self.top, 1, 8, True)  # fill single holes
             self.top = utils.clean_up_diags(self.top)
             if self.top_orig is not None:
@@ -798,10 +797,7 @@ class grid:
                 # dirty_trianglescreates a technically better fit fit of the water into the terrain but will create triangles
                 # that are collapsed into a line or a point. This should not be a problem for a modern slicer but will
                 # lead to issues when using the model in a 3D mesh modeling program
-                if (
-                    self.tile_info["have_nan"] == True
-                    and self.tile_info["dirty_triangles"] == False
-                ):
+                if self.tile_info["have_nan"] and not self.tile_info["dirty_triangles"]:
                     top = self.top_orig
                 else:
                     top = self.top
@@ -999,7 +995,7 @@ class grid:
                         continue
 
                     # for the through water case or Top NaN, base the walls on the original (non-dilated) top
-                    if self.tile_info["have_nan"] == True:
+                    if self.tile_info["have_nan"]:
                         top = self.top_orig
                     else:
                         top = self.top
@@ -1039,10 +1035,10 @@ class grid:
                 #
 
                 # get corner for bottom array
-                if self.tile_info["have_bottom_array"] == True:
+                if self.tile_info["have_bottom_array"]:
 
                     # for the through water case, simply set the bottom to 0
-                    if self.throughwater == True:
+                    if self.throughwater:
                         NEelev = NWelev = SEelev = SWelev = 0
                     else:
                         # simple interpolation
@@ -1097,24 +1093,24 @@ class grid:
                 # print(botq)
 
                 # Quads for walls: in borders dict, replace any True with a quad of that wall
-                if borders["N"] == True:
+                if borders["N"]:
                     borders["N"] = quad(NEb, NEt, NWt, NWb)
-                if borders["S"] == True:
+                if borders["S"]:
                     borders["S"] = quad(SWb, SWt, SEt, SEb)
-                if borders["E"] == True:
+                if borders["E"]:
                     borders["E"] = quad(NWt, SWt, SWb, NWb)
-                if borders["W"] == True:
+                if borders["W"]:
                     borders["W"] = quad(SEt, NEt, NEb, SEb)
 
                 # Make cell
-                if self.tile_info["no_bottom"] == True:
+                if self.tile_info["no_bottom"]:
                     c = cell(
                         topq, None, borders
                     )  # omit bottom - do not fill with 2 tris later (may have NaNs)
                 else:
                     if (
-                        self.tile_info["have_nan"] == True
-                        or self.tile_info["have_bottom_array"] == True
+                        self.tile_info["have_nan"]
+                        or self.tile_info["have_bottom_array"]
                     ):
                         # for through water case make sure this in not one of the dilated cells
 
@@ -1137,9 +1133,9 @@ class grid:
                 # is set as a diagonal wall.
                 # Note: this will not be done if we have a bottom as it will lead to lots of triangle holes!
                 if (
-                    self.tile_info["have_nan"] == True
-                    and self.tile_info["smooth_borders"] == True
-                    and self.tile_info["have_bottom_array"] == False
+                    self.tile_info["have_nan"]
+                    and self.tile_info["smooth_borders"]
+                    and not self.tile_info["have_bottom_array"]
                 ):
                     # print(i,j, c.borders)
                     if c.check_for_tri_cell():
@@ -1150,7 +1146,7 @@ class grid:
                 #
                 no_bottom = self.tile_info["no_bottom"]
                 # list of quads for this cell,
-                if no_bottom == False and (
+                if not no_bottom and (
                     self.tile_info["have_nan"] or self.tile_info["have_bottom_array"]
                 ):  #
                     quads = [c.topquad, c.bottomquad]
@@ -1185,7 +1181,7 @@ class grid:
 
         # Create triangle coords list, for STL including normal coords (no normals for obj)
         if self.tile_info["fileformat"] != "obj":
-            tl = get_normal(t) if self.tile_info["no_normals"] == False else [0, 0, 0]
+            tl = get_normal(t) if not self.tile_info["no_normals"] else [0, 0, 0]
             for v in t:
                 coords = v.get()  # get() => list of coords [x,y,z]
                 tl.extend(coords)  # like append() but extend() unpacks that list!
@@ -1222,7 +1218,7 @@ class grid:
         if self.tile_info.get("temp_file") is None:
             return
 
-        if self.num_triangles % chunk_size == 0 or flush == True:
+        if self.num_triangles % chunk_size == 0 or flush:
             if self.tile_info["fileformat"] == "STLb":
                 self.fo.write(
                     self.s.getbuffer()
@@ -1238,7 +1234,7 @@ class grid:
                 self.s[1].close()
                 self.s[1] = io.StringIO()
 
-        if flush == True:
+        if flush:
             # close buffers (needed?)
             if self.tile_info["fileformat"] == "obj":
                 self.s[1].close()
@@ -1425,7 +1421,7 @@ class grid:
                 #print "cell", ix, iy
 
                 # list of top/bottom quads for this cell,
-                if no_bottom == False:
+                if not no_bottom:
                     quads = [cell.topquad, cell.bottomquad]
                 else:
                     quads = [cell.topquad] # no bottom quads, only top
@@ -1479,7 +1475,7 @@ class grid:
             )
 
         # get file name for temp file (or None if using memory)
-        if self.tile_info.get("temp_file") != None:  # contains None or a file name.
+        if self.tile_info.get("temp_file") is not None:  # contains None or a file name.
             temp_file = self.tile_info["temp_file"]
         else:
             temp_file = None  # means: use memory
@@ -1498,7 +1494,7 @@ class grid:
             self.s = [io.StringIO(), io.StringIO()]
 
         # open temp file for appending, file object self.fo will be used in create_cells()
-        if temp_file != None:
+        if temp_file is not None:
             if (
                 self.tile_info["fileformat"] == "STLa"
                 or self.tile_info["fileformat"] == "STLb"
@@ -1545,17 +1541,17 @@ class grid:
         )
 
         # We don't have bottom tris but that's OK as we don't them anyway (no_bottom option was set)
-        if self.tile_info["no_bottom"] == True:
+        if self.tile_info["no_bottom"]:
             add_simple_bottom = False  #
 
         # With a NaN (masked) top array, we already have the corresponding full bottom
-        if self.tile_info["have_nan"] == True:
+        if self.tile_info["have_nan"]:
             add_simple_bottom = False
 
         # with a bottom image/elevation, we also already need a full bottom
         if (
-            self.tile_info["bottom_image"] != None
-            or self.tile_info["bottom_elevation"] != None
+            self.tile_info["bottom_image"] is not None
+            or self.tile_info["bottom_elevation"] is not None
         ):
             add_simple_bottom = False
 
@@ -1664,7 +1660,7 @@ class grid:
 
 # @profile # https://pypi.org/project/memory-profiler/
 def main():
-    nn = np.nan
+    # nn variable removed - not used
     """
     top = np.array([[11,12,13,14],
                     [21,nn,nn,24],
@@ -1797,7 +1793,7 @@ def main():
 
     # b = g.make_STLfile_buffer(ascii=True, no_normals=True, temp_file="STLtest_asc6.stl")
     # b = g.make_STLfile_buffer(ascii=False, no_normals=False, temp_file="STLtest_new_b3.stl")
-    b = g.make_STLfile_buffer(tile_info_dict, ascii=False, temp_file="STLtest.stl")
+    g.make_STLfile_buffer(tile_info_dict, ascii=False, temp_file="STLtest.stl")
     # f = open("STLtest_new.stl", 'wb');f.write(b);f.close()
 
     # b = g.make_OBJfile_buffer(no_bottom=False, temp_file="OBJtest2.obj", no_normals=False)
