@@ -25,7 +25,7 @@ dependencies:  # for geemap in a notebook, avoiding the model not found error
     - rio-cogeo
     - tifffile
     - xarray_leaflet
-   
+
     # for running touchterrain in a notebook
     - pillow>=6.0.0
     - google-api-python-client==1.12.8
@@ -40,6 +40,4 @@ dependencies:  # for geemap in a notebook, avoiding the model not found error
     - k3d>=2.14
 
     # touchterrain will be installed via postBuild!
-    
-
 

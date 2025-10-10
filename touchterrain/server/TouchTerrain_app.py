@@ -48,7 +48,18 @@ from PIL import Image
 
 from touchterrain.common import config  # general settings
 from touchterrain.server import app
-from touchterrain.server.config import *  # server only settings
+from touchterrain.server.config import (
+    DOWNLOADS_FOLDER,
+    GOOGLE_ANALYTICS_TRACKING_ID,
+    GOOGLE_MAPS_KEY_FILE,
+    MAX_CELLS,
+    MAX_CELLS_PERMITED,
+    NUM_CORES,
+    PREVIEWS_FOLDER,
+    RECAPTCHA_V3_KEYS_FILE,
+    RECAPTCHA_V3_LOG_FILE,
+    TMP_FOLDER,
+)
 
 app = Flask(__name__)
 
@@ -554,9 +565,9 @@ def export():
                     )
                 else:
                     if (
-                        msg != None
+                        msg is not None
                     ):  # Either got a line instead of polygon or nothing good at all
-                        if coords == None:  # got nothing good
+                        if coords is None:  # got nothing good
                             html += (
                                 "Warning: "
                                 + kml_file.filename
@@ -596,14 +607,13 @@ def export():
         trlat = args["trlat"]
         dlon = 180 - abs(abs(bllon - trlon) - 180)  # width in degrees
         dlat = 180 - abs(abs(bllat - trlat) - 180)  # height in degrees
-        center_lat = bllat + abs((bllat - trlat) / 2.0)
-        # latitude_in_m, longitude_in_m = arcDegr_in_meter(center_lat)
+        # latitude_in_m, longitude_in_m = arcDegr_in_meter(bllat + abs((bllat - trlat) / 2.0))
         num_total_tiles = args["ntilesx"] * args["ntilesy"]
         pr = args["printres"]
 
         # if we have "only" set, divide load by number of tiles
         div_by = 1
-        if extra_args.get("only") != None:
+        if extra_args.get("only") is not None:
             div_by = float(num_total_tiles)
 
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
@@ -681,7 +691,7 @@ def export():
         # via manual option CPU_cores_to_use.
         args["CPU_cores_to_use"] = NUM_CORES
         if (
-            extra_args.get("CPU_cores_to_use") != None
+            extra_args.get("CPU_cores_to_use") is not None
         ):  # Override if given as manual option
             args["CPU_cores_to_use"] = extra_args.get("CPU_cores_to_use")
 
