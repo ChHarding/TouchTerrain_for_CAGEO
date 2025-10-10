@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 """Test standalone mode
 This is a (non-complete) battery of test methods for the many different combinations that can be fed to
 TouchTerrain.get_zipped_tiles(). Each test's arguments are set in a dict (args) which are then
@@ -73,6 +75,8 @@ def run_get_zipped_tiles(overwrite_args, testname):
 #
 # Actual tests start here !
 #
+@pytest.mark.earth_engine
+@pytest.mark.slow
 class MyTests(unittest.TestCase):
 
     @unittest.skip("test_basic_EE")
