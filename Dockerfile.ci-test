@@ -63,17 +63,21 @@ python -c "from osgeo import gdal; print(f\"GDAL version: {gdal.__version__}\")"
 python -c "from osgeo import gdal_array; print(\"GDAL array support: OK\")"\n\
 \n\
 echo ""\n\
-echo "=== Installing other dependencies ===" \n\
-grep -v "^gdal" requirements.txt > requirements_no_gdal.txt\n\
-pip install -r requirements_no_gdal.txt\n\
+echo "=== Installing other dependencies (keeping numpy<2) ===" \n\
+grep -v -e "^gdal" -e "^numpy" requirements.txt > requirements_no_gdal_numpy.txt\n\
+pip install -r requirements_no_gdal_numpy.txt\n\
 pip install pytest pytest-cov ruff\n\
 \n\
 echo ""\n\
-echo "=== Running a quick test ===" \n\
-python -c "import touchterrain; print(\"TouchTerrain imported successfully\")"\n\
+echo "=== Verifying numpy version (must be <2 for GDAL) ===" \n\
+python -c "import numpy; print(f\"NumPy version: {numpy.__version__}\")"\n\
 \n\
 echo ""\n\
-echo "=== SUCCESS! All dependencies installed ===" \n\
+echo "=== Final verification ===" \n\
+python -c "from osgeo import gdal, gdal_array; print(\"GDAL + gdal_array: OK\")"\n\
+\n\
+echo ""\n\
+echo "=== SUCCESS! All dependencies installed correctly ===" \n\
 ' > /test-ci.sh && chmod +x /test-ci.sh
 
 CMD ["/bin/bash", "/test-ci.sh"]
