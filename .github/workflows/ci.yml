@@ -33,12 +33,27 @@ jobs:
 
       - name: Symlink system GDAL to venv
         run: |
-          GDAL_SITE_PACKAGES=$(python3 -c "import sys; print([p for p in sys.path if 'dist-packages' in p][0])")
-          VENV_SITE_PACKAGES=$(python -c "import sys; print(sys.path[-1])")
+          # Find where system GDAL is installed
+          GDAL_SITE_PACKAGES=$(python3 -c "import sys; paths = [p for p in sys.path if 'dist-packages' in p or 'site-packages' in p]; print(paths[0] if paths else '')")
+          if [ -z "$GDAL_SITE_PACKAGES" ]; then
+            echo "Could not find system site-packages, trying alternative method..."
+            GDAL_SITE_PACKAGES="/usr/lib/python3/dist-packages"
+          fi
+
+          VENV_SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+
           echo "System GDAL at: $GDAL_SITE_PACKAGES"
           echo "Venv site-packages at: $VENV_SITE_PACKAGES"
-          ln -sf $GDAL_SITE_PACKAGES/osgeo $VENV_SITE_PACKAGES/osgeo
-          ln -sf $GDAL_SITE_PACKAGES/GDAL-*.egg-info $VENV_SITE_PACKAGES/ 2>/dev/null || true
+
+          # Check if GDAL exists in system packages
+          if [ -d "$GDAL_SITE_PACKAGES/osgeo" ]; then
+            echo "Found GDAL, creating symlink..."
+            ln -sf $GDAL_SITE_PACKAGES/osgeo $VENV_SITE_PACKAGES/osgeo
+            ln -sf $GDAL_SITE_PACKAGES/GDAL*.egg-info $VENV_SITE_PACKAGES/ 2>/dev/null || true
+          else
+            echo "ERROR: GDAL not found at $GDAL_SITE_PACKAGES/osgeo"
+            exit 1
+          fi
 
       - name: Verify GDAL installation
         run: |
