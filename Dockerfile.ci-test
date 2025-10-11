@@ -1,0 +1,79 @@
+# Dockerfile to simulate GitHub Actions Ubuntu runner
+# Used for testing CI pipeline locally before pushing
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.12 and system dependencies
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    wget \
+    curl \
+    git \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    python3-pip \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install GDAL system dependencies
+RUN apt-get update && apt-get install -y \
+    gdal-bin \
+    libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy only requirements first for better caching
+COPY requirements.txt .
+
+# Create a test script that simulates CI steps
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "=== Testing GDAL Installation ===" \n\
+\n\
+# Get GDAL version\n\
+GDAL_VERSION=$(gdal-config --version)\n\
+echo "System GDAL version: $GDAL_VERSION"\n\
+\n\
+# Create virtual environment\n\
+python3 -m venv /tmp/test-venv\n\
+source /tmp/test-venv/bin/activate\n\
+\n\
+# Upgrade pip\n\
+python -m pip install --upgrade pip\n\
+\n\
+echo ""\n\
+echo "=== Installing build dependencies ===" \n\
+pip install setuptools wheel "numpy<2"\n\
+\n\
+echo ""\n\
+echo "=== Installing GDAL Python bindings (with --no-build-isolation) ===" \n\
+pip install --no-build-isolation --no-cache-dir GDAL==$GDAL_VERSION\n\
+\n\
+echo ""\n\
+echo "=== Verifying GDAL installation ===" \n\
+python -c "from osgeo import gdal; print(f\"GDAL version: {gdal.__version__}\")" \n\
+python -c "from osgeo import gdal_array; print(\"GDAL array support: OK\")"\n\
+\n\
+echo ""\n\
+echo "=== Installing other dependencies ===" \n\
+grep -v "^gdal" requirements.txt > requirements_no_gdal.txt\n\
+pip install -r requirements_no_gdal.txt\n\
+pip install pytest pytest-cov ruff\n\
+\n\
+echo ""\n\
+echo "=== Running a quick test ===" \n\
+python -c "import touchterrain; print(\"TouchTerrain imported successfully\")"\n\
+\n\
+echo ""\n\
+echo "=== SUCCESS! All dependencies installed ===" \n\
+' > /test-ci.sh && chmod +x /test-ci.sh
+
+CMD ["/bin/bash", "/test-ci.sh"]
