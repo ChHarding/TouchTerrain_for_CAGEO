@@ -78,6 +78,64 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
+### Installing GDAL (Optional)
+
+GDAL is only required for processing local DEM files. If you only use Earth Engine for DEM data, you can skip this section.
+
+**Important:** GDAL requires system-level libraries and the Python bindings must match the system GDAL version.
+
+#### Ubuntu/Debian
+
+```bash
+# Install system GDAL libraries
+sudo apt-get update
+sudo apt-get install -y gdal-bin libgdal-dev
+
+# Get GDAL version
+GDAL_VERSION=$(gdal-config --version)
+echo "System GDAL version: $GDAL_VERSION"
+
+# Activate your virtual environment
+source .venv/bin/activate
+
+# Install build dependencies first
+pip install setuptools wheel "numpy<2"
+
+# Install GDAL Python bindings matching system version
+pip install --no-build-isolation GDAL==$GDAL_VERSION
+
+# Verify installation
+python -c "from osgeo import gdal; print(f'GDAL version: {gdal.__version__}')"
+```
+
+#### macOS
+
+```bash
+# Install GDAL via Homebrew
+brew install gdal
+
+# Get GDAL version
+GDAL_VERSION=$(gdal-config --version)
+
+# Activate your virtual environment
+source .venv/bin/activate
+
+# Install GDAL Python bindings
+pip install --no-build-isolation GDAL==$GDAL_VERSION
+```
+
+#### Windows
+
+GDAL is tricky on Windows. Get pre-compiled wheels from:
+- https://github.com/cgohlke/geospatial-wheels/releases
+
+Download the appropriate `.whl` file for your Python version and install:
+```bash
+pip install GDAL-3.x.x-cpXXX-cpXXX-win_amd64.whl
+```
+
+**Note:** If you encounter GDAL installation issues, the project will still work with Earth Engine DEMs.
+
 ## Testing
 
 ### Running Tests
