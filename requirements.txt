@@ -18,7 +18,7 @@ matplotlib>=3.9.2
 # GDAL is tricky to install, at least on Windows, as it needs to be compiled.
 # You can get a pre-complied version of GDAL here:
 # https://github.com/cgohlke/win_arm64-wheels
-# https://github.com/cgohlke/geospatial-wheels/releases   
+# https://github.com/cgohlke/geospatial-wheels/releases
 # Go to the current Release - Assets (may need to list ALL assests) and grab the one
 # for your python version and windows system e.g. GDAL-3.4.3-cp310-cp310-win_amd64.whl
 # Then install it with pip install GDAL-3.4.3-cp310-cp310-win_amd64.whl
