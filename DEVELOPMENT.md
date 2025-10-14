@@ -95,14 +95,22 @@ sudo apt-get install -y gdal-bin libgdal-dev
 GDAL_VERSION=$(gdal-config --version)
 echo "System GDAL version: $GDAL_VERSION"
 
-# Activate your virtual environment
+# Activate your virtual environment (if using standard venv)
 source .venv/bin/activate
 
 # Install build dependencies first
+# Using uv (recommended):
+uv pip install setuptools wheel "numpy<2"
+
+# Or using pip:
 pip install setuptools wheel "numpy<2"
 
 # Install GDAL Python bindings matching system version
-pip install --no-build-isolation GDAL==$GDAL_VERSION
+# Using uv (recommended):
+uv pip install --no-build-isolation "GDAL==$GDAL_VERSION"
+
+# Or using pip:
+pip install --no-build-isolation "GDAL==$GDAL_VERSION"
 
 # Verify installation
 python -c "from osgeo import gdal; print(f'GDAL version: {gdal.__version__}')"
@@ -117,11 +125,14 @@ brew install gdal
 # Get GDAL version
 GDAL_VERSION=$(gdal-config --version)
 
-# Activate your virtual environment
+# Activate your virtual environment (if using standard venv)
 source .venv/bin/activate
 
+# Install build dependencies first
+uv pip install setuptools wheel "numpy<2"
+
 # Install GDAL Python bindings
-pip install --no-build-isolation GDAL==$GDAL_VERSION
+uv pip install --no-build-isolation "GDAL==$GDAL_VERSION"
 ```
 
 #### Windows
