@@ -28,7 +28,6 @@ keep_for_later
 
 tmp/*
 .vscode
-test/*
 *.zip
 *.tif
 *.stl
