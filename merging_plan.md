@@ -121,23 +121,23 @@ These files exist in both branches and need careful merging to preserve both set
   - **Note**: Feature branch had outdated dict-based approach; PR #111's TouchTerrainConfig class is the correct new architecture
 
 ### 4.2 Core Processing Modules
-- [ ] `touchterrain/common/TouchTerrainEarthEngine.py` - **MOST CRITICAL**
+- [x] `touchterrain/common/TouchTerrainEarthEngine.py` - **MOST CRITICAL**
   - PR #111: Major refactoring with new classes (RasterVariants, CellClippingInfo)
   - Feature branch: Code formatting, type hints, testing improvements
-  - **Strategy**:
-    1. **PRESERVE** all PR #111 functional changes
-    2. Apply code quality improvements from feature branch
-    3. Update any tests to work with new classes
+  - **Result**: KEPT PR #111 VERSION ENTIRELY (no changes)
+  - **Rationale**: Feature branch lacks RasterVariants & ProcessingTile classes (2500+ line diff). Attempting formatting risks breaking critical mesh generation and polygon clipping. Linting can be addressed post-integration.
 
-- [ ] `touchterrain/common/grid_tesselate.py` - **CRITICAL**
-  - PR #111: Quad triangulation improvements, edge handling
+- [x] `touchterrain/common/grid_tesselate.py` - **CRITICAL**
+  - PR #111: Quad triangulation improvements, edge handling, RasterVariants & ProcessingTile classes
   - Feature branch: Code formatting and documentation
-  - **Strategy**: Keep PR #111 logic, apply formatting
+  - **Result**: KEPT PR #111 VERSION ENTIRELY (no changes)
+  - **Rationale**: PR #111 introduces RasterVariants (line 456) and ProcessingTile (line 601) classes that don't exist in feature branch (1800 line diff). These are fundamental to new architecture.
 
-- [ ] `touchterrain/common/utils.py`
-  - PR #111: New utility functions for coordinates and transformations
-  - Feature branch: Module extraction and refactoring
-  - **Strategy**: Merge carefully, may need to reconcile extracted modules
+- [x] `touchterrain/common/utils.py`
+  - PR #111: 4 NEW coordinate transformation functions
+  - Feature branch: Better formatting, but only 7 functions vs PR #111's 11
+  - **Result**: KEPT PR #111 VERSION ENTIRELY (no changes)
+  - **Rationale**: PR #111 adds 4 critical coordinate transformation functions (arrayCellCoordToGeoCoord, arrayCellCoordToPrint2DCoord, arrayCellCoordToQuadPrint2DCoords, geoCoordToPrint2DCoord) essential for polygon clipping feature.
 
 ### 4.3 Supporting Modules
 - [ ] `touchterrain/common/user_config.py` - **NEW in PR #111**
@@ -402,8 +402,23 @@ If integration encounters major issues:
 - ✅ Files committed in commit: efab6f3
 - Phase 4.1 complete
 
+### Phase 4.2 Completion (2025-10-14) - CRITICAL DECISION
+- ✅ **TouchTerrainEarthEngine.py**: KEPT PR #111 VERSION ENTIRELY
+  - Reason: Introduces RasterVariants, ProcessingTile, CellClippingInfo classes
+  - 2500+ line difference, feature branch lacks these critical classes
+  - 100+ linting issues, but fixing risks breaking mesh generation
+- ✅ **grid_tesselate.py**: KEPT PR #111 VERSION ENTIRELY
+  - Reason: Defines RasterVariants (line 456) and ProcessingTile (line 601) classes
+  - 1800 line difference, fundamental architectural changes
+- ✅ **utils.py**: KEPT PR #111 VERSION ENTIRELY
+  - Reason: Adds 4 new coordinate transformation functions
+  - Essential for polygon clipping feature
+  - Feature branch has only 7 functions vs PR #111's 11
+- ⚠️ **Decision**: Preserve ALL PR #111's core logic, defer linting to post-integration
+- Phase 4.2 complete (3 critical files preserved from PR #111)
+
 ---
 
 **Last Updated**: 2025-10-14
-**Status**: Phase 4.1 Complete
+**Status**: Phase 4.2 Complete (Core modules preserved from PR #111)
 **Estimated Time**: 4-6 hours (including testing)
