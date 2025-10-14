@@ -15,19 +15,30 @@ This document provides information for developers working on the TouchTerrain pr
 
 ### Prerequisites
 
-- Python 3.12 or higher
+- **Python 3.12 or higher** (required)
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 - Git
 
+**Important:** This project requires Python 3.12+. If your system's default Python is older, you'll need to use the instructions below to ensure Python 3.12 is used.
+
 ### Installation with uv (Recommended)
 
+**Step 1: Install uv**
 ```bash
-# Install uv if not already installed
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
+**Step 2: Clone and Setup**
+```bash
 # Clone the repository
 git clone https://github.com/ChHarding/TouchTerrain_for_CAGEO.git
 cd TouchTerrain_for_CAGEO
+
+# Create Python 3.12 virtual environment (automatic with make)
+make venv
+
+# OR manually create venv with specific Python version:
+uv venv --python 3.12 .venv
 
 # Install development dependencies
 make install-dev
@@ -36,12 +47,29 @@ make install-dev
 make pre-commit-install
 ```
 
+**Note for uv users:** The Makefile automatically creates a Python 3.12 virtual environment if needed. If you get an error about Python version, ensure Python 3.12 is installed:
+
+```bash
+# Check available Python versions
+python3.12 --version
+
+# If not installed, install Python 3.12 first:
+# On Ubuntu/Debian:
+sudo apt install python3.12
+
+# On macOS with Homebrew:
+brew install python@3.12
+```
+
 ### Installation with pip
 
 ```bash
-# Create virtual environment
-python -m venv .venv
+# Create virtual environment with Python 3.12
+python3.12 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Verify Python version
+python --version  # Should show Python 3.12.x
 
 # Install development dependencies
 pip install -e ".[dev]"

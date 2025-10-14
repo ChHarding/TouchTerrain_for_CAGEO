@@ -1,7 +1,7 @@
 # Makefile for TouchTerrain Project
 # Supports both uv and standard Python tooling
 
-.PHONY: help install install-dev test test-verbose test-coverage lint format clean build docs serve-docs pre-commit-install pre-commit-run all check
+.PHONY: help install install-dev test test-verbose test-coverage lint format clean build docs serve-docs pre-commit-install pre-commit-run all check venv
 
 # Detect if uv is available
 UV := $(shell command -v uv 2> /dev/null)
@@ -9,6 +9,8 @@ PYTHON := $(if $(UV),uv run python,python)
 PIP := $(if $(UV),uv pip,pip)
 PYTEST := $(if $(UV),uv run pytest,pytest)
 PRE_COMMIT := $(if $(UV),uv run pre-commit,pre-commit)
+# Python version requirement
+PYTHON_VERSION := 3.12
 
 # Colors for output
 RED := \033[0;31m
@@ -25,6 +27,7 @@ help:
 	@echo "$(BLUE)TouchTerrain Project - Available Make Targets$(NC)"
 	@echo ""
 	@echo "$(GREEN)Setup:$(NC)"
+	@echo "  make venv             - Create Python $(PYTHON_VERSION) virtual environment"
 	@echo "  make install          - Install package and dependencies"
 	@echo "  make install-dev      - Install package with development dependencies"
 	@echo "  make pre-commit-install - Install pre-commit hooks"
@@ -78,11 +81,38 @@ endif
 	@echo "pytest: $(shell $(PYTEST) --version 2>&1 | head -1 || echo 'not installed')"
 	@echo "Working directory: $(shell pwd)"
 
+## venv: Create Python 3.12 virtual environment
+venv:
+	@echo "$(BLUE)Creating Python $(PYTHON_VERSION) virtual environment...$(NC)"
+ifdef UV
+	@if [ -d ".venv" ]; then \
+		echo "$(YELLOW)Virtual environment already exists at .venv$(NC)"; \
+		echo "$(YELLOW)Run 'make clean-all' to remove it first$(NC)"; \
+	else \
+		uv venv --python $(PYTHON_VERSION) .venv; \
+		echo "$(GREEN)✓ Virtual environment created with Python $(PYTHON_VERSION)$(NC)"; \
+		echo "$(YELLOW)Activate it with: source .venv/bin/activate$(NC)"; \
+	fi
+else
+	@if [ -d ".venv" ]; then \
+		echo "$(YELLOW)Virtual environment already exists at .venv$(NC)"; \
+		echo "$(YELLOW)Run 'make clean-all' to remove it first$(NC)"; \
+	else \
+		python$(PYTHON_VERSION) -m venv .venv; \
+		echo "$(GREEN)✓ Virtual environment created with Python $(PYTHON_VERSION)$(NC)"; \
+		echo "$(YELLOW)Activate it with: source .venv/bin/activate$(NC)"; \
+	fi
+endif
+
 ## install: Install package and dependencies
 install:
 	@echo "$(BLUE)Installing TouchTerrain...$(NC)"
 ifdef UV
-	uv pip install -e .
+	@if [ ! -d ".venv" ]; then \
+		echo "$(YELLOW)No virtual environment found. Creating one...$(NC)"; \
+		$(MAKE) venv; \
+	fi
+	uv pip install -e . --python $(PYTHON_VERSION)
 else
 	pip install -e .
 endif
@@ -92,8 +122,12 @@ endif
 install-dev:
 	@echo "$(BLUE)Installing TouchTerrain with development dependencies...$(NC)"
 ifdef UV
-	uv pip install -e ".[dev]"
-	uv pip install pytest pytest-cov pytest-mock pre-commit black isort ruff
+	@if [ ! -d ".venv" ]; then \
+		echo "$(YELLOW)No virtual environment found. Creating one...$(NC)"; \
+		$(MAKE) venv; \
+	fi
+	uv pip install -e ".[dev]" --python $(PYTHON_VERSION)
+	uv pip install pytest pytest-cov pytest-mock pre-commit black isort ruff --python $(PYTHON_VERSION)
 else
 	pip install -e ".[dev]"
 	pip install pytest pytest-cov pytest-mock pre-commit black isort ruff
