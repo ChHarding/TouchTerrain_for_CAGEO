@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "touchterrain"
+version = "3.7.0"
+description = "Framework for converting raster based Digital Elevation Models into 3D printable terrain models"
+readme = "README.md"
+requires-python = ">=3.12, <4"
+license = {text = "MIT"}
+authors = [
+    {name = "Chris Harding", email = "charding@iastate.edu"}
+]
+keywords = ["elevation", "terrain", "3D-printing", "geotiff", "STL"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "Pillow>=6.0.0",
+    "google-api-python-client>=2.6",
+    "earthengine-api>=0.1.232",
+    "oauth2client>=4.1.3",
+    "numpy>=1.17",
+    "scipy>=1.2",
+    "kml2geojson>=4.0.2",
+    "geojson>=2.5",
+    "defusedxml>=0.6",
+    "Flask",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+    "pytest-xdist>=3.0",  # For parallel test execution
+    # Code quality
+    "pre-commit>=3.0",
+    "black>=23.0",
+    "isort>=5.12",
+    "ruff>=0.1.0",
+    # Build tools
+    "build>=0.10.0",
+    "wheel>=0.40.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ChHarding/TouchTerrain_for_CAGEO"
+Repository = "https://github.com/ChHarding/TouchTerrain_for_CAGEO"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["touchterrain"]
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+# Ignore certain rules in notebooks
+extend-select = []
+
+[tool.ruff.lint.per-file-ignores]
+# Allow star imports and None comparisons in notebooks
+"*.ipynb" = ["F403", "F405", "E711", "E402", "E701"]
+# Allow module-level imports after docstrings and star imports in standalone scripts
+"TouchTerrain_standalone.py" = ["E402", "F403", "E722"]
+# Allow module-level imports after DEV_MODE conditional logic
+"touchterrain/common/TouchTerrainEarthEngine.py" = ["E402"]
+# Allow unused variables in coordinate conversion (legacy code)
+"touchterrain/common/Coordinate_system_conv.py" = ["F841"]
+# Allow module-level imports after logger setup
+"touchterrain/common/grid_tesselate.py" = ["E402"]
+
+[tool.pytest.ini_options]
+# Pytest configuration
+minversion = "7.0"
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*", "*Tests"]
+python_functions = ["test_*"]
+# Markers
+markers = [
+    "earth_engine: marks tests that require Earth Engine authentication (deselect with '-m \"not earth_engine\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+# Default options - exclude slow/EE tests by default
+addopts = "-v"
+# Ignore deprecation warnings from dependencies
+filterwarnings = [
+    "ignore::DeprecationWarning:traitlets.*",
+]
