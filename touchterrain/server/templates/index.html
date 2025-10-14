@@ -20,7 +20,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
 
 		<!-- Latest compiled JavaScript -->
-		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> 
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
 		<!--<link href="https://cdn.theme.iastate.edu/nimbus-sans/css/nimbus-sans.css" rel="stylesheet">-->
 		<link href="https://cdn.theme.iastate.edu/merriweather/css/merriweather.css" rel="stylesheet">
@@ -38,8 +38,8 @@
 			Put this key into a text file called GoogleMapsKey.txt in the server folder
 			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
 		</script>
-		  
-    
+
+
 	    {% if GOOGLE_ANALYTICS_TRACKING_ID %}
         <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
         <script>
@@ -61,9 +61,9 @@
 			  <h4 class="text-truncate">
 				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models &nbsp
-				<div class="text-truncate float-right"> 
-					<a href="https://touchterrain.blogspot.com/" target="_blank"> Blog - what's new in version 3.6?</a> 
-					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
+				<div class="text-truncate float-right">
+					<a href="https://touchterrain.blogspot.com/" target="_blank"> Blog - what's new in version 3.6?</a>
+					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm"
 							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
 						</button>
@@ -76,23 +76,23 @@
 						Map didn't load
 					</div>
 					<!-- search bar stuff start, will be positioned inside map via JS later -->
-					<div id="searchbar_div"> 
+					<div id="searchbar_div">
 						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" style="max-width: 420px;"
 							type="text" placeholder="Search for a place" aria-label="Search for a place"
 						>
-					</div> 
+					</div>
 					<!-- search bar stuff end  -->
 				</div>
 				<div class="col-sm-4 form-control-sm" >
 					<!-- form 1 -->
-					<form action="/main" class="form-horizontal" method="post" 
-					  id="reloadform" style="margin-bottom: 0px;"> 
+					<form action="/main" class="form-horizontal" method="post"
+					  id="reloadform" style="margin-bottom: 0px;">
 						<div class="card">
 							<div class="card-header">
 								<a class="card-link" data-toggle="collapse" href="#terrain_settings_panel">
 					            Terrain Settings:
 					      		</a>
-								<button type="button" id="terrain_settings_popover" class="btn btn-outline-info btn-sm" 
+								<button type="button" id="terrain_settings_popover" class="btn btn-outline-info btn-sm"
 									data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
             		 					<i class="fas fa-question"></i>
     							</button>
@@ -102,14 +102,14 @@
 									<div class="row text-truncate">
 										<div class="col-sm-6" form-inline>
 											<label for="DEM_name">Elevation Data source:</label>
-											<button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm" 
+											<button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm"
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
             		 									<i class="fas fa-question"></i>
     										</button>
 											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(DEM Info)</a>
 										</div>
 										<div class="col-sm-6 form-inline">
-											<select class="form-control custom-select-sm text-truncate" 
+											<select class="form-control custom-select-sm text-truncate"
 															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')">
 												<option value="USGS/3DEP/10m" selected>USGS/3DEP/10m (10m resolution, US only)</option>
 												<option value="JAXA/ALOS/AW3D30/V2_2">AW3D30 (30m resolution, worldwide, good quality)</option>
@@ -124,12 +124,12 @@
 											</select>
 										</div>
 									</div>
-									
+
 									<div class="row">
 										<div class="col-sm-7">
 											<div class="form-inline text-truncate">
 												<label for="hillshade_transparency_slider">Transparency:</label>
-												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" 
+												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0"
                                                     max="100"  style="max-width: 80px;"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
 												<datalist id="tickmarks">
@@ -145,7 +145,7 @@
 													<option value="90"></option>
 													<option value="100"></option>
 												</datalist>
-												<button type="button" id="transparency_popover" class="btn btn-outline-info btn-sm" 
+												<button type="button" id="transparency_popover" class="btn btn-outline-info btn-sm"
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 														<i class="fas fa-question"></i>
 												</button>
@@ -154,10 +154,10 @@
 										<div class="col-sm-5">
 											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
-												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
+												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0"
 													style="max-width: 40px;"
-													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET')};"> 
-												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm" 
+													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET')};">
+												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 													<i class="fas fa-question"></i>
 												</button>
@@ -166,14 +166,14 @@
 									</div>
 
 									<div class="row text-truncate">
-										<div class="col-sm-6"> 
+										<div class="col-sm-6">
 												<div class="form-horizontal form-group">
 													<label for="hsazi2">Sun direction:</label>
-													<button type="button" id="sun_direction_popover" class="btn btn-outline-info btn-sm" 
+													<button type="button" id="sun_direction_popover" class="btn btn-outline-info btn-sm"
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 														<i class="fas fa-question"></i>
 													</button>
-													<select class="form-control custom-select-sm"  
+													<select class="form-control custom-select-sm"
 														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
 													>
 														<option value="270">West (270 degr.)</option>
@@ -188,13 +188,13 @@
 										<div class="col-sm-6">
 											<div class="form-horizontal form-group">
 												<label for="hselev2">Sun angle:</label>
-												<button type="button" id="sun_angle_popover" class="btn btn-outline-info btn-sm" 
+												<button type="button" id="sun_angle_popover" class="btn btn-outline-info btn-sm"
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 														<i class="fas fa-question"></i>
 												</button>
-												<select class="form-control custom-select-sm"  
+												<select class="form-control custom-select-sm"
 													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
-													<option value="55">steep (55 degr.)</option> 
+													<option value="55">steep (55 degr.)</option>
 													<option value="45" selected >normal (45 degr.)</option>
 													<option value="35">kinda flat (35 degr.)</option>
 													<option value="25">flat (25 degr.)</option>
@@ -204,7 +204,7 @@
 											</div>
 										</div>
 									</div>
-									 
+
 									<!-- form 1 hidden ids so they get put into the URL on reload -->
 									<input type="hidden" name="maptype" id="maptype" value="NULL">
 									<input type="hidden" name="gamma" id="gamma" value="NULL">
@@ -227,22 +227,22 @@
 									<input type="hidden" id="fileformat" name="fileformat" value="NULL" >
 									<input type="hidden" id="manual" name="manual" value="NULL" >
 									<input type="hidden" id="polyURL" name="polyURL" value="NULL" >
-								</div>	
+								</div>
 							</div>
 						</div>
 					</form>
 
 					<!-- form 2 -->
 					<form class="form-horizontal" id="accordion" action="/export" target="_blank" method="post" enctype="multipart/form-data">
-						
+
 						<input type="hidden" id="place" name="place" value="">
 
 						<div class="card">
 							<div class="card-header">
 							<a class="card-link" data-toggle="collapse" href="#area_box_panel">
-									Area Selection Box:  
+									Area Selection Box:
 							</a>
-							<button type="button" id="area_selection_box_popover" class="btn btn-outline-info btn-sm" 
+							<button type="button" id="area_selection_box_popover" class="btn btn-outline-info btn-sm"
 								data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
 							</button>
@@ -255,20 +255,20 @@
 								<div class="card-body ">
 									<div class="form-inline">
 										<div class="form-group ">
-											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="18" size="7" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="18" size="7" value="NULL"
 												 onkeydown="if(event.keyCode == 13){update_box()}">
 											<label for="trlat2">N &nbsp</label>
-											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="19" size="8" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="trlon2" name="trlon" maxlength="19" size="8" value="NULL"
 												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="trlon2"> E &nbsp (Top right corner)</label>
 										</div>
 										<div class="form-group " >
-											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="18" size="7" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="bllat2" name="bllat" maxlength="18" size="7" value="NULL"
 												onkeydown="if(event.keyCode == 13){update_box()}">
 												<label for="bllat2">N &nbsp</label>
-											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="19" size="8" value="NULL" 
+											<input type="text" class="form-control form-control-sm" id="bllon2" name="bllon" maxlength="19" size="8" value="NULL"
 												onkeydown="if(event.keyCode == 13){update_box()}">
-												<label for="bllon2">E &nbsp (Lower left corner)</label> 
+												<label for="bllon2">E &nbsp (Lower left corner)</label>
 										</div>
 									</div>
 								</div>
@@ -293,11 +293,11 @@
 							<div class="card-header">
 								<div class="panel-title">
 									<a class="card-link" data-toggle="collapse" href="#printOptionPanel">3D Printer Options:</a>
-									<button type="button" id="3D_printer_options_popover" class="btn btn-outline-info btn-sm" 
+									<button type="button" id="3D_printer_options_popover" class="btn btn-outline-info btn-sm"
 										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 										<i class="fas fa-question"></i>
 									</button>
-									<button type="button" id="3D_printer_CNC_options_popover" class="btn btn-outline-secondary btn-sm" 
+									<button type="button" id="3D_printer_CNC_options_popover" class="btn btn-outline-secondary btn-sm"
 										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 										CNC<i class="fas fa-question"></i>
 									</button>
@@ -308,7 +308,7 @@
 
 									<!-- hook for polyURL, currently hidden but may become an input field (like kml_file) in the future -->
 									<input type="hidden" id="options_polyURL" name="polyURL" size="0"
-									> 
+									>
 									<!--
 									<input type="text" id="options_polyURL" name="polyURL" size="16"> URL to cloud KML polygon file</br>
 									-->
@@ -345,14 +345,14 @@
                                                 <option value="325">325 mm</option>
                                                 <option value="350">350 mm</option>
                                                 <option value="360">360 mm</option>
-											</select> 
-											<label for="options_tile_width"> &nbsp Width, &nbsp &nbsp </label> 
+											</select>
+											<label for="options_tile_width"> &nbsp Width, &nbsp &nbsp </label>
 											<b id="options_tile_height"></b>
 											<label for="options_tile_width"> &nbsp Height</label>
-											<button type="button" id="tile_width_popover" class="btn btn-outline-info btn-sm" 
+											<button type="button" id="tile_width_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-											</button> 
+											</button>
 										</div>
 									</div>
 
@@ -373,12 +373,12 @@
 												<option value="0.6">0.6 mm</option>
 												<option value="0.8">0.8 mm</option>
 												<option value="1.0">1.0 mm</option>
-										</select> 
+										</select>
 										<label for="options_print_resolution"> &nbsp Nozzle diameter</label>
-										<button type="button" id="print_resolution_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="print_resolution_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
+										</button>
 									</div>
 								</div>
 
@@ -409,13 +409,13 @@
 												<option value="8">8</option>
 												<option value="9">9</option>
 												<option value="10">10</option>
-										</select> 
+										</select>
 
 										<label for="options_numTiles_y"> &nbsp Tiles to print (X by Y)</label>
-										<button type="button" id="tile_config_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="tile_config_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
+										</button>
 									</div>
 								</div>
 
@@ -423,12 +423,12 @@
 								<div class="form-inline text-truncate">
 									<div class="form-group">
 										<label for="DEMresolution">Effective DEM resolution:</label>
-										<button type="button" id="effective_resolution_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="effective_resolution_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
-										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
-													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
+										</button>
+										<input type="text" id="DEMresolution" class="form-control form-control-sm"
+													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly>
 										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
 									</div>
 								</div>
@@ -449,12 +449,12 @@
                                                 <option value="5">30 mm</option>
                                                 <option value="5">40 mm</option>
                                                 <option value="5">50 mm</option>
-										</select>  
+										</select>
 										<label for="options_base_thickness"> &nbsp Model Base thickness</label>
-										<button type="button" id="base_thickness_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="base_thickness_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
+										</button>
 									</div>
 								</div>
 
@@ -487,12 +487,12 @@
 												<option value="60">x 65</option>
 												<option value="80">x 80</option>
 												<option value="100">x 100</option>
-										</select> 
+										</select>
 										<label for="options_z_scale"> &nbsp Vertical Exaggeration (Z-scale)</label>
-										<button type="button" id="zscale_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="zscale_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
+										</button>
 									</div>
 								</div>
 
@@ -506,10 +506,10 @@
 												<option value="GeoTiff"> GeoTiff</option>
 										</select>
 										<label for="options_fileformat"> &nbsp File format </label>
-										<button type="button" id="fileformat_popover" class="btn btn-outline-info btn-sm" 
+										<button type="button" id="fileformat_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-										</button> 
+										</button>
 									</div>
 								</div>
 
@@ -518,14 +518,14 @@
 										<input class="form-control"  size="80" type="text" placeholder="Manual settings:"
 											id="options_manual" value="" name="manual">
 										<div class="input-group-append">
-											<button type="button" id="manual_settings_popover" class="btn btn-outline-info btn-sm" 
+											<button type="button" id="manual_settings_popover" class="btn btn-outline-info btn-sm"
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 												<i class="fas fa-question"></i>
-											</button> 
+											</button>
 										</div>
 									</div>
 								</div>
-								
+
 					    	</div>
 					  	</div>
 						</div>
@@ -546,12 +546,12 @@
 						<!-- hidden submit so it fires (instead of real submit) when Enter is hit in any text inside the form -->
 						<button type="submit" disabled style="display: none" aria-hidden="true"></button>
 
-						<button type="submit" class="btn btn-success"  
-							onclick="gtag('event', 'Click', {'event_category':'Export', 'event_label':'export', 'value':'1'});" 
+						<button type="submit" class="btn btn-success"
+							onclick="gtag('event', 'Click', {'event_category':'Export', 'event_label':'export', 'value':'1'});"
 							onchange="submit_for_reload('POST');">
 							Export Selected Area and Download File (opens new tab)
 						</button>
-					</form>		
+					</form>
 
 					<div class="card">
 						<div class="text-left p-1">
@@ -561,24 +561,24 @@
 								<a href="https://ge-at.iastate.edu/" target="_blank"> Dept. of Geological and Atmospheric Sciences, Iowa State University</a>
 								and Franek Hasiuk, <a href="http://www.kgs.ku.edu/index.html" target="_blank">Kansas Geological Survey.</a>
 								</br>
-								<b>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com" target="_blank">Send Email!</a> </b> 
+								<b>Suggestions? Problems? <a href= "mailto:Geofablab@gmail.com" target="_blank">Send Email!</a> </b>
 								</br>
-								Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a> 
-								or get the 
+								Visit our <a href="https://github.com/ChHarding/TouchTerrain_for_CAGEO" target="_blank"> Github repository</a>
+								or get the
 								<a href="https://github.com/ChHarding/TouchTerrain_jupyter_docker" target="_blank"> Docker Image </a> of the standalone version.
-								
+
 								<a href="https://www.mdpi.com/2220-9964/10/3/108#cite"  target="_blank"> How to cite this work</a>
 								</br>
 								More details in:
-								<a href="https://arcg.is/11Cv5D"  target="_blank"> ESRI Story map </a>; 		
-													
+								<a href="https://arcg.is/11Cv5D"  target="_blank"> ESRI Story map </a>;
+
 								<a href="https://doi.org/10.3390/ijgi10030108"  target="_blank">
 								TouchTerrain - 3D Printable Terrain Models</a>, Intern. Journal of Geo-Information, Feb. 2021 ;
 
 								<a href="https://public.vrac.iastate.edu/~charding/TouchTerrain%20AGU%202020%20poster.htm" target="_blank">
-											AGU 2020 conference poster</a>; 
+											AGU 2020 conference poster</a>;
 								<a href="https://doi.org/10.1016/j.cageo.2017.07.005" target="_blank">
-											TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a> 
+											TouchTerrain: A simple web-tool for creating 3D-printable topographic models</a>
 											, Computers & Geosciences, Volume 109, Dec. 2017, Pages 25-31
 							</small>
 						</div>
