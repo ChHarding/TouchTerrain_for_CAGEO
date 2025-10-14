@@ -1,8 +1,8 @@
-class TouchTerrainConfig:    
+class TouchTerrainConfig:
     """
     Raster bounds
     """
-    
+
     trlat = None
     "lat of top right corner"
     trlon = None
@@ -19,12 +19,12 @@ class TouchTerrainConfig:
     "path to a local kml file"
     polyURL = None
     "URL to a publicly readable(!) kml file on Google Drive"
-    
+
     """
     Raster input
     All DEMs must exactly match the sizes and cell resolution of importedDEM
     """
-    
+
     importedDEM = None
     "None (means: get the DEM from GEE) or local file name with (top) DEM to be used instead"
     importedDEM_interp = None
@@ -35,14 +35,14 @@ class TouchTerrainConfig:
     "elevation raster for the bottom of the model."
     projection = None
     "EPSG number (as int) of projection to be used. Default (None) use the closest UTM zone"
-    
+
     """
     Elevation adjustment
     """
-    
+
     basethick = 2
     "thickness (in mm) of printed base"
-    bottom_floor_elev: None|float = None
+    bottom_floor_elev: None | float = None
     "Set bottom raster to an elevation in locations where bottom is NaN but top raster is not NaN. Defaults to min_elev-1. If set to less than min_elev, difference mesh at that point will go thru base."
     fill_holes = None
     "e.g. [10, 7] Specify number of interations to find a neighbor threshold to fill holes. -1 iterations will continue iterations until no more holes are found. Defaults to 7 neighbors in a 3x3 footprint with elevation > 0 to fill a hole with the average of the footprint."
@@ -50,7 +50,7 @@ class TouchTerrainConfig:
     "ignore elevation values <= this value, good for removing offshore data. This filter is applied to the original DEM that is read in so further processing may set the height lower."
     lower_leq = None
     "[threshold, offset] if elevation is lower than threhold, lower it by offset mm. Good for adding emphasis to coastlines. Unaffected by z_scale."
-    min_elev: None|float = None
+    min_elev: None | float = None
     "None means: will be calculated from actual elevation later. min_elev defines the elevation that will be at base_thickness"
     offset_masks_lower = None
     "e.g. [[filename, offset], [filename2, offset2],...] Masked regions (pixel values > 0) in the file will be lowered by offset(mm) * pixel value in the final model."
@@ -58,11 +58,11 @@ class TouchTerrainConfig:
     "thickness of the top of the model, i.e. top - thickness = bottom. Must exactly match the sizes and cell resolution of importedDEM"
     zscale = 1.0
     "elevation (vertical scaling)"
-    
+
     """
     Mesh generation
     """
-    
+
     bottom_thru_base = False
     "if mesh should drop thru to base"
     CPU_cores_to_use = 0
@@ -73,7 +73,7 @@ class TouchTerrainConfig:
     "polygon file in GPKG for edge fitting"
     max_cells_for_memory_only = 500 * 500 * 4
     "if total number of cells is bigger, use temp_file instead using memory only"
-    no_normals = True 
+    no_normals = True
     "True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway"
     split_rotation: None | int = None
     """Should quad triangulation rotate the splitting edge based on the slope of the created edge?
@@ -85,15 +85,15 @@ class TouchTerrainConfig:
     "should borders be optimized (smoothed) by removing triangles?"
     temp_folder = "tmp"
     "the folder to put the temp files and the final zip file into"
-    
+
     """
     Mesh output
     """
-    
+
     printres = 1.0
     "resolution (horizontal) of 3D printer (= size of one pixel) in mm"
     fileformat = "STLb"
-    """format of 3D model files: 
+    """format of 3D model files:
     "obj"  = wavefront obj (ascii)
     "STLa" = ascii STL
     "STLb" = binary STL
@@ -101,18 +101,18 @@ class TouchTerrainConfig:
     """
     zip_file_name: None | str = "terrain"
     "name of zipfile containing the tiles (st/obj) and helper files. If None, zip_file_name will use the config filename without the extension."
-    
+
     """
     Tiling
     """
-    
+
     ntilesx = 1
     "number of tiles in x"
     ntilesy = 1
     "number of tiles in y"
     tile_centered = False
     "True-> all tiles are centered around 0/0, False, all tiles 'fit together'"
-    tilewidth = 100 
+    tilewidth = 100
     "width of each tile in mm (<- !!!!!), tile height is calculated automatically"
     tilewidth_scale = None
     "divdes m width of selection box by this to get tilewidth (supersedes tilewidth setting)"
@@ -122,7 +122,7 @@ class TouchTerrainConfig:
     """
     GPX Track
     """
-    
+
     importedGPX = None
     "None or List of GPX file paths that are to be plotted on the model"
     gpxPathHeight = 25
@@ -131,7 +131,7 @@ class TouchTerrainConfig:
     "GPX Files can have a lot of points. This argument controls how many pixel distance there should be between points, effectively causing fewing lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision"
     gpxPathThickness = 1
     "Stack parallel lines on either side of primary line to create thickness. A setting of 1 probably looks the best"
-    
+
     """
     Miscellaneous until sorted
     """
@@ -139,11 +139,11 @@ class TouchTerrainConfig:
     # these are the args that could be given manually via the web UI. Is there a limit to the options allowed from the manual options input on web?
     no_bottom = False
     "don't create any bottom triangles. The STL file is not watertight but should still print fine with most slicers (e.g. Cura) and is much smaller"
-    #rot_degs = None
+    # rot_degs = None
     "unused"
     bottom_image = None
     "1 band greyscale image to use as bottom relief raster, same for _each_ tile! see make_buttom_raster)"
-    DEM_name: None | str = 'USGS/3DEP/10m'
+    DEM_name: None | str = "USGS/3DEP/10m"
     "name of DEM source used in Google Earth Engine. for all valid sources, see DEM_sources in TouchTerrainEarthEngine.py. Also used if specifying a custom mesh and zip and extracted folder name."
     kd3_render = False
     "if True will create a html file containing the model as a k3d object."
@@ -156,15 +156,15 @@ class TouchTerrainConfig:
     unprojected = False
     "don't apply UTM projection, can only work when exporting a Geotiff as the mesh export needs x/y in meters"
     use_geo_coords = None
-    "None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m). create STL coords in UTM: None, \"centered\" or \"UTM\""
-    
+    'None, centered, UTM. not-None forces units to be in meters, centered will put 0/0 at model center for all tiles. Not-None will interpret basethickness to be in multiples of 10 meters (0.5 mm => 5 m). create STL coords in UTM: None, "centered" or "UTM"'
+
     """
     Runtime only values
     """
-    
+
     config_path: None | str = None
     "The path of the Touch Terrain config file. Set this during runtime. If DEM_name is None or default value, use config filename for default zip and mesh filenames and unzipped folder name."
-    
+
     def mergeDict(self, dict: dict):
         "Overwrite the config values with values from a dict. All values from the dict are added to the config including new values."
         for k in list(dict.keys()):
@@ -172,5 +172,7 @@ class TouchTerrainConfig:
                 getattr(self, k)
             except AttributeError as e:
                 print(e)
-                print(f"New config key {k} in user dict but not in default config. Adding it to config.")
+                print(
+                    f"New config key {k} in user dict but not in default config. Adding it to config."
+                )
             setattr(self, k, dict[k])
