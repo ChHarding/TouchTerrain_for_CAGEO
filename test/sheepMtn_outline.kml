@@ -12,32 +12,32 @@
     <Placemark id="ID_00000">
       <name>62553.142231211357</name>
       <snippet></snippet>
-      <description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
-<head>
-<META http-equiv="Content-Type" content="text/html">
-<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-</head>
-<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
-<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
-<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
-<td>62553.1422312114</td>
-</tr>
-<tr>
-<td>
-<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
-<tr>
-<td>SHAPE</td>
-<td>Polygon</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-</body><script type="text/javascript">
-				function changeImage(attElement, nameElement) {
-				document.getElementById('imageAttachment').src = attElement;
-				document.getElementById('imageName').innerHTML = nameElement;}
-			</script></html>
+      <description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+<head>
+<META http-equiv="Content-Type" content="text/html">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+<td>62553.1422312114</td>
+</tr>
+<tr>
+<td>
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+<tr>
+<td>SHAPE</td>
+<td>Polygon</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body><script type="text/javascript">
+				function changeImage(attElement, nameElement) {
+				document.getElementById('imageAttachment').src = attElement;
+				document.getElementById('imageName').innerHTML = nameElement;}
+			</script></html>
 ]]></description>
       <styleUrl>#PolyStyle00</styleUrl>
       <MultiGeometry>
