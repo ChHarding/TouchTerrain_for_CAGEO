@@ -16,7 +16,7 @@ touchterrain/server/GoogleMapsKey.txt
 *old.*
 *.xml
 # auto generated json
-example_config.json 
+example_config.json
 
 # any files in the tmp subfolders (but not .gitkeep!)
 touchterrain/server/tmp/??*
@@ -28,13 +28,12 @@ keep_for_later
 
 tmp/*
 .vscode
-test/*
 *.zip
 *.tif
 *.stl
 *.txt
-*.ovr  
-*.tfw 
+*.ovr
+*.tfw
 *.xml
 */*/*/*_CH*
 */*/*_CH*
@@ -42,7 +41,7 @@ test/*
 *_CH*
 
 # default folder for stand alone
-terrain  
+terrain
 
 # polygon files
 *.kml

@@ -12,15 +12,15 @@ This guide is meant for TouchTerrain users who want to:
 #### Rationale
 - Using the colab badge [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/ChHarding/TouchTerrain_for_CAGEO/blob/master/TouchTerrain_jupyter_starters_colab.ipynb) or the binder badge [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ChHarding/TouchTerrain_for_CAGEO/HEAD?labpath=TouchTerrain_jupyter_starters_binder.ipynb) will eventually show you a notebook (TouchTerrain_jupyter_starters_binder.ipynb) inside a browser.
 - When running the cell `ee.Authenticate()` in this notebook, you will be required to generate and paste in a token (code) that connects your notebook code with a EarthEngine dev account
-  
-  
+
+
 #### Request a EarthEngine dev account  (I'm actually not sure if this is required, so you could skip this part and see if the rest works!)
 - This assumes that you have a standard Google account and are signed in with it on your current browser
 - In your browser, go to go to https://signup.earthengine.google.com/ and request an account
 - Use something like `Want to use TouchTerrain to create 3D printable terrain models` files as reason
 - I think this will only work for private and research usage, so use this for Organization/Institution
 - You should get an email with sign-up instructions __(need more detail for this part, which I cannot do myself!)__
-  
+
 #### Generating the token
 - Running `ee.Authenticate()` will output a URL (starting with https://code.earthengine.google.com/), click on it
 - You should see the Google Earth Engine Notebook Authenticator page:
@@ -33,15 +33,14 @@ This guide is meant for TouchTerrain users who want to:
 - Choose a Google account (this should be the same that you are already logged in with)
 - Go through this warning (Click Continue)
 ![Unverified](https://user-images.githubusercontent.com/19935989/186753217-0c62cefc-5dcd-4ab4-a03c-0361128ea32b.PNG)
-  
+
 - Then grant your Earth Engine Notebook access (check both EarthEngine and Cloudstorage)
-  
+
 ![WantsAccess](https://user-images.githubusercontent.com/19935989/186753654-6bda55e6-f2e8-4cfc-89ac-b9361552806f.PNG)
 
 - Finally, get your token (will be in the orange box in this image). Click on the icon to the right of it to copy it.
 ![Token](https://user-images.githubusercontent.com/19935989/186754341-486105c4-c467-4f70-8c00-04f64e165c0d.PNG)
-  
+
 - Return to your notebook, paste (Control-V) your token into the entry box and hit Enter/Return(!)
 - You should see: `Successfully saved authorization token.`
 - You can now use EarthEngine data to generate 3D terrain models! Continue with the next cell in the notebook.
-

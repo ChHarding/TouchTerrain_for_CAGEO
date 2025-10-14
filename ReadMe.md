@@ -21,7 +21,7 @@ For most users, the web app version will most likely meet their requirements. Io
 
 ## Standalone mode
 
-Standalone mode offers a different approach to processing than the web app. Standalone mode uses Python code, either `TouchTerrain_standalone.py` or a Jupyter notebook to define processing parameters in code and then processes a local DEM raster file or online DEM data from Earth Engine (google account required to authenticate). After processing the resulting zip file is stored locally. A few aspect of TouchTerrain are only exposed via the stand alone version. It also offers a way around around server processing quotas, that make it impossible to create some very large (> ~150 Mb) 3D models as all he processing is done locally (some Google Earth Engine imposed limitations still apply, see Appendix). 
+Standalone mode offers a different approach to processing than the web app. Standalone mode uses Python code, either `TouchTerrain_standalone.py` or a Jupyter notebook to define processing parameters in code and then processes a local DEM raster file or online DEM data from Earth Engine (google account required to authenticate). After processing the resulting zip file is stored locally. A few aspect of TouchTerrain are only exposed via the stand alone version. It also offers a way around around server processing quotas, that make it impossible to create some very large (> ~150 Mb) 3D models as all he processing is done locally (some Google Earth Engine imposed limitations still apply, see Appendix).
 
 Although a pip `setup.py` file (and `requirements.txt`) are provided, note that it can be non-trivial to get all the required Python libraries to install locally, especially those that are wrappers around C/C++, such as GDAL. It may therefore be easier to run Touchterrain inside a docker container (see [touchterrain_jupyter docker container](https://github.com/ChHarding/TouchTerrain_jupyter_docker)) or to use a jupyter notebook on Colab or Binder (see below).
 
@@ -97,8 +97,8 @@ The JSON config file has the following format:
 | True | true |
 | False | false |
 
-- `CPU_cores_to_use`: Number of CPU cores (processes) to use. 
-  - `0`: use all available cores, which will improve multi-tile processing times but has no effect for single tile processing. 
+- `CPU_cores_to_use`: Number of CPU cores (processes) to use.
+  - `0`: use all available cores, which will improve multi-tile processing times but has no effect for single tile processing.
   - `null`: forces use of only a single core, even for multiple tiles, which is useful when running the multi-tile code in a Debugger.
 
 - `DEM_name`: (resolutions are approximate and strictly true only at the equator!)
@@ -120,7 +120,7 @@ The JSON config file has the following format:
 - `trlon`: Top-right longitude
 
 - Polygon to define the area:
-  The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings. 
+  The web app version of TouchTerrain can load a polygon (or poly line) from an uploaded kml file which will supersede the bllat, etc. extent settings.
 
   The standalone version can read a kml file using the `poly_file` or `polyURL` parameters. For both, the first polygon found will be used as a mask, i.e. the model will only cover terrain inside the polygon. If no polygon is found, the first polyline is used instead. (Holes in polygons are ignored). kmz files are __not__ supported at this time. To convert kmz to kml, unzip it (will be doc.kml) and rename doc to the (pre-dot) name of the kmz file.
 
@@ -139,8 +139,8 @@ The JSON config file has the following format:
   ```
 
 - `fileformat`: file format for 3D model file.
-  - `obj`: wavefront obj (ascii)  
-  - `STLa`: ascii STL  
+  - `obj`: wavefront obj (ascii)
+  - `STLa`: ascii STL
   - `STLb`: binary STL  (__preferred mesh format__)
   - __GeoTiff__: while all formats also store the raster used for making the mesh files in the zip file as a GeoTiff, this option ONLY stores the GeoTiff. This is much, much faster and permits downloading  much larger areas without running into the server limit.  Note that this will save a projected raster (unless unprojected is true) at the equivalent of the printres resolution but will ignore all other settings, such as z-scale, etc.
 
@@ -151,9 +151,9 @@ The JSON config file has the following format:
 - `lower_leq`: (default: `null`). An alternative to ignore_leq. Given a list in the format [threshold, offset], all cells less than or equal to threshold will be lowered by the offset. This helps with giving emphasis to coastlines. The offset is in mm with respect to the final mesh size. Unaffected by zscale.
 
 - `importedDEM`: (default: `null`). If `null` a geotiff is fetched from Earth Engine as detailed above. If it is set to a filename, this file is used as DEM. In this case, DEM_name, bllat, bllon, trlat and trlon are ignored, but all other parameters are still used.
- 
+
   - You can test this with pyramid.tif (in the stuff folder) which has an elevation of 0 to 255, so probably will need a z-scale of 0.5 on a width of 100 mm. Any GDAL raster file format
- (http://www.gdal.org/frmt_various.html) should be readable. 
+ (http://www.gdal.org/frmt_various.html) should be readable.
     - Set printres to -1 to prevent downsampling and instead use the file's intrinsic resolution. Non-georef'ed rasters (i.e., regular images) are assumed to have a "real-world" cell size of 1.
     - The file can contain cells that are officially undefined. These undefined cells will be omitted in the STL/OBJ file, allowing you to create 3D prints with "organic" boundaries instead of rectangular ones. Unrealistically low or high elevations (e.g. -9999999) will be treated as undefined.
 
@@ -167,15 +167,21 @@ The JSON config file has the following format:
 
 - `ntilesx`: Divide the x axis evenly among this many tiles. This is useful if the area being printed would be too large to fit in the printer's bed.
 - `ntilesy`: See `ntilesx`, above.
+  - __Tile naming convention__: Tiles are numbered left-to-right (x axis, west to east) and top-to-bottom (y axis, north to south), starting at 1. For example, with `ntilesx: 3` and `ntilesy: 2`, the output files will be named:
+    ```
+    tile_1_1  tile_2_1  tile_3_1    (top row, north)
+    tile_1_2  tile_2_2  tile_3_2    (bottom row, south)
+    ```
+    The first number is the column (x position), the second is the row (y position).
 
-- `only`: (default: `null`). If given a list [x,y], will only process that tile index ([1,1] is upper left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).  
+- `only`: (default: `null`). If given a list [x,y], will only process that tile index ([1,1] is upper left tile). This will enable users to d/l otherwise unreasonably large models by processing only one of its tiles at a time (thus staying under the server limit).
   - __Example__: only:[1,1] (JSON) or only = [1,1] (python) will d/l only the tile with index 1,1
     - Once this tile was downloaded, using __only with [1,2]__, but otherwise repeating the request, will d/l tile 1,2
     - Although each tile will be in a new zip, unzipping them and putting all tiles in a common folder will create a "single" model that will make all tiles fit together when printed. In a 3D viewer, the tiles will fit together without overlaps if tile_centered was false.
 
 - `printres`: (in mm) Should be set to the nozzle size of your printer typically around the diameter of the nozzle (~0.4 mm). This and the tile width determines the resampled resolution of the DEM raster that is the basis of the mesh. Setting this to significantly smaller than your nozzle size is not advised:
 
-  - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED). It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files. 
+  - __Example__: if you want your tile to be 80 mm wide and were to set your printres to 0.4 mm, the DEM raster will be re-sampled from its original resolution to the equivalent of 200 cells. If the tile's area is 2000 m wide in reality, each cell would cover 10 m, which is about the original resolution of the DEM source (for NED). It would be silly to ask for a resolution below the original 10m DEM resolution by lowering printres to less than 0.4. This would simple oversample the requested geotiff, resulting in no increase in detail at the cost of longer processing and larger files.
     - Note: setting printres to -1 will set it to the equivalent of the DEM sources __original__ (i.e. non-downsampled) resolution. This sounds great, but is, in practice, somewhat limited as Google Earth Engine will not permit TouchTerrain to request rasters larger than 10 Mega Pixels (typically < 34 Mb). The only sanctioned way for using such large rasters is to run a script in the Earth Engine [Code Editor]( https://code.earthengine.google.com/) that requests the raster and stores it as a Google Drive file. An example script is given in the appendix. You can then download it to a regular raster file and use it in stand alone mode with the importedDEM setting (see below). Set printres to -1 to prevent downsampling.
 
 - `sqrt`: (default: `false`) if true, will apply the square root to the final elevation and lower it so the smallest value is 0. This is done after applying z-scale and running _leq operations. When combined with a very large z-scale (100 - 500) this can help to equalize terrain models that have a wide range of elevations, such as going from sea level to 2000 m peaks. This helps to bring out details in low areas while avoiding un-printably pointy mountains. Will only work with all-positive elevation values, so apply ignore_leq(0) if e.g. cells along a shoreline have negative elevations. In the web app, large z-scales have to be set manually, e.g. lie `"sqrt":true, "zscale":100, "ignore_leq":0`
@@ -210,14 +216,14 @@ The JSON config file has the following format:
 
 - `importedGPX`: list of GPX file paths that are to be plotted on the model (default: null)
 - `gpxPathHeight`: (default `40`) Drape GPX path by adjusting the raster elevation by this value in meters at the specified lat/lon. Negative numbers will create a dent.
-- `gpxPixelsBetweenPoints`:  (default `20`) Controls how many pixel distance there should be between points, effectively causing fewer lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision 
-- `gpxPathThickness`: (default: `5`) Stacks that number of parallel lines on either side of primary line to create thickness.  
+- `gpxPixelsBetweenPoints`:  (default `20`) Controls how many pixel distance there should be between points, effectively causing fewer lines to be drawn. A higher number will create more space between lines drawn on the model and can have the effect of making the paths look a bit cleaner at the expense of less precision
+- `gpxPathThickness`: (default: `5`) Stacks that number of parallel lines on either side of primary line to create thickness.
 
 Note on using GPX files: this will simply extrude those pixels covered by a path away from the top surface, i.e. it will not insert proper 90 deg. "walls" for delineating them. To generate a "crisp" path, it may be advisable to use a much higher printres (e.g. 0.2 mm) which allows the extrusion to create steeper (but still non-90 deg.) walls that are more noticeable when 3D printed.
 
 ### Offset Mask config
 
-- `offset_masks_lower`: (default: `null`) Masked regions (pixel values > 0) in the file will be lowered (same method as GPX extrusion described above) by offset(mm) pixel value in the final model. *e.g. [[filename, offset], [filename2, offset2],...]* 
+- `offset_masks_lower`: (default: `null`) Masked regions (pixel values > 0) in the file will be lowered (same method as GPX extrusion described above) by offset(mm) pixel value in the final model. *e.g. [[filename, offset], [filename2, offset2],...]*
 
 ### Unit tests (new in 3.5)
 
@@ -261,7 +267,7 @@ More specific details on how to set up and run your own server are beyond the sc
 - The example script below shows how to download potentially very large, high resolution geotiffs from Google Earth Engine. It works around the 10 mega-pixel download limitation by exporting it to Google Drive instead, from which it can then be downloaded and processed with the standalone version of TouchTerrain.
 - The example area will only create a 1 Mb geotiff but has been shown to work for larger areas. **Be warned that exporting large areas to a Google Drive can potentially take hours(!).**
 
-- To run this code, you'll need a Google Earth Engine account. Then, go to [https://code.earthengine.google.com/](https://code.earthengine.google.com/), create a new Script (left side) and copy/paste the code below into it. 
+- To run this code, you'll need a Google Earth Engine account. Then, go to [https://code.earthengine.google.com/](https://code.earthengine.google.com/), create a new Script (left side) and copy/paste the code below into it.
 - You will need to know the designation for the DEM source (e.g. `JAXA/ALOS/AW3D30/V2_2`) and what the elevation band is called (e.g. `AVE_DSM`) which you can get from  the *Explore in Earth Engine* code snippet you get from the DEM info link on the web app [example](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2). This will also tells you the meter resolution of the DEM, which is the smallest number you can put into the scale parameter of the Export routine.
 - To get the lat/long coordinates of the top right and bottom left corner of your print area box, use the web app and look at the coordinate info in the Area selection box.
 - Finally you'll need to know the EPSG code for the coordinate system to use. For UTM, just export a low res version of the are you want with the web app and look into the log file (search for EPSG). Other coordinate systems (EPSG codes) can/may/should work, just remember that some codes seem to not be supported by EE.
@@ -279,13 +285,13 @@ More specific details on how to set up and run your own server are beyond the sc
 // of the export to it.
 
 
-// Set DEM source  
+// Set DEM source
 var dataset = ee.Image('JAXA/ALOS/AW3D30/V2_2');
 var elevation = dataset.select('AVE_DSM');
 print(elevation); // print some metadata into console
 
 // make a spectral color scheme for elevation data layer
-var elevationVis = { 
+var elevationVis = {
   min: 0,
   max: 4000,
   palette: ['0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff'],
@@ -299,12 +305,12 @@ var trlon = 8.071201291153262
 var bllat = 46.63448889213306
 var bllon = 7.574375128591488
 var geometry = ee.Geometry.Rectangle([ trlon, trlat, bllon, bllat ]);
-Map.addLayer(geometry, {'opacity': 0.5}, 'box');  
+Map.addLayer(geometry, {'opacity': 0.5}, 'box');
 
 // Fly to center of Box
 Map.setCenter(
-  trlon - ((trlon - bllon) / 2), 
-  trlat - ((trlat - bllat) / 2), 
+  trlon - ((trlon - bllon) / 2),
+  trlat - ((trlat - bllat) / 2),
   8 // zoomlevel
 );
 
@@ -320,7 +326,7 @@ Export.image.toDrive({
   crs: "EPSG:32632" // EPSG code for the UTM zone or whatever coordinate system you want to use
 });
 
-// When this code is run, an export task will be created in the Code Editor Tasks tab. 
-// Click the Run button next to the task to start it. 
+// When this code is run, an export task will be created in the Code Editor Tasks tab.
+// Click the Run button next to the task to start it.
 // The image will be created in your Drive account with the specified fileFormat.
 ```

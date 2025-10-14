@@ -1,7 +1,7 @@
 
 CH Note:
 
-as for my models the z and y are switched, I hacked stl_viewer.min.js so that in the the positions for its lights, z and y are also switched.  
+as for my models the z and y are switched, I hacked stl_viewer.min.js so that in the the positions for its lights, z and y are also switched.
 
 
 Stl Viewer v1.06
@@ -10,13 +10,13 @@ Stl Viewer v1.06
 Installation:
 -------------
 upload those files into your web server:
-stl_viewer.min.js 
-parser.min.js 
-load_stl.min.js 
-webgl_detector.js 
-CanvasRenderer.js 
-OrbitControls.js 
-Projector.js 
+stl_viewer.min.js
+parser.min.js
+load_stl.min.js
+webgl_detector.js
+CanvasRenderer.js
+OrbitControls.js
+Projector.js
 three.min.js
 
 
