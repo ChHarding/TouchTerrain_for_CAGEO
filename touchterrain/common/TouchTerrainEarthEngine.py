@@ -2363,7 +2363,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                 bottom_floor_elev=(
                     config.bottom_floor_elev
                     if config.bottom_floor_elev is not None
-                    else config.min_elev - 1
+                    else (config.min_elev - 1 if config.min_elev is not None else None)
                 ),
             )
             is False
