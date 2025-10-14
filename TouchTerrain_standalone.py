@@ -10,7 +10,7 @@ processes it into tiles and saves them in a zip file.
 Alternative to running the TouchTerrain web server.
 """
 
-'''
+"""
 @author:     Chris Harding
 @license:     GPL
 @contact:     charding@iastate.edu
@@ -25,29 +25,27 @@ Alternative to running the TouchTerrain web server.
   GNU General Public License for more details.
   You should have received a copy of the GNU General Public License
   along with this program.    If not, see <http://www.gnu.org/licenses/>.
-'''
-import time
+"""
 import json
 import os
 import sys
-
-from os.path import abspath, dirname
+from os.path import abspath
 from typing import Any
 
 try:
     from touchterrain.common import TouchTerrainEarthEngine as TouchTerrain
     from touchterrain.common.TouchTerrainGPX import *
     from touchterrain.common.user_config import TouchTerrainConfig
-except Exception as e:
-    print(e)
-    print("Error: touchterrain module is not installed or could not be imported. Use pip install . in the same folder as setup.py")
-    sys.exit()
+except ImportError as e:
+    print(f"Error: touchterrain module is not installed properly: {e}")
+    print("Please run: pip install -e . in the same folder as setup.py")
+    sys.exit(1)
 
 #
 # How to run the standalone version:
 #
 
-# A) Go to the overwrite_args section (line 136) below and change the settings there, then run this file. 
+# A) Go to the overwrite_args section (line 136) below and change the settings there, then run this file.
 #
 # B) Make a copy of example_config.json (in the stuff folder), modify the parameters and save it with a new
 #    name (e.g. my.json) in the same folder as this .py file. The JSON file format follows the args dict shown below.
@@ -56,6 +54,7 @@ except Exception as e:
 #
 #    python TouchTerrain_standalone.py my.json
 #
+
 
 # main function, will be called at the end of the script
 def main():
@@ -66,16 +65,16 @@ def main():
     args: dict[str, Any] = {
         "importedDEM": default_args.importedDEM,
         "importedDEM_interp": default_args.importedDEM_interp,
-        "offset_masks_lower": default_args.offset_masks_lower
+        "offset_masks_lower": default_args.offset_masks_lower,
     }
 
     # write an example json file, in case it gets deleted ...
-    with open('example_config.json', 'w+') as fp:
+    with open("example_config.json", "w+") as fp:
         json.dump(default_args, fp, indent=2, default=vars)
-    print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
-    
-    
-    
+    print(
+        "Wrote example_config.json with default values, you can use it as a template but make sure to rename it!"
+    )
+
     # parse args
     if len(sys.argv) > 1:  # sys.argv are the CLI args
         json_fname = sys.argv[1]
@@ -83,19 +82,21 @@ def main():
             fp = open(json_fname, "r")
         except Exception as e:
             sys.exit("Error: can't find " + json_fname + ": " + str(e))
-    
+
         file_content = fp.read()
         try:
             json_args = json.loads(file_content)
         except Exception as e:
             sys.exit("Error: can't json parse " + json_fname + ": " + str(e))
-    
+
         print("reading", json_fname)
-    
+
         args["config_path"] = json_fname
-    
+
         for k in list(json_args.keys()):
-            args[k] = json_args[k]    # try to find a user set value for k in json config file
+            args[k] = json_args[
+                k
+            ]  # try to find a user set value for k in json config file
 
     extract_dir = None
     if len(sys.argv) > 2:
@@ -104,52 +105,64 @@ def main():
     # else:
     #     # no JSON config file given, setting config values in code
     #     # you can comment out lines for which you don't want to overwrite the default settings
-        
+
     #     # overwrite settings in args
     #     for k in default_args:
     #         args[k] = default_args[k]
-       
-    
-    # print out current args 
+
+    # print out current args
     print("\nUsing these config values:")
     for k in sorted(args.keys()):
         print("%s = %s" % (k, str(args[k])))
-    
+
     # for local DEM, get the full path to it
-    if not args["importedDEM"] == None:
+    if args["importedDEM"] is not None:
         args["importedDEM"] = abspath(args["importedDEM"])
-        
+
     # for local DEM, get the full path to it
-    if not args["importedDEM_interp"] == None:
+    if args["importedDEM_interp"] is not None:
         args["importedDEM_interp"] = abspath(args["importedDEM_interp"])
 
     # get full path to offset mask TIFF
-    if not args["offset_masks_lower"] == None and len(args["offset_masks_lower"]) > 0:
+    if args["offset_masks_lower"] is not None and len(args["offset_masks_lower"]) > 0:
         for offset_mask_pair in args["offset_masks_lower"]:
             offset_mask_pair[0] = abspath(offset_mask_pair[0])
 
     # Give all config values to get_zipped_tiles for processing:
-    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(args) # all args are in a dict
-    print("\nCreated zip file", full_zip_file_name,  "%.2f" % totalsize, "Mb")
-    
+    totalsize, full_zip_file_name = TouchTerrain.get_zipped_tiles(
+        args
+    )  # all args are in a dict
+    print("\nCreated zip file", full_zip_file_name, "%.2f" % totalsize, "Mb")
+
     # Optional: unzip the zip file into the current folder or folder specified as the second CLI param
-    if 1: # set this to 0 if you don't want the zip file to be unzipped
-        #import os.path
-        #folder, file = os.path.splitext(full_zip_file_name) # tmp folder
-        folder = extract_dir if extract_dir else (os.getcwd() + os.sep + os.path.splitext(os.path.basename(full_zip_file_name))[0]) # new stl directly in extract_dir or new stl in zipfile name folder in current folder
-        
+    if 1:  # set this to 0 if you don't want the zip file to be unzipped
+        # import os.path
+        # folder, file = os.path.splitext(full_zip_file_name) # tmp folder
+        folder = (
+            extract_dir
+            if extract_dir
+            else (
+                os.getcwd()
+                + os.sep
+                + os.path.splitext(os.path.basename(full_zip_file_name))[0]
+            )
+        )  # new stl directly in extract_dir or new stl in zipfile name folder in current folder
+
         # unzip the zipfile into the folder it's already in
         import zipfile
-        zip_ref = zipfile.ZipFile(full_zip_file_name, 'r')
+
+        zip_ref = zipfile.ZipFile(full_zip_file_name, "r")
         zip_ref.extractall(folder)
         zip_ref.close()
         print("unzipped file inside", full_zip_file_name, "into", folder)
-    
+
         # Optional: show the STL files in a browser
-        if 0: # set this to 0 if you don't want to show STL files in browser
-            import k3d
+        if 0:  # set this to 0 if you don't want to show STL files in browser
             # get all stl files in that folder
             from glob import glob
+
+            import k3d
+
             mesh_files = glob(folder + os.sep + "*.stl")
             print("in folder", folder, "using", mesh_files)
 
@@ -157,20 +170,20 @@ def main():
 
             for m in mesh_files:
                 print(m)
-                buf = open(m, 'rb').read()
-                #buf = str(stl_model)
-                #buf = buf.encode('utf_32')
+                buf = open(m, "rb").read()
+                # buf = str(stl_model)
+                # buf = buf.encode('utf_32')
                 print(buf[:100])
                 plot += k3d.stl(buf)
 
             plot.display()
 
-    
 
 if __name__ == "__main__":
-    
+
     # this is/should only be needed on Windows and only if we do multi processing
     # but it has to be done before we know if MP is actually used
     from multiprocessing import freeze_support
+
     freeze_support()
     main()
