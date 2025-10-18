@@ -51,7 +51,7 @@ import touchterrain.common.utils as utils
 
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 
-
+from touchterrain.common.RasterVariants import RasterVariants
 
 
 # function to calculate the normal for a triangle
@@ -453,151 +453,7 @@ def profile_me(func):
         metrics.strip_dirs().sort_stats('time').print_stats(100)
     return wraps
 '''
-class RasterVariants:
-    """Holds a raster with processed copies of it
-    """
-    
-    original: Union[None, np.ndarray] # Original full raster
-    """
-    Original raster.
-    
-    ## Normal mode:
-    
-    Top: The original.
-    
-    ## Difference mode:
-    
-    Top: original
-    
-    Bottom: Original, but ALL areas matched to top_hint mask are set to bottom_floor_elev.
-    """
-    nan_close: Union[None, np.ndarray] # Raster after NaN close values to bottom and before dilation
-    """
-    Raster after nan close values between top and bottom.
-    
-    ## Normal mode:
-    
-    Top: Same as original. 
-    
-    ## Difference mode:
-    
-    Top: NaN close values
-    
-    Bottom: Original + top_hint mask + NaN close values. 
-    """
-    dilated: Union[None, np.ndarray]
-    """
-    Raster after dilation.
-    
-    ## Normal mode:
-    
-    Top: Same as original. 
-    If top_hint provided, original but dilated outwards towards the top_hint mask with bottom_floor_elev value.
-    
-    
-    ## Difference mode:
-    
-    Top: Dilated outwards from the nan_close variant outwards 2x with top.original values
-    
-    Bottom: Original + top_hint mask + NaN close values + Dilated outwards 2x with top.original values
-    """
-    
-    edge_interpolation: Union[None, np.ndarray] # Original full raster with values past edges for interpolation
-    
-    
-    clipping_intersection_geometry: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a list[shapely.Geometry]
-    """
-    Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates.
-    
-    This is not a variant! Precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
-    
-    Raster values set to NaN and no clipping_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
-    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
-    Raster value kept as imported and clipping_intersection_geometry in partial intersection
-    """
-    
-    def __init__(self, original: Union[None, np.ndarray], nan_close: Union[None, np.ndarray], dilated: Union[None, np.ndarray], edge_interpolation: Union[None, np.ndarray]):
-        self.original = original
-        self.nan_close = nan_close
-        self.dilated = dilated
-        self.edge_interpolation = edge_interpolation
-            
-    def create_tile_raster_variants(self, start_y, end_y, start_x, end_x):
-        """Create a RasterVariants based on a subset of the current RasterVariants. Arrays are copied.
-        """
-        tile_raster = RasterVariants(None, None, None, None)
-        
-        if self.original is not None:
-            tile_raster.original = self.original[start_y:end_y, start_x:end_x].copy()
-        if self.nan_close is not None:
-            tile_raster.nan_close = self.nan_close[start_y:end_y, start_x:end_x].copy()
-        if self.dilated is not None:
-            tile_raster.dilated = self.dilated[start_y:end_y, start_x:end_x].copy()
-        if self.edge_interpolation is not None:
-            tile_raster.edge_interpolation = self.edge_interpolation[start_y:end_y, start_x:end_x].copy()
-            
-        return tile_raster
-    
-    def apply_closure_to_variants(self, f: Callable[[np.ndarray], np.ndarray]):
-        """Run a function on all variants. The function takes a ndarray as input and return a ndarray. 
-        """
-        if self.original is not None:
-            self.original = f(self.original)
-        if self.nan_close is not None:
-            self.nan_close = f(self.nan_close)
-        if self.dilated is not None:
-            self.dilated = f(self.dilated)
-        if self.edge_interpolation is not None:
-            self.edge_interpolation = f(self.edge_interpolation)
-            
-    def set_location_in_variants(self, location: tuple[int, int], new_value:float, set_edge_interpolation: bool = True):
-        """Set a location to new value on all variants. The function takes a tuple in Y,X order as location and a new value to set. 
-        """
-        if self.original is not None:
-            self.original[location[0]][location[1]] = new_value
-        if self.nan_close is not None:
-            self.nan_close[location[0]][location[1]] = new_value
-        if self.dilated is not None:
-            self.dilated[location[0]][location[1]] = new_value
-        if set_edge_interpolation and self.edge_interpolation is not None:
-            self.edge_interpolation[location[0]][location[1]] = new_value
-        
-    def __add__(self, other):
-        if self.original is not None:
-            self.original += other
-        if self.nan_close is not None:
-            self.nan_close += other
-        if self.dilated is not None:
-            self.dilated += other
-        if self.edge_interpolation is not None:
-            self.edge_interpolation += other
-            
-        return self
-            
-    def __sub__(self, other):
-        if self.original is not None:
-            self.original -= other
-        if self.nan_close is not None:
-            self.nan_close -= other
-        if self.dilated is not None:
-            self.dilated -= other
-        if self.edge_interpolation is not None:
-            self.edge_interpolation -= other
-            
-        return self
-            
-    def __mul__ (self, other):
-        if self.original is not None:
-            self.original *= other
-        if self.nan_close is not None:
-            self.nan_close *= other
-        if self.dilated is not None:
-            self.dilated *= other
-        if self.edge_interpolation is not None:
-            self.edge_interpolation *= other
-            
-        return self
-    
+
 class ProcessingTile:
     tile_info: TouchTerrainTileInfo
     top_raster_variants: RasterVariants
@@ -935,20 +791,12 @@ class grid:
                 S = N - self.cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
                 
-                ## Which directions will need to have a wall?
-                # True means: we have an adjacent cell and need a wall in that direction
-                borders =   dict([[drct, False] for drct in ["N", "S", "E", "W"]]) # init with no walls                   
                 
-                # set walls for fringe cells
-                if j == 1             : borders["N"] = True
-                if j == self.ymaxidx  : borders["S"] = True
-                if i == 1             : borders["W"] = True
-                if i == self.xmaxidx  : borders["E"] = True
 
                 
-                #
-                # Make top quad
-                #
+                
+                
+                #region Make top cell vertices' heights
 
                 if not self.tile_info.have_nan:
                     # non NaNs: interpolate elevation of four corners (array order is top[y,x]!)
@@ -956,13 +804,6 @@ class grid:
                     NWelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j+0,i-1] + self.tile.top_raster_variants.dilated[j-1,i-1] + self.tile.top_raster_variants.dilated[j-1,i+0]) / 4.0
                     SEelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j-0,i+1] + self.tile.top_raster_variants.dilated[j+1,i+1] + self.tile.top_raster_variants.dilated[j+1,i+0]) / 4.0
                     SWelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j+1,i+0] + self.tile.top_raster_variants.dilated[j+1,i-1] + self.tile.top_raster_variants.dilated[j+0,i-1]) / 4.0
-                    '''
-                    print("\n", i,j)
-                    print("NE",self.top[j+0,i+0],self.top[j-1,i-0],self.top[j-1,i+1],self.top[j-0,i+1], NEelev)
-                    print("NW",self.top[j+0,i+0],self.top[j+0,i-1],self.top[j-1,i-1],self.top[j-1,i+0], NWelev)
-                    print("SE",self.top[j+0,i+0],self.top[j-0,i+1],self.top[j+1,i+1],self.top[j+1,i+0], SEelev)
-                    print("SW",self.top[j+0,i+0],self.top[j+1,i+0],self.top[j+1,i-1],self.top[j+0,i-1], SWelev)
-                    '''
                 else:
                     # NaNs: set borders to True if we have any NaNs in any of the adjacent cells
                     # Do this only for top as we assume that any bottom raster NaNs are the same as on top
@@ -1004,48 +845,11 @@ class grid:
                     if SWelev < self.tile_info.config.basethick:
                         SWelev = 0
                     
-                    #
-                    # Make top quad borders
-                    #
-                    
-                    # for the through water case or Top NaN, base the walls on the original (non-dilated) top
-                    # if self.tile_info.have_nan == True: 
-                    #     top = self.tile.top_raster_variants.dilated
-
-                    borders_top_raster: Union[np.ndarray, None] = None
-                    if self.tile.bottom_raster_variants is None:
-                        # Normal mode
-                        borders_top_raster = self.tile.top_raster_variants.dilated
-
-                    else:
-                        # Difference mesh mode
-                        #force dilated top because using predilated version has NaNs at edge which makes extra walls
-                        borders_top_raster = self.tile.top_raster_variants.dilated
-                        
-                        #for difference mesh in bottom_thru_base case, check for walls with the nan_close version before dilation
-                        if self.bottom_thru_base == True:
-                            borders_top_raster = self.tile.top_raster_variants.nan_close
-                        # elif self.tile.bottom_raster_variants.original[j,i] < self.tile_info.config.basethick: #if bottom.original was NaN at this location but top.original was not NaN, then we purposely want to go to the base and check for walls like the bottom_thru_base case
-                        #     top = self.tile.top_raster_variants.nan_close
-                    
-                    
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings('error')
-                        try:
-                            if np.isnan(borders_top_raster[j-1,i]): borders["N"] = True
-                            if np.isnan(borders_top_raster[j+1,i]): borders["S"] = True
-                            if np.isnan(borders_top_raster[j,i-1]): borders["W"] = True
-                            if np.isnan(borders_top_raster[j,i+1]): borders["E"] = True
-                        except RuntimeWarning:
-                            pass # nothing wrong - just here to ignore the warning
-                    
-
                 #
-                # Make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system 
-                # used in 3D graphics
+                # Note that here we flip x and y coordinate axis to the system used in 3D graphics
                 #
 
-                # make top quad (x,y,z)    vi is the vertex index dict of the grids
+                # make top quad (x,y,z) vertices   vi is the vertex index dict of the grids
                 NEt = vertex(E, N, NEelev)
                 NWt = vertex(W, N, NWelev)
                 SEt = vertex(E, S, SEelev)
@@ -1055,9 +859,10 @@ class grid:
                 topq = quad(NWt, SWt, SEt, NEt) 
                 #print(i, j, topq)
                 
-
+                #endregion
+                
                 #
-                # Make bottom quad  
+                #region Make bottom quad  
                 #
 
                 # get corners for bottom array
@@ -1069,8 +874,6 @@ class grid:
                     # for the through water case, simply set the bottom to 0
                     if self.bottom_thru_base == True:
                         NEelev = NWelev = SEelev = SWelev = 0
-                    # elif self.tile.bottom_raster_variants.original[j,i] < self.tile_info.config.basethick: #if bottom.original was NaN at this location but top.original was not NaN, then we purposely want to go to the base
-                    #     NEelev = NWelev = SEelev = SWelev = 0
                     else:
                         # simple interpolation
                         if not self.tile_info.have_bot_nan:
@@ -1109,14 +912,63 @@ class grid:
                 SWb = vertex(W, S, SWelev)
                 botq = quad(NWb, NEb, SEb, SWb)
 
+                
+                #endregion
+                
                 #print(topq)
                 #print(botq)
                  
-                # Quads for walls: in borders dict, replace any True with a quad of that wall
-                if borders["N"] == True: borders["N"] = quad(NWb, NWt, NEt, NEb)
-                if borders["S"] == True: borders["S"] = quad(SEb, SEt, SWt, SWb)
-                if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
-                if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
+                #
+                #region Make borders
+                #
+                
+                # Simple rectangular mesh case with no NaN
+                # Which directions will need to have a wall?
+                # True means: we have an adjacent cell and need a wall in that direction
+                borders =   dict([[drct, False] for drct in ["N", "S", "E", "W"]]) # init with no walls                   
+                # set walls for fringe cells
+                if j == 1             : borders["N"] = True
+                if j == self.ymaxidx  : borders["S"] = True
+                if i == 1             : borders["W"] = True
+                if i == self.xmaxidx  : borders["E"] = True
+                
+                cell_clipping_intersection_geometry = self.tile.top_raster_variants.polygon_intersection_geometry[j][i] if self.tile.top_raster_variants.polygon_intersection_geometry else None
+                if cell_clipping_intersection_geometry and len(cell_clipping_intersection_geometry) > 0: # Cell is partially intersecting or sharing edges with polygon
+                    pass
+                else: # Cell contained properly in polygon
+                    # Figure out which raster array to use when determining borders
+                    borders_top_raster: Union[np.ndarray, None] = None
+                    if self.tile.bottom_raster_variants is None:
+                        # Normal mode
+                        borders_top_raster = self.tile.top_raster_variants.dilated
+
+                    else:
+                        # Difference mesh mode
+                        #force dilated top because using predilated version has NaNs at edge which makes extra walls
+                        borders_top_raster = self.tile.top_raster_variants.dilated
+                        
+                        #for difference mesh in bottom_thru_base case, check for walls with the nan_close version before dilation
+                        if self.bottom_thru_base == True:
+                            borders_top_raster = self.tile.top_raster_variants.nan_close
+                    
+                    
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('error')
+                        try:
+                            if np.isnan(borders_top_raster[j-1,i]): borders["N"] = True
+                            if np.isnan(borders_top_raster[j+1,i]): borders["S"] = True
+                            if np.isnan(borders_top_raster[j,i-1]): borders["W"] = True
+                            if np.isnan(borders_top_raster[j,i+1]): borders["E"] = True
+                        except RuntimeWarning:
+                            pass # nothing wrong - just here to ignore the warning
+                    
+                    # Quads for walls: in borders dict, replace any True with a quad of that wall
+                    if borders["N"] == True: borders["N"] = quad(NWb, NWt, NEt, NEb)
+                    if borders["S"] == True: borders["S"] = quad(SEb, SEt, SWt, SWb)
+                    if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
+                    if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
+
+                #endregion
 
                 # Make cell
                 if self.tile_info.config.no_bottom == True:

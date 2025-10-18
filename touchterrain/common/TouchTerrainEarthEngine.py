@@ -49,6 +49,15 @@ from touchterrain.common.user_config import TouchTerrainConfig
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 from touchterrain.common.utils import save_tile_as_image, clean_up_diags, fillHoles, add_to_stl_list, k3d_render_to_html, dilate_array, plot_DEM_histogram
+
+from touchterrain.common.RasterVariants import RasterVariants
+
+from touchterrain.common.polygon_clipping import find_polygon_clipping_edges
+
+import geopandas
+import shapely
+from touchterrain.common.shapely_utils import flatten_geometries, flatten_geometries_borderEdge, sort_line_segment_based_contains
+
 if DEV_MODE:
     sys.path = oldsp # back to old sys.path
 
@@ -1634,93 +1643,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         
         #region Mark cells for polygon fitting
         if config.edge_fit_polygon_file:
-            import geopandas
-            from shapely.geometry import Polygon, GeometryCollection
-            
-            # Read the GeoPackage into a GeoDataFrame
-            gdf = geopandas.read_file(config.edge_fit_polygon_file)
-
-            # reproject vector boundary to same projected CRS as raster
-            gdf = gdf.to_crs(dem.GetProjectionRef())
-
-            # Initialize an empty list to store Shapely Polygon objects
-            shapely_polygons = []
-
-            # Iterate through the GeoDataFrame and extract polygon geometries
-            for index, row in gdf.iterrows():
-                geometry = row.geometry
-                # Check if the geometry is a Polygon or MultiPolygon
-                if isinstance(geometry, Polygon):
-                    shapely_polygons.append(geometry)
-                elif geometry.geom_type == 'MultiPolygon':
-                    # If it's a MultiPolygon, iterate through its individual polygons
-                    for poly in geometry.geoms:
-                        shapely_polygons.append(poly)
-
-            # Now, 'shapely_polygons' contains a list of Shapely Polygon objects
-            # You can access them and perform further operations
-            if shapely_polygons:
-                print(f"Found {len(shapely_polygons)} polygons in the GeoPackage.")
-                print(f"First polygon's area: {shapely_polygons[0].area}")
-            else:
-                print("No polygons found in the GeoPackage or the specified layer.")
-                
-            ulx, pixelwidthx, xskew, uly, yskew, pixelheighty = dem.GetGeoTransform()
-            ncol = dem.RasterXSize
-            nrow = dem.RasterYSize
-            # Calculate lower-right corner coordinates
-            lrx = ulx + (ncol * pixelwidthx) + (nrow * xskew)
-            lry = uly + (ncol * yskew) + (nrow * pixelheighty)
-                
-            # Create clipping_intersection_geometry for the first time
-            top_raster_variants.clipping_intersection_geometry = numpy.empty(top_raster_variants.original.shape, dtype=object)
-                
-            # determine intersection for polygon(s) in boundary and each cell quad
-            for clippingGeoPoly in shapely_polygons:
-                clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
-                for j in range(0, top_raster_variants.original.shape[0]): # Y
-                    for i in range(0, top_raster_variants.original.shape[1]): # X
-                        #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
-                        quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=npim.shape[0])
-                        # TODO: use shapely.box for optimization?
-                        quadPrint2DPoly = Polygon(quadPrint2DCoords)
-                        
-                        if isinstance(clippingPrint2DPoly, shapely.Polygon):
-                            if clippingPrint2DPoly.disjoint(quadPrint2DPoly):
-                                # set the all variants to NaN in that location
-                                top_raster_variants.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
-                            elif clippingPrint2DPoly.contains_properly(quadPrint2DPoly):
-                                # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
-                                # leave the cell unchanged
-                                pass
-                            else:
-                                intersection_geometry = clippingPrint2DPoly.intersection(quadPrint2DPoly)
-                                
-                                # Recursively flatten a list of geometries
-                                # Do not keep any point geometries
-                                def flatten_geometries(geometries):
-                                    flat_list = []
-                                    for geom in geometries:
-                                        if geom.geom_type.startswith('Multi') or geom.geom_type == 'GeometryCollection':
-                                            # For collections, iterate over the individual parts
-                                            flat_list.extend(flatten_geometries(geom.geoms))
-                                        elif not geom.is_empty:
-                                            # Add simple, non-empty, non-point geometries to the list.
-                                            if isinstance(geom, shapely.Point):
-                                                continue
-                                            
-                                            flat_list.append(geom)
-                                    return flat_list
-                                
-                                # Get flat list of all intersecting geometries excluding point geometries. Point geometries do not matter for wall generation. If an intersection only has points, we treat the cell like there were no intersections.
-                                flat_intersection_geometries = flatten_geometries([intersection_geometry])
-                                if len(flat_intersection_geometries) > 0:
-                                    top_raster_variants.clipping_intersection_geometry[j][i] = flat_intersection_geometries
-                        else:
-                            print("clippingPrint2DPoly is not a shapely Polygon")
-                            break
-                        
-                
+            find_polygon_clipping_edges(config, dem, top_raster_variants, print3D_resolution_mm)
         #endregion
         
         if raster_preparation(top=top_raster_variants, 

@@ -79,3 +79,145 @@ def geoToPrint3DCoordinates(shapelyPolygon, scale, geoXMin, geoYMin):
     shapely.transform(shapelyPolygon, transformation=transform)
     
 geoToPrint3DCoordinates(shapely_polygons_re, 1000, 1000, 1000) 
+
+
+from shapely.geometry import Polygon, LineString
+#poly1 contains poly2
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(1, 1), (3, 1), (3, 3), (1, 3), (1, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 contains part of poly2
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, 1), (3, 1), (3, 3), (1, 3), (-1, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 intersections poly2 to create 2 closed, disconnected polygons
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, 1), (-1, 6), (5, 6), (-0.5, 3), (5, -1), (-1, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 intersections poly2 to create 2 closed polygons sharing a single vertex
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, 1), (-1, 6), (5, 6), (0, 3), (5, -1), (-1, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 intersections poly2 to create 2 closed polygons sharing 2 connected vertices
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, 1), (-1, 6), (5, 6),(0, 4), (0, 3), (5, -1), (-1, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 intersections poly2 to create 2 closed polygons sharing 4 connected vertices, 2 of those vertices are in a line segment
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(0, 1), (0, 6), (5, 6),(0, 4), (0, 3), (5, -1), (0, 1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 is contained by poly2 sharing 2 connected vertices
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, -1), (-1, 6), (6, 6),(5, 5), (6, 4), (5, 3), (6, -1), (-1,-1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#poly1 is contained by poly2 sharing 2 connected vertices
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, -1), (-1, 6), (6, 6),(5, 5), (6, 4), (4, 3), (6, -1), (-1,-1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+
+#line1 is same as line2
+line1_coords= [(0,0), (5,0)]
+line1 = LineString(line1_coords)
+line2_coords= [(0,0), (5,0)]
+line2 = LineString(line2_coords)
+line2.contains(line1) #true
+line2.contains_properly(line1) #false
+line1.overlaps(line2) #false
+line2.overlaps(line1) #false
+
+#line1 is contained by line2 but not contains_properly
+line1_coords= [(0,0), (5,0)]
+line1 = LineString(line1_coords)
+line2_coords= [(0,0), (10,0)]
+line2 = LineString(line2_coords)
+line2.contains(line1) #true
+line2.contains_properly(line1) #false
+line1.overlaps(line2) #false
+line2.overlaps(line1) #false
+
+#line1 is contains_properly by line2
+line1_coords= [(1,0), (5,0)]
+line1 = LineString(line1_coords)
+line2_coords= [(0,0), (10,0)]
+line2 = LineString(line2_coords)
+line2.contains(line1) #true
+line2.contains_properly(line1) #true
+line2.overlaps(line1) #false
+
+#line1 and line2 share 1 point
+line1_coords= [(1,0), (5,0)]
+line1 = LineString(line1_coords)
+line2_coords= [(5,0), (10,0)]
+line2 = LineString(line2_coords)
+line2.contains(line1) #false
+line2.contains_properly(line1) #false
+line2.overlaps(line1) #false
+
+#line1 and line2 each overlap some of each other but not all
+line1_coords= [(1,0), (6,0)]
+line1 = LineString(line1_coords)
+line2_coords= [(5,0), (10,0)]
+line2 = LineString(line2_coords)
+line2.contains(line1) #false
+line2.contains_properly(line1) #false
+line1.overlaps(line2) #true
+line2.overlaps(line1) #true
+
+
+from shapely.plotting import plot_polygon, plot_line, plot_points
+import shapely.geometry as sg
+import shapely.ops as so
+import matplotlib.pyplot as plt
+
+def plot_geom(geom, axs):
+    if geom.geom_type.startswith('Polygon'):
+        plot_polygon(geom, ax=axs, add_points=False, color='red', linestyle=':')
+    elif geom.geom_type.startswith('Line'):
+        plot_line(geom, ax=axs, add_points=True, color='yellow', linestyle='--')
+    else:
+        plot_points(geom, ax=axs, color='brown')
+
+
+polyStart = [poly1, poly2]
+fig, axs = plt.subplots()
+axs.set_aspect('equal', 'datalim')
+
+for geom in polyStart:
+    plot_polygon(geom, ax=axs, add_points=False, color='blue', linestyle='-.')
+
+polyEnd = poly2.intersection(poly1)
+if polyEnd.geom_type.startswith('Multi') or polyEnd.geom_type.startswith('GeometryCollection'):
+    print(polyEnd)
+    for sub_geom in polyEnd.geoms:
+        print(sub_geom)
+        plot_geom(sub_geom, axs)
+else:
+    print(polyEnd)
+    plot_geom(polyEnd, axs)
+
+plt.show()
+
+
