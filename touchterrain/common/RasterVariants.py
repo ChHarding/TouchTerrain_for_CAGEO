@@ -66,7 +66,7 @@ class RasterVariants:
     Raster value kept as imported and clipping_intersection_geometry in partial intersection
     """
     
-    polygon_intersection_lines_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
+    polygon_intersection_edge_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
     """
     Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'.
     TODO: This should be stored in the cell object but we only keep the cell objects as we iterate through them so RasterVariants is the place to store this to maintain state.
@@ -79,7 +79,7 @@ class RasterVariants:
         self.edge_interpolation = edge_interpolation
         
         self.polygon_intersection_geometry = None
-        self.polygon_intersection_lines_buckets = None
+        self.polygon_intersection_edge_buckets = None
             
     def create_tile_raster_variants(self, start_y, end_y, start_x, end_x):
         """Create a RasterVariants based on a subset of the current RasterVariants. Arrays are copied.
