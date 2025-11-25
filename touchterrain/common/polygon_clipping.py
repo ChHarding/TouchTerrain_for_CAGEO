@@ -1,6 +1,7 @@
 import geopandas
 import numpy
 import shapely
+from shapely.ops import unary_union
 
 # try to import gdal from multiple sources
 try:
@@ -79,6 +80,123 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
     
     return (False, None, None)
 
+def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edges: list[BorderEdge]):
+    """Mark overlapping edges between a cell and neighbor cell to make a wall. Sets the make_wall property of only the target cell. 
+
+    :param cell_1_edges: The target cell
+    :type cell_1_edges: list[BorderEdge]
+    :param cell_2_edges: The neighbor cell
+    :type cell_2_edges: list[BorderEdge]
+    """
+    pass
+
+    # check if cell 1 edge contains cell 2 edge or if cell 2 edge contains cell 1 edge
+    
+    c1eIdx = 0
+    while c1eIdx < len(cell_1_edges):
+        c1e = cell_1_edges[c1eIdx]
+        c2eIdx = 0
+        while c2eIdx < len(cell_2_edges):
+            c2e = cell_2_edges[c2eIdx]
+            if c2e.skip_future_eval_for_walls == False:
+                make_wall = c1e.polygon_line != c2e.polygon_line # Should we make a wall on matching edges? L<>L and PL<>PL have no wall
+                
+                containingEdgeList: list[BorderEdge] = []
+                containingEdgeIdx: int = -1
+                splitter: BorderEdge | None = None
+
+                if c1e.geometry.equals(c2e.geometry):
+                    c1e.make_wall = make_wall
+                    c1e.skip_future_eval_for_walls = True
+                    c2e.skip_future_eval_for_walls = True
+                elif c1e.geometry.contains(c2e.geometry):
+                    containingEdgeList = cell_1_edges
+                    containingEdgeIdx = c1eIdx
+                    splitter = c2e
+                elif c2e.geometry.contains(c1e.geometry):
+                    containingEdgeList = cell_2_edges
+                    containingEdgeIdx = c2eIdx
+                    splitter = c1e
+                # If edges are not equal but overlap each other, split edges by each other to get sub edges
+                if splitter: # check for side effect of contains() == True
+                    sub_edges = unary_union([c1e.geometry, c2e.geometry])
+                    splitter.skip_future_eval_for_walls = True
+                    splitter.make_wall = containingEdgeList is not cell_1_edges
+                    for segment in sub_edges.geoms:
+                        is_matching_splitter = segment.equals(splitter.geometry)
+                        segment_make_wall = is_matching_splitter and containingEdgeList is cell_1_edges and make_wall
+                        containingEdgeList.append(BorderEdge(
+                            geometry=segment, 
+                            polygon_line=containingEdgeList[containingEdgeIdx].polygon_line, 
+                            skip_future_eval_for_walls=is_matching_splitter, 
+                            make_wall=segment_make_wall
+                            ))
+                    del containingEdgeList[containingEdgeIdx] #remove current evaluated cell 1 edge because it has been replaced by the sub edges
+                    if containingEdgeList is cell_1_edges:
+                        # Move onto the next cell 1 edge because we matched and split c1 edge. Do not increment cell 1 iterator because we removed the cell 1 edge we just evaluated
+                        c1eIdx -= 1 # balance out c1 iterator increment that happens after c2 loop ends
+                        break 
+                    elif containingEdgeList is cell_2_edges:
+                        # Move onto the next cell 2 edge because we matched and split a c2 edge. Skip incrementing cell 2 iterator because we removed the cell 2 edge we just evaluated
+                        continue
+                
+            c2eIdx += 1
+        c1eIdx += 1
+            
+                
+    
+    # split the containing edge by the conatined edge
+    
+    # mark the contained edge and matching split containing edge sub-edge as skip_future_eval_for_walls to skip in future loops. Check if wall is needed based on if matched edge from a cell is a polygon_line and matched edge from other cell is NOT a polygon_line. L<>PL = make wall. L<>L or PL<>PL = no wall. Mark whichever of these 2 edges is on the cell 1 side as make_wall.
+    
+    # delete the containing edge from the list, add the new split edges to the list end
+    
+    # if containing edge was on cell 1, do not increment iterator
+    
+    # if cell 1 edge is same as cell 2 edge, make wall on cell 1 side, mark the edges as skip
+    
+    # all edges on cell 1 and 2 should match with an edge on other cell at the end of the loop. i.e. all edges on the shared side of both cells should be marked as skip at the very end
+
+def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, cell_location: tuple[int, int], direction: tuple[int, int]):
+    """Mark shared edges of a cell and the neighbor cell in the specified direction to have a wall if the edges overlap.
+
+    :param polygon_intersection_edge_buckets: polygon_intersection_edge_buckets of type ndarray with dtype=object dict[str,list[BorderEdge]]. Should be the ndarray from RasterVariants.
+    :type polygon_intersection_edge_buckets: numpy.ndarray
+    :param cell_location: Target cell location in Y,X order
+    :type cell_location: tuple[int, int]
+    :param direction: Direction of neighboring cell in Y,X order
+    :type direction: tuple[int, int]
+    """
+    cell_1_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_location[1]]
+    cell_2_edge_buckets = polygon_intersection_edge_buckets[cell_location[0]+direction[0],cell_location[1]+direction[1]]
+    
+    if isinstance(cell_1_edge_buckets, dict) and isinstance(cell_1_edge_buckets, dict):
+        if direction[0] == -1: #N
+            mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['N'], cell_2_edges=cell_2_edge_buckets['S'])
+        elif direction[0] == 1: #S
+            mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['S'], cell_2_edges=cell_2_edge_buckets['N'])
+        elif direction[0] != 0:
+            print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[0]}')
+            
+        if direction[1] == -1: #W
+            mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['W'], cell_2_edges=cell_2_edge_buckets['E'])
+        elif direction[1] == 1: #E
+            mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['E'], cell_2_edges=cell_2_edge_buckets['W'])
+        elif direction[1] != 0:
+            print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[1]}')
+        
+    else:
+        print('mark_shared_edges_of_cell_for_walls: cell 1 or 2 edge buckets is not dict')
+    
+    pass
+
+def mark_shared_edges_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, direction: tuple[int, int]):
+    """Mark shared edges of all cells in an ndarray and the neighbor cell in the specified direction to have a wall if the edges overlap.
+    """
+    for j in range(0, polygon_intersection_edge_buckets.shape[0]): # Y
+        for i in range(0, polygon_intersection_edge_buckets.shape[1]): # X
+            mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets, cell_location=(j,i), direction=direction)
+
 def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: RasterVariants, print3D_resolution_mm: float):
     """Find the intersection polygon between each raster cell and the clipping polygon. Sort all individual edges of intersection polygons into buckets stored in RasterVariants based on if the edge lies on a cardinal direction edge of the cell quad. Marks all interior edges as needing walls created. 
     """
@@ -148,12 +266,15 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                     
                     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
                     
+                    # Should set cell values to NaN
                     if intersection_geometries_result[0]:
                         surface_raster_variant.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
                     
+                    # Set cell all intersection geometries flattened to polygons
                     if intersection_geometries_result[1] is not None:
                         surface_raster_variant.polygon_intersection_geometry[j][i] = intersection_geometries_result[1]
                         
+                    # Set cell all intersection geometries flattened to single edges and sorted into buckets in a dict
                     if intersection_geometries_result[2] is not None:
                         surface_raster_variant.polygon_intersection_edge_buckets[j][i] = intersection_geometries_result[2]
                         

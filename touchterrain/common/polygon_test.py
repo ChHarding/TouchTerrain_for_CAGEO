@@ -82,6 +82,7 @@ geoToPrint3DCoordinates(shapely_polygons_re, 1000, 1000, 1000)
 
 
 from shapely.geometry import Polygon, LineString
+from shapely.ops import split, unary_union
 #poly1 contains poly2
 poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
 poly1 = Polygon(poly1_coords)
@@ -143,10 +144,18 @@ line1_coords= [(0,0), (5,0)]
 line1 = LineString(line1_coords)
 line2_coords= [(0,0), (5,0)]
 line2 = LineString(line2_coords)
+line2rev_coords= [(5,0), (0,0)]
+line2rev = LineString(line2rev_coords)
 line2.contains(line1) #true
+line2rev.contains(line1) #true
 line2.contains_properly(line1) #false
 line1.overlaps(line2) #false
 line2.overlaps(line1) #false
+line2rev.overlaps(line1) #false
+line1.equals(line2) #true
+line1.equals(line2rev) #true
+line1.equals_exact(line2) #true
+line1.equals_exact(line2rev) #false
 
 #line1 is contained by line2 but not contains_properly
 line1_coords= [(0,0), (5,0)]
@@ -157,6 +166,15 @@ line2.contains(line1) #true
 line2.contains_properly(line1) #false
 line1.overlaps(line2) #false
 line2.overlaps(line1) #false
+
+# get split sub edges
+merged_lines = unary_union([line1, line2])
+for segment in merged_lines.geoms:
+    print(segment)
+# result = split(line2, line1)
+# result = split(line1, line2)
+# for segment in result.geoms:
+#     print(segment)
 
 #line1 is contains_properly by line2
 line1_coords= [(1,0), (5,0)]
