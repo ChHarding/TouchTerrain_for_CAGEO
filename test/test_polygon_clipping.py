@@ -35,7 +35,7 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(cell_A_edges[0].geometry.coords[-1][0] == 0)
         self.assertTrue(cell_A_edges[0].geometry.coords[-1][1] == 10)
         self.assertTrue(cell_A_edges[0].polygon_line == True)
-        self.assertTrue(cell_A_edges[0].make_wall == True) # make wall on c1 if not flipped
+        self.assertTrue(cell_A_edges[0].make_wall == True) # make wall on cell 1(A) if not flipped
         
         self.assertTrue(len(cell_A_edges[3].geometry.coords) == 2)
         self.assertTrue(cell_A_edges[3].geometry.coords[0][0] == 0)
@@ -53,7 +53,7 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(cell_B_edges[0].geometry.coords[-1][0] == 0)
         self.assertTrue(cell_B_edges[0].geometry.coords[-1][1] == 10)
         self.assertTrue(cell_B_edges[0].polygon_line == False)
-        self.assertTrue(cell_B_edges[0].make_wall == False) # don't make wall on c2 if not flipped
+        self.assertTrue(cell_B_edges[0].make_wall == False) # don't make wall on cell 2(B) if not flipped
         
         self.assertTrue(len(cell_B_edges[3].geometry.coords) == 2)
         self.assertTrue(cell_B_edges[3].geometry.coords[0][0] == 0)
@@ -87,7 +87,7 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(cell_A_edges[0].geometry.coords[-1][0] == 0)
         self.assertTrue(cell_A_edges[0].geometry.coords[-1][1] == 10)
         self.assertTrue(cell_A_edges[0].polygon_line == True)
-        self.assertTrue(cell_A_edges[0].make_wall == False) # don't make wall on c2 if flipped
+        self.assertTrue(cell_A_edges[0].make_wall == False) # don't make wall on cell 2(A) if flipped
         
         self.assertTrue(len(cell_A_edges[3].geometry.coords) == 2)
         self.assertTrue(cell_A_edges[3].geometry.coords[0][0] == 0)
@@ -105,7 +105,7 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(cell_B_edges[0].geometry.coords[-1][0] == 0)
         self.assertTrue(cell_B_edges[0].geometry.coords[-1][1] == 10)
         self.assertTrue(cell_B_edges[0].polygon_line == False)
-        self.assertTrue(cell_B_edges[0].make_wall == True) # make wall on c2 if flipped
+        self.assertTrue(cell_B_edges[0].make_wall == True) # make wall on cell 2(B) if flipped
         
         self.assertTrue(len(cell_B_edges[3].geometry.coords) == 2)
         self.assertTrue(cell_B_edges[3].geometry.coords[0][0] == 0)
