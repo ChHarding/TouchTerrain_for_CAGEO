@@ -95,51 +95,56 @@ def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edge
     c1eIdx = 0
     while c1eIdx < len(cell_1_edges):
         c1e = cell_1_edges[c1eIdx]
+        if c1e.skip_future_eval_for_walls:
+            c1eIdx += 1
+            continue
         c2eIdx = 0
         while c2eIdx < len(cell_2_edges):
             c2e = cell_2_edges[c2eIdx]
-            if c2e.skip_future_eval_for_walls == False:
-                make_wall = c1e.polygon_line != c2e.polygon_line # Should we make a wall on matching edges? L<>L and PL<>PL have no wall
-                
-                containingEdgeList: list[BorderEdge] = []
-                containingEdgeIdx: int = -1
-                splitter: BorderEdge | None = None
+            if c2e.skip_future_eval_for_walls:
+                c2eIdx += 1
+                continue
+            make_wall = c1e.polygon_line != c2e.polygon_line # Should we make a wall on matching edges? L<>L and PL<>PL have no wall
+            
+            containingEdgeList: list[BorderEdge] = []
+            containingEdgeIdx: int = -1
+            splitter: BorderEdge | None = None
 
-                if c1e.geometry.equals(c2e.geometry):
-                    c1e.make_wall = make_wall
-                    c1e.skip_future_eval_for_walls = True
-                    c2e.skip_future_eval_for_walls = True
-                elif c1e.geometry.contains(c2e.geometry):
-                    containingEdgeList = cell_1_edges
-                    containingEdgeIdx = c1eIdx
-                    splitter = c2e
-                elif c2e.geometry.contains(c1e.geometry):
-                    containingEdgeList = cell_2_edges
-                    containingEdgeIdx = c2eIdx
-                    splitter = c1e
-                # If edges are not equal but overlap each other, split edges by each other to get sub edges
-                if splitter: # check for side effect of contains() == True
-                    sub_edges = unary_union([c1e.geometry, c2e.geometry])
-                    splitter.skip_future_eval_for_walls = True
-                    splitter.make_wall = containingEdgeList is not cell_1_edges
-                    for segment in sub_edges.geoms:
-                        is_matching_splitter = segment.equals(splitter.geometry)
-                        segment_make_wall = is_matching_splitter and containingEdgeList is cell_1_edges and make_wall
-                        containingEdgeList.append(BorderEdge(
-                            geometry=segment, 
-                            polygon_line=containingEdgeList[containingEdgeIdx].polygon_line, 
-                            skip_future_eval_for_walls=is_matching_splitter, 
-                            make_wall=segment_make_wall
-                            ))
-                    del containingEdgeList[containingEdgeIdx] #remove current evaluated cell 1 edge because it has been replaced by the sub edges
-                    if containingEdgeList is cell_1_edges:
-                        # Move onto the next cell 1 edge because we matched and split c1 edge. Do not increment cell 1 iterator because we removed the cell 1 edge we just evaluated
-                        c1eIdx -= 1 # balance out c1 iterator increment that happens after c2 loop ends
-                        break 
-                    elif containingEdgeList is cell_2_edges:
-                        # Move onto the next cell 2 edge because we matched and split a c2 edge. Skip incrementing cell 2 iterator because we removed the cell 2 edge we just evaluated
-                        continue
-                
+            if c1e.geometry.equals(c2e.geometry):
+                c1e.make_wall = make_wall
+                c1e.skip_future_eval_for_walls = True
+                c2e.skip_future_eval_for_walls = True
+            elif c1e.geometry.contains(c2e.geometry):
+                containingEdgeList = cell_1_edges
+                containingEdgeIdx = c1eIdx
+                splitter = c2e
+            elif c2e.geometry.contains(c1e.geometry):
+                containingEdgeList = cell_2_edges
+                containingEdgeIdx = c2eIdx
+                splitter = c1e
+            # If edges are not equal but overlap each other, split edges by each other to get sub edges
+            if splitter: # check for side effect of contains() == True
+                sub_edges = unary_union([c1e.geometry, c2e.geometry])
+                splitter.skip_future_eval_for_walls = True
+                splitter.make_wall = containingEdgeList is not cell_1_edges
+                for segment in sub_edges.geoms:
+                    is_matching_splitter = segment.equals(splitter.geometry)
+                    segment_make_wall = is_matching_splitter and containingEdgeList is cell_1_edges and make_wall
+                    containingEdgeList.append(BorderEdge(
+                        geometry=segment, 
+                        polygon_line=containingEdgeList[containingEdgeIdx].polygon_line, 
+                        skip_future_eval_for_walls=is_matching_splitter, 
+                        make_wall=segment_make_wall
+                        ))
+                del containingEdgeList[containingEdgeIdx] #remove current evaluated cell 1 edge because it has been replaced by the sub edges
+                if containingEdgeList is cell_1_edges:
+                    # Move onto the next cell 1 edge because we matched and split c1 edge. Do not increment cell 1 iterator because we removed the cell 1 edge we just evaluated
+                    c1eIdx -= 1 # balance out c1 iterator increment that happens after c2 loop ends
+                    break 
+                elif containingEdgeList is cell_2_edges:
+                    # Move onto the next cell 2 edge because we matched and split a c2 edge. Skip incrementing cell 2 iterator because we removed the cell 2 edge we just evaluated
+                    continue
+            
             c2eIdx += 1
         c1eIdx += 1
             
