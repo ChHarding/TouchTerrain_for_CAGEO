@@ -951,7 +951,6 @@ class grid:
                         if self.bottom_thru_base == True:
                             borders_top_raster = self.tile.top_raster_variants.nan_close
                     
-                    
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
                         try:

@@ -1706,8 +1706,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         cells_per_tile_y = int(top_raster_variants.dilated.shape[0] / num_tiles[1])
         pr("Cells per tile (x/y)", cells_per_tile_x, "x", cells_per_tile_y)
 
-
-        # pad full rasters(s) by one at the fringes
+        #region pad full rasters(s) by one at the fringes
         # top_raster_variants.dilated = numpy.pad(top_raster_variants.dilated, (1,1), 'edge') # will duplicate edges, including nan
         # if bottom_raster_variants.dilated is not None:
         #     bottom_raster_variants.dilated = numpy.pad(bottom_raster_variants.dilated, (1,1), 'edge')
@@ -1721,6 +1720,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             return numpy.pad(r, (1,1), 'edge')
         top_raster_variants.apply_closure_to_variants(pad_1x1)
         bottom_raster_variants.apply_closure_to_variants(pad_1x1)
+        #endregion
 
         # store size of full raster
         tile_info.full_raster_height, tile_info.full_raster_width = top_raster_variants.dilated.shape

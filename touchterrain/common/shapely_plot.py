@@ -1,5 +1,6 @@
 import shapely
 from shapely.plotting import plot_polygon, plot_line, plot_points
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
 def plot_shapely_geom(geom: shapely.Geometry, axs):
@@ -10,7 +11,7 @@ def plot_shapely_geom(geom: shapely.Geometry, axs):
     else:
         plot_points(geom, ax=axs, color='brown')
         
-def plot_shapely_polygon_intersection(polys: list[shapely.Polygon]):
+def plot_intersection_of_shapely_polygons(polys: list[shapely.Polygon]):
     "Plot 2 polygons and their intersection geometries."
     
     fig, axs = plt.subplots()
@@ -18,6 +19,30 @@ def plot_shapely_polygon_intersection(polys: list[shapely.Polygon]):
     
     for geom in polys:
         plot_polygon(geom, ax=axs, add_points=False, color='blue', linestyle='-.')
+
+    polyEnd = polys[0].intersection(polys[1])
+    if polyEnd.geom_type.startswith('Multi') or polyEnd.geom_type.startswith('GeometryCollection'):
+        print(polyEnd)
+        for sub_geom in polyEnd.geoms:
+            print(sub_geom)
+            plot_shapely_geom(sub_geom, axs)
+    else:
+        print(polyEnd)
+        plot_shapely_geom(polyEnd, axs)
+        
+    plt.show()
+    
+def plot_shapely_polygons_colormap(polys: list[shapely.Polygon]):
+    "Plot N polygons in a different color each time."
+    
+    fig, axs = plt.subplots()
+    axs.set_aspect('equal', 'datalim')
+    
+    # Choose a colormap (e.g., 'viridis', 'plasma', 'tab10')
+    cmap = cm.get_cmap('gist_rainbow', len(polys))
+    
+    for i in range(0,len(polys)):
+        plot_polygon(polys[i], ax=axs, add_points=False, color=cmap(i), linestyle='-.')
 
     polyEnd = polys[0].intersection(polys[1])
     if polyEnd.geom_type.startswith('Multi') or polyEnd.geom_type.startswith('GeometryCollection'):

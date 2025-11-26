@@ -55,20 +55,21 @@ class RasterVariants:
     
     polygon_intersection_geometry: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a list[shapely.Geometry]
     """
-    Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates. The Polygon geometries are used for top/bottom surface.
+    Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates. The Polygon geometries are used for making top/bottom surface for a cell.
     
     This is not a variant! Precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
     
     Raster values set to NaN and no clipping_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
     
-    Raster value kept as imported and no clipping_intersection_geometry set in cell quad is contained in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
+    Raster value kept as imported and no clipping_intersection_geometry set if cell quad is contained in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
     
     Raster value kept as imported and clipping_intersection_geometry in partial intersection
     """
     
     polygon_intersection_edge_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
     """
-    Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'.
+    Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'. The BorderEdges along the side of a cell are used when creating borders (wall) for a cell.
+    
     TODO: This should be stored in the cell object but we only keep the cell objects as we iterate through them so RasterVariants is the place to store this to maintain state.
     """
     
