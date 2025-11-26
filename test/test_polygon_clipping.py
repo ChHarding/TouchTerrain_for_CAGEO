@@ -73,6 +73,8 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(numpy.isnan(raster_variants.original[2][0]))
         self.assertTrue(numpy.isnan(raster_variants.original[2][1]))
         
+        mark_shared_edges_for_walls(polygon_intersection_edge_buckets=raster_variants.polygon_intersection_edge_buckets, direction=(-1,-1))
+        
         quadPolys = list(map(lambda x:shapely.Polygon(x),testData[1]))
         basePolys = [testData[0]] + quadPolys
         
@@ -89,8 +91,6 @@ class TestPolygonClipping(unittest.TestCase):
                 #     raster_variants.polygon_intersection_geometry[j][i]
                 #     ]
                 
-                
-                
                 if raster_variants.polygon_intersection_edge_buckets[j][i] is not None:
                     edgeBucketsFlattenedPerCell += [
                         raster_variants.polygon_intersection_edge_buckets[j][i]['N'] + 
@@ -100,7 +100,8 @@ class TestPolygonClipping(unittest.TestCase):
                         raster_variants.polygon_intersection_edge_buckets[j][i]['other']
                         ]
         
-        mark_shared_edges_for_walls(polygon_intersection_edge_buckets=raster_variants.polygon_intersection_edge_buckets, direction=(-1,-1))
+        self.assertTrue(len(raster_variants.polygon_intersection_edge_buckets[0][0]['N']) == 1)
+        self.assertTrue(raster_variants.polygon_intersection_edge_buckets[0][0]['N'][0].make_wall)
         
         plot_shapely_geometries_colormap(basePolys=basePolys, intersectionPolys=intersectionPolys, edgeBuckets=edgeBucketsFlattenedPerCell)
     

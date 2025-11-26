@@ -263,13 +263,14 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     :param direction: Direction of neighboring cell in Y,X order
     :type direction: tuple[int, int]
     """
-    cell_1_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_location[1]]
+    cell_1_edge_buckets: dict[str, list[BorderEdge]] = polygon_intersection_edge_buckets[cell_location[0],cell_location[1]]
     # Get 2 separate cell "2"s, one in vertical direction, one in horizontal direction
     cell_2_location_y = cell_location[0]+direction[0]
     cell_2_location_x = cell_location[1]+direction[1]
     
     if isinstance(cell_1_edge_buckets, dict) and isinstance(cell_1_edge_buckets, dict):
-        if cell_2_location_y >= 0 and cell_2_location_y < polygon_intersection_edge_buckets.shape[0]:
+        cell_2_location_y_in_range = cell_2_location_y >= 0 and cell_2_location_y < polygon_intersection_edge_buckets.shape[0]
+        if cell_2_location_y_in_range:
             cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
             if direction[0] == -1: #N
                 mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['N'], cell_2_edges=cell_2_y_edge_buckets['S'])
@@ -277,8 +278,16 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['S'], cell_2_edges=cell_2_y_edge_buckets['N'])
             elif direction[0] != 0:
                 print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[0]}')
-            
-        if cell_2_location_x >= 0 and cell_2_location_x < polygon_intersection_edge_buckets.shape[1]:
+        else: # Make all edges along the side a wall if direction is out of range
+            if direction[0] == -1: #N
+                for e in cell_1_edge_buckets['N']:
+                    e.make_wall = True
+            if direction[0] == 1: #S
+                for e in cell_1_edge_buckets['S']:
+                    e.make_wall = True
+                
+        cell_2_location_x_in_range = cell_2_location_x >= 0 and cell_2_location_x < polygon_intersection_edge_buckets.shape[1]
+        if cell_2_location_x_in_range:
             cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
             if direction[1] == -1: #W
                 mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['W'], cell_2_edges=cell_2_x_edge_buckets['E'])
@@ -286,6 +295,13 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['E'], cell_2_edges=cell_2_x_edge_buckets['W'])
             elif direction[1] != 0:
                 print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[1]}')
+        else: # Make all edges along the side a wall if direction is out of range
+            if direction[1] == -1: #W
+                for e in cell_1_edge_buckets['W']:
+                    e.make_wall = True
+            if direction[1] == 1: #E
+                for e in cell_1_edge_buckets['E']:
+                    e.make_wall = True
         
     else:
         print('mark_shared_edges_of_cell_for_walls: cell 1 or 2 edge buckets is not dict')

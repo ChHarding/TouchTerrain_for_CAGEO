@@ -16,9 +16,9 @@ def plot_shapely_poly_or_line(geom: shapely.Geometry, ax):
         
 def plot_shapely_geom(geom: shapely.Geometry, ax, color: mt.ColorType = 'red', linestyle: str = '-'):
     if geom.geom_type.startswith('Polygon'):
-        plot_polygon(geom, ax=ax, add_points=False, color=color, linestyle=linestyle)
+        plot_polygon(geom, ax=ax, add_points=False, color=color, linestyle=linestyle, alpha=1)
     elif geom.geom_type.startswith('Line'):
-        plot_line(geom, ax=ax, add_points=True, color=color, linestyle=linestyle)
+        plot_line(geom, ax=ax, add_points=True, color=color, linestyle=linestyle, alpha=1)
     else:
         plot_points(geom, ax=ax, color='brown')
         
@@ -68,6 +68,6 @@ def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersect
     # solid or dot for wall/no wall edges
     for i in range(0, len(edgeBuckets)):
         for be in edgeBuckets[i]:
-            plot_shapely_geom(be.geometry, ax=axs, color=cmap(len(basePolys)+len(intersectionPolys)+i), linestyle='-.' if be.make_wall else ':')
+            plot_shapely_geom(be.geometry, ax=axs, color=cmap(len(basePolys)+len(intersectionPolys)+i), linestyle='-' if be.make_wall else ':')
         
     plt.show()
