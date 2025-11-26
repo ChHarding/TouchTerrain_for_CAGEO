@@ -2,9 +2,10 @@ import numpy
 import unittest
 import shapely
 
-from touchterrain.common.polygon_clipping import mark_overlapping_edges_for_walls, find_cell_and_clipping_poly_intersection
+from touchterrain.common.polygon_clipping import find_cell_and_clipping_poly_intersection, mark_overlapping_edges_for_walls, mark_shared_edges_for_walls
 from touchterrain.common.BorderEdge import BorderEdge
 from touchterrain.common.RasterVariants import RasterVariants
+from touchterrain.common.shapely_plot import plot_shapely_geometries_colormap
 
 def createTestOverlappingEdges() -> list[list[BorderEdge]]:
     return [
@@ -32,14 +33,14 @@ def createTestPolygonCellIntersectionData() -> tuple[shapely.Polygon, list[list[
     '''    
     clippingPrint2DPoly = shapely.Polygon([(0, 0), (10, 0), (10, 5), (15, 10), (10, 15), (10, 20), (5, 25), (10, 30), (5, 30), (0, 25), (0, 0)])
     
-    # quad are arranged in 3x2 (Y,X)
-    quadPrint2DCoords1 = [(1.0, 1), (10, 1), (10, 30), (1, 30), (1, 1)]
-    quadPrint2DCoords2 = [(10.0, 1), (19, 1), (19, 30), (10, 30), (10, 1)]
-    quadPrint2DCoords3 = [(1.0, -28), (10, -28), (10, 1), (1, 1), (1, -28)]
-    quadPrint2DCoords4 = [(10.0, -28), (19, -28), (19, 1), (10, 1), (10, -28)]
+    # quad are arranged in 3x2 (Y,X). Vertices in CCW order NW SW SE NE
+    quadPrint2DCoords1 = [(1, 30), (1.0, 1), (10, 1), (10, 30), (1, 30)]
+    quadPrint2DCoords2 = [(10, 30), (10.0, 1), (19, 1), (19, 30), (10, 30)]
+    quadPrint2DCoords3 = [(1, 1), (1.0, -28), (10, -28), (10, 1), (1, 1)]
+    quadPrint2DCoords4 = [(10, 1), (10.0, -28), (19, -28), (19, 1), (10, 1), (10, 1)]
     # quad 5 and 6 are outside below the clipping polygon
-    quadPrint2DCoords5 = [(1.0, -57), (10, -57), (10, -28), (1, -28), (1, -57)]
-    quadPrint2DCoords6 = [(10.0, -57), (19, -57), (19, -28), (10, -28), (10, -57)]
+    quadPrint2DCoords5 = [(1, -28), (1.0, -57), (10, -57), (10, -28), (1, -28)]
+    quadPrint2DCoords6 = [(10, -28), (10.0, -57), (19, -57), (19, -28), (10, -28)]
     
     return (clippingPrint2DPoly, [
         quadPrint2DCoords1, 
@@ -72,7 +73,36 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(numpy.isnan(raster_variants.original[2][0]))
         self.assertTrue(numpy.isnan(raster_variants.original[2][1]))
         
+        quadPolys = list(map(lambda x:shapely.Polygon(x),testData[1]))
+        basePolys = [testData[0]] + quadPolys
         
+        intersectionPolys = []
+        edgeBucketsFlattenedPerCell = []
+        for j in range(0, raster_variants.original.shape[0]): # Y
+            for i in range(0, raster_variants.original.shape[1]): # X
+                # Debug only show results from a specific cell
+                # if j != 1 or i != 0:
+                #     continue
+                
+                # if raster_variants.polygon_intersection_geometry[j][i] is not None:
+                #     intersectionPolys += [
+                #     raster_variants.polygon_intersection_geometry[j][i]
+                #     ]
+                
+                
+                
+                if raster_variants.polygon_intersection_edge_buckets[j][i] is not None:
+                    edgeBucketsFlattenedPerCell += [
+                        raster_variants.polygon_intersection_edge_buckets[j][i]['N'] + 
+                        raster_variants.polygon_intersection_edge_buckets[j][i]['W'] + 
+                        raster_variants.polygon_intersection_edge_buckets[j][i]['S'] + 
+                        raster_variants.polygon_intersection_edge_buckets[j][i]['E'] +
+                        raster_variants.polygon_intersection_edge_buckets[j][i]['other']
+                        ]
+        
+        mark_shared_edges_for_walls(polygon_intersection_edge_buckets=raster_variants.polygon_intersection_edge_buckets, direction=(-1,-1))
+        
+        plot_shapely_geometries_colormap(basePolys=basePolys, intersectionPolys=intersectionPolys, edgeBuckets=edgeBucketsFlattenedPerCell)
     
     def test_mark_overlapping_edges_for_walls(self):
         testEdges = createTestOverlappingEdges()

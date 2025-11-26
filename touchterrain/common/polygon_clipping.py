@@ -52,7 +52,8 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
         #intersection geometry as a list of single line segments
         flat_intersection_borderEdges = flatten_geometries_borderEdge([intersection_geometry])
         
-        #qual 2D edges in CCW order N W S E
+        #expect quad print2D vertices in CCW order NW SW SE NE
+        #quad 2D edges in CCW order N W S E
         quadPrint2DNorthEdge = shapely.LineString([list(quadPrint2DCoords[3]),list(quadPrint2DCoords[0])])
         quadPrint2DWestEdge = shapely.LineString([list(quadPrint2DCoords[0]),list(quadPrint2DCoords[1])])
         quadPrint2DSouthEdge = shapely.LineString([list(quadPrint2DCoords[1]),list(quadPrint2DCoords[2])])

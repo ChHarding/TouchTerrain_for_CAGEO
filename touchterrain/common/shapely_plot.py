@@ -2,14 +2,25 @@ import shapely
 from shapely.plotting import plot_polygon, plot_line, plot_points
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import matplotlib.typing as mt
 
-def plot_shapely_geom(geom: shapely.Geometry, axs):
+from touchterrain.common.BorderEdge import BorderEdge
+
+def plot_shapely_poly_or_line(geom: shapely.Geometry, ax):
     if geom.geom_type.startswith('Polygon'):
-        plot_polygon(geom, ax=axs, add_points=False, color='red', linestyle=':')
+        plot_polygon(geom, ax=ax, add_points=False, color='red', linestyle=':')
     elif geom.geom_type.startswith('Line'):
-        plot_line(geom, ax=axs, add_points=True, color='yellow', linestyle='--')
+        plot_line(geom, ax=ax, add_points=True, color='yellow', linestyle='--')
     else:
-        plot_points(geom, ax=axs, color='brown')
+        plot_points(geom, ax=ax, color='brown')
+        
+def plot_shapely_geom(geom: shapely.Geometry, ax, color: mt.ColorType = 'red', linestyle: str = '-'):
+    if geom.geom_type.startswith('Polygon'):
+        plot_polygon(geom, ax=ax, add_points=False, color=color, linestyle=linestyle)
+    elif geom.geom_type.startswith('Line'):
+        plot_line(geom, ax=ax, add_points=True, color=color, linestyle=linestyle)
+    else:
+        plot_points(geom, ax=ax, color='brown')
         
 def plot_intersection_of_shapely_polygons(polys: list[shapely.Polygon]):
     "Plot 2 polygons and their intersection geometries."
@@ -25,33 +36,38 @@ def plot_intersection_of_shapely_polygons(polys: list[shapely.Polygon]):
         print(polyEnd)
         for sub_geom in polyEnd.geoms:
             print(sub_geom)
-            plot_shapely_geom(sub_geom, axs)
+            plot_shapely_poly_or_line(sub_geom, axs)
     else:
         print(polyEnd)
-        plot_shapely_geom(polyEnd, axs)
+        plot_shapely_poly_or_line(polyEnd, axs)
         
     plt.show()
     
-def plot_shapely_polygons_colormap(polys: list[shapely.Polygon]):
-    "Plot N polygons in a different color each time."
+def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersectionPolys: list[list[shapely.Geometry]], edgeBuckets: list[list[BorderEdge]]):
+    "Plot N polygons and lines in a different color each time."
     
     fig, axs = plt.subplots()
     axs.set_aspect('equal', 'datalim')
     
     # Choose a colormap (e.g., 'viridis', 'plasma', 'tab10')
-    cmap = cm.get_cmap('gist_rainbow', len(polys))
+    cmap = cm.get_cmap('gist_rainbow', len(basePolys)+len(intersectionPolys)+len(edgeBuckets))
     
-    for i in range(0,len(polys)):
-        plot_polygon(polys[i], ax=axs, add_points=False, color=cmap(i), linestyle='-.')
+    # -- dashed for base poly
+    for i in range(0,len(basePolys)):
+        plot_polygon(basePolys[i], ax=axs, add_points=False, color=cmap(i), linestyle='--')
 
-    polyEnd = polys[0].intersection(polys[1])
-    if polyEnd.geom_type.startswith('Multi') or polyEnd.geom_type.startswith('GeometryCollection'):
-        print(polyEnd)
-        for sub_geom in polyEnd.geoms:
-            print(sub_geom)
-            plot_shapely_geom(sub_geom, axs)
-    else:
-        print(polyEnd)
-        plot_shapely_geom(polyEnd, axs)
+    # -. dash dot for intersections
+    for i in range(0,len(intersectionPolys)):
+        for ip in intersectionPolys[i]:
+            if ip.geom_type.startswith('Multi') or ip.geom_type.startswith('GeometryCollection'):
+                for sub_geom in ip.geoms:
+                    plot_shapely_geom(sub_geom, ax=axs, color=cmap(len(intersectionPolys)+i), linestyle='-.')
+            else:
+                plot_shapely_geom(ip, ax=axs, color=cmap(len(intersectionPolys)+i), linestyle='-.')
+            
+    # solid or dot for wall/no wall edges
+    for i in range(0, len(edgeBuckets)):
+        for be in edgeBuckets[i]:
+            plot_shapely_geom(be.geometry, ax=axs, color=cmap(len(basePolys)+len(intersectionPolys)+i), linestyle='-.' if be.make_wall else ':')
         
     plt.show()
