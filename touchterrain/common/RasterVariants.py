@@ -55,20 +55,25 @@ class RasterVariants:
     
     polygon_intersection_geometry: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a list[shapely.Geometry]
     """
-    Intersection geometry between the cell quad and the clipping geometry. In print3DCoordinates. The Polygon geometries are used for making top/bottom surface for a cell.
+    Intersection geometry  between the cell quad and the clipping geometry. In print3DCoordinates. Represented as np.ndarray[list[shapely.Geometry]] The Polygon geometries are used for making top/bottom surface for a cell. 
+
     
-    This is not a variant! Precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
+    This is not a variant! 
+    - The precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
+    - This is not padded.
     
-    Raster values set to NaN and no clipping_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
+    Raster values set to NaN and no polygon_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
     
-    Raster value kept as imported and no clipping_intersection_geometry set if cell quad is contained in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
+    Raster value kept as imported and no polygon_intersection_geometry set if cell quad is contained properly in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
     
-    Raster value kept as imported and clipping_intersection_geometry in partial intersection
+    Raster value kept as imported and polygon_intersection_geometry in partial intersection
     """
     
     polygon_intersection_edge_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
     """
-    Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'. The BorderEdges along the side of a cell are used when creating borders (wall) for a cell.
+    Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'. Represented as np.ndarray[dict[str,list[BorderEdge]]]. The BorderEdges along the side of a cell are used when creating borders (wall) for a cell.
+    
+    This is not a variant! 
     
     TODO: This should be stored in the cell object but we only keep the cell objects as we iterate through them so RasterVariants is the place to store this to maintain state.
     """
@@ -82,7 +87,7 @@ class RasterVariants:
         self.polygon_intersection_geometry = None
         self.polygon_intersection_edge_buckets = None
             
-    def create_tile_raster_variants(self, start_y, end_y, start_x, end_x):
+    def copy_tile_raster_variants(self, start_y, end_y, start_x, end_x):
         """Create a RasterVariants based on a subset of the current RasterVariants. Arrays are copied.
         """
         tile_raster = RasterVariants(None, None, None, None)
@@ -95,6 +100,11 @@ class RasterVariants:
             tile_raster.dilated = self.dilated[start_y:end_y, start_x:end_x].copy()
         if self.edge_interpolation is not None:
             tile_raster.edge_interpolation = self.edge_interpolation[start_y:end_y, start_x:end_x].copy()
+            
+        if self.polygon_intersection_geometry is not None:
+            tile_raster.polygon_intersection_geometry = self.polygon_intersection_geometry[start_y:end_y, start_x:end_x].copy()
+        if self.polygon_intersection_edge_buckets is not None:
+            tile_raster.polygon_intersection_edge_buckets = self.polygon_intersection_edge_buckets[start_y:end_y, start_x:end_x].copy()
             
         return tile_raster
     

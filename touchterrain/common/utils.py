@@ -292,6 +292,9 @@ def geoCoordToPrint2DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , 
     
     return print3DCoord2D
     
+def interpolatePointWithQuadPrint2DCoordsAndCornerElev(interpolatePoint: tuple[float, float], quadPrint2DCoords: list[tuple[float, float]], quadCornerElev: list[float]):
+    pass
+
 def add_to_stl_list(stl, stl_list):
     stl_list.append(stl)
     return stl_list

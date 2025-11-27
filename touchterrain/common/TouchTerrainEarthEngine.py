@@ -1750,9 +1750,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                 # tile's raster (???) So I'm making the elev arrays r/o here and make a copy in process_raster
                 #tile_elev_raster.flags.writeable = False
                     
-                tile_top_raster_variants = top_raster_variants.create_tile_raster_variants(start_y, end_y, start_x, end_x)
+                tile_top_raster_variants = top_raster_variants.copy_tile_raster_variants(start_y, end_y, start_x, end_x)
                 
-                tile_bottom_raster_variants = bottom_raster_variants.create_tile_raster_variants(start_y, end_y, start_x, end_x)
+                tile_bottom_raster_variants = bottom_raster_variants.copy_tile_raster_variants(start_y, end_y, start_x, end_x)
                 
                 # add to tile_list
                 tile_info.tile_no_x = tx + 1

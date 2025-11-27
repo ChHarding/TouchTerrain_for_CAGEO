@@ -46,12 +46,17 @@ from typing import Union, Any, Callable
 import numpy as np
 import shapely
 
+from touchterrain.common.Vertex import vertex
+from touchterrain.common.Quad import quad
+
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
 import touchterrain.common.utils as utils
 
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 
 from touchterrain.common.RasterVariants import RasterVariants
+
+from touchterrain.common.shapely_utils import interpolate_polygon_with_quad
 
 
 # function to calculate the normal for a triangle
@@ -75,231 +80,15 @@ def get_normal(tri):
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
 
-
-class vertex:
-
-    # dict of index value for each vertex
-    # key is tuple of coordinates, value is a unique index
-    vertex_index_dict = -1
-    
-    coords: tuple[float, ...]
-
-    def __init__(self, x,y,z):
-        self.coords = tuple([float(d) for d in (x,y,z)])  # made this a tuple (zigzag won't work wth this anymore but it's not used anyway ...)
-        vdict = vertex.vertex_index_dict # class attribute
-
-        # for non obj file this is set to -1, and there's no need to deal with vertex indices
-        if vdict != -1:
-            # This creates a dict (a grid class attribute) with a tuple of the
-            # 3 coords as key and a int as value. The int is a running index i.e. for each new
-            # (not yet hashed) vertex this index just increases by 1, based on the current number of dict
-            # entries. If a vertex has coords that already exist in the dict, nothing needs to be done.
-            # This ensures that each index number is unique but can be shared by multiple indices
-            # (e.g. when 2 triangles have vertices at exactly the same coords)
-            # as it's easy to look up the index based on self.coords, a vertex does not actually 
-            # have to store its index.
-
-            # if we don't have an index value for these coords (as key)
-            if self.coords not in vdict: # can't hash list
-                vdict[self.coords] = len(vdict) # and set next running index as new value for key
-                #print(self.coords, "now has idx", self.vert_idx) # DEBUG
-            else: # this vertex has an idx in vdict
-                #print(self.coords, "already has idx", vdict[tuple(self.coords)]) # DEBUG
-                pass
-
-    def get_id(self):
-        '''return Id for my coords'''
-        return vertex.vertex_index_dict[self.coords]
-
-    def get(self):
-        "returns [x,y,z] list of vertices"
-        return self.coords
-
-    def __str__(self):
-        return "%.2f %.2f %.2f " % (self.coords[0], self.coords[1], self.coords[2])
-
-    def __getitem__(self, index): 
-        "enables use of index brackets for vertex objects: v[0] returns coords[0]"
-        return self.coords[index]
-
-
-
-
-class quad:
-    """return list of 2 triangles (counterclockwise) per quad
-       wall quads will NOT subdivide their quad into subquads if they are too skinny
-       as this would require to re-index the entire mesh. However, I left the subdive
-       stuff in in case we want to re-visit it later.
-    """
-    # class attribute, use quad.too_skinny_ratio
-    too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
-    
-    vl: list[vertex] = []
-
-    # order is NE, NW, SW, SE
-    # can be just a triangle, if it just any 3 ccw consecutive corners 
-    def __init__(self, v0, v1, v2, v3=None): 
-        self.vl = [v0, v1, v2, v3]
-        self.subdivide_by = None # if not None, we need to subdivide the quad into that many subquads
-
-    def get_copy(self):
-        ''' returns a copy of the quad'''
-        vl = self.vl[:]
-        cp = quad(vl[0], vl[1], vl[2], vl[3])
-        return cp
-
-    def check_if_too_skinny(self, direction):
-        '''if a border quad is too skinny it will to be subdivided into multiple quads'''
-        #print direction, [str(v) for v in self.vl]
-
-        # order of verts will be different for N,S vs E,W walls!
-        if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
-            horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
-            max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
-            min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
-            vert_dist = max_elev - min_elev # z diff of v0 and v1
-        else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
-            horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
-            max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
-            min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
-            vert_dist = max_elev - min_elev # z diff of v0 and v1
-        if vert_dist == 0: return # walls can be 0 height
-
-        ratio = horz_dist / float (vert_dist)
-        #print ratio, quad.too_skinny_ratio, quad.too_skinny_ratio / ratio
-        if ratio < quad.too_skinny_ratio:
-            sb = int(quad.too_skinny_ratio / ratio)
-            self.subdivide_by = sb
-
-    def get_triangles(self, split_rotation=None):
-        "return list of 2 triangles (counterclockwise)"
-        v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
-        t0 = (v0, v1, v2)  # verts of first triangle
-
-        # if v3 is None, we only return t0
-        if v3 is None:
-            return (t0, None)
-
-        t1 = (v0, v2, v3)  # verts of second triangle
-        
-        if split_rotation != 1 and split_rotation != 2:
-            return (t0,t1)
-        
-        splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
-        splitting_edge_slope_2 = abs(v1.coords[2] - v3.coords[2])
-        if split_rotation == 1:
-            if splitting_edge_slope_1 > splitting_edge_slope_2:
-                t0 = (v0, v1, v3)
-                t1 = (v1, v2, v3)
-        elif split_rotation == 2:
-            if splitting_edge_slope_1 < splitting_edge_slope_2:
-                t0 = (v0, v1, v3)
-                t1 = (v1, v2, v3)
-        else:
-            print(f"Invalid split_rotation config value of {split_rotation}")
-
-        return (t0,t1)
-
-    '''
-    # splits skinny triangles
-    def get_triangles(self, direction=None):
-        """return list of 2 triangles (counterclockwise) per quad
-           wall quads will subdivide their quad into subquads if they are too skinny
-        """
-        v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
-
-        # do we need to subdivide?
-        if self.subdivide_by is None: # no, either not a wall or a chunky wall
-            t0 = (v0, v1, v2)  # verts of first triangle
-            t1 = (v0, v2, v3)  # verts of second triangle
-            return (t0,t1)
-
-        else:
-            # subdivde into sub quads and return their triangles
-
-            # order of verts will be different for N,S vs E,W walls!
-            if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
-                horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
-                max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
-                min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
-                vert_dist = max_elev - min_elev # z diff of v0 and v1
-            else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
-                horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
-                max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
-                min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
-                vert_dist = max_elev - min_elev # z diff of v0 and v1
-
-
-
-            tri_list = []
-
-            # for finding the height of the sub quads I don't care about the different vert order
-            z_list =[v[2] for v in self.vl]
-            z_top = max(z_list) # z height of the top (take min() b/c one might be higher)
-            z_bot = min(z_list) # z height at bottom
-            z_dist = z_top - z_bot # distance to be
-
-            #self.subdivide_by = 3 # DEBUG
-
-            qheight = z_dist / float(self.subdivide_by) # height (elevation dist) of each quad
-            height_list = [ z_top - qheight * i for i in range(self.subdivide_by+1) ] # list of h
-
-            # make new subquads and return a list of their triangles
-            vl_copy = copy.deepcopy(self.vl) # must make a deep copy, otherwise changing the subquads affect the current quad
-            tl = [] # triangle list
-
-            bottom_height_list = height_list[1:]
-            for n,_ in enumerate(bottom_height_list):
-                v0_,v1_,v2_,v3_ = vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3] # unroll copy
-                #print n,v0_,v1_,v2_,v3_
-
-                # as order of verts will be different for N,S vs E,W walls we need 2 different cases
-                if direction in ("N", "S"):
-                    top_inds = (1,2)
-                    bot_inds = (0,3)
-                else:
-                    top_inds = (0,1)
-                    bot_inds = (2,3)
-
-
-                # top verts
-                if n > 0: # don't change top z for topmost sub quad
-                    h = height_list[n]
-                    v= vl_copy[top_inds[0]] # first vertex of subquad
-                    v.coords[2] = h         # set its z value
-                    v= vl_copy[top_inds[1]]
-                    v.coords[2] = h
-
-                # bottom verts
-                if n < len(bottom_height_list): # don't change bottom z for bottommost sub quad
-                    h = height_list[n+1]
-                    v = vl_copy[bot_inds[0]]
-                    v.coords[2] = h
-                    v = vl_copy[bot_inds[1]]
-                    v.coords[2] = h
-
-                # make a sub quad
-                sq = copy.deepcopy(quad(vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3])) # each subquad needs to be its own copy
-                #print n, sq,
-
-                t0,t1 = sq.get_triangles()
-                tl.append(t0)
-                tl.append(t1)
-
-            return tl
-    '''
-
-    def __str__(self):
-        rs ="  "
-        for n,v in enumerate(self.vl):
-            rs = rs + "v" + str(n) + ": " + str(v) + "  "
-        return rs
-
-
 class cell:
     '''a cell with a top and bottom quad, constructor: uses refs and does NOT copy ...
        except for triangle cells
        '''
+    topquad: quad # 4 corner square quad with X,Y,Z
+    topSurfacePolygons: list[shapely.Polygon] # list of polygons with X,Y,Z
+    bottomquad: quad
+    borders: dict[str, quad]
+       
     def __init__(self, topquad, bottomquad, borders, is_tri_cell=False):
         self.topquad = topquad
         self.bottomquad = bottomquad
@@ -797,19 +586,20 @@ class grid:
                 
                 
                 #region Make top cell vertices' heights
-
+                interpolation_top_raster: Union[np.ndarray, None]
                 if not self.tile_info.have_nan:
+                    interpolation_top_raster = self.tile.top_raster_variants.dilated
                     # non NaNs: interpolate elevation of four corners (array order is top[y,x]!)
-                    NEelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j-1,i-0] + self.tile.top_raster_variants.dilated[j-1,i+1] + self.tile.top_raster_variants.dilated[j-0,i+1]) / 4.0
-                    NWelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j+0,i-1] + self.tile.top_raster_variants.dilated[j-1,i-1] + self.tile.top_raster_variants.dilated[j-1,i+0]) / 4.0
-                    SEelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j-0,i+1] + self.tile.top_raster_variants.dilated[j+1,i+1] + self.tile.top_raster_variants.dilated[j+1,i+0]) / 4.0
-                    SWelev = (self.tile.top_raster_variants.dilated[j+0,i+0] + self.tile.top_raster_variants.dilated[j+1,i+0] + self.tile.top_raster_variants.dilated[j+1,i-1] + self.tile.top_raster_variants.dilated[j+0,i-1]) / 4.0
+                    NEelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j-1,i-0] + interpolation_top_raster[j-1,i+1] + interpolation_top_raster[j-0,i+1]) / 4.0
+                    NWelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j+0,i-1] + interpolation_top_raster[j-1,i-1] + interpolation_top_raster[j-1,i+0]) / 4.0
+                    SEelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j-0,i+1] + interpolation_top_raster[j+1,i+1] + interpolation_top_raster[j+1,i+0]) / 4.0
+                    SWelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j+1,i+0] + interpolation_top_raster[j+1,i-1] + interpolation_top_raster[j+0,i-1]) / 4.0
                 else:
                     # NaNs: set borders to True if we have any NaNs in any of the adjacent cells
                     # Do this only for top as we assume that any bottom raster NaNs are the same as on top
 
                     # Interpolate with edge_interpolation raster variant if available. 
-                    interpolation_top_raster: Union[np.ndarray, None] = self.tile.top_raster_variants.edge_interpolation
+                    interpolation_top_raster = self.tile.top_raster_variants.edge_interpolation
                     if interpolation_top_raster is None:
                         if self.tile.bottom_raster_variants is None:
                             # Normal (not difference mesh) mode
@@ -844,7 +634,7 @@ class grid:
                         SEelev = 0
                     if SWelev < self.tile_info.config.basethick:
                         SWelev = 0
-                    
+                
                 #
                 # Note that here we flip x and y coordinate axis to the system used in 3D graphics
                 #
@@ -858,6 +648,14 @@ class grid:
                 # top quad vertex order is so that the normal points up
                 topq = quad(NWt, SWt, SEt, NEt) 
                 #print(i, j, topq)
+                top_surface_polygons_with_Z: list[shapely.Polygon] = []
+                
+                if self.tile.top_raster_variants.polygon_intersection_geometry is not None and self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] is not None:
+                    #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
+                    
+                    # Only interpolate the Polygons for the top surface
+                    for polygon in [item for item in self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] if isinstance(item, shapely.Polygon)]:
+                        top_surface_polygons_with_Z.append(interpolate_polygon_with_quad(polygon=polygon, quad=topq))
                 
                 #endregion
                 
@@ -932,8 +730,9 @@ class grid:
                 if i == 1             : borders["W"] = True
                 if i == self.xmaxidx  : borders["E"] = True
                 
-                cell_clipping_intersection_geometry = self.tile.top_raster_variants.polygon_intersection_geometry[j][i] if self.tile.top_raster_variants.polygon_intersection_geometry else None
-                if cell_clipping_intersection_geometry and len(cell_clipping_intersection_geometry) > 0: # Cell is partially intersecting or sharing edges with polygon
+                #cell_clipping_intersection_geometry = self.tile.top_raster_variants.polygon_intersection_geometry[j][i] if self.tile.top_raster_variants.polygon_intersection_geometry else None
+                #if cell_clipping_intersection_geometry and len(cell_clipping_intersection_geometry) > 0: # Cell is partially intersecting or sharing edges with polygon
+                if False:
                     pass
                 else: # Cell contained properly in polygon
                     # Figure out which raster array to use when determining borders
