@@ -14,11 +14,11 @@ def plot_shapely_poly_or_line(geom: shapely.Geometry, ax):
     else:
         plot_points(geom, ax=ax, color='brown')
         
-def plot_shapely_geom(geom: shapely.Geometry, ax, color: mt.ColorType = 'red', linestyle: str = '-'):
+def plot_shapely_geom(geom: shapely.Geometry, ax, color: mt.ColorType = 'red', linestyle: str = '-', **kwargs):
     if geom.geom_type.startswith('Polygon'):
-        plot_polygon(geom, ax=ax, add_points=False, color=color, linestyle=linestyle, alpha=1)
+        plot_polygon(geom, ax=ax, add_points=False, color=color, linestyle=linestyle, **kwargs)
     elif geom.geom_type.startswith('Line'):
-        plot_line(geom, ax=ax, add_points=True, color=color, linestyle=linestyle, alpha=1)
+        plot_line(geom, ax=ax, add_points=True, color=color, linestyle=linestyle, **kwargs)
     else:
         plot_points(geom, ax=ax, color='brown')
         
@@ -54,7 +54,7 @@ def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersect
     
     # -- dashed for base poly
     for i in range(0,len(basePolys)):
-        plot_polygon(basePolys[i], ax=axs, add_points=False, color=cmap(i), linestyle='--')
+        plot_polygon(basePolys[i], ax=axs, add_points=False, color=cmap(i), linestyle='--', linewidth=2)
 
     # -. dash dot for intersections
     for i in range(0,len(intersectionPolys)):
@@ -68,6 +68,6 @@ def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersect
     # solid or dot for wall/no wall edges
     for i in range(0, len(edgeBuckets)):
         for be in edgeBuckets[i]:
-            plot_shapely_geom(be.geometry, ax=axs, color=cmap(len(basePolys)+len(intersectionPolys)+i), linestyle='-' if be.make_wall else ':')
+            plot_shapely_geom(be.geometry, ax=axs, color=cmap(len(basePolys)+len(intersectionPolys)+i), linestyle='-' if be.make_wall else ':', linewidth=(3 if be.make_wall else 1), alpha=(0.8 if be.make_wall else .8))
         
     plt.show()

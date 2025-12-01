@@ -10,8 +10,11 @@ class quad:
     too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
     
     vl: list[vertex] = []
+    """Vertices mapping        NW SW SE NE
+    - Top                      0  1  2  3
+    - Bottom                   0  3  2  1
+    """
 
-    # order is NE, NW, SW, SE
     # can be just a triangle, if it just any 3 ccw consecutive corners 
     def __init__(self, v0, v1, v2, v3=None): 
         self.vl = [v0, v1, v2, v3]
@@ -46,19 +49,19 @@ class quad:
             sb = int(quad.too_skinny_ratio / ratio)
             self.subdivide_by = sb
 
-    def get_triangles(self, split_rotation=None):
+    def get_triangles(self, split_rotation: int=0) -> list[tuple[vertex,...]]:
         "return list of 2 triangles (counterclockwise)"
         v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
         t0 = (v0, v1, v2)  # verts of first triangle
 
         # if v3 is None, we only return t0
         if v3 is None:
-            return (t0, None)
+            return [t0]
 
         t1 = (v0, v2, v3)  # verts of second triangle
         
         if split_rotation != 1 and split_rotation != 2:
-            return (t0,t1)
+            return [t0,t1]
         
         splitting_edge_slope_1 = abs(v0.coords[2] - v2.coords[2])
         splitting_edge_slope_2 = abs(v1.coords[2] - v3.coords[2])
@@ -73,7 +76,18 @@ class quad:
         else:
             print(f"Invalid split_rotation config value of {split_rotation}")
 
-        return (t0,t1)
+        return [t0,t1]
+
+    def get_triangles_in_tuple_float(self, split_rotation: int) -> list[tuple[tuple[float, ...], ...]]:
+        # convert Vertex objects in the tri to tuple[float, ...]
+        quad_tris_in_tuple_float: list[tuple[tuple[float, ...], ...]] = []
+        
+        quad_tris = self.get_triangles(split_rotation=split_rotation)
+        for tri in quad_tris:
+            if tri is not None:
+                quad_tris_in_tuple_float.append((tri[0].coords, tri[1].coords, tri[2].coords))
+            
+        return quad_tris_in_tuple_float
 
     '''
     # splits skinny triangles

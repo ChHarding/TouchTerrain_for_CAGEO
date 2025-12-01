@@ -55,7 +55,7 @@ class RasterVariants:
     
     polygon_intersection_geometry: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a list[shapely.Geometry]
     """
-    Intersection geometry  between the cell quad and the clipping geometry. In print3DCoordinates. Represented as np.ndarray[list[shapely.Geometry]] The Polygon geometries are used for making top/bottom surface for a cell. 
+    Intersection geometry  between the cell quad and the clipping geometry. In print3DCoordinates. Represented as np.ndarray[list[shapely.Geometry]] The list can include LineString/Polygon. The Polygon geometries are used for making top/bottom surface for a cell. 
 
     
     This is not a variant! 

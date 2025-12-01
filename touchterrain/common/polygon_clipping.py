@@ -175,7 +175,7 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                     break
 
 def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edges: list[BorderEdge]):
-    """Mark overlapping edges between a cell and neighbor cell to make a wall. Sets the make_wall property of only the target cell. 
+    """Mark overlapping edges between a cell and neighbor cell to make a wall. Sets the make_wall property of only the cell with the Polygon side of a match. 
 
     :param cell_1_edges: The target cell
     :type cell_1_edges: list[BorderEdge]
@@ -187,13 +187,13 @@ def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edge
     
     # split the containing edge by the conatined edge
     
-    # mark the contained edge and matching split containing edge sub-edge as skip_future_eval_for_walls to skip in future loops. Check if wall is needed based on if matched edge from a cell is a polygon_line and matched edge from other cell is NOT a polygon_line. L<>PL = make wall. L<>L or PL<>PL = no wall. Mark whichever of these 2 edges is on the cell 1 side as make_wall.
+    # mark the contained edge and matching split containing edge sub-edge as skip_future_eval_for_walls to skip in future loops. Check if wall is needed based on if matched edge from a cell is a polygon_line and matched edge from other cell is NOT a polygon_line. L<>PL = make wall. L<>L or PL<>PL = no wall. Mark whichever of these 2 edges is on the PL side as make_wall.
     
     # delete the containing edge from the list, add the new split edges to the list end
     
     # if containing edge was on cell 1, do not increment iterator
     
-    # if cell 1 edge is same as cell 2 edge, make wall on cell 1 side, mark the edges as skip
+    # if cell 1 edge is same as cell 2 edge, make wall on P side, mark the edges as skip
     
     # all edges on cell 1 and 2 should match with an edge on other cell at the end of the loop. i.e. all edges on the shared side of both cells should be marked as skip at the very end
     
@@ -210,13 +210,19 @@ def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edge
                 c2eIdx += 1
                 continue
             make_wall = c1e.polygon_line != c2e.polygon_line # Should we make a wall on matching edges? L<>L and PL<>PL have no wall
+            wall_ce = BorderEdge(geometry=shapely.LineString())
+            if make_wall: # mark wall on the P side
+                if c1e.polygon_line:
+                    wall_ce = c1e
+                elif c2e.polygon_line:
+                    wall_ce = c2e
             
             containingEdgeList: list[BorderEdge] = []
             containingEdgeIdx: int = -1
             splitter: BorderEdge | None = None
 
             if c1e.geometry.equals(c2e.geometry):
-                c1e.make_wall = make_wall
+                wall_ce.make_wall = make_wall
                 c1e.skip_future_eval_for_walls = True
                 c2e.skip_future_eval_for_walls = True
             elif c1e.geometry.contains(c2e.geometry):
@@ -231,10 +237,10 @@ def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edge
             if splitter: # check for side effect of contains() == True
                 sub_edges = unary_union([c1e.geometry, c2e.geometry])
                 splitter.skip_future_eval_for_walls = True
-                splitter.make_wall = containingEdgeList is not cell_1_edges
+                splitter.make_wall = splitter is wall_ce
                 for segment in sub_edges.geoms:
                     is_matching_splitter = segment.equals(splitter.geometry)
-                    segment_make_wall = is_matching_splitter and containingEdgeList is cell_1_edges and make_wall
+                    segment_make_wall = is_matching_splitter and containingEdgeList[containingEdgeIdx].polygon_line and make_wall
                     containingEdgeList.append(BorderEdge(
                         geometry=segment, 
                         polygon_line=containingEdgeList[containingEdgeIdx].polygon_line, 

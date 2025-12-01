@@ -75,7 +75,7 @@ class TouchTerrainConfig:
     "if total number of cells is bigger, use temp_file instead using memory only"
     no_normals = True 
     "True -> all normals are 0,0,0, which speeds up processing. Most viewers will calculate normals themselves anyway"
-    split_rotation: None | int = None
+    split_rotation: int = 0
     """Should quad triangulation rotate the splitting edge based on the slope of the created edge?
     None, 0 -> NW>SW edges
     1 -> Rotate for less steep along split edges > Steeper faces along the split.

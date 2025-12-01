@@ -55,9 +55,10 @@ import touchterrain.common.utils as utils
 from touchterrain.common.tile_info import TouchTerrainTileInfo
 
 from touchterrain.common.RasterVariants import RasterVariants
+from touchterrain.common.BorderEdge import BorderEdge
 
-from touchterrain.common.shapely_utils import interpolate_polygon_with_quad
-
+from touchterrain.common.shapely_utils import interpolate_geometry_with_quad, flatten_geometries
+from touchterrain.common.shapely_polygon_utils import polygon_to_list_of_vertex
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -85,9 +86,15 @@ class cell:
        except for triangle cells
        '''
     topquad: quad # 4 corner square quad with X,Y,Z
-    topSurfacePolygons: list[shapely.Polygon] # list of polygons with X,Y,Z
-    bottomquad: quad
+    bottomquad: quad | None
     borders: dict[str, quad]
+    
+    topSurfacePolygons: list[shapely.Polygon] | None
+    "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the topquad"
+    bottomSurfacePolygons: list[shapely.Polygon] | None
+    "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the bottomquad"
+    surfacePolygonBorders: list[quad]
+    # surface polygon borders should be generated using raster polygon edge buckets BorderEdge wall value
        
     def __init__(self, topquad, bottomquad, borders, is_tri_cell=False):
         self.topquad = topquad
@@ -101,6 +108,30 @@ class cell:
             if self.borders[d] != False:
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
+
+    def meshes_for_model(self) -> list[Union[quad, shapely.Polygon]]:
+        """Returns a list of all the meshes to actually include in the ouitput model for this cell. Meshes are in the form of a quad or shapely.Polygon (triangulated)"""
+        meshes = []        
+        if self.topSurfacePolygons:
+            meshes.append(self.topSurfacePolygons)
+        elif self.topquad:
+            meshes.append(self.topquad)
+            # if we use topquad, we also use cardinal direction borders
+            for k in self.borders:  # k is N, S, E, W
+                if self.borders[k] is not False: meshes.append(self.borders[k])
+        else:
+            raise AttributeError("cell has no top quad or topSurfacePolygons")
+        
+        if self.bottomSurfacePolygons:
+            meshes.append(self.bottomSurfacePolygons)
+        elif self.bottomquad:
+            meshes.append(self.bottomquad)
+            
+        # generate borders for matching top and bottom surface polygons
+        if self.topSurfacePolygons and self.bottomSurfacePolygons:
+            pass
+        
+        return meshes
 
     def check_for_tri_cell(self):
         """Returns True if cell has borders on 2 consecutive sides False otherwise.
@@ -172,9 +203,9 @@ class cell:
 
         b = self.borders    
         tq =  self.topquad.get_copy()
-        bq =  self.bottomquad.get_copy()     # NW SE SW NE
-        tvl = tq.vl #                           0  2  1  3
-        bvl = bq.vl # vertex order in quad is   0  2  3  1
+        bq =  self.bottomquad.get_copy()
+        tvl = tq.vl
+        bvl = bq.vl
         
         """Vertices mapping     NW SW SE NE
         Top                      0  1  2  3
@@ -648,14 +679,25 @@ class grid:
                 # top quad vertex order is so that the normal points up
                 topq = quad(NWt, SWt, SEt, NEt) 
                 #print(i, j, topq)
-                top_surface_polygons_with_Z: list[shapely.Polygon] = []
                 
-                if self.tile.top_raster_variants.polygon_intersection_geometry is not None and self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] is not None:
-                    #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
-                    
-                    # Only interpolate the Polygons for the top surface
-                    for polygon in [item for item in self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] if isinstance(item, shapely.Polygon)]:
-                        top_surface_polygons_with_Z.append(interpolate_polygon_with_quad(polygon=polygon, quad=topq))
+                top_bottom_surface_geometries_2D: list[shapely.Geometry] | None = None
+                top_bottom_surface_polygons_triangulated_2D: list[shapely.GeometryCollection] = [] # tris for top and bottom surfaces
+                # Check if non-quad top_surface polygon should be used
+                top_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
+                if self.tile.top_raster_variants.polygon_intersection_geometry is not None:
+                    top_bottom_surface_geometries_2D = self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1]
+                    if top_bottom_surface_geometries_2D is not None:
+                        # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
+                        #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
+                        top_bottom_surface_geometries_2D = self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1]
+                        top_surface_polygons_triangulated_3D = [] #init array
+                        # Only interpolate the Polygons for the top surface
+                        for polygon in [item for item in (top_bottom_surface_geometries_2D if top_bottom_surface_geometries_2D else []) if isinstance(item, shapely.Polygon)]:
+                            top_bottom_surface_polygons_triangulated_2D.append(shapely.constrained_delaunay_triangles(polygon))
+                        for gc in top_bottom_surface_polygons_triangulated_2D:
+                            for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
+                                tri_with_z = interpolate_geometry_with_quad(geometry=tri, quad=topq, split_rotation=self.tile_info.config.split_rotation)
+                                top_surface_polygons_triangulated_3D.append(tri_with_z)
                 
                 #endregion
                 
@@ -710,6 +752,21 @@ class grid:
                 SWb = vertex(W, S, SWelev)
                 botq = quad(NWb, NEb, SEb, SWb)
 
+                # Check if non-quad top_surface polygon should be used for bottom quad
+                bottom_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
+                if self.tile.top_raster_variants.polygon_intersection_geometry is not None and self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] is not None:
+                    # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
+                    #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
+                    
+                    bottom_surface_polygons_triangulated_3D = []
+                    # Only interpolate the Polygons for the top surface
+                    for gc in top_bottom_surface_polygons_triangulated_2D:
+                        for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
+                            tri_with_z = interpolate_geometry_with_quad(geometry=tri, quad=botq, split_rotation=self.tile_info.config.split_rotation)
+                            if isinstance(tri_with_z, shapely.Polygon):
+                                bottom_surface_polygons_triangulated_3D.append(tri_with_z)
+                            else:
+                                raise TypeError('interpolate_geometry_with_quad did not return the same Polygon type passed in')
                 
                 #endregion
                 
@@ -766,9 +823,57 @@ class grid:
                     if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
                     if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
 
+                # create borders if there is a top surface polygon using the edge buckets
+                if self.tile.top_raster_variants.polygon_intersection_edge_buckets is not None and self.tile.top_raster_variants.polygon_intersection_edge_buckets[j-1][i-1] is not None:
+                    # Get list of all BorderEdges with edge geometry that should be walls
+                    wall_borderEdges = []
+                    buckets = self.tile.top_raster_variants.polygon_intersection_edge_buckets[j-1][i-1]
+                    if isinstance(buckets, dict):
+                        for bucket in buckets.values():
+                            if isinstance(bucket, list):
+                                for be in bucket:
+                                    if isinstance(be, BorderEdge):
+                                        if be.make_wall:
+                                            wall_borderEdges.append(be)
+                    
+                    if top_bottom_surface_geometries_2D:
+                        top_surface_edges_3D: list[shapely.LineString] = []
+                        bot_surface_edges_3D: list[shapely.LineString] = []
+                        for geom in top_bottom_surface_geometries_2D:
+                            flattened_top_geom = flatten_geometries(geometries=[interpolate_geometry_with_quad(geom, topq, split_rotation=self.tile_info.config.split_rotation)], to_single_lines=True)
+                            top_surface_edges_3D.extend([item for item in flattened_top_geom if isinstance(item, shapely.LineString)])
+                            flattened_bot_geom = flatten_geometries(geometries=[interpolate_geometry_with_quad(geom, botq, split_rotation=self.tile_info.config.split_rotation)], to_single_lines=True)
+                            bot_surface_edges_3D.extend([item for item in flattened_bot_geom if isinstance(item, shapely.LineString)])
+                        
+                        for be in wall_borderEdges:
+                            topEdgeMatch: shapely.LineString | None = None
+                            botEdgeMatch: shapely.LineString | None = None
+                            for ti in range(0, len(top_surface_edges_3D)):
+                                if be.geometry.equals(top_surface_edges_3D[ti]):
+                                    topEdgeMatch = top_surface_edges_3D[ti]
+                                    del top_surface_edges_3D[ti]
+                                    break
+                            for ti in range(0, len(bot_surface_edges_3D)):
+                                if be.geometry.equals(bot_surface_edges_3D[ti]):
+                                    botEdgeMatch = bot_surface_edges_3D[ti]
+                                    del bot_surface_edges_3D[ti]
+                                    break
+                            if topEdgeMatch and botEdgeMatch:
+                                pass
+                            elif topEdgeMatch:
+                                raise RuntimeError('Border creation: top edge match found but no bot edge match.')
+                            elif botEdgeMatch:
+                                raise RuntimeError('Border creation: bot edge match found but no top edge match.')
+                            else:
+                                raise RuntimeError('Border creation: no top edge or bot edge matches')
+                            # create border geometry with top and bot edge
+                            # top and bot edges are in CW order from shapely
+                                
+                        
+
                 #endregion
 
-                # Make cell
+                #region Make cell
                 if self.tile_info.config.no_bottom == True:
                     c = cell(topq, None, borders) # omit bottom - do not fill with 2 tris later (may have NaNs)
                 else:
@@ -778,6 +883,12 @@ class grid:
                         c = cell(topq, botq, borders) # full cell: top quad, bottom quad and wall quads
                     else:
                         c = cell(topq, None, borders) # omit bottom, will fill with 2 tris later
+                
+                # set surface polygons for cell if clipping border affects this cell
+                if top_surface_polygons_triangulated_3D:
+                    c.topSurfacePolygons = top_surface_polygons_triangulated_3D
+                if bottom_surface_polygons_triangulated_3D:
+                    c.bottomSurfacePolygons = bottom_surface_polygons_triangulated_3D
 
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
@@ -797,29 +908,41 @@ class grid:
                     if c.check_for_tri_cell():
                         c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make diagonal wall
                 
+                #endregion
+                
                 #
                 # Make quads for top, bottom and walls
                 #
-                no_bottom = self.tile_info.config.no_bottom
-                # list of quads for this cell,
-                if no_bottom == False and (self.tile_info.have_nan or self.tile.bottom_raster_variants is not None): #self.tile_info.have_bottom_array): #  
-                    quads = [c.topquad, c.bottomquad]
-                else:
-                    quads = [c.topquad] # no bottom quads, only top
+                
+                # list of meshes for this cell,
+                meshes = c.meshes_for_model()
+                
+                # # list of quads for this cell,
+                # if no_bottom == False and (self.tile_info.have_nan or self.tile.bottom_raster_variants is not None): #self.tile_info.have_bottom_array): #  
+                #     quads = [c.topquad, c.bottomquad]
+                # else:
+                #     quads = [c.topquad] # no bottom quads, only top
 
                 # add border quads if we have any (False means no border quad) 
-                for k in c.borders:  # k is N, S, E, W
-                    if c.borders[k] is not False: quads.append(c.borders[k])
+                # for k in c.borders:  # k is N, S, E, W
+                #     if c.borders[k] is not False: meshes.append(c.borders[k])
                 
-                # write the triangles of this quad to buffer
-                for q in quads:
-                    t0, t1 = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
+                # write the triangles of the meshes to buffer
+                for q in meshes:
+                    if isinstance(q, quad):
+                        t0, t1 = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
 
-                    # for STL this will write triangles (vertices) but for obj this will
-                    # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
-                    if any(t0):
-                        self.write_triangle_to_buffer(t0)
-                        self.write_triangle_to_buffer(t1) # could be empty ...        
+                        # for STL this will write triangles (vertices) but for obj this will
+                        # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
+                        if any(t0):
+                            self.write_triangle_to_buffer(t0)
+                            self.write_triangle_to_buffer(t1) # could be empty ...    
+                    elif isinstance(q, shapely.Polygon):
+                        t0 = tuple(polygon_to_list_of_vertex(polygon=q))
+                        if len(t0) == 3:
+                           self.write_triangle_to_buffer(t0)
+                        else:
+                           raise ValueError(f"create_cells: found an polygon to write to buffer that has vertex count f{len(t0)}. Expected a tri of length 3.")
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     

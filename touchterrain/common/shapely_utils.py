@@ -2,6 +2,9 @@ import shapely
 from touchterrain.common.BorderEdge import BorderEdge
 from touchterrain.common.Quad import quad
 
+from touchterrain.common.shapely_polygon_utils import get_polygon_coordinates_as_tuples, create_polygon_from_modified_coords
+from touchterrain.common.interpolate_Z import is_point_in_triangle, interpolate_Z_on_3_point_plane
+
 def linestring_to_segments(linestring_obj: shapely.LineString) -> list[shapely.LineString]:
     """
     Splits a Shapely LineString into a list of individual LineString segments.
@@ -80,90 +83,50 @@ def sort_line_segment_based_contains(line_segment: BorderEdge, north: shapely.Li
     
     return ('other', False)
 
-def get_polygon_coordinates_as_tuples(polygon: shapely.Polygon) -> list:
+def interpolate_geometry_with_quad(geometry: shapely.Geometry, quad: quad, split_rotation = 0) -> shapely.Geometry:
+    """_summary_
+
+    :param geometry: Geometry with 2D coordinates
+    :type geometry: shapely.Geometry
+    :param quad: Quad with vertices with Z info. The interpolation will be along the planes made by the quad tris.
+    :type quad: quad
+    :return: Geometry with 3D coordinates. Z is interpolated relative to the quad
+    :rtype: shapely.Geometry
     """
-    Extracts all coordinate points of a Shapely Polygon
-    (exterior and interior rings) and returns them as a
-    list of Python tuples.
-
-    Args:
-        polygon: A shapely.geometry.Polygon object.
-
-    Returns:
-        A list where each element is a tuple (x, y) representing a
-        vertex coordinate of the polygon's exterior or interior rings.
-    """
-    if not isinstance(polygon, shapely.Polygon):
-        raise TypeError("Input must be a shapely.geometry.Polygon object.")
-
-    # List to store all coordinates as tuples
-    all_coords_as_tuples = []
-
-    # 1. Process the EXTERIOR ring
-    # polygon.exterior.coords returns a CoordinateSequence
-    exterior_coords = list(polygon.exterior.coords)
-    # Convert each (x, y) pair in the list to a tuple
-    all_coords_as_tuples.extend([tuple(coord) for coord in exterior_coords])
-
-    # 2. Process the INTERIOR rings (holes)
-    # polygon.interiors is an iterable of LinearRings
-    for interior_ring in polygon.interiors:
-        interior_coords = list(interior_ring.coords)
-        # Convert each (x, y) pair in the list to a tuple
-        all_coords_as_tuples.extend([tuple(coord) for coord in interior_coords])
-
-    return all_coords_as_tuples
-
-def create_polygon_from_modified_coords(original_polygon: shapely.Polygon, all_coords_as_tuples: list) -> shapely.Polygon:
-    """
-    Reconstructs a new Shapely Polygon from a flat list of modified coordinates,
-    maintaining the structure of the original polygon (exterior and holes).
-
-    Args:
-        original_polygon: The original shapely.geometry.Polygon object.
-        all_coords_as_tuples: A flat list of (x, y) tuples representing the
-                              modified coordinates for both the exterior and
-                              all interior rings, in the same order as they
-                              were extracted.
-
-    Returns:
-        A new shapely.geometry.Polygon object.
-    """
-    if not isinstance(original_polygon, shapely.Polygon):
-        raise TypeError("Input must be a shapely.geometry.Polygon object.")
-
-    # 1. Determine the length of the original exterior ring
-    exterior_len = len(original_polygon.exterior.coords)
-
-    # 2. Extract the new exterior coordinates
-    # The first 'exterior_len' items in the flat list belong to the exterior.
-    new_exterior_coords = all_coords_as_tuples[:exterior_len]
-
-    # 3. Extract the new interior coordinates (holes)
-    new_interior_rings = []
     
-    # Start the index after the exterior coordinates
-    current_index = exterior_len
-
-    # Iterate through the original interior rings to get their lengths
-    for interior_ring in original_polygon.interiors:
-        # Get the length of the current original hole
-        interior_len = len(interior_ring.coords)
+    quad_tris_in_tuple_float: list[tuple[tuple[float, ...], ...]] = quad.get_triangles_in_tuple_float(split_rotation=split_rotation)
+    
+    def interpolate_coord(c:tuple[float,...], planes_3D: list[tuple[tuple[float, ...], ...]])->tuple[float,...] | bool:
+        if len(c) != 2:
+            raise TypeError(f"Found polygon coord to interpolate that does not have 2 dimensions. It had len of {len(c)}")
+        for tri in planes_3D:
+            if len(tri) == 3:
+                if is_point_in_triangle(p=c, triangle=tri):
+                    cz = interpolate_Z_on_3_point_plane(tri[0], tri[1], tri[2], c)
+                    return (c[0], c[1], cz)
+            else:
+                raise TypeError(f"Found quad tri that does not have 3 vertices. It has len of {len(tri)}")
+        return False
+    
+    if isinstance(geometry, shapely.Polygon):
+        polygon_coords = get_polygon_coordinates_as_tuples(polygon=geometry)
+        interpolated_polygon_coords = []
+            
+        for c in polygon_coords:
+            ic = interpolate_coord(c, planes_3D=quad_tris_in_tuple_float)
+            if ic == False:
+                raise ValueError(f"Polygon coord {c} is not in {quad_tris_in_tuple_float}")
+            interpolated_polygon_coords.append(ic)
         
-        # Slice the flat coordinate list to get the points for this new hole
-        hole_coords = all_coords_as_tuples[current_index : current_index + interior_len]
-        
-        # Add the list of hole coordinates to the interior rings list
-        new_interior_rings.append(hole_coords)
-        
-        # Move the index forward for the next hole
-        current_index += interior_len
-
-    # 4. Create the new Polygon
-    # Shapely Polygon constructor is Polygon(exterior, [interior_1, interior_2, ...])
-    new_polygon = shapely.Polygon(new_exterior_coords, new_interior_rings)
-
-    return new_polygon
-
-def interpolate_polygon_with_quad(polygon: shapely.Polygon, quad: quad) -> shapely.Polygon:
-    pass
+        return create_polygon_from_modified_coords(original_polygon=geometry, all_coords_as_tuples=interpolated_polygon_coords)
+    elif isinstance(geometry, shapely.LineString):
+        lineString_coords = list(geometry.coords)
+        interpolated_lineString_coords = []
+        for c in lineString_coords:
+            ic = interpolate_coord(c, planes_3D=quad_tris_in_tuple_float)
+            if ic == False:
+                raise ValueError(f"Polygon coord {c} is not in {quad_tris_in_tuple_float}")
+            interpolated_lineString_coords.append(ic)
+        return shapely.LineString(interpolated_lineString_coords)
+    else:
+        raise ValueError(f"geometry is unsupported provided type was {type(geometry)}")

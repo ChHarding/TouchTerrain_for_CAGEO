@@ -97,6 +97,18 @@ poly2_coords = [(-1, 1), (3, 1), (3, 3), (1, 3), (-1, 1)]
 poly2 = Polygon(poly2_coords)
 print(poly1.intersection(poly2))
 
+#poly1 intersections poly2 to create 2 connected vertices
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+poly2_coords = [(-1, -1), (-1, 6), (0, 6), (0, -1), (-1, -1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+print(poly2.intersection(poly1))
+poly2_coords = [(5, -1), (5, 6), (6, 6), (6, -1), (-5, -1)]
+poly2 = Polygon(poly2_coords)
+print(poly1.intersection(poly2))
+print(poly2.intersection(poly1))
+
 #poly1 intersections poly2 to create 2 closed, disconnected polygons
 poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
 poly1 = Polygon(poly1_coords)
@@ -156,6 +168,10 @@ line1.equals(line2) #true
 line1.equals(line2rev) #true
 line1.equals_exact(line2) #true
 line1.equals_exact(line2rev) #false
+
+line1_coords= [(0,0,1), (5,0,2)]
+line2rev_coords= [(5,0,0), (0,0,-1)]
+
 
 #line1 is contained by line2 but not contains_properly
 line1_coords= [(0,0), (5,0)]
