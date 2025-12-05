@@ -89,9 +89,9 @@ class cell:
     bottomquad: quad | None
     borders: dict[str, quad]
     
-    topSurfacePolygons: list[shapely.Polygon] | None
+    topSurfacePolygons: list[shapely.Polygon] | None = None
     "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the topquad"
-    bottomSurfacePolygons: list[shapely.Polygon] | None
+    bottomSurfacePolygons: list[shapely.Polygon] | None = None
     "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the bottomquad"
     surfacePolygonBorders: list[quad]
     # surface polygon borders should be generated using raster polygon edge buckets BorderEdge wall value
@@ -253,6 +253,8 @@ class cell:
             self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
             b["S"] = quad(tvl[2], tvl[0], bvl[0], bvl[2])
             b["W"] = False
+            
+        # TODO: for surface polygons we can remove matching tris that have the same Z for all vertex
 
 '''
 #profiling decorator
@@ -696,7 +698,8 @@ class grid:
                             top_bottom_surface_polygons_triangulated_2D.append(shapely.constrained_delaunay_triangles(polygon))
                         for gc in top_bottom_surface_polygons_triangulated_2D:
                             for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
-                                tri_with_z = interpolate_geometry_with_quad(geometry=tri, quad=topq, split_rotation=self.tile_info.config.split_rotation)
+                                tri_ccw_order = shapely.orient_polygons(tri, exterior_cw=False)
+                                tri_with_z = interpolate_geometry_with_quad(geometry=tri_ccw_order, quad=topq, split_rotation=self.tile_info.config.split_rotation)
                                 top_surface_polygons_triangulated_3D.append(tri_with_z)
                 
                 #endregion
@@ -762,7 +765,8 @@ class grid:
                     # Only interpolate the Polygons for the top surface
                     for gc in top_bottom_surface_polygons_triangulated_2D:
                         for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
-                            tri_with_z = interpolate_geometry_with_quad(geometry=tri, quad=botq, split_rotation=self.tile_info.config.split_rotation)
+                            tri_cw_order = shapely.orient_polygons(tri, exterior_cw=True)
+                            tri_with_z = interpolate_geometry_with_quad(geometry=tri_cw_order, quad=botq, split_rotation=self.tile_info.config.split_rotation)
                             if isinstance(tri_with_z, shapely.Polygon):
                                 bottom_surface_polygons_triangulated_3D.append(tri_with_z)
                             else:
@@ -867,7 +871,7 @@ class grid:
                             else:
                                 raise RuntimeError('Border creation: no top edge or bot edge matches')
                             # create border geometry with top and bot edge
-                            # top and bot edges are in CW order from shapely
+                            # top and bot edges are in CW order (viewed from top) from shapely
                                 
                         
 
