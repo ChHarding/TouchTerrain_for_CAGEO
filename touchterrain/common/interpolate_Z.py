@@ -97,3 +97,155 @@ def interpolate_Z_on_3_point_plane(p1, p2, p3, p_new):
 #     print(f"The interpolated Z-value is: {z_interpolated:.4f}")
     
 # # Expected output for this example is 7.5
+
+import shapely
+import numpy as np
+from typing import List, Union
+
+def interpolate_z_planar(
+    geometry_2d: shapely.Geometry, 
+    planes_3d: List[shapely.geometry.Polygon]
+) -> shapely.Geometry:
+    """
+    Interpolates the Z-dimension onto a 2D Shapely geometry based on 
+    containment within a list of 3D Shapely polygons. The Z value is 
+    interpolated using the plane equation defined by the first three 
+    vertices of the containing 3D polygon.
+
+    Args:
+        geometry_2d: The 2D Shapely geometry (Point, LineString, Polygon, etc.).
+        planes_3d: A list of 3D Shapely Polygon objects.
+
+    Returns:
+        The new 3D Shapely geometry (same type as input).
+
+    Raises:
+        ValueError: If any point in the 2D geometry is not contained, if 
+                    polygons are not 3D, or if the first three points are collinear.
+    """
+
+    # --- Helper function to get the interpolated Z value ---
+    def get_interpolated_z(point_2d: shapely.geometry.Point) -> float:
+        """Finds the containing 3D polygon and returns the interpolated Z."""
+        
+        interpolating_poly: shapely.Polygon = None
+        
+        for poly_3d in planes_3d:
+            # Check for 2D containment or intersection along an exterior edge (ignores Z)
+            if point_2d.intersects(poly_3d):
+                interpolating_poly = poly_3d
+                
+        
+        # If loop completes without getting an intersecting polygon, the point is outside all polygons
+        
+        # Pick the plane with the closest exterior or interior ring to interpolate off of
+        if interpolating_poly is None:
+            distance_to_closest_poly_boundary = float('inf')
+            for poly_3d in planes_3d:
+                distance_to_poly_boundary = poly_3d.boundary.distance(point_2d)
+                if distance_to_poly_boundary < distance_to_closest_poly_boundary:
+                    distance_to_closest_poly_boundary = distance_to_poly_boundary
+                    interpolating_poly = poly_3d
+        
+        if interpolating_poly is None:
+            raise ValueError(f"Point {point_2d.wkt} is not within any of the provided 3D polygons and could not get distance to polygon boundaries.")
+        
+        coords_3d = interpolating_poly.exterior.coords
+                
+        # Check if polygon is 3 unique points (4th point should close the polygon)
+        if len(coords_3d) != 4 or len(coords_3d[0]) < 3:
+            raise ValueError(
+                f"Polygon {planes_3d.index(interpolating_poly)} must have 3 vertices and be 3D."
+            )
+        
+        # Use the first three unique vertices to define the plane
+        P1 = np.array(coords_3d[0][:3])
+        P2 = np.array(coords_3d[1][:3])
+        P3 = np.array(coords_3d[2][:3])
+        
+        # Calculate two vectors lying on the plane
+        V1 = P2 - P1
+        V2 = P3 - P1
+        
+        # Calculate the Normal Vector (A, B, C) using the cross product
+        Normal_Vector = np.cross(V1, V2)
+        A, B, C = Normal_Vector[0], Normal_Vector[1], Normal_Vector[2]
+
+        # Check for near-zero C (This means the plane is near-vertical)
+        if abs(C) < 1e-6:
+            raise ValueError(
+                "The plane defined by the first three points is near-vertical or collinear. Cannot uniquely solve for Z."
+            )
+        
+        # Plane Equation: A(x - x0) + B(y - y0) + C(z - z0) = 0
+        # Solving for z:
+        # z = z0 - (A/C)*(x - x0) - (B/C)*(y - y0)
+        
+        x_p, y_p = point_2d.x, point_2d.y
+        x0, y0, z0 = P1[0], P1[1], P1[2]
+        
+        new_z = z0 - (A / C) * (x_p - x0) - (B / C) * (y_p - y0)
+        
+        return float(new_z)
+
+
+    # --- Function to handle the interpolation based on geometry type ---
+    if isinstance(geometry_2d, shapely.geometry.Point):
+        # 1. Handle Point
+        new_z = get_interpolated_z(geometry_2d)
+        new_coords = (geometry_2d.x, geometry_2d.y, new_z)
+        return shapely.geometry.Point(new_coords)
+
+    elif isinstance(geometry_2d, (shapely.geometry.LineString, shapely.geometry.LinearRing)):
+        # 2. Handle LineString or LinearRing
+        new_coords = []
+        for x, y in geometry_2d.coords:
+            point_2d = shapely.geometry.Point(x, y)
+            new_z = get_interpolated_z(point_2d)
+            new_coords.append((x, y, new_z))
+        
+        if isinstance(geometry_2d, shapely.geometry.LineString):
+            return shapely.geometry.LineString(new_coords)
+        else: # LinearRing
+            return shapely.geometry.LinearRing(new_coords)
+    
+    elif isinstance(geometry_2d, shapely.geometry.Polygon):
+        # 3. Handle Polygon
+        
+        # A. Process Exterior Ring
+        exterior_coords_3d = []
+        for x, y in geometry_2d.exterior.coords:
+            point_2d = shapely.geometry.Point(x, y)
+            new_z = get_interpolated_z(point_2d)
+            exterior_coords_3d.append((x, y, new_z))
+
+        # B. Process Interior Rings (Holes)
+        interior_coords_3d_list = []
+        for interior_ring in geometry_2d.interiors:
+            hole_coords_3d = []
+            for x, y in interior_ring.coords:
+                point_2d = shapely.geometry.Point(x, y)
+                new_z = get_interpolated_z(point_2d)
+                hole_coords_3d.append((x, y, new_z))
+            interior_coords_3d_list.append(hole_coords_3d)
+
+        # Recreate the 3D Polygon
+        return shapely.geometry.Polygon(exterior_coords_3d, interior_coords_3d_list)
+    
+    elif isinstance(geometry_2d, shapely.geometry.MultiPolygon):
+        # 4. Handle MultiPolygon (NEW)
+        
+        new_polygons = []
+        # Iterate over the constituent Polygons in the MultiPolygon
+        for polygon_2d in geometry_2d.geoms:
+            # Recursively call the function for each Polygon
+            # The result is a 3D Polygon
+            polygon_3d = interpolate_z_planar(polygon_2d, planes_3d)
+            new_polygons.append(polygon_3d)
+            
+        # Combine the new 3D Polygons into a 3D MultiPolygon
+        return shapely.geometry.MultiPolygon(new_polygons)
+
+    else:
+        # 4. Handle unsupported types
+        raise TypeError(f"Unsupported geometry type: {type(geometry_2d).__name__}")

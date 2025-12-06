@@ -1,4 +1,5 @@
 import shapely
+from typing import List, Dict, Union
 from touchterrain.common.Vertex import vertex
 
 def get_polygon_coordinates_as_tuples(polygon: shapely.Polygon) -> list[tuple[float,...]]:
@@ -101,5 +102,58 @@ def create_polygon_from_modified_coords(original_polygon: shapely.Polygon, all_c
     # 4. Create the new Polygon
     # Shapely Polygon constructor is Polygon(exterior, [interior_1, interior_2, ...])
     new_polygon = shapely.Polygon(new_exterior_coords, new_interior_rings)
+
+    return new_polygon
+
+def get_polygon_points(polygon: shapely.geometry.Polygon) -> Dict[str, List[Union[shapely.geometry.Point, List[shapely.geometry.Point]]]]:
+    """
+    Extracts the coordinates of a Shapely Polygon (including all holes) 
+    and returns them as a dictionary of Shapely Point objects.
+    """
+    if not isinstance(polygon, shapely.geometry.Polygon):
+        raise TypeError("Input must be a shapely.geometry.Polygon.")
+
+    # 1. Get Exterior Points
+    # Prefix Point with 'shapely.geometry.'
+    exterior_points = [shapely.geometry.Point(x, y) for x, y in polygon.exterior.coords]
+
+    # 2. Get Interior Points (Holes)
+    interior_points_list = []
+    for interior_ring in polygon.interiors:
+        # Prefix Point with 'shapely.geometry.'
+        hole_points = [shapely.geometry.Point(x, y) for x, y in interior_ring.coords]
+        interior_points_list.append(hole_points) 
+
+    return {
+        'exterior': exterior_points,
+        'interior': interior_points_list
+    }
+
+# ---
+
+def recreate_polygon_from_points(points_data: Dict[str, List[Union[shapely.geometry.Point, List[shapely.geometry.Point]]]]) -> shapely.geometry.Polygon:
+    """
+    Recreates a Shapely Polygon from a dictionary containing exterior and interior 
+    ring points (as Shapely Point objects).
+    """
+    # 1. Extract coordinates for the exterior ring
+    try:
+        exterior_coords = [(p.x, p.y) for p in points_data['exterior']]
+    except (KeyError, AttributeError):
+        raise ValueError("Input data must contain a valid 'exterior' key with a list of Point objects.")
+
+    # 2. Extract coordinates for the interior rings (holes)
+    interior_coords_list = []
+    if points_data.get('interior'):
+        for hole_points in points_data['interior']:
+            if not isinstance(hole_points, list):
+                 raise ValueError("Interior data must be a list of lists of Point objects.")
+            
+            hole_coords = [(p.x, p.y) for p in hole_points]
+            interior_coords_list.append(hole_coords)
+
+    # 3. Create the Polygon
+    # Prefix Polygon with 'shapely.geometry.'
+    new_polygon = shapely.geometry.Polygon(exterior_coords, interior_coords_list)
 
     return new_polygon

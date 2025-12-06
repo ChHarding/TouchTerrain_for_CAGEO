@@ -57,8 +57,9 @@ from touchterrain.common.tile_info import TouchTerrainTileInfo
 from touchterrain.common.RasterVariants import RasterVariants
 from touchterrain.common.BorderEdge import BorderEdge
 
-from touchterrain.common.shapely_utils import interpolate_geometry_with_quad, flatten_geometries
+from touchterrain.common.shapely_utils import flatten_geometries
 from touchterrain.common.shapely_polygon_utils import polygon_to_list_of_vertex
+from touchterrain.common.interpolate_Z import interpolate_z_planar
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -699,8 +700,12 @@ class grid:
                         for gc in top_bottom_surface_polygons_triangulated_2D:
                             for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
                                 tri_ccw_order = shapely.orient_polygons(tri, exterior_cw=False)
-                                tri_with_z = interpolate_geometry_with_quad(geometry=tri_ccw_order, quad=topq, split_rotation=self.tile_info.config.split_rotation)
-                                top_surface_polygons_triangulated_3D.append(tri_with_z)
+                                tri_with_z = interpolate_z_planar(geometry_2d=tri_ccw_order, planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))
+                                #tri_with_z = interpolate_geometry_with_quad(geometry=tri_ccw_order, quad=topq, split_rotation=self.tile_info.config.split_rotation)
+                                if isinstance(tri_with_z, shapely.Polygon):
+                                    top_surface_polygons_triangulated_3D.append(tri_with_z)
+                                else:
+                                    raise ValueError(f"tri_with_z is not Polygon, it is {type(tri_with_z)}")
                 
                 #endregion
                 
@@ -766,11 +771,11 @@ class grid:
                     for gc in top_bottom_surface_polygons_triangulated_2D:
                         for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
                             tri_cw_order = shapely.orient_polygons(tri, exterior_cw=True)
-                            tri_with_z = interpolate_geometry_with_quad(geometry=tri_cw_order, quad=botq, split_rotation=self.tile_info.config.split_rotation)
+                            tri_with_z = interpolate_z_planar(geometry_2d=tri_cw_order, planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))
                             if isinstance(tri_with_z, shapely.Polygon):
                                 bottom_surface_polygons_triangulated_3D.append(tri_with_z)
                             else:
-                                raise TypeError('interpolate_geometry_with_quad did not return the same Polygon type passed in')
+                                raise TypeError('tri_with_z is not Polygon. interpolate_z_planar did not return the same Polygon type passed in')
                 
                 #endregion
                 
@@ -844,9 +849,9 @@ class grid:
                         top_surface_edges_3D: list[shapely.LineString] = []
                         bot_surface_edges_3D: list[shapely.LineString] = []
                         for geom in top_bottom_surface_geometries_2D:
-                            flattened_top_geom = flatten_geometries(geometries=[interpolate_geometry_with_quad(geom, topq, split_rotation=self.tile_info.config.split_rotation)], to_single_lines=True)
+                            flattened_top_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=geom, planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
                             top_surface_edges_3D.extend([item for item in flattened_top_geom if isinstance(item, shapely.LineString)])
-                            flattened_bot_geom = flatten_geometries(geometries=[interpolate_geometry_with_quad(geom, botq, split_rotation=self.tile_info.config.split_rotation)], to_single_lines=True)
+                            flattened_bot_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=geom, planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
                             bot_surface_edges_3D.extend([item for item in flattened_bot_geom if isinstance(item, shapely.LineString)])
                         
                         for be in wall_borderEdges:
@@ -942,11 +947,12 @@ class grid:
                             self.write_triangle_to_buffer(t0)
                             self.write_triangle_to_buffer(t1) # could be empty ...    
                     elif isinstance(q, shapely.Polygon):
-                        t0 = tuple(polygon_to_list_of_vertex(polygon=q))
-                        if len(t0) == 3:
-                           self.write_triangle_to_buffer(t0)
-                        else:
-                           raise ValueError(f"create_cells: found an polygon to write to buffer that has vertex count f{len(t0)}. Expected a tri of length 3.")
+                        pass
+                        # t0 = tuple(polygon_to_list_of_vertex(polygon=q))
+                        # if len(t0) == 3:
+                        #    self.write_triangle_to_buffer(t0)
+                        # else:
+                        #    raise ValueError(f"create_cells: found an polygon to write to buffer that has vertex count f{len(t0)}. Expected a tri of length 3.")
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     

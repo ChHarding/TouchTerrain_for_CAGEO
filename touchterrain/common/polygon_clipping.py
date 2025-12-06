@@ -81,12 +81,14 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
     
     return (False, None, None)
 
-def find_cell_and_clipping_poly_intersection(surface_raster_variant: RasterVariants, cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]]):
+def find_cell_and_clipping_poly_intersection(surface_raster_variant: RasterVariants, cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None):
     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
                     
     # Should set cell values to NaN
     if intersection_geometries_result[0]:
         surface_raster_variant.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
+        if top_hint is not None:
+            top_hint[cellLocation[0]][cellLocation[1]] = numpy.nan
     
     # Set cell all intersection geometries flattened to polygons
     if intersection_geometries_result[1] is not None:
@@ -96,7 +98,7 @@ def find_cell_and_clipping_poly_intersection(surface_raster_variant: RasterVaria
     if intersection_geometries_result[2] is not None:
         surface_raster_variant.polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[2]
     
-def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: RasterVariants, print3D_resolution_mm: float):
+def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: RasterVariants, top_hint: numpy.ndarray|None, print3D_resolution_mm: float):
     """Find the intersection polygon between each raster cell and the clipping polygon. Sort all individual edges of intersection polygons into buckets stored in RasterVariants based on if the edge lies on a cardinal direction edge of the cell quad. Marks all interior edges as needing walls created. 
     """
     if config.edge_fit_polygon_file == None:
@@ -162,7 +164,7 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                 if isinstance(clippingPrint2DPoly, shapely.Polygon):
                     #print(f'{j} {i}') # debug print the Y X of the cell
                     
-                    find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
+                    find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
                     
                     # Debug plot of a clipping and cell polygon intersection
                     if i==97 and j==45:

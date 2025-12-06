@@ -19,6 +19,7 @@ class RasterVariants:
     
     Bottom: Original, but ALL areas matched to top_hint mask are set to bottom_floor_elev.
     """
+    
     nan_close: Union[None, np.ndarray] # Raster after NaN close values to bottom and before dilation
     """
     Raster after nan close values between top and bottom.

@@ -147,6 +147,15 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}/../touchterrain-dev/",
       "args": "WV-new-river-thru.json"
-    }
+    },
+    {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-land-clip.json"
+    },
   ]
 }

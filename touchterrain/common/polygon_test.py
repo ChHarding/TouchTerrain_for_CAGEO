@@ -81,7 +81,7 @@ def geoToPrint3DCoordinates(shapelyPolygon, scale, geoXMin, geoYMin):
 geoToPrint3DCoordinates(shapely_polygons_re, 1000, 1000, 1000) 
 
 
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, Point
 from shapely.ops import split, unary_union
 #poly1 contains poly2
 poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
@@ -150,6 +150,14 @@ poly1 = Polygon(poly1_coords)
 poly2_coords = [(-1, -1), (-1, 6), (6, 6),(5, 5), (6, 4), (4, 3), (6, -1), (-1,-1)]
 poly2 = Polygon(poly2_coords)
 print(poly1.intersection(poly2))
+
+#poly1 intersects a point1 along a vertex or point2 in its interior
+poly1_coords = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
+poly1 = Polygon(poly1_coords)
+point1 = Point(0,0)
+point2 = Point(1,1)
+print(poly1.intersects(point1)) #true
+print(poly1.intersects(point2)) #true
 
 #line1 is same as line2
 line1_coords= [(0,0), (5,0)]

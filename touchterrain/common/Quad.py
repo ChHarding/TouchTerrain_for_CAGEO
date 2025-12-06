@@ -1,3 +1,5 @@
+import shapely
+
 from touchterrain.common.Vertex import vertex
 
 class quad:
@@ -88,6 +90,17 @@ class quad:
                 quad_tris_in_tuple_float.append((tri[0].coords, tri[1].coords, tri[2].coords))
             
         return quad_tris_in_tuple_float
+    
+    def get_triangles_in_polygons(self, split_rotation: int) -> list[shapely.Polygon]:
+        # convert Vertex objects in the tri to list[shapely.Polygon]
+        quad_tris_in_polygons: list[shapely.Polygon] = []
+        
+        quad_tris = self.get_triangles(split_rotation=split_rotation)
+        for tri in quad_tris:
+            if tri is not None:
+                quad_tris_in_polygons.append(shapely.Polygon([tri[0].coords, tri[1].coords, tri[2].coords, tri[0].coords]))
+            
+        return quad_tris_in_polygons
 
     '''
     # splits skinny triangles
