@@ -114,7 +114,7 @@ class cell:
         """Returns a list of all the meshes to actually include in the ouitput model for this cell. Meshes are in the form of a quad or shapely.Polygon (triangulated)"""
         meshes = []        
         if self.topSurfacePolygons:
-            meshes.append(self.topSurfacePolygons)
+            meshes.extend(self.topSurfacePolygons)
         elif self.topquad:
             meshes.append(self.topquad)
             # if we use topquad, we also use cardinal direction borders
@@ -124,7 +124,7 @@ class cell:
             raise AttributeError("cell has no top quad or topSurfacePolygons")
         
         if self.bottomSurfacePolygons:
-            meshes.append(self.bottomSurfacePolygons)
+            meshes.extend(self.bottomSurfacePolygons)
         elif self.bottomquad:
             meshes.append(self.bottomquad)
             
@@ -948,11 +948,11 @@ class grid:
                             self.write_triangle_to_buffer(t1) # could be empty ...    
                     elif isinstance(q, shapely.Polygon):
                         pass
-                        # t0 = tuple(polygon_to_list_of_vertex(polygon=q))
-                        # if len(t0) == 3:
-                        #    self.write_triangle_to_buffer(t0)
-                        # else:
-                        #    raise ValueError(f"create_cells: found an polygon to write to buffer that has vertex count f{len(t0)}. Expected a tri of length 3.")
+                        t0 = tuple(polygon_to_list_of_vertex(polygon=q))
+                        if len(t0) == 4 and t0[0].coords == t0[3].coords:
+                           self.write_triangle_to_buffer(t0[:3])
+                        else:
+                           raise ValueError(f"create_cells: found a polygon to write to buffer that is not a triangle. Expected a tri of length 3+1=4 and [0]==[3] vertex. Polygon had vertex count f{len(t0)}.")
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     

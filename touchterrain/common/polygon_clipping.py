@@ -281,23 +281,23 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     cell_2_location_y_in_range = cell_2_location_y >= 0 and cell_2_location_y < polygon_intersection_edge_buckets.shape[0]
     cell_2_location_x_in_range = cell_2_location_x >= 0 and cell_2_location_x < polygon_intersection_edge_buckets.shape[1]
     
-    def set_cell_2_shared_edges_to_walls():
-        if cell_2_location_y_in_range and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
-            cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
-            if direction[0] == -1: #N
-                for e in cell_2_y_edge_buckets['S']:
-                    e.make_wall = True
-            if direction[0] == 1: #S
-                for e in cell_2_y_edge_buckets['N']:
-                    e.make_wall = True
-        if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
-            cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
-            if direction[1] == -1: #W
-                for e in cell_2_x_edge_buckets['E']:
-                    e.make_wall = True
-            if direction[1] == 1: #E
-                for e in cell_2_x_edge_buckets['W']:
-                    e.make_wall = True
+    # def set_cell_2_shared_edges_to_walls():
+    #     if cell_2_location_y_in_range and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
+    #         cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
+    #         if direction[0] == -1: #N
+    #             for e in cell_2_y_edge_buckets['S']:
+    #                 e.make_wall = True
+    #         if direction[0] == 1: #S
+    #             for e in cell_2_y_edge_buckets['N']:
+    #                 e.make_wall = True
+    #     if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
+    #         cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
+    #         if direction[1] == -1: #W
+    #             for e in cell_2_x_edge_buckets['E']:
+    #                 e.make_wall = True
+    #         if direction[1] == 1: #E
+    #             for e in cell_2_x_edge_buckets['W']:
+    #                 e.make_wall = True
     
     if isinstance(cell_1_edge_buckets, dict):
         # If cell 1 is a dict, then check if cell 2 is in range and cell 2 is a dict. 
@@ -342,7 +342,8 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 for e in cell_1_edge_buckets['E']:
                     e.make_wall = True
     else:
-        print(f'mark_shared_edges_of_cell_for_walls: cell 1 edge buckets is not dict for cell location {cell_location}.')
+        #print(f'mark_shared_edges_of_cell_for_walls: cell 1 edge buckets is not dict for cell location {cell_location}.')
+        pass
         # If cell 1 edge buckets is None AND cell 1 raster location is NaN (cell 1 is outside the clipping polygon or contained properly).
         # e.g. cell 1 is outside boundary, cell 2 has intersection polygons
         # e.g. cell 1 is contained properly in boundary, cell 2 has intersection polygons

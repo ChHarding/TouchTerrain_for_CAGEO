@@ -64,7 +64,7 @@ class TestPolygonClipping(unittest.TestCase):
         
         for j in range(0, raster_variants.original.shape[0]): # Y
             for i in range(0, raster_variants.original.shape[1]): # X
-                find_cell_and_clipping_poly_intersection(surface_raster_variant=raster_variants, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=testData[1][clippingPrint2DPolyIndexMap[j][i]])
+                find_cell_and_clipping_poly_intersection(surface_raster_variant=raster_variants, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=testData[1][clippingPrint2DPolyIndexMap[j][i]], top_hint=None)
               
         self.assertTrue(~numpy.isnan(raster_variants.original[0][0]))
         self.assertTrue(~numpy.isnan(raster_variants.original[0][1]))

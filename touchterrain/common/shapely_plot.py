@@ -43,7 +43,7 @@ def plot_intersection_of_shapely_polygons(polys: list[shapely.Polygon]):
         
     plt.show()
     
-def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersectionPolys: list[list[shapely.Geometry]], edgeBuckets: list[list[BorderEdge]]):
+def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon] = [], intersectionPolys: list[list[shapely.Geometry]] = [], edgeBuckets: list[list[BorderEdge]] = []):
     "Plot N polygons and lines in a different color each time."
     
     fig, axs = plt.subplots()
@@ -54,7 +54,7 @@ def plot_shapely_geometries_colormap(basePolys: list[shapely.Polygon], intersect
     
     # -- dashed for base poly
     for i in range(0,len(basePolys)):
-        plot_polygon(basePolys[i], ax=axs, add_points=False, color=cmap(i), linestyle='--', linewidth=2)
+        plot_polygon(basePolys[i], ax=axs, add_points=False, color=cmap(i), linestyle='--', linewidth=2, alpha=0.5)
 
     # -. dash dot for intersections
     for i in range(0,len(intersectionPolys)):

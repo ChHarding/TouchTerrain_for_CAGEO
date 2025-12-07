@@ -57,6 +57,7 @@ from touchterrain.common.polygon_clipping import find_polygon_clipping_edges, ma
 import geopandas
 import shapely
 from touchterrain.common.shapely_utils import flatten_geometries, flatten_geometries_borderEdge, sort_line_segment_based_contains
+from touchterrain.common.shapely_plot import plot_shapely_geometries_colormap
 
 if DEV_MODE:
     sys.path = oldsp # back to old sys.path
@@ -1641,14 +1642,29 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         if config.bottom_elevation:
             bottom_raster_variants.original = bot_npim.copy()
         
-        #region Mark cells for polygon fitting
-        if config.edge_fit_polygon_file:
-            find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=top_raster_variants, top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
-        #endregion
         
-        #region Mark shared edges of the W and N neighbor of each cell for walls if needed
+        if config.edge_fit_polygon_file:
+            #region Mark cells for polygon fitting
+            find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=top_raster_variants, top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
+            #endregion
+        
+            #region Mark shared edges of the W and N neighbor of each cell for walls if needed
             mark_shared_edges_for_walls(top_raster_variants.polygon_intersection_edge_buckets, (-1, -1))
-        #endregion
+            #endregion
+        
+            # Debug: plot all polygon_intersection_geometry(s)
+            if False and top_raster_variants.polygon_intersection_geometry is not None:
+                all_polygon_intersection_geometries: list[shapely.Polygon] = []
+                for j in range(0,top_raster_variants.polygon_intersection_geometry.shape[0]):
+                    for i in range(0,top_raster_variants.polygon_intersection_geometry.shape[1]):
+                        if top_raster_variants.polygon_intersection_geometry[j][i] is not None:
+                            all_polygon_intersection_geometries.extend(top_raster_variants.polygon_intersection_geometry[j][i])
+                            if j == 1 and i == 5:
+                                print(top_raster_variants.polygon_intersection_geometry[j][i])
+                                plot_shapely_geometries_colormap(basePolys=top_raster_variants.polygon_intersection_geometry[j][i])
+                                pass # add debug breakpoint here for inspection
+                plot_shapely_geometries_colormap(basePolys=all_polygon_intersection_geometries)
+                    
         
         if raster_preparation(top=top_raster_variants, 
                            bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
