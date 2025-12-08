@@ -74,7 +74,9 @@ class RasterVariants:
     """
     Clipping intersection lines that overlap the normal quad edges in the 4 cardinal directions. Dict keys of 'N' 'W' 'S' 'E' 'other'. Represented as np.ndarray[dict[str,list[BorderEdge]]]. The BorderEdges along the side of a cell are used when creating borders (wall) for a cell.
     
-    This is not a variant! 
+    This is not a variant!
+    
+    polygon_intersection_edge_buckets existence is same as polygon_intersection_geometry to indicate disjoint or contained properly. 
     
     TODO: This should be stored in the cell object but we only keep the cell objects as we iterate through them so RasterVariants is the place to store this to maintain state.
     """

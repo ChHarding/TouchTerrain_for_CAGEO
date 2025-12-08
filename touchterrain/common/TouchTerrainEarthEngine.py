@@ -1649,7 +1649,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             #endregion
         
             #region Mark shared edges of the W and N neighbor of each cell for walls if needed
-            mark_shared_edges_for_walls(top_raster_variants.polygon_intersection_edge_buckets, (-1, -1))
+            mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.original, direction=(-1, -1))
             #endregion
         
             # Debug: plot all polygon_intersection_geometry(s)

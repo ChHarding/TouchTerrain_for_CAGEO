@@ -261,19 +261,19 @@ def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edge
             c2eIdx += 1
         c1eIdx += 1
 
-def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, cell_location: tuple[int, int], direction: tuple[int, int]):
+def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, elevation_raster: numpy.ndarray, cell_location: tuple[int, int], direction: tuple[int, int]):
     """Mark shared edges of a cell and the neighbor cell in the specified direction to have a wall if the edges overlap.
 
-    :param raster: raster of type ndarray with dtype=float64. Should be an ndarray from RasterVariants that tells us if a cell has an elevation value set or not.
-    :type raster: numpy.ndarray
     :param polygon_intersection_edge_buckets: polygon_intersection_edge_buckets of type ndarray with dtype=object dict[str,list[BorderEdge]]. Should be the ndarray from RasterVariants.
     :type polygon_intersection_edge_buckets: numpy.ndarray
+    :param elevation_raster: raster of type ndarray with dtype=float64. Should be an ndarray from RasterVariants that tells us if a cell has an elevation value set or not. We need this to differentiate between contained properly and disjoint cell because both cases have no polygon_intersection_edge_buckets set
+    :type elevation_raster: numpy.ndarray
     :param cell_location: Target cell location in Y,X order
     :type cell_location: tuple[int, int]
     :param direction: Direction of neighboring cell in Y,X order
     :type direction: tuple[int, int]
     """
-    cell_1_edge_buckets: dict[str, list[BorderEdge]] = polygon_intersection_edge_buckets[cell_location[0],cell_location[1]]
+    cell_1_edge_buckets: dict[str, list[BorderEdge]] = polygon_intersection_edge_buckets[cell_location]
     # Get 2 separate cell "2"s, one in vertical direction, one in horizontal direction
     cell_2_location_y = cell_location[0]+direction[0]
     cell_2_location_x = cell_location[1]+direction[1]
@@ -281,80 +281,97 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     cell_2_location_y_in_range = cell_2_location_y >= 0 and cell_2_location_y < polygon_intersection_edge_buckets.shape[0]
     cell_2_location_x_in_range = cell_2_location_x >= 0 and cell_2_location_x < polygon_intersection_edge_buckets.shape[1]
     
-    # def set_cell_2_shared_edges_to_walls():
-    #     if cell_2_location_y_in_range and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
-    #         cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
-    #         if direction[0] == -1: #N
-    #             for e in cell_2_y_edge_buckets['S']:
-    #                 e.make_wall = True
-    #         if direction[0] == 1: #S
-    #             for e in cell_2_y_edge_buckets['N']:
-    #                 e.make_wall = True
-    #     if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
-    #         cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
-    #         if direction[1] == -1: #W
-    #             for e in cell_2_x_edge_buckets['E']:
-    #                 e.make_wall = True
-    #         if direction[1] == 1: #E
-    #             for e in cell_2_x_edge_buckets['W']:
-    #                 e.make_wall = True
-    
     if isinstance(cell_1_edge_buckets, dict):
         # If cell 1 is a dict, then check if cell 2 is in range and cell 2 is a dict. 
         if cell_2_location_y_in_range:
-            if polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
-                # do overlapping edge check if cell 2 is dict
-                cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
+            cell_2_location = (cell_2_location_y,cell_location[1])
+            cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location]
+            if cell_2_y_edge_buckets: # do overlapping edge check if cell 2 is not None (assume it's a dict otherwise)
+                # cell 2 has buckets to compare
                 if direction[0] == -1: #N
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['N'], cell_2_edges=cell_2_y_edge_buckets['S'])
                 elif direction[0] == 1: #S
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['S'], cell_2_edges=cell_2_y_edge_buckets['N'])
                 elif direction[0] != 0:
                     print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[0]}')
-            else:
-                # e.g. cell 1 has intersection polygons, cell 2 is outside boundary
-                # e.g. cell 1 has intersection polygons, cell 2 is contained properly in boundary
-                # no walls should exist on the cell 1 and cell 2 shared sides
-                pass
-                
-        else: # Make all edges along the side a wall if direction is out of range
+            elif numpy.isnan(elevation_raster[cell_2_location]): # cell 2 elevation_raster is NaN.
+                if direction[0] == -1: #N
+                    for e in cell_1_edge_buckets['N']:
+                        e.make_wall = True
+                if direction[0] == 1: #S
+                    for e in cell_1_edge_buckets['S']:
+                        e.make_wall = True  
+            else: # cell 2 is contained properly
+                pass # make no walls on either cell shared sides
+        else:
+            # Direction of cell 2 is out of range.
             if direction[0] == -1: #N
                 for e in cell_1_edge_buckets['N']:
                     e.make_wall = True
             if direction[0] == 1: #S
                 for e in cell_1_edge_buckets['S']:
                     e.make_wall = True
-                
         
-        if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
-            cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
-            if direction[1] == -1: #W
-                mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['W'], cell_2_edges=cell_2_x_edge_buckets['E'])
-            elif direction[1] == 1: #E
-                mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['E'], cell_2_edges=cell_2_x_edge_buckets['W'])
-            elif direction[1] != 0:
-                print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[1]}')
-        else: # Make all edges along the side a wall if direction is out of range
-            if direction[1] == -1: #W
-                for e in cell_1_edge_buckets['W']:
+        if cell_2_location_x_in_range:
+            cell_2_location = (cell_location[0], cell_2_location_x)
+            cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_2_location]
+            if cell_2_x_edge_buckets: # do overlapping edge check if cell 2 is not None (assume it's a dict otherwise)
+                # cell 2 has buckets to compare
+                if direction[1] == -1: #W
+                    mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['W'], cell_2_edges=cell_2_x_edge_buckets['E'])
+                elif direction[1] == 1: #E
+                    mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['E'], cell_2_edges=cell_2_x_edge_buckets['W'])
+                elif direction[1] != 0:
+                    print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[1]}')
+            elif numpy.isnan(elevation_raster[cell_2_location]): # cell 2 elevation_raster is NaN.
+                if direction[1] == -1: #W
+                    for e in cell_1_edge_buckets['W']:
+                        e.make_wall = True
+                if direction[1] == 1: #E
+                    for e in cell_1_edge_buckets['E']:
+                        e.make_wall = True  
+            else: # cell 2 is contained properly
+                pass # make no walls on either cell shared sides
+        else:
+            # Direction of cell 2 is out of range.
+            if direction[0] == -1: #N
+                for e in cell_1_edge_buckets['N']:
                     e.make_wall = True
-            if direction[1] == 1: #E
-                for e in cell_1_edge_buckets['E']:
+            if direction[0] == 1: #S
+                for e in cell_1_edge_buckets['S']:
                     e.make_wall = True
     else:
         #print(f'mark_shared_edges_of_cell_for_walls: cell 1 edge buckets is not dict for cell location {cell_location}.')
-        pass
-        # If cell 1 edge buckets is None AND cell 1 raster location is NaN (cell 1 is outside the clipping polygon or contained properly).
-        # e.g. cell 1 is outside boundary, cell 2 has intersection polygons
-        # e.g. cell 1 is contained properly in boundary, cell 2 has intersection polygons
-        # no walls
-        # cell 2 should not have any wall edges made along the cell 1 and cell 2 border
+        # This case happens when:
+        # If cell 1 edge buckets is None
+        # This means (cell 1 is outside the clipping polygon or contained properly).
+        # If cell 1 elevation_raster is NaN:
+        # e.g. cell 1 is outside boundary (or somehow needing a wall on that side) and cell 2 has intersection polygons -> cell 2 should make walls
+        if numpy.isnan(elevation_raster[cell_location]):
+            if cell_2_location_y_in_range and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
+                cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
+                if direction[0] == -1: #N
+                    for e in cell_2_y_edge_buckets['S']:
+                        e.make_wall = True
+                if direction[0] == 1: #S
+                    for e in cell_2_y_edge_buckets['N']:
+                        e.make_wall = True
+            if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
+                cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
+                if direction[1] == -1: #W
+                    for e in cell_2_x_edge_buckets['E']:
+                        e.make_wall = True
+                if direction[1] == 1: #E
+                    for e in cell_2_x_edge_buckets['W']:
+                        e.make_wall = True
+        # If cell 1 elevation_raster is not NaN:
+        # e.g. cell 1 is contained properly in boundary -> no walls
     
     pass
 
-def mark_shared_edges_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, direction: tuple[int, int]):
+def mark_shared_edges_for_walls(polygon_intersection_edge_buckets: numpy.ndarray, elevation_raster: numpy.ndarray, direction: tuple[int, int]):
     """Mark shared edges of all cells in an ndarray and the neighbor cell in the specified direction to have a wall if the edges overlap.
     """
     for j in range(0, polygon_intersection_edge_buckets.shape[0]): # Y
         for i in range(0, polygon_intersection_edge_buckets.shape[1]): # X
-            mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets, cell_location=(j,i), direction=direction)
+            mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets=polygon_intersection_edge_buckets, elevation_raster=elevation_raster, cell_location=(j,i), direction=direction)

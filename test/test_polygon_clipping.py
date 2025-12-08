@@ -73,7 +73,7 @@ class TestPolygonClipping(unittest.TestCase):
         self.assertTrue(numpy.isnan(raster_variants.original[2][0]))
         self.assertTrue(numpy.isnan(raster_variants.original[2][1]))
         
-        mark_shared_edges_for_walls(polygon_intersection_edge_buckets=raster_variants.polygon_intersection_edge_buckets, direction=(-1,-1))
+        mark_shared_edges_for_walls(polygon_intersection_edge_buckets=raster_variants.polygon_intersection_edge_buckets, elevation_raster=raster_variants.original, direction=(-1,-1))
         
         quadPolys = list(map(lambda x:shapely.Polygon(x),testData[1]))
         basePolys = [testData[0]] + quadPolys

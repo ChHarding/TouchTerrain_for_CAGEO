@@ -94,7 +94,7 @@ class cell:
     "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the topquad"
     bottomSurfacePolygons: list[shapely.Polygon] | None = None
     "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the bottomquad"
-    surfacePolygonBorders: list[quad]
+    surfacePolygonBorders: list[quad] | None = None
     # surface polygon borders should be generated using raster polygon edge buckets BorderEdge wall value
        
     def __init__(self, topquad, bottomquad, borders, is_tri_cell=False):
@@ -128,9 +128,8 @@ class cell:
         elif self.bottomquad:
             meshes.append(self.bottomquad)
             
-        # generate borders for matching top and bottom surface polygons
-        if self.topSurfacePolygons and self.bottomSurfacePolygons:
-            pass
+        if self.surfacePolygonBorders:
+            meshes.extend(self.surfacePolygonBorders)
         
         return meshes
 
@@ -256,6 +255,8 @@ class cell:
             b["W"] = False
             
         # TODO: for surface polygons we can remove matching tris that have the same Z for all vertex
+    
+        
 
 '''
 #profiling decorator
@@ -833,6 +834,7 @@ class grid:
                     if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
 
                 # create borders if there is a top surface polygon using the edge buckets
+                surface_polygon_borders_3D: list[quad] = []
                 if self.tile.top_raster_variants.polygon_intersection_edge_buckets is not None and self.tile.top_raster_variants.polygon_intersection_edge_buckets[j-1][i-1] is not None:
                     # Get list of all BorderEdges with edge geometry that should be walls
                     wall_borderEdges = []
@@ -849,11 +851,14 @@ class grid:
                         top_surface_edges_3D: list[shapely.LineString] = []
                         bot_surface_edges_3D: list[shapely.LineString] = []
                         for geom in top_bottom_surface_geometries_2D:
-                            flattened_top_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=geom, planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
-                            top_surface_edges_3D.extend([item for item in flattened_top_geom if isinstance(item, shapely.LineString)])
-                            flattened_bot_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=geom, planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
-                            bot_surface_edges_3D.extend([item for item in flattened_bot_geom if isinstance(item, shapely.LineString)])
+                            if isinstance(geom, shapely.Polygon):
+                                flattened_top_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=shapely.orient_polygons(geom, exterior_cw=False), planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
+                                top_surface_edges_3D.extend([item for item in flattened_top_geom if isinstance(item, shapely.LineString)])
+                                flattened_bot_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=shapely.orient_polygons(geom, exterior_cw=True), planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
+                                bot_surface_edges_3D.extend([item for item in flattened_bot_geom if isinstance(item, shapely.LineString)])
                         
+                        # Find matching interpolated top and bottom surface edges for all BorderEdges that should be a wall
+                        # This match is O(n^2) and optimized to O(n^2/2) in the optimal case by removing matched top/bottom surface edges from the array so matched edges are looked through again
                         for be in wall_borderEdges:
                             topEdgeMatch: shapely.LineString | None = None
                             botEdgeMatch: shapely.LineString | None = None
@@ -862,12 +867,19 @@ class grid:
                                     topEdgeMatch = top_surface_edges_3D[ti]
                                     del top_surface_edges_3D[ti]
                                     break
-                            for ti in range(0, len(bot_surface_edges_3D)):
-                                if be.geometry.equals(bot_surface_edges_3D[ti]):
-                                    botEdgeMatch = bot_surface_edges_3D[ti]
-                                    del bot_surface_edges_3D[ti]
+                            for bi in range(0, len(bot_surface_edges_3D)):
+                                if be.geometry.equals(bot_surface_edges_3D[bi]):
+                                    botEdgeMatch = bot_surface_edges_3D[bi]
+                                    del bot_surface_edges_3D[bi]
                                     break
                             if topEdgeMatch and botEdgeMatch:
+                                # Success condition where wall BorderEdge and top edge and bottom edge share the same X,Y endpoints
+                                top_edge_v0 = vertex(*topEdgeMatch.coords[1])
+                                top_edge_v1 = vertex(*topEdgeMatch.coords[0])
+                                bot_edge_v0 = vertex(*botEdgeMatch.coords[1])
+                                bot_edge_v1 = vertex(*botEdgeMatch.coords[0])
+                                tb_wall = quad(top_edge_v0, top_edge_v1, bot_edge_v0, bot_edge_v1)
+                                surface_polygon_borders_3D.append(tb_wall)
                                 pass
                             elif topEdgeMatch:
                                 raise RuntimeError('Border creation: top edge match found but no bot edge match.')
@@ -877,7 +889,8 @@ class grid:
                                 raise RuntimeError('Border creation: no top edge or bot edge matches')
                             # create border geometry with top and bot edge
                             # top and bot edges are in CW order (viewed from top) from shapely
-                                
+                            
+                            
                         
 
                 #endregion
@@ -898,6 +911,8 @@ class grid:
                     c.topSurfacePolygons = top_surface_polygons_triangulated_3D
                 if bottom_surface_polygons_triangulated_3D:
                     c.bottomSurfacePolygons = bottom_surface_polygons_triangulated_3D
+                if surface_polygon_borders_3D:
+                    c.surfacePolygonBorders = surface_polygon_borders_3D
 
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
