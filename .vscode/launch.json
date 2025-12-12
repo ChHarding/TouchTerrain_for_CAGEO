@@ -157,6 +157,24 @@
       "cwd": "${workspaceFolder}/../touchterrain-dev/",
       "args": "WV-new-river-thru.json"
     },
+        {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-river.json"
+    },
     {
       "name": "Python Debugger: TT Standalone simplePolygon-new-land-clip.json",
       "type": "debugpy",

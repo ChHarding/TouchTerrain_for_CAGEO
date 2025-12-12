@@ -81,25 +81,29 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
     
     return (False, None, None)
 
-def find_cell_and_clipping_poly_intersection(surface_raster_variant: RasterVariants, cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None):
+def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[RasterVariants], cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None):
     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
                     
     # Should set cell values to NaN
     if intersection_geometries_result[0]:
-        surface_raster_variant.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
+        #surface_raster_variant.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
+        for rv in surface_raster_variant: # Set the location to NaN in all raster variants (top and bottom) to get the same interpolation values between normal/difference modes
+            rv.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
         if top_hint is not None:
             top_hint[cellLocation[0]][cellLocation[1]] = numpy.nan
     
     # Set cell all intersection geometries flattened to polygons
     if intersection_geometries_result[1] is not None:
-        surface_raster_variant.polygon_intersection_geometry[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[1]
+        surface_raster_variant[0].polygon_intersection_geometry[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[1]
         
     # Set cell all intersection geometries flattened to single edges and sorted into buckets in a dict
     if intersection_geometries_result[2] is not None:
-        surface_raster_variant.polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[2]
+        surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[2]
     
-def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: RasterVariants, top_hint: numpy.ndarray|None, print3D_resolution_mm: float):
+def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: list[RasterVariants], top_hint: numpy.ndarray|None, print3D_resolution_mm: float):
     """Find the intersection polygon between each raster cell and the clipping polygon. Sort all individual edges of intersection polygons into buckets stored in RasterVariants based on if the edge lies on a cardinal direction edge of the cell quad. Marks all interior edges as needing walls created. 
+    
+    Use the first RasterVariant in the list for calculations. Propagate any "set to NaN" changes to any other RasterVariants
     """
     if config.edge_fit_polygon_file == None:
         print('find_polygon_clipping_edges: config.edge_fit_polygon_file not defined!')
@@ -107,6 +111,9 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     if config.tileScale == None:
         print('find_polygon_clipping_edges: config.tileScale not defined!')
         return
+    
+    # if len(surface_raster_variant) == 0:
+    #     raise ValueError("list of RasterVariant had no objects")
     
     # Read the GeoPackage into a GeoDataFrame
     polygon_boundary_gdf = geopandas.read_file(config.edge_fit_polygon_file)
@@ -145,19 +152,19 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     lry = uly + (ncol * yskew) + (nrow * pixelheighty)
         
     # Create clipping_intersection_geometry and polygon_intersection_lines_buckets for the first time
-    if surface_raster_variant.original is None:
+    if surface_raster_variant[0].original is None:
         print('find_polygon_clipping_edges: original variant is None')
         return
-    surface_raster_variant.polygon_intersection_geometry = numpy.empty(surface_raster_variant.original.shape, dtype=object)
-    surface_raster_variant.polygon_intersection_edge_buckets = numpy.empty(surface_raster_variant.original.shape, dtype=object)
+    surface_raster_variant[0].polygon_intersection_geometry = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
+    surface_raster_variant[0].polygon_intersection_edge_buckets = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
         
     # determine intersection for polygon(s) in boundary and each cell quad
     for clippingGeoPoly in shapely_polygons:
         clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
-        for j in range(0, surface_raster_variant.original.shape[0]): # Y
-            for i in range(0, surface_raster_variant.original.shape[1]): # X
+        for j in range(0, surface_raster_variant[0].original.shape[0]): # Y
+            for i in range(0, surface_raster_variant[0].original.shape[1]): # X
                 #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
-                quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=surface_raster_variant.original.shape[0])
+                quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=surface_raster_variant[0].original.shape[0])
                 # TODO: use shapely.box for optimization?
                 #quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
                 
@@ -167,11 +174,10 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                     find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
                     
                     # Debug plot of a clipping and cell polygon intersection
-                    if i==97 and j==45:
-                        quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
-                        
-                        plot_intersection_of_shapely_polygons([clippingPrint2DPoly, quadPrint2DPoly])
-                        pass
+                    # if i==97 and j==45:
+                    #     quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
+                    #     plot_intersection_of_shapely_polygons([clippingPrint2DPoly, quadPrint2DPoly])
+                    #     pass
                 else:
                     print("clippingPrint2DPoly is not a shapely Polygon")
                     break
