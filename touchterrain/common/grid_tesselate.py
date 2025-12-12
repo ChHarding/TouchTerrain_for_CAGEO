@@ -103,6 +103,10 @@ class cell:
         self.borders = borders
         self.is_tri_cell = is_tri_cell
 
+        self.topquadoriginal = topquad
+        self.bottomquadtoriginal = bottomquad
+        self.bordersoriginal = borders
+
     def __str__(self):
         r = hex(id(self)) + "\n top:" + str(self.topquad) + "\n btm:" + str(self.bottomquad) + "\n borders:\n"
         for d in ["N", "S", "E", "W"]:
@@ -120,8 +124,9 @@ class cell:
             # if we use topquad, we also use cardinal direction borders
             for k in self.borders:  # k is N, S, E, W
                 if self.borders[k] is not False: meshes.append(self.borders[k])
-        else:
-            raise AttributeError("cell has no top quad or topSurfacePolygons")
+        # else:
+        # It is possible to have a cell with no top quad or topSurfacePolygon because all volumes in the cell were removed in zero volume check
+        #     raise AttributeError("cell has no top quad or topSurfacePolygons")
         
         if self.bottomSurfacePolygons:
             meshes.extend(self.bottomSurfacePolygons)
@@ -218,8 +223,8 @@ class cell:
                 tvl[1].coords[2] == bvl[3].coords[2] and 
                 tvl[2].coords[2] == bvl[2].coords[2] and
                 tvl[3].coords[2] == bvl[1].coords[2]):
-            self.topquad = quad(None, None, None, None)
-            self.bottomquad = quad(None, None, None, None)
+            self.topquad = None #quad(None, None, None, None)
+            self.bottomquad = None #quad(None, None, None, None)
             b["N"] = b["W"] = b["S"] = b["E"] = False
         # (NW case) NW NE SW vertices are same Z, keep tri of SE SW NE
         elif (tvl[0].coords[2] == bvl[0].coords[2] and 
@@ -227,15 +232,15 @@ class cell:
                 tvl[1].coords[2] == bvl[3].coords[2]):
             self.topquad = quad(tvl[3], tvl[1], tvl[2], None)
             self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) 
-            b["N"] = quad(tvl[1], tvl[3], bvl[1], bvl[3])
+            b["N"] = False #quad(tvl[1], tvl[3], bvl[1], bvl[3])
             b["W"] = False
-        # (NE case) NW NE SW vertices are same Z, keep tri of SE SW NW
+        # (NE case) NW NE SE vertices are same Z, keep tri of SE SW NW
         elif (tvl[0].coords[2] == bvl[0].coords[2] and 
                 tvl[3].coords[2] == bvl[1].coords[2] and 
                 tvl[2].coords[2] == bvl[2].coords[2]):
             self.topquad = quad(tvl[0], tvl[1], tvl[2], None)
             self.bottomquad = quad(bvl[0], bvl[2], bvl[3], None) 
-            b["N"] = quad(tvl[0], tvl[2], bvl[2], bvl[0])
+            b["N"] = False #quad(tvl[0], tvl[2], bvl[2], bvl[0])
             b["E"] = False 
         # (SE case) NE SE SW vertices are same Z, keep tri of SW NW NE
         elif (tvl[3].coords[2] == bvl[1].coords[2] and 
@@ -243,7 +248,7 @@ class cell:
                 tvl[2].coords[2] == bvl[2].coords[2]):
             self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
             self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
-            b["S"] = quad(tvl[3], tvl[1], bvl[3], bvl[1])
+            b["S"] = False #quad(tvl[3], tvl[1], bvl[3], bvl[1])
             b["E"] = False
         # (SW case) SE SW NW vertices are same Z, keep tri of NW NE SE
         elif (tvl[0].coords[2] == bvl[0].coords[2] and 
@@ -251,7 +256,7 @@ class cell:
                 tvl[2].coords[2] == bvl[2].coords[2]):
             self.topquad = quad(tvl[2], tvl[3], tvl[0], None)
             self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
-            b["S"] = quad(tvl[2], tvl[0], bvl[0], bvl[2])
+            b["S"] = False #quad(tvl[2], tvl[0], bvl[0], bvl[2])
             b["W"] = False
             
         # TODO: for surface polygons we can remove matching tris that have the same Z for all vertex
@@ -954,13 +959,15 @@ class grid:
                 # write the triangles of the meshes to buffer
                 for q in meshes:
                     if isinstance(q, quad):
-                        t0, t1 = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
+                        triangles = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
 
                         # for STL this will write triangles (vertices) but for obj this will
                         # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
-                        if any(t0):
-                            self.write_triangle_to_buffer(t0)
-                            self.write_triangle_to_buffer(t1) # could be empty ...    
+                        for t in triangles:
+                            self.write_triangle_to_buffer(t)
+                        # if any(t0):
+                        #     self.write_triangle_to_buffer(t0)
+                        #     self.write_triangle_to_buffer(t1) # could be empty ...    
                     elif isinstance(q, shapely.Polygon):
                         pass
                         t0 = tuple(polygon_to_list_of_vertex(polygon=q))
