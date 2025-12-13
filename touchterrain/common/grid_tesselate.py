@@ -58,7 +58,7 @@ from touchterrain.common.RasterVariants import RasterVariants
 from touchterrain.common.BorderEdge import BorderEdge
 
 from touchterrain.common.shapely_utils import flatten_geometries
-from touchterrain.common.shapely_polygon_utils import polygon_to_list_of_vertex
+from touchterrain.common.shapely_polygon_utils import polygon_to_list_of_vertex, polygons_equal_3d
 from touchterrain.common.interpolate_Z import interpolate_z_planar
 
 # function to calculate the normal for a triangle
@@ -103,9 +103,9 @@ class cell:
         self.borders = borders
         self.is_tri_cell = is_tri_cell
 
-        self.topquadoriginal = topquad
-        self.bottomquadtoriginal = bottomquad
-        self.bordersoriginal = borders
+        # Debug: keep the original quads to see what the cell functions changed
+        # self.topquadoriginal = topquad
+        # self.bottomquadtoriginal = bottomquad
 
     def __str__(self):
         r = hex(id(self)) + "\n top:" + str(self.topquad) + "\n btm:" + str(self.bottomquad) + "\n borders:\n"
@@ -215,7 +215,7 @@ class cell:
         """Vertices mapping     NW SW SE NE
         Top                      0  1  2  3
         Bottom                   0  3  2  1
-        The vertices seem to be a different mapping than commented in convert_to_tri_cell() and the above mapping makes much more sense for normals directions. This assuming we are viewing the quad from straight above from the positive Z direction.
+        The vertices seem to be a different mapping than commented in convert_to_tri_cell() and the above mapping makes much more sense for normals' directions. This assumes we are viewing the quad from straight above from the positive Z direction.
         """
         
         # All vertexes of the top and bottom quad are at the same Z coordinate so the entire quad has 0 volume.
@@ -259,9 +259,21 @@ class cell:
             b["S"] = False #quad(tvl[2], tvl[0], bvl[0], bvl[2])
             b["W"] = False
             
-        # TODO: for surface polygons we can remove matching tris that have the same Z for all vertex
-    
-        
+        # for surface polygons we can remove matching tris that have the same Z for all vertex
+        if self.topSurfacePolygons and self.bottomSurfacePolygons:
+            ti = 0
+            while ti < len(self.topSurfacePolygons):
+                match = False
+                bi = 0
+                while bi < len(self.bottomSurfacePolygons):
+                    if polygons_equal_3d(self.topSurfacePolygons[ti], self.bottomSurfacePolygons[bi]):
+                        del self.topSurfacePolygons[ti]
+                        del self.bottomSurfacePolygons[bi]
+                        match = True
+                        break
+                    bi += 1
+                if not match:
+                    ti += 1
 
 '''
 #profiling decorator
@@ -923,6 +935,9 @@ class grid:
                 #c.iy = j-1
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
+
+                if j == 10 and i == 10:
+                    pass
 
                 if self.tile.bottom_raster_variants is not None and self.tile_info.config.split_rotation == 1:
                     c.remove_zero_height_volumes()

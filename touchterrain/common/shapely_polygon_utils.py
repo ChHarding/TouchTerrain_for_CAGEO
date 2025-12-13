@@ -2,6 +2,39 @@ import shapely
 from typing import List, Dict, Union
 from touchterrain.common.Vertex import vertex
 
+import numpy as np
+
+from shapely.ops import orient
+
+
+def polygons_equal_3d(a: shapely.Polygon, b: shapely.Polygon, tol=1e-9) -> bool:
+    # Same 2D footprint
+    if not a.equals(b):
+        return False
+
+    # Normalize winding so clockwise/counterclockwise match
+    a, b = orient(a, sign=1.0), orient(b, sign=1.0)
+
+    # Helper to normalize rings (start position doesn’t matter; orientation is preserved by equals)
+    def ring_coords(poly):
+        return [np.array(poly.exterior.coords), *[np.array(r.coords) for r in poly.interiors]]
+
+    rings_a, rings_b = ring_coords(a), ring_coords(b)
+    if len(rings_a) != len(rings_b):
+        return False
+
+    for ra, rb in zip(rings_a, rings_b):
+        if ra.shape != rb.shape:
+            return False
+        # Rotate rb so its first point matches ra’s first point (within tolerance)
+        diffs = np.linalg.norm(rb[:, :2] - ra[0, :2], axis=1)
+        start = int(np.argmin(diffs))
+        rb_rot = np.concatenate([rb[start:], rb[:start]], axis=0)
+        if not (np.allclose(ra[:, :2], rb_rot[:, :2], atol=tol) and
+                np.allclose(ra[:, 2], rb_rot[:, 2], atol=tol)):
+            return False
+    return True
+
 def get_polygon_coordinates_as_tuples(polygon: shapely.Polygon) -> list[tuple[float,...]]:
     """
     Extracts all coordinate points of a Shapely Polygon
