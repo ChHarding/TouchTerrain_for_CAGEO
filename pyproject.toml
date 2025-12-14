@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "touchterrain"
-version = "3.7.0"
+version = "3.8.0"
 description = "Framework for converting raster based Digital Elevation Models (online or local) into 3D printable terrain models (STL)"
 readme = "ReadMe.md"
 requires-python = ">=3.11,<4"
@@ -14,32 +14,35 @@ authors = [
 ]
 keywords = ["elevation", "terrain", "3D-printing", "geotiff", "STL"]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "defusedxml>=0.6",
-    "earthengine-api>=0.1.232",
+    "defusedxml>=0.7.1",
+    "earthengine-api>=1.2.0",
     "geojson>=2.5",
     "geopandas",
 #   "gdal>=3.2.1,<3.10", # Commented out because pip may have issues compiling using VS build tools. It is better to install gdal via "conda install -c conda-forge gdal"
-    "google-api-python-client>=2.6",
+    "google-api-python-client>=2.151.0",
     "httplib2>=0.22.0",
     "imageio>=2.36.0",
     "k3d>=2.16.1",
-    "kml2geojson>=4.0.2",
+    "kml2geojson>=5.1.0",
     "matplotlib>=3.9.2",
-    "numpy>=1.17",
+    "numpy>=2.1.2",
     "oauth2client>=4.1.3",
-    "Pillow>=6.0.0",
+    "pillow>=10.4.0",
     "requests>=2.0.0",
-    "scipy>=1.2",
+    "scipy>=1.14.1",
     "shapely>=2.1.0",
-    "six>=1.15.0",
+    "six>=1.16.0",
 ]
 
 [project.optional-dependencies]
 server = [
-    "Flask>=2.0.0",
+    "Flask>=3.0.3",
     "gunicorn>=20.0.4",
 ]
 notebook = [
