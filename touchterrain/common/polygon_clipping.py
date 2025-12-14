@@ -105,7 +105,7 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     
     Use the first RasterVariant in the list for calculations. Propagate any "set to NaN" changes to any other RasterVariants
     """
-    if config.edge_fit_polygon_file == None:
+    if config.edge_clipping_polygon == None:
         print('find_polygon_clipping_edges: config.edge_fit_polygon_file not defined!')
         return
     if config.tileScale == None:
@@ -116,7 +116,7 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     #     raise ValueError("list of RasterVariant had no objects")
     
     # Read the GeoPackage into a GeoDataFrame
-    polygon_boundary_gdf = geopandas.read_file(config.edge_fit_polygon_file)
+    polygon_boundary_gdf = geopandas.read_file(config.edge_clipping_polygon)
 
     # reproject vector boundary to same projected CRS as raster
     polygon_boundary_gdf = polygon_boundary_gdf.to_crs(dem.GetProjectionRef())

@@ -1643,7 +1643,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             bottom_raster_variants.original = bot_npim.copy()
         
         
-        if config.edge_fit_polygon_file:
+        if config.edge_clipping_polygon:
             #region Mark cells for polygon fitting
             find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=[top_raster_variants, bottom_raster_variants], top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
             #endregion

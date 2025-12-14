@@ -1,0 +1,7 @@
+name: notebook
+channels:
+    - conda-forge
+dependencies:  # for geemap in a notebook, avoiding the model not found error
+    - pip
+    - pip:
+        - .
