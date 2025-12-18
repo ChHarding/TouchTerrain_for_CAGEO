@@ -1,7 +1,7 @@
-name: notebook
+name: touchterrain-dev
 channels:
     - conda-forge
-dependencies:  # for geemap in a notebook, avoiding the model not found error
+dependencies:
     - gdal
     - pip
     - pip:

@@ -1,46 +1,8 @@
-name: notebook
+name: touchterrain
 channels:
     - conda-forge
-dependencies:  # for geemap in a notebook, avoiding the model not found error
-    - cartopy
-    - datapane
-    - flask>=2.0.0
-    - flask-caching
+dependencies:
     - gdal
-    - geemap>=0.11.0
-    - geopandas
-    - imageio
-    - ipyvtklink
-    - keplergl
-    - laspy
-    - leafmap>=0.7.2
-    - localtileserver>=0.4.0
-    - osmnx
     - pip
-    - pydeck
-    - pyntcloud
-    - python>=3.8
-    - pyvista
-    - requests
-    - rio-cogeo
-    - tifffile
-    - xarray_leaflet
-    - shapely>=2.1.0
-   
-    # for running touchterrain in a notebook
-    - pillow>=6.0.0
-    - google-api-python-client==1.12.8
-    - earthengine-api>=0.1.232
-    - oauth2client>=4.1.3
-    - numpy>=1.17
-    - scipy>=1.2
-    - kml2geojson>=4.0.2
-    - geojson>=2.5
-    - defusedxml>=0.6
-    - six>=1.15.0
-    - k3d>=2.14
-
-    # touchterrain will be installed via postBuild!
-    
-
-
+    - pip:
+        - .

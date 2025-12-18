@@ -40,7 +40,7 @@ try:
     from touchterrain.common.user_config import TouchTerrainConfig
 except Exception as e:
     print(e)
-    print("Error: touchterrain module is not installed or could not be imported. Use pip install . in the same folder as setup.py")
+    print("Error: touchterrain module is not installed or error happened when importing. Use pip install . in the same folder as pyproject.toml to install touchterrain.")
     sys.exit()
 
 #
@@ -73,8 +73,6 @@ def main():
     with open('example_config.json', 'w+') as fp:
         json.dump(default_args, fp, indent=2, default=vars)
     print('Wrote example_config.json with default values, you can use it as a template but make sure to rename it!')
-    
-    
     
     # parse args
     if len(sys.argv) > 1:  # sys.argv are the CLI args
