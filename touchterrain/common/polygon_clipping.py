@@ -86,6 +86,10 @@ def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[Raster
     :return: Should set cell value to NaN
     :rtype: bool
     """
+    
+    if cellLocation[0] == 124 and cellLocation[1] == 0:
+        pass
+    
     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
           
     # Debug: stop here to inspect intersection geometry result for a polygon and the cell 
@@ -309,6 +313,11 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     :param direction: Direction of neighboring cell in Y,X order
     :type direction: tuple[int, int]
     """
+    
+    # Debug: inspect a cell
+    if cell_location[0] == 124 and cell_location[1] == 0:
+        pass
+    
     cell_1_edge_buckets: dict[str, list[BorderEdge]] = polygon_intersection_edge_buckets[cell_location]
     # Get 2 separate cell "2"s, one in vertical direction, one in horizontal direction
     cell_2_location_y = cell_location[0]+direction[0]
@@ -370,11 +379,11 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 pass # make no walls on either cell shared sides
         else:
             # Direction of cell 2 is out of range.
-            if direction[0] == -1: #N
-                for e in cell_1_edge_buckets['N']:
+            if direction[1] == -1: #W
+                for e in cell_1_edge_buckets['W']:
                     e.make_wall = True
-            if direction[0] == 1: #S
-                for e in cell_1_edge_buckets['S']:
+            if direction[1] == 1: #E
+                for e in cell_1_edge_buckets['E']:
                     e.make_wall = True
     else:
         #print(f'mark_shared_edges_of_cell_for_walls: cell 1 edge buckets is not dict for cell location {cell_location}.')
