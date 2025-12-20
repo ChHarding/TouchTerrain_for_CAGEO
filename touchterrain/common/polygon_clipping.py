@@ -81,24 +81,44 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
     
     return (False, None, None)
 
-def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[RasterVariants], cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None):
+def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[RasterVariants], cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None) -> bool:
+    """
+    :return: Should set cell value to NaN
+    :rtype: bool
+    """
     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
+          
+    # Debug: stop here to inspect intersection geometry result for a polygon and the cell 
+    if cellLocation[0] == 545 and cellLocation[1] == 2:
+        pass
                     
-    # Should set cell values to NaN
-    if intersection_geometries_result[0]:
-        #surface_raster_variant.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
-        for rv in surface_raster_variant: # Set the location to NaN in all raster variants (top and bottom) to get the same interpolation values between normal/difference modes
-            rv.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
-        if top_hint is not None:
-            top_hint[cellLocation[0]][cellLocation[1]] = numpy.nan
+    # Should set cell values to NaN # we set the cell values to NaN outside this function after evaluating all clipping polygons in case there are multiple polygons
+    # if intersection_geometries_result[0]:
+    #     #surface_raster_variant.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
+    #     for rv in surface_raster_variant: # Set the location to NaN in all raster variants (top and bottom) to get the same interpolation values between normal/difference modes
+    #         rv.set_location_in_variants(location=cellLocation, new_value=numpy.nan, set_edge_interpolation=False)
+    #     if top_hint is not None:
+    #         top_hint[cellLocation[0]][cellLocation[1]] = numpy.nan
     
-    # Set cell all intersection geometries flattened to polygons
+    # Add to cell's"all intersection geometries flattened to polygons"
     if intersection_geometries_result[1] is not None:
-        surface_raster_variant[0].polygon_intersection_geometry[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[1]
+        if surface_raster_variant[0].polygon_intersection_geometry[cellLocation[0]][cellLocation[1]] is None:
+            surface_raster_variant[0].polygon_intersection_geometry[cellLocation[0]][cellLocation[1]] = []
+        surface_raster_variant[0].polygon_intersection_geometry[cellLocation[0]][cellLocation[1]].extend(intersection_geometries_result[1])
+            
         
-    # Set cell all intersection geometries flattened to single edges and sorted into buckets in a dict
+    # Add to cell's "all intersection geometries flattened to single edges and sorted into buckets in a dict"
     if intersection_geometries_result[2] is not None:
-        surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] = intersection_geometries_result[2]
+        if surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] is None:
+            surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]] = {}
+        # merge bucket dictionaries and lists
+        for k, v in intersection_geometries_result[2].items():
+            if k in surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]]:
+                surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]][k].extend(v)
+            else:
+                surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]][k] = v
+        
+    return intersection_geometries_result[0]
     
 def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, surface_raster_variant: list[RasterVariants], top_hint: numpy.ndarray|None, print3D_resolution_mm: float):
     """Find the intersection polygon between each raster cell and the clipping polygon. Sort all individual edges of intersection polygons into buckets stored in RasterVariants based on if the edge lies on a cardinal direction edge of the cell quad. Marks all interior edges as needing walls created. 
@@ -159,19 +179,23 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     surface_raster_variant[0].polygon_intersection_edge_buckets = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
         
     # determine intersection for polygon(s) in boundary and each cell quad
-    for clippingGeoPoly in shapely_polygons:
-        clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
-        for j in range(0, surface_raster_variant[0].original.shape[0]): # Y
-            for i in range(0, surface_raster_variant[0].original.shape[1]): # X
-                #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
-                quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=surface_raster_variant[0].original.shape[0])
-                # TODO: use shapely.box for optimization?
-                #quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
+    
+    for j in range(0, surface_raster_variant[0].original.shape[0]): # Y
+        for i in range(0, surface_raster_variant[0].original.shape[1]): # X
+            #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
+            quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=surface_raster_variant[0].original.shape[0])
+            # TODO: use shapely.box for optimization?
+            #quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
+            
+            # Keep track if the intersection function says the cell is disjoint from all clipping polygons. Only set cell to NaN if it is actually disjoint from all polygons
+            cell_disjoint = True
+            for clippingGeoPoly in shapely_polygons:
+                clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
                 
                 if isinstance(clippingPrint2DPoly, shapely.Polygon):
                     #print(f'{j} {i}') # debug print the Y X of the cell
                     
-                    find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
+                    cell_disjoint &= find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
                     
                     # Debug plot of a clipping and cell polygon intersection
                     # if i==97 and j==45:
@@ -181,6 +205,12 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                 else:
                     print("clippingPrint2DPoly is not a shapely Polygon")
                     break
+            # Should set cell values to NaN
+            if cell_disjoint:
+                for rv in surface_raster_variant: # Set the location to NaN in all raster variants (top and bottom) to get the same interpolation values between normal/difference modes
+                    rv.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
+                if top_hint is not None:
+                    top_hint[j][i] = numpy.nan
 
 def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edges: list[BorderEdge]):
     """Mark overlapping edges between a cell and neighbor cell to make a wall. Sets the make_wall property of only the cell with the Polygon side of a match. 

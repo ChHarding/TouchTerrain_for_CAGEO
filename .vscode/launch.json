@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python Debugger: MAG TT Standalone PA-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA-land.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
       "name": "Python Debugger: TT Standalone PA-river.json",
       "type": "debugpy",
       "request": "launch",

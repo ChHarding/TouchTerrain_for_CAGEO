@@ -1645,10 +1645,12 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         
         if config.edge_clipping_polygon:
             #region Mark cells for polygon fitting
+            print('Finding polygon clipping edges')
             find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=[top_raster_variants, bottom_raster_variants], top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
             #endregion
         
             #region Mark shared edges of the W and N neighbor of each cell for walls if needed
+            print('Marking shared edges for walls')
             mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.original, direction=(-1, -1))
             #endregion
         
@@ -1700,8 +1702,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         #
         # plot DEM and histogram, save as png
         #
-        plot_file_name = plot_DEM_histogram(top_raster_variants.dilated, config.DEM_name, config.temp_folder)
-        print(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
+        #plot_file_name = plot_DEM_histogram(top_raster_variants.dilated, config.DEM_name, config.temp_folder)
+        #print(f"DEM plot and histogram saved as {plot_file_name}", file=sys.stderr)
 
         tile_info = TouchTerrainTileInfo(config=config)
         tile_info.crs = crs_str
@@ -1820,9 +1822,9 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                     processed_list.append(pt) # append to list of processed tiles
                 else:
                     try: # delete temp file b/c it's only a STLb header from a tile with no elevations
-                        os.remove(pt[0]["temp_file"])
+                        os.remove(pt[0].temp_file)
                     except Exception as e:
-                        logger.error("Error removing" + str(pt[0]["temp_file"]) + " " + str(e))
+                        logger.error("Error removing " + str(pt[0].temp_file) + " " + str(e))
             
 
         # use multi-core processing
@@ -1987,11 +1989,11 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             print("Error removing map image" + str(config.map_img_filename) + " " + str(e), file=sys.stderr)
 
     # remove plot+histo file
-    if config.fileformat != "GeoTiff":
-        try:
-            os.remove(plot_file_name)
-        except Exception as e:
-            print("Error removing plot_with_histogram.png " + str(plot_file_name) + " " + str(e), file=sys.stderr)
+    # if config.fileformat != "GeoTiff":
+    #     try:
+    #         os.remove(plot_file_name)
+    #     except Exception as e:
+    #         print("Error removing plot_with_histogram.png " + str(plot_file_name) + " " + str(e), file=sys.stderr)
 
     # return total  size in Mega bytes and location of zip file
     return total_size, full_zip_file_name
