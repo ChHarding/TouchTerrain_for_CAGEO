@@ -53,7 +53,7 @@ def flatten_geometries_borderEdge(geometries: list[shapely.Geometry], polygon_pa
     for geom in geometries:
         if geom.geom_type.startswith('Multi') or isinstance(geom, shapely.GeometryCollection):
             # For collections, iterate over the individual parts
-            flat_list.extend(flatten_geometries_borderEdge(geom.geoms))
+            flat_list.extend(flatten_geometries_borderEdge(geom.geoms, polygon_parent=polygon_parent))
         elif geom.is_empty or isinstance(geom, shapely.Point):
             continue
         if isinstance(geom, shapely.Polygon):
