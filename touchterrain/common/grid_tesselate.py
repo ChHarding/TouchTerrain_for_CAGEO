@@ -970,16 +970,28 @@ class grid:
                 # add border quads if we have any (False means no border quad) 
                 # for k in c.borders:  # k is N, S, E, W
                 #     if c.borders[k] is not False: meshes.append(c.borders[k])
-                
+                        
+                def triangle_rounded_to_precision(decimals: int, triangle: list[vertex]) -> list[vertex]:
+                    output: list[vertex] = []
+                    for tv in triangle:
+                        output.append(tv.vertex_rounded_to_precision(decimals=decimals))
+                    return output
+                   
+                decimal_precision = 6
+                   
                 # write the triangles of the meshes to buffer
                 for q in meshes:
+                    mesh_triangles: list[list[vertex]] = []                    
                     if isinstance(q, quad):
-                        triangles = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
+                        quad_triangles = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
 
                         # for STL this will write triangles (vertices) but for obj this will
                         # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
-                        for t in triangles:
-                            self.write_triangle_to_buffer(t)
+                        for t in quad_triangles:
+                            #mesh_triangles.append(list(t))
+                            mesh_triangles.append(
+                                triangle_rounded_to_precision(decimals=decimal_precision, triangle=list(t))
+                                )
                         # if any(t0):
                         #     self.write_triangle_to_buffer(t0)
                         #     self.write_triangle_to_buffer(t1) # could be empty ...    
@@ -987,13 +999,17 @@ class grid:
                         pass
                         t0 = tuple(polygon_to_list_of_vertex(polygon=q))
                         if len(t0) == 4 and t0[0].coords == t0[3].coords:
-                           self.write_triangle_to_buffer(t0[:3])
+                           #mesh_triangles.append(list(t0[:3]))
+                           mesh_triangles.append(triangle_rounded_to_precision(decimals=decimal_precision, triangle=list(t0[:3])))
                         else:
                            raise ValueError(f"create_cells: found a polygon to write to buffer that is not a triangle. Expected a tri of length 3+1=4 and [0]==[3] vertex. Polygon had vertex count f{len(t0)}.")
+                    
+                    for mt in mesh_triangles:
+                        self.write_triangle_to_buffer(tuple(mt))
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     
-    def write_triangle_to_buffer(self, t):
+    def write_triangle_to_buffer(self, t: tuple[vertex, ...]):
         '''write triangle vertices for triangle t to stream buffer self.s for caching.
         Once the cache is full, is is writting to disk (self.fo)'''
         
@@ -1007,12 +1023,16 @@ class grid:
             tl = get_normal(t) if self.tile_info.config.no_normals == False else [0,0,0]
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
+                # pack 64 bit float to 32 bit and unpack 32 bit back to 64 bit to try to get the same value represented in 32 bit
+                #coords = tuple(map(lambda x: struct.unpack('<f', struct.pack('<f', x))[0], coords))
+                # add 0.0 to value to force -0 value to +0
+                coords = tuple(map(lambda x: x+0.0, coords))
                 tl.extend(coords) # like append() but extend() unpacks that list!
             tl.append(0) # append attribute byte 0
 
         if self.tile_info.config.fileformat == "STLb":
             # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-            BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
+            BINARY_FACET = "<12fH" # little endian order 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
             self.s.write(struct.pack(BINARY_FACET, *tl)) # append to s
 
         elif self.tile_info.config.fileformat == "STLa":

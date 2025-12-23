@@ -43,3 +43,18 @@ class vertex:
     def __getitem__(self, index): 
         "enables use of index brackets for vertex objects: v[0] returns coords[0]"
         return self.coords[index]
+    
+    def vertex_rounded_to_precision(self, decimals: int) -> vertex:
+        def round_float_to_precision(decimals: int, input: float):
+            return round(input, decimals)
+        
+        intermediate_list = []
+        
+        for c in self.coords:
+            intermediate_list.append(round_float_to_precision(decimals=decimals, input=c))
+            
+        if len(intermediate_list) == 3:
+            return vertex(*intermediate_list)
+        else:
+            raise ValueError(f"len(intermediate_list) was not 3, got {len(intermediate_list)}")
+        
