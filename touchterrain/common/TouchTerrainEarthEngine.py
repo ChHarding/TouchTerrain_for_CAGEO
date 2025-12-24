@@ -1642,6 +1642,13 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         if config.bottom_elevation:
             bottom_raster_variants.original = bot_npim.copy()
         
+        # Clip original elevation raster to clipping polygon before dilation in raster_preparation()
+        if config.edge_clipping_polygon:
+            #region Mark cells for polygon fitting
+            print('Finding polygon clipping edges')
+            find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=[top_raster_variants, bottom_raster_variants], top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
+            #endregion
+        
         
         if raster_preparation(top=top_raster_variants, 
                            bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
@@ -1649,12 +1656,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                            bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1)) is False or top_raster_variants.dilated is None:
             return
         
+        # Use dilated elevation raster for wall marking to determine where the mesh ends for cells that are enclosed in the clipping raster and thus where some walls should be made
         if config.edge_clipping_polygon:
-            #region Mark cells for polygon fitting
-            print('Finding polygon clipping edges')
-            find_polygon_clipping_edges(config=config, dem=dem, surface_raster_variant=[top_raster_variants, bottom_raster_variants], top_hint=top_elevation_hint_npim, print3D_resolution_mm=print3D_resolution_mm)
-            #endregion
-        
             #region Mark shared edges of the W and N neighbor of each cell for walls if needed
             print('Marking shared edges for walls')
             mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.dilated, direction=(-1, -1))
