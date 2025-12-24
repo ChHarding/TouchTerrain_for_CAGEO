@@ -35,10 +35,10 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
         # set the all variants to NaN in that location
         #surface_raster_variant.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
         return (True, None, None) # the edge interpolation raster should not be changed and set to NaN
-    elif clippingPrint2DPoly.contains_properly(quadPrint2DPoly): # quad is entirely inside polygon
-        # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
-        # leave the cell unchanged
-        pass
+    # elif clippingPrint2DPoly.contains_properly(quadPrint2DPoly): # quad is entirely inside polygon
+    #     # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
+    #     # leave the cell unchanged
+    #     pass
     else: # quad is partially inside poly or shares an edge/point
         intersection_geometry = clippingPrint2DPoly.intersection(quadPrint2DPoly)
         
@@ -93,7 +93,7 @@ def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[Raster
     intersection_geometries_result = find_intersection_geometries(clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords)
           
     # Debug: stop here to inspect intersection geometry result for a polygon and the cell 
-    if cellLocation[0] == 545 and cellLocation[1] == 2:
+    if cellLocation[0] == 1 and cellLocation[1] == 6:
         pass
                     
     # Should set cell values to NaN # we set the cell values to NaN outside this function after evaluating all clipping polygons in case there are multiple polygons
@@ -202,10 +202,10 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
                     cell_disjoint &= find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
                     
                     # Debug plot of a clipping and cell polygon intersection
-                    # if i==97 and j==45:
-                    #     quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
-                    #     plot_intersection_of_shapely_polygons([clippingPrint2DPoly, quadPrint2DPoly])
-                    #     pass
+                    if j==1 and i==6:
+                        # quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
+                        # plot_intersection_of_shapely_polygons([clippingPrint2DPoly, quadPrint2DPoly])
+                        pass
                 else:
                     print("clippingPrint2DPoly is not a shapely Polygon")
                     break
@@ -315,7 +315,7 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     """
     
     # Debug: inspect a cell
-    if cell_location[0] == 124 and cell_location[1] == 0:
+    if cell_location[0] == 1 and cell_location[1] == 7:
         pass
     
     cell_1_edge_buckets: dict[str, list[BorderEdge]] = polygon_intersection_edge_buckets[cell_location]
@@ -326,28 +326,29 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
     cell_2_location_y_in_range = cell_2_location_y >= 0 and cell_2_location_y < polygon_intersection_edge_buckets.shape[0]
     cell_2_location_x_in_range = cell_2_location_x >= 0 and cell_2_location_x < polygon_intersection_edge_buckets.shape[1]
     
-    if isinstance(cell_1_edge_buckets, dict):
-        # If cell 1 is a dict, then check if cell 2 is in range and cell 2 is a dict. 
+    # check if cell 1 should be any mesh generated later by checking dilated elevation value for not-NaN
+    if not numpy.isnan(elevation_raster[cell_location]):
+        if not isinstance(cell_1_edge_buckets, dict): # non-NaN cells should be intersecting the clipping polygon (partially or enclosed) and have a edge bucket
+            raise ValueError("cell 1 elevation raster value is not NaN but has no edge bucket dict")
+        # If cell 1 has mesh generated, then check if cell 2 is in range and cell 2 will have mesh generated. 
         if cell_2_location_y_in_range:
             cell_2_location = (cell_2_location_y,cell_location[1])
             cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location]
-            if cell_2_y_edge_buckets: # do overlapping edge check if cell 2 is not None (assume it's a dict otherwise)
-                # cell 2 has buckets to compare
+            if not numpy.isnan(elevation_raster[cell_2_location]): # do overlapping edge check if cell 2 dilated elevation is not NaN (assume it has a edge bucket dict if not NaN)
+                # cell 2 should have mesh created later and has buckets to compare
                 if direction[0] == -1: #N
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['N'], cell_2_edges=cell_2_y_edge_buckets['S'])
                 elif direction[0] == 1: #S
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['S'], cell_2_edges=cell_2_y_edge_buckets['N'])
                 elif direction[0] != 0:
                     print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[0]}')
-            elif numpy.isnan(elevation_raster[cell_2_location]): # cell 2 elevation_raster is NaN.
+            else: # cell 2 elevation_raster is NaN. Make walls on cell 1 shared side.
                 if direction[0] == -1: #N
                     for e in cell_1_edge_buckets['N']:
                         e.make_wall = True
                 if direction[0] == 1: #S
                     for e in cell_1_edge_buckets['S']:
                         e.make_wall = True  
-            else: # cell 2 is contained properly
-                pass # make no walls on either cell shared sides
         else:
             # Direction of cell 2 is out of range.
             if direction[0] == -1: #N
@@ -360,7 +361,7 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
         if cell_2_location_x_in_range:
             cell_2_location = (cell_location[0], cell_2_location_x)
             cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_2_location]
-            if cell_2_x_edge_buckets: # do overlapping edge check if cell 2 is not None (assume it's a dict otherwise)
+            if not numpy.isnan(elevation_raster[cell_2_location]): # do overlapping edge check if cell 2 dilated elevation is not NaN (assume it has a edge bucket dict)
                 # cell 2 has buckets to compare
                 if direction[1] == -1: #W
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['W'], cell_2_edges=cell_2_x_edge_buckets['E'])
@@ -368,15 +369,13 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                     mark_overlapping_edges_for_walls(cell_1_edges=cell_1_edge_buckets['E'], cell_2_edges=cell_2_x_edge_buckets['W'])
                 elif direction[1] != 0:
                     print(f'mark_shared_edges_of_cell_for_walls: unsupported direction of {direction[1]}')
-            elif numpy.isnan(elevation_raster[cell_2_location]): # cell 2 elevation_raster is NaN.
+            else: # cell 2 elevation_raster is NaN. Make walls on cell 1 shared side.
                 if direction[1] == -1: #W
                     for e in cell_1_edge_buckets['W']:
                         e.make_wall = True
                 if direction[1] == 1: #E
                     for e in cell_1_edge_buckets['E']:
                         e.make_wall = True  
-            else: # cell 2 is contained properly
-                pass # make no walls on either cell shared sides
         else:
             # Direction of cell 2 is out of range.
             if direction[1] == -1: #W
@@ -386,14 +385,11 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 for e in cell_1_edge_buckets['E']:
                     e.make_wall = True
     else:
-        #print(f'mark_shared_edges_of_cell_for_walls: cell 1 edge buckets is not dict for cell location {cell_location}.')
         # This case happens when:
-        # If cell 1 edge buckets is None
-        # This means (cell 1 is outside the clipping polygon or contained properly).
         # If cell 1 elevation_raster is NaN:
-        # e.g. cell 1 is outside boundary (or somehow needing a wall on that side) and cell 2 has intersection polygons -> cell 2 should make walls
+        # e.g. cell 1 is outside the polygon or cell 1 will not have mesh generated for it -> if cell 2 will have mesh generated -> cell 2 should make walls 
         if numpy.isnan(elevation_raster[cell_location]):
-            if cell_2_location_y_in_range and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
+            if cell_2_location_y_in_range and not numpy.isnan(elevation_raster[cell_2_location_y,cell_location[1]]) and polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]:
                 cell_2_y_edge_buckets = polygon_intersection_edge_buckets[cell_2_location_y,cell_location[1]]
                 if direction[0] == -1: #N
                     for e in cell_2_y_edge_buckets['S']:
@@ -401,7 +397,7 @@ def mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets: numpy
                 if direction[0] == 1: #S
                     for e in cell_2_y_edge_buckets['N']:
                         e.make_wall = True
-            if cell_2_location_x_in_range and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
+            if cell_2_location_x_in_range and not numpy.isnan(elevation_raster[cell_location[0],cell_2_location_x]) and polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]:
                 cell_2_x_edge_buckets = polygon_intersection_edge_buckets[cell_location[0],cell_2_location_x]
                 if direction[1] == -1: #W
                     for e in cell_2_x_edge_buckets['E']:

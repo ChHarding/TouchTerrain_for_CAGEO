@@ -1643,6 +1643,12 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             bottom_raster_variants.original = bot_npim.copy()
         
         
+        if raster_preparation(top=top_raster_variants, 
+                           bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
+                           bottom_thru_base=config.bottom_thru_base, 
+                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1)) is False or top_raster_variants.dilated is None:
+            return
+        
         if config.edge_clipping_polygon:
             #region Mark cells for polygon fitting
             print('Finding polygon clipping edges')
@@ -1651,7 +1657,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
         
             #region Mark shared edges of the W and N neighbor of each cell for walls if needed
             print('Marking shared edges for walls')
-            mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.original, direction=(-1, -1))
+            mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.dilated, direction=(-1, -1))
             #endregion
         
             # Debug: plot all polygon_intersection_geometry(s)
@@ -1668,11 +1674,7 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
                 plot_shapely_geometries_colormap(basePolys=all_polygon_intersection_geometries)
                     
         
-        if raster_preparation(top=top_raster_variants, 
-                           bottom=bottom_raster_variants, top_hint=top_elevation_hint_npim,
-                           bottom_thru_base=config.bottom_thru_base, 
-                           bottom_floor_elev=(config.bottom_floor_elev if config.bottom_floor_elev is not None else config.min_elev-1)) is False or top_raster_variants.dilated is None:
-            return
+        
 
         # repair these patterns, which cause non_manifold problems later:
         # 0 1    or     1 0

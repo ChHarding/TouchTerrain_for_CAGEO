@@ -64,10 +64,8 @@ class RasterVariants:
     - This is not padded.
     
     Raster values set to NaN and no polygon_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
-    
-    Raster value kept as imported and no polygon_intersection_geometry set if cell quad is contained properly in the clipping polygon. Walls can be determined for these non-intersecting cells (no or points-only intersection) by checking if the neighboring walls is NaN.
-    
-    Raster value kept as imported and polygon_intersection_geometry in partial intersection
+       
+    Raster value kept as imported and polygon_intersection_geometry if there is any intersection between cell and clipping polygon. We determine wall marking by comparing edge buckets + dilated elevation raster + L/PL (line / polygon line) between shared edges.
     """
     
     polygon_intersection_edge_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
