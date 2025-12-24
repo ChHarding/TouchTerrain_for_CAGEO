@@ -1662,6 +1662,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
             print('Marking shared edges for walls')
             mark_shared_edges_for_walls(polygon_intersection_edge_buckets=top_raster_variants.polygon_intersection_edge_buckets, elevation_raster=top_raster_variants.dilated, direction=(-1, -1))
             #endregion
+            
+            
         
             # Debug: plot all polygon_intersection_geometry(s)
             if False and top_raster_variants.polygon_intersection_geometry is not None:

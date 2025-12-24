@@ -702,10 +702,13 @@ class grid:
                 #print(i, j, topq)
                 
                 top_bottom_surface_geometries_2D: list[shapely.Geometry] | None = None
-                top_bottom_surface_polygons_triangulated_2D: list[shapely.GeometryCollection] = [] # tris for top and bottom surfaces
+                top_bottom_surface_polygons_triangulated_2D: list[shapely.GeometryCollection] | None = None # tris for top and bottom surfaces
                 # Check if non-quad top_surface polygon should be used
                 top_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
-                if self.tile.top_raster_variants.polygon_intersection_geometry is not None:
+                # by checking if the cell is NOT contains_properly and if it has polygon_intersection_geometry
+                if (self.tile.top_raster_variants.polygon_intersection_contains_properly is not None and self.tile.top_raster_variants.polygon_intersection_contains_properly[j-1][i-1] == False) and self.tile.top_raster_variants.polygon_intersection_geometry is not None:
+                    top_bottom_surface_polygons_triangulated_2D = []
+                    
                     top_bottom_surface_geometries_2D = self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1]
                     if top_bottom_surface_geometries_2D is not None:
                         # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
@@ -780,7 +783,7 @@ class grid:
 
                 # Check if non-quad top_surface polygon should be used for bottom quad
                 bottom_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
-                if self.tile.top_raster_variants.polygon_intersection_geometry is not None and self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1] is not None:
+                if top_bottom_surface_polygons_triangulated_2D is not None:
                     # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
                     #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
                     
@@ -980,7 +983,7 @@ class grid:
                 decimal_precision = 6
                 
                 # Debug: inspect cell
-                if j == 15 and i == 8:
+                if j == 6 and i == 5:
                     pass
                 
                 # write the triangles of the meshes to buffer

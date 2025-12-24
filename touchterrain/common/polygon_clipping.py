@@ -16,7 +16,7 @@ from touchterrain.common.utils import geoCoordToPrint2DCoord, arrayCellCoordToQu
 from touchterrain.common.shapely_utils import flatten_geometries, flatten_geometries_borderEdge, sort_line_segment_based_contains
 from touchterrain.common.shapely_plot import plot_intersection_of_shapely_polygons
 
-def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]]) -> tuple[bool, list[shapely.Geometry] | None, dict[str, list[BorderEdge]] | None]:
+def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]]) -> tuple[bool, list[shapely.Geometry] | None, dict[str, list[BorderEdge]] | None, bool]:
     """Check if clipping polygon and cell polygon have no/partial/complete overlap. Return whether to set the cell to NaN, intersection polygons, intersection edges. 
     
     Returned intersection edges are a flat list of all edges making up the intersection polygons sorted into buckets depending on them lying on a specific cardinal edge or not.
@@ -25,20 +25,21 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
     :type clippingPrint2DPoly: shapely.Polygon
     :param quadPrint2DCoords: Cell quad vertices in print 2D coordinates
     :type quadPrint2DCoords: list[tuple[float, float]]
-    :return: (Should set raster locations to NaN, polygon_intersection_geometry, polygon_intersection_edge_buckets)
-    :rtype: tuple[bool, list[shapely.Geometry]]
+    :return: (Should set raster locations to NaN, polygon_intersection_geometry, polygon_intersection_edge_buckets, polygon_intersection_contains_properly)
     """
     # TODO: use shapely.box for optimization?
     quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
     
+    polygon_intersection_contains_properly = False
+    if clippingPrint2DPoly.contains_properly(quadPrint2DPoly): # quad is entirely inside polygon 
+        # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
+        # leave the cell unchanged
+        polygon_intersection_contains_properly = True
+    
     if clippingPrint2DPoly.disjoint(quadPrint2DPoly): # quad is entirely not in polygon
         # set the all variants to NaN in that location
         #surface_raster_variant.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
-        return (True, None, None) # the edge interpolation raster should not be changed and set to NaN
-    # elif clippingPrint2DPoly.contains_properly(quadPrint2DPoly): # quad is entirely inside polygon
-    #     # We check if quad is entirely inside border poly with `contains_properly` instead using `contains` due to possible shared edges and points between quad and poly because a shared edge could have a neighboring cell with a partial intersection that does NOT contain the shared edge. i.e. There is a gap between the neighbor cell's intersection polygon and the shared edge. This neighboring cell will have a non-NaN value that does not work with our normal way of checking for wall existence on cells with full normal quads.
-    #     # leave the cell unchanged
-    #     pass
+        return (True, None, None, polygon_intersection_contains_properly) # the edge interpolation raster should not be changed and set to NaN
     else: # quad is partially inside poly or shares an edge/point
         intersection_geometry = clippingPrint2DPoly.intersection(quadPrint2DPoly)
         
@@ -77,9 +78,7 @@ def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint
                 print(f'Unknown bucket key {bucket_key}')
             intersection_edge_buckets[bucket_key[0]].append(be)
             
-        return (False, flat_intersection_geometries, intersection_edge_buckets)
-    
-    return (False, None, None)
+        return (False, flat_intersection_geometries, intersection_edge_buckets, polygon_intersection_contains_properly)
 
 def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[RasterVariants], cellLocation: tuple[int, int], clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]], top_hint: numpy.ndarray|None) -> bool:
     """
@@ -121,6 +120,10 @@ def find_cell_and_clipping_poly_intersection(surface_raster_variant: list[Raster
                 surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]][k].extend(v)
             else:
                 surface_raster_variant[0].polygon_intersection_edge_buckets[cellLocation[0]][cellLocation[1]][k] = v
+        
+    # Set cell's polygon_intersection_contains_properly
+    if intersection_geometries_result[3]:
+        surface_raster_variant[0].polygon_intersection_contains_properly[cellLocation] = intersection_geometries_result[3]
         
     return intersection_geometries_result[0]
     
@@ -181,6 +184,7 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
         return
     surface_raster_variant[0].polygon_intersection_geometry = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
     surface_raster_variant[0].polygon_intersection_edge_buckets = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
+    surface_raster_variant[0].polygon_intersection_contains_properly = numpy.zeros(surface_raster_variant[0].original.shape, dtype=bool)
         
     # determine intersection for polygon(s) in boundary and each cell quad
     

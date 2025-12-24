@@ -58,7 +58,6 @@ class RasterVariants:
     """
     Intersection geometry  between the cell quad and the clipping geometry. In print3DCoordinates. Represented as np.ndarray[list[shapely.Geometry]] The list can include LineString/Polygon. The Polygon geometries are used for making top/bottom surface for a cell. 
 
-    
     This is not a variant! 
     - The precomputed intersecting geometries for a single cell Y,X location that applies across all variants. The cell may not be initialized yet. 
     - This is not padded.
@@ -66,6 +65,8 @@ class RasterVariants:
     Raster values set to NaN and no polygon_intersection_geometry set if the cell quad is disjoint from the clipping polygon.
        
     Raster value kept as imported and polygon_intersection_geometry if there is any intersection between cell and clipping polygon. We determine wall marking by comparing edge buckets + dilated elevation raster + L/PL (line / polygon line) between shared edges.
+    
+    Before create_cell() is called, we set the polygon_intersection_geometry to None for all cells that are contained properly in the clipping polygon so that create_cell() can reply solely on a RasterVariants for info and know to use the quad for enclosed cells so flipping may be applied.
     """
     
     polygon_intersection_edge_buckets: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a dict[str,list[BorderEdge]]
@@ -79,6 +80,13 @@ class RasterVariants:
     TODO: This should be stored in the cell object but we only keep the cell objects as we iterate through them so RasterVariants is the place to store this to maintain state.
     """
     
+    polygon_intersection_contains_properly: Union[None, np.ndarray] #ndarray dtype=object so we can set it with a bool
+    """
+    Store whether a cell is contains_properly within the clipping polygon
+    
+    This is not a variant!
+    """
+    
     def __init__(self, original: Union[None, np.ndarray], nan_close: Union[None, np.ndarray], dilated: Union[None, np.ndarray], edge_interpolation: Union[None, np.ndarray]):
         self.original = original
         self.nan_close = nan_close
@@ -87,6 +95,7 @@ class RasterVariants:
         
         self.polygon_intersection_geometry = None
         self.polygon_intersection_edge_buckets = None
+        self.polygon_intersection_contains_properly = None
             
     def copy_tile_raster_variants(self, start_y, end_y, start_x, end_x):
         """Create a RasterVariants based on a subset of the current RasterVariants. Arrays are copied.
@@ -106,6 +115,8 @@ class RasterVariants:
             tile_raster.polygon_intersection_geometry = self.polygon_intersection_geometry[start_y:end_y, start_x:end_x].copy()
         if self.polygon_intersection_edge_buckets is not None:
             tile_raster.polygon_intersection_edge_buckets = self.polygon_intersection_edge_buckets[start_y:end_y, start_x:end_x].copy()
+        if self.polygon_intersection_contains_properly is not None:
+            tile_raster.polygon_intersection_contains_properly = self.polygon_intersection_contains_properly[start_y:end_y, start_x:end_x].copy()
             
         return tile_raster
     
