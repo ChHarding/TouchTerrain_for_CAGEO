@@ -978,7 +978,11 @@ class grid:
                     return output
                    
                 decimal_precision = 6
-                   
+                
+                # Debug: inspect cell
+                if j == 15 and i == 8:
+                    pass
+                
                 # write the triangles of the meshes to buffer
                 for q in meshes:
                     mesh_triangles: list[list[vertex]] = []                    

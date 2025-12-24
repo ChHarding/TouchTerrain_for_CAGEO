@@ -12,7 +12,7 @@ class TouchTerrainConfig:
     bllon = None
     "lon of bottom left corner"
     clean_diags = False
-    "clean 2x2 diagonals"
+    "clean 2x2 diagonals. Not needed if edge clipping polygon is manifold."
     polygon = None
     "optional geoJSON polygon"
     poly_file = None

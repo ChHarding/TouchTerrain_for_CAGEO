@@ -50,7 +50,7 @@ def clean_up_diags(ras: numpy.ndarray):
                      [0, 1, 1, 0,]])
 
     '''
-    # If there are NaNs in the raster there cannot by any diagonal patterns, so we're done!
+    # If there are not NaNs in the raster there cannot by any diagonal patterns, so we're done!
     if not numpy.any(numpy.isnan(ras)):
         return ras
 
