@@ -44,7 +44,7 @@ class vertex:
         "enables use of index brackets for vertex objects: v[0] returns coords[0]"
         return self.coords[index]
     
-    def vertex_rounded_to_precision(self, decimals: int) -> vertex:
+    def vertex_rounded_to_precision(self, decimals: int) -> "vertex":
         def round_float_to_precision(decimals: int, input: float):
             return round(input, decimals)
         

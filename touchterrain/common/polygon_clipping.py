@@ -1,6 +1,10 @@
 import geopandas
 import numpy
 import shapely
+import os
+import multiprocessing
+import time
+import functools
 from shapely.ops import unary_union
 
 # try to import gdal from multiple sources
@@ -15,6 +19,122 @@ from touchterrain.common.user_config import TouchTerrainConfig
 from touchterrain.common.utils import geoCoordToPrint2DCoord, arrayCellCoordToQuadPrint2DCoords
 from touchterrain.common.shapely_utils import flatten_geometries, flatten_geometries_borderEdge, sort_line_segment_based_contains
 from touchterrain.common.shapely_plot import plot_intersection_of_shapely_polygons
+
+def _process_polygon_clip_cell(
+    i: int,
+    j: int,
+    clipping_print2d_polys: list[shapely.Polygon],
+    cell_size_mm: float,
+    tile_y_shape: int,
+) -> tuple[bool, list[shapely.Geometry], dict[str, list[BorderEdge]] | None, bool]:
+    """Collect clipping results based on intersection between a single cell and clipping poly."""
+    quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(
+        array_coord_2D=(i, j),
+        cell_size=cell_size_mm,
+        tile_y_shape=tile_y_shape,
+    )
+
+    cell_disjoint = True
+    cell_polygon_intersection_geometry = []
+    cell_polygon_intersection_edge_buckets = None
+    cell_contains_properly = False
+
+    for clippingPrint2DPoly in clipping_print2d_polys:
+        disjoint, intersection_geoms, intersection_edges, contains_properly = find_intersection_geometries(
+            clippingPrint2DPoly=clippingPrint2DPoly,
+            quadPrint2DCoords=quadPrint2DCoords,
+        )
+        
+        # Mark cell as not disjoint if needed
+        cell_disjoint &= disjoint
+        
+        # Add to cell's "all intersection geometries flattened to polygons"
+        if intersection_geoms:
+            cell_polygon_intersection_geometry.extend(intersection_geoms)
+            
+        # Add to cell's "all intersection geometries flattened to single edges and sorted into buckets in a dict"
+        if intersection_edges:
+            if cell_polygon_intersection_edge_buckets is None:
+                cell_polygon_intersection_edge_buckets = {'N': [], 'W': [], 'S': [], 'E': [], 'other': []}
+            for k, v in intersection_edges.items():
+                cell_polygon_intersection_edge_buckets[k].extend(v)
+                
+        # Set cell's polygon_intersection_contains_properly
+        if contains_properly:
+            cell_contains_properly = True
+
+    return cell_disjoint, cell_polygon_intersection_geometry, cell_polygon_intersection_edge_buckets, cell_contains_properly
+
+def _process_polygon_clip_rows(
+    row_range: tuple[int, int],
+    clipping_print2d_polys: list[shapely.Polygon],
+    cell_size_mm: float,
+    tile_y_shape: int,
+    grid_width: int,
+) -> tuple[
+    list[tuple[int, int]],
+    list[tuple[int, int, list[shapely.Geometry]]],
+    list[tuple[int, int, dict[str, list[BorderEdge]]]],
+    list[tuple[int, int]],
+]:
+    """Get cell and clipping poly intersection results for a range of rows.
+    Worker can run this to process a chunk of rows. Returns lists of update info to apply in main process."""
+    start_row, end_row = row_range
+    disjoint_cells = []
+    polygon_intersection_geometry_updates = []
+    polygon_intersection_edge_buckets_updates = []
+    polygon_intersection_contains_properly_updates = []
+
+    for j in range(start_row, end_row):
+        for i in range(grid_width):
+            cell_disjoint, cell_intersection_geoms, cell_edge_buckets, cell_contains_properly = _process_polygon_clip_cell(
+                i=i,
+                j=j,
+                clipping_print2d_polys=clipping_print2d_polys,
+                cell_size_mm=cell_size_mm,
+                tile_y_shape=tile_y_shape,
+            )
+
+            if cell_disjoint:
+                disjoint_cells.append((j, i))
+            if cell_intersection_geoms:
+                polygon_intersection_geometry_updates.append((j, i, cell_intersection_geoms))
+            if cell_edge_buckets and any(len(v) > 0 for v in cell_edge_buckets.values()):
+                polygon_intersection_edge_buckets_updates.append((j, i, cell_edge_buckets))
+            if cell_contains_properly:
+                polygon_intersection_contains_properly_updates.append((j, i))
+
+    return disjoint_cells, polygon_intersection_geometry_updates, polygon_intersection_edge_buckets_updates, polygon_intersection_contains_properly_updates
+
+def _apply_polygon_clip_updates(
+    surface_raster_variant: list[RasterVariants],
+    top_hint: numpy.ndarray | None,
+    updates: tuple[
+        list[tuple[int, int]],
+        list[tuple[int, int, list[shapely.Geometry]]],
+        list[tuple[int, int, dict[str, list[BorderEdge]]]],
+        list[tuple[int, int]],
+    ],
+) -> None:
+    """Apply passed updates to the first RasterVariant.
+    :param updates: Updates to the RasterVariant as a tuple of lists. Each list contains tuples with the cell location to update and any update data. Lists are in order of disjoint cells, polygon_intersection_geometry, polygon_intersection_edge_buckets, polygon_intersection_contains_properly
+    """
+    disjoint_cells, polygon_intersection_geometry_updates, polygon_intersection_edge_buckets_updates, polygon_intersection_contains_properly_updates = updates
+
+    for j, i in disjoint_cells:
+        for rv in surface_raster_variant:
+            rv.set_location_in_variants(location=(j, i), new_value=numpy.nan, set_edge_interpolation=False)
+        if top_hint is not None:
+            top_hint[j][i] = numpy.nan
+
+    for j, i, geoms in polygon_intersection_geometry_updates:
+        surface_raster_variant[0].polygon_intersection_geometry[j][i] = geoms
+
+    for j, i, edges in polygon_intersection_edge_buckets_updates:
+        surface_raster_variant[0].polygon_intersection_edge_buckets[j][i] = edges
+
+    for j, i in polygon_intersection_contains_properly_updates:
+        surface_raster_variant[0].polygon_intersection_contains_properly[j][i] = True
 
 def find_intersection_geometries(clippingPrint2DPoly: shapely.Polygon, quadPrint2DCoords: list[tuple[float, float]]) -> tuple[bool, list[shapely.Geometry] | None, dict[str, list[BorderEdge]] | None, bool]:
     """Check if clipping polygon and cell polygon have no/partial/complete overlap. Return whether to set the cell to NaN, intersection polygons, intersection edges. 
@@ -186,39 +306,83 @@ def find_polygon_clipping_edges(config: TouchTerrainConfig, dem: gdal.Dataset, s
     surface_raster_variant[0].polygon_intersection_edge_buckets = numpy.empty(surface_raster_variant[0].original.shape, dtype=object)
     surface_raster_variant[0].polygon_intersection_contains_properly = numpy.zeros(surface_raster_variant[0].original.shape, dtype=bool)
         
+    # Optional benchmarking cutoff (seconds)
+    max_seconds_env = os.getenv("TT_CLIP_MAX_SECONDS")
+    max_seconds = float(max_seconds_env) if max_seconds_env else None
+    clip_start = time.perf_counter()
+
+    # Precompute clipping polygons in print2D coordinates once (same for all cells)
+    clipping_print2d_polys: list[shapely.Polygon] = []
+    for clippingGeoPoly in shapely_polygons:
+        clippingPrint2DPoly = geoCoordToPrint2DCoord(
+            geoCoord2D=clippingGeoPoly,
+            scale=config.tileScale,
+            geoXMin=ulx,
+            geoYMin=lry,
+        )
+        if isinstance(clippingPrint2DPoly, shapely.Polygon):
+            clipping_print2d_polys.append(clippingPrint2DPoly)
+        elif hasattr(clippingPrint2DPoly, "geoms"):
+            for geom in clippingPrint2DPoly.geoms:
+                if isinstance(geom, shapely.Polygon):
+                    clipping_print2d_polys.append(geom)
+        else:
+            print("clippingPrint2DPoly is not a shapely Polygon")
+
     # determine intersection for polygon(s) in boundary and each cell quad
-    
-    for j in range(0, surface_raster_variant[0].original.shape[0]): # Y
-        for i in range(0, surface_raster_variant[0].original.shape[1]): # X
-            #arrayCellCoordToGeoCoord(array_coord_2D=(i,j), geo_transform=dem.GetGeoTransform())
-            quadPrint2DCoords = arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i,j), cell_size=print3D_resolution_mm, tile_y_shape=surface_raster_variant[0].original.shape[0])
-            # TODO: use shapely.box for optimization?
-            #quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
-            
-            # Keep track if the intersection function says the cell is disjoint from all clipping polygons. Only set cell to NaN if it is actually disjoint from all polygons
-            cell_disjoint = True
-            for clippingGeoPoly in shapely_polygons:
-                clippingPrint2DPoly = geoCoordToPrint2DCoord(geoCoord2D=clippingGeoPoly, scale=config.tileScale, geoXMin=ulx, geoYMin=lry)
-                
-                if isinstance(clippingPrint2DPoly, shapely.Polygon):
-                    #print(f'{j} {i}') # debug print the Y X of the cell
-                    
-                    cell_disjoint &= find_cell_and_clipping_poly_intersection(surface_raster_variant=surface_raster_variant, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=quadPrint2DCoords, top_hint=top_hint)
-                    
-                    # Debug plot of a clipping and cell polygon intersection
-                    if j==1 and i==6:
-                        # quadPrint2DPoly = shapely.Polygon(quadPrint2DCoords)
-                        # plot_intersection_of_shapely_polygons([clippingPrint2DPoly, quadPrint2DPoly])
-                        pass
-                else:
-                    print("clippingPrint2DPoly is not a shapely Polygon")
-                    break
-            # Should set cell values to NaN
-            if cell_disjoint:
-                for rv in surface_raster_variant: # Set the location to NaN in all raster variants (top and bottom) to get the same interpolation values between normal/difference modes
-                    rv.set_location_in_variants(location=(j,i), new_value=numpy.nan, set_edge_interpolation=False)
-                if top_hint is not None:
-                    top_hint[j][i] = numpy.nan
+    rows = surface_raster_variant[0].original.shape[0]
+    cols = surface_raster_variant[0].original.shape[1]
+
+    # Decide whether to use multiprocessing for clipping
+    use_mp = config.CPU_cores_to_use not in (None, 1)
+    worker_fn = functools.partial(
+        _process_polygon_clip_rows,
+        clipping_print2d_polys=clipping_print2d_polys,
+        cell_size_mm=print3D_resolution_mm,
+        tile_y_shape=rows,
+        grid_width=cols,
+    )
+
+    if not use_mp:
+        updates = worker_fn((0, rows))
+        _apply_polygon_clip_updates(surface_raster_variant, top_hint, updates)
+    else:
+        available_cores = os.cpu_count() or 1
+        requested_cores = available_cores if config.CPU_cores_to_use == 0 else config.CPU_cores_to_use
+        min_rows_per_worker = int(os.getenv("TT_CLIP_MIN_ROWS_PER_WORKER", "64"))
+        max_workers_by_rows = max(1, rows // min_rows_per_worker)
+        worker_cores = min(requested_cores, max_workers_by_rows)
+
+        chunk_rows_override = int(os.getenv("TT_CLIP_CHUNK_ROWS", "0"))
+        min_chunk_rows = int(os.getenv("TT_CLIP_MIN_CHUNK_ROWS", "16"))
+        if chunk_rows_override > 0:
+            chunk_rows = max(1, chunk_rows_override)
+        else:
+            chunk_rows = max(min_chunk_rows, rows // max(1, worker_cores * 2))
+        chunk_rows = min(chunk_rows, rows)
+
+        row_ranges = [(start, min(start + chunk_rows, rows)) for start in range(0, rows, chunk_rows)]
+
+        mp = multiprocessing.get_context('spawn')
+        pool = mp.Pool(
+            processes=worker_cores,
+            maxtasksperchild=1,
+        )
+        try:
+            if max_seconds is not None:
+                async_result = pool.map_async(worker_fn, row_ranges)
+                try:
+                    updates_list = async_result.get(timeout=max_seconds)
+                except multiprocessing.TimeoutError:
+                    raise TimeoutError("Polygon clipping timed out (TT_CLIP_MAX_SECONDS)")
+                for updates in updates_list:
+                    _apply_polygon_clip_updates(surface_raster_variant, top_hint, updates)
+            else:
+                for updates in pool.imap_unordered(worker_fn, row_ranges):
+                    _apply_polygon_clip_updates(surface_raster_variant, top_hint, updates)
+        finally:
+            pool.close()
+            pool.terminate()
 
 def mark_overlapping_edges_for_walls(cell_1_edges: list[BorderEdge], cell_2_edges: list[BorderEdge]):
     """Mark overlapping edges between a cell and neighbor cell to make a wall. Sets the make_wall property of only the cell with the Polygon side of a match. 
