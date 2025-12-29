@@ -2,7 +2,7 @@ import numpy
 import unittest
 import shapely
 
-from touchterrain.common.polygon_clipping import find_cell_and_clipping_poly_intersection, mark_overlapping_edges_for_walls, mark_shared_edges_for_walls
+from touchterrain.common.polygon_clipping import _apply_polygon_clip_updates, find_intersection_geometries, mark_overlapping_edges_for_walls, mark_shared_edges_for_walls
 from touchterrain.common.BorderEdge import BorderEdge
 from touchterrain.common.RasterVariants import RasterVariants
 from touchterrain.common.shapely_plot import plot_shapely_geometries_colormap
@@ -57,14 +57,42 @@ class TestPolygonClipping(unittest.TestCase):
         clippingPrint2DPoly = testData[0]
         
         raster_variants = RasterVariants(original=numpy.ones((3, 2)), nan_close=None, dilated=None, edge_interpolation=None)
-        raster_variants.polygon_intersection_geometry = numpy.empty(raster_variants.original.shape, dtype=object)
-        raster_variants.polygon_intersection_edge_buckets = numpy.empty(raster_variants.original.shape, dtype=object)
+        raster_variants.polygon_intersection_geometry = numpy.full(raster_variants.original.shape, None, dtype=object)
+        raster_variants.polygon_intersection_edge_buckets = numpy.full(raster_variants.original.shape, None, dtype=object)
+        raster_variants.polygon_intersection_contains_properly = numpy.zeros(raster_variants.original.shape, dtype=bool)
         
         clippingPrint2DPolyIndexMap = numpy.arange(6).reshape(raster_variants.original.shape)
         
+        disjoint_cells = []
+        geom_updates = []
+        edge_updates = []
+        contains_updates = []
+
         for j in range(0, raster_variants.original.shape[0]): # Y
             for i in range(0, raster_variants.original.shape[1]): # X
-                find_cell_and_clipping_poly_intersection(surface_raster_variant=raster_variants, cellLocation=(j,i), clippingPrint2DPoly=clippingPrint2DPoly, quadPrint2DCoords=testData[1][clippingPrint2DPolyIndexMap[j][i]], top_hint=None)
+                quad_coords = testData[1][clippingPrint2DPolyIndexMap[j][i]]
+                disjoint, geoms, edge_buckets, contains_properly = find_intersection_geometries(
+                    clippingPrint2DPoly=clippingPrint2DPoly,
+                    quadPrint2DCoords=quad_coords,
+                )
+
+                if disjoint:
+                    disjoint_cells.append((j, i))
+
+                if geoms:
+                    geom_updates.append((j, i, geoms))
+
+                if edge_buckets and any(len(v) > 0 for v in edge_buckets.values()):
+                    edge_updates.append((j, i, edge_buckets))
+
+                if contains_properly:
+                    contains_updates.append((j, i))
+
+        _apply_polygon_clip_updates(
+            surface_raster_variant=[raster_variants],
+            top_hint=None,
+            updates=(disjoint_cells, geom_updates, edge_updates, contains_updates),
+        )
               
         self.assertTrue(~numpy.isnan(raster_variants.original[0][0]))
         self.assertTrue(~numpy.isnan(raster_variants.original[0][1]))
