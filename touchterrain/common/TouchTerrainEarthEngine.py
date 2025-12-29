@@ -90,26 +90,39 @@ from glob import glob
 # get root logger, will later be redirected into a logfile
 import logging
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
-
-
+# AL DEC 24: refactored the EE init into a separate func to remove the warning in standalone mode. I don't use EE, so I can't test if this works for EE
 # CH test Aug 18: do EE init here only
 # this seems to prevent the file_cache is unavailable when using oauth2client >= 4.0.0 or google-auth
 # crap from happening. It assumes that any "main" file imports TouchTerrainEarthEngine anyway.
 # But, as this could also be run in a standalone scenario where EE should not be involved,
 # the failed to EE init messages are just warnings
-try:
-    import ee
-    # uses .config/earthengine/credentials, since Nov. 2024 this must be a service account json file not a p12 file!
-    # Set the path to your JSON key file
-    # Authenticate using the service account
-    credentials = ee.ServiceAccountCredentials(EE_ACCOUNT, EE_CREDS)
-    ee.Initialize(credentials, project=EE_PROJECT)
-except Exception as e:
-    logging.warning(f"EE init() error (with {EE_CREDS}) {e} (This is OK if you don't use earthengine anyway!)")
-else:
-    logging.info(f"EE init() worked with {EE_CREDS}")
+_ee_initialized = False
+
+def initialize_earth_engine() -> Any | None:
+    """Initialize Google Earth Engine only when it's needed."""
+    global _ee_initialized, ee
+    try:
+        import ee
+    except Exception as e:
+        logger.warning(f"EE init() error (with {EE_CREDS}) {e} (This is OK if you don't use earthengine anyway!)")
+        return None
+
+    if _ee_initialized:
+        return ee
+
+    try:
+        # uses .config/earthengine/credentials, since Nov. 2024 this must be a service account json file not a p12 file!
+        credentials = ee.ServiceAccountCredentials(EE_ACCOUNT, EE_CREDS)
+        ee.Initialize(credentials, project=EE_PROJECT)
+    except Exception as e:
+        logger.warning(f"EE init() error (with {EE_CREDS}) {e} (This is OK if you don't use earthengine anyway!)")
+        return None
+
+    _ee_initialized = True
+    logger.info(f"EE init() worked with {EE_CREDS}")
+    return ee
 
 # utility to print to stdout and to logger.info
 def pr(*arglist):
@@ -880,10 +893,8 @@ def get_zipped_tiles(user_dict: dict[str, Any]):
     #
     #
     if config.importedDEM == None:
-        try:
-            import ee
-        except Exception as e:
-            print("Earth Engine module (ee) not installed", e, file=sys.stderr)
+        ee = initialize_earth_engine()
+        assert ee is not None, f"Error: Could not initialize Earth Engine with {EE_CREDS}"
 
         region = [[config.bllon, config.trlat],#WS  NW
                   [config.trlon, config.trlat],#EN  NE
