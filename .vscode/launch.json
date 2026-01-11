@@ -14,6 +14,15 @@
       "args": ["../templates//il-israel-linear//workspace//ttConfig/PA-land.json", "../templates/output/il-israel-linear/250/PA/"]
     },
     {
+      "name": "Python Debugger: MAG TT Standalone PA-water-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA-water.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
       "name": "Python Debugger: MAG TT Standalone PA3-land-clip.json",
       "type": "debugpy",
       "request": "launch",

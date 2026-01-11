@@ -588,5 +588,6 @@ def mark_shared_edges_for_walls(polygon_intersection_edge_buckets: numpy.ndarray
     """Mark shared edges of all cells in an ndarray and the neighbor cell in the specified direction to have a wall if the edges overlap.
     """
     for j in range(0, polygon_intersection_edge_buckets.shape[0]): # Y
+        print(f"Starting row {j}/{polygon_intersection_edge_buckets.shape[0]}")
         for i in range(0, polygon_intersection_edge_buckets.shape[1]): # X
             mark_shared_edges_of_cell_for_walls(polygon_intersection_edge_buckets=polygon_intersection_edge_buckets, elevation_raster=elevation_raster, cell_location=(j,i), direction=direction)
