@@ -49,3 +49,29 @@ def corner_directions_border_outward_by_lte(raster: numpy.ndarray, cell_location
             corners_match.append(ctc[1])
     
     return corners_match
+
+def find_middle_corner(corners: list[IntermediateCorner]) -> IntermediateCorner:
+    """Return the spatially middle corner of 3 corners
+
+    :param corners: 3 corners that border outward with values that are Z=0
+    :type corners: list[IntermediateCorner]
+    :return: The middle corner
+    :rtype: IntermediateCorner
+    """
+    if len(corners) != len(set(corners)):
+        raise ValueError(f"Expected 3 corners, got {len(corners)} unique corners")
+    
+    if len(corners) != 3:
+        raise ValueError(f"Expected 3 corners, got {len(corners)} corners")
+    
+    corners = sorted(corners, key=lambda p:p.value)
+    
+    # If sorted order is NE,0 SW,2 SE,3
+    if corners[1].value - corners[0].value != 1:
+        return corners[2]
+    
+    # If sorted order is NE,0 NW,1 SE,3
+    if corners[0] == IntermediateCorner.NE and corners[2].value - corners[1].value != 1:
+        return corners[0]
+    
+    return corners[1]
