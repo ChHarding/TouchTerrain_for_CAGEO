@@ -9,13 +9,6 @@
     <h4 id="working" style="display:inline; white-space:nowrap">Preparing for preview, please be patient ...</h4>
     <div id="stl_cont" style="height:90vh;"></div>
 
-    <script id="stl-viewer-config" type="application/json">
-    {
-        "models": {{ models|safe }},
-        "center_models": {{ center_models }}
-    }
-    </script>
-    
     <script>
         function load_prog(load_status, load_session){
             let loaded = 0;
@@ -30,9 +23,6 @@
             document.getElementById("pbtotal").value = loaded/total;
         }
     
-        // Parse configuration from JSON
-        var config = JSON.parse(document.getElementById('stl-viewer-config').textContent);
-        
         var stl_viewer = new StlViewer(
             document.getElementById("stl_cont"),
             {
@@ -41,9 +31,9 @@
                     document.getElementById("pbtotal").style.display='none';
                     document.getElementById("working").innerHTML = "Model Previewer: Zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag";
                 },
-                models: config.models,
+                models: {{ models|safe }},
                 load_three_files: "/static/js/",
-                center_models: config.center_models
+                center_models: {{ center_models }}
             }
         );
     </script>

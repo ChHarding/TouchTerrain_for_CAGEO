@@ -1,0 +1,100 @@
+/* TouchTerrain ESRI/Leaflet custom styles */
+
+/* Ensure map container has proper height */
+#map {
+    height: 900px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+/* Basemap switcher button styling */
+.basemap-switcher {
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+}
+
+.basemap-switcher button {
+    margin: 0 !important;
+    border: none;
+    padding: 5px 10px;
+    height: 30px;
+    line-height: 20px;
+}
+
+/* Hide ALL edit handles while a corner/edge is being dragged */
+#map.editing-active .leaflet-vertex-icon,
+#map.editing-active .leaflet-middle-icon {
+    opacity: 0 !important;      /* invisible but still in the DOM so Leaflet can drag them */
+    pointer-events: none !important;
+}
+
+/* Leaflet.Editable corner and edge-midpoint handle styling */
+.leaflet-vertex-icon,
+.leaflet-middle-icon {
+    border: 2px solid #FF0000 !important;
+    background-color: white !important;
+    border-radius: 50% !important;
+    width: 12px !important;
+    height: 12px !important;
+    margin-left: -6px !important;
+    margin-top: -6px !important;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+/* Mid-edge handles are semi-transparent to distinguish from corners */
+.leaflet-middle-icon {
+    opacity: 0.6;
+}
+
+/* ESRI Geocoder search positioning and styling */
+.geocoder-control {
+    width: 280px !important;
+    max-width: 280px;
+}
+
+.geocoder-control-input {
+    font-size: 0.875rem !important;
+    height: 30px !important;
+    padding: 0 30px 0 10px !important;
+}
+
+/* Arrange all top-left controls in a horizontal row */
+.leaflet-top.leaflet-left {
+    z-index: 1000;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 5px;
+    left: 10px;
+    top: 10px;
+}
+
+/* Make zoom control compact and inline */
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+    margin: 0 !important;
+}
+
+.leaflet-control-zoom a {
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+}
+
+/* Ensure basemap switcher stays inline */
+.leaflet-top.leaflet-left .basemap-switcher {
+    margin: 0 !important;
+}
+
+/* Make geocoder control stay inline and adjust width */
+.leaflet-top.leaflet-left .geocoder-control {
+    margin: 0 !important;
+    width: 280px !important;
+}
+
+/* Style for search results */
+.leaflet-popup-content {
+    font-size: 14px;
+}

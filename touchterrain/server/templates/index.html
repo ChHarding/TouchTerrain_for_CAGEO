@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.6)</title>
+		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.6 - ESRI)</title>
 		<meta charset="UTF-8">
 		<meta name="description" content="Application for creating 3D printable terrain models">
 		<meta property="og:image" content="/static/touchTerrain_logo.png">
 		<meta name="keywords" content="HTML,JavaScript">
-		<meta name="author" content="Chris Harding">>
+		<meta name="author" content="Chris Harding">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
@@ -30,16 +30,14 @@
 		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" crossorigin="anonymous"
 		      integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/">
 
-		<script type="text/javascript" async defer
-			src="https://maps.google.com/maps/api/js?libraries=places,drawing&key={{ google_maps_key }}">
-			<!-- key=<nothing> will give you the crappy google map background, which is still usable.
-			If you want a proper google maps version you need replace the above line with
-			one that uses your API key, which you will need to get from Google: https://developers.google.com/maps/documentation/javascript/get-api-key#get-an-api-key
-			Put this key into a text file called GoogleMapsKey.txt in the server folder
-			Note: if the key is wrong, you'll get a Google key error and you won't see any map. -->
-		</script>
-		  
-    
+		<!-- Leaflet CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+	<!-- ESRI Leaflet Geocoder CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@3.1.4/dist/esri-leaflet-geocoder.css" />
+	
+	<!-- TouchTerrain custom Leaflet styles -->
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/touchterrain_leaflet.css') }}">
 	    {% if GOOGLE_ANALYTICS_TRACKING_ID %}
         <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
         <script>
@@ -52,13 +50,80 @@
 
         <script src="https://cdn.jsdelivr.net/gh/google/earthengine-api@v0.1.367/javascript/build/ee_api_js.js"></script>
 		<script type="text/javascript" src="/static/js/zip-full.min.js"></script>
-		<script> {% include 'touchterrain.js' %} </script> <!-- will get inlined via jinja! -->
-	</head>
+		
+		<!-- Leaflet JS -->
+		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<!-- Leaflet.Editable for rectangle editing -->
+	<script type="text/javascript" src="{{ url_for('static', filename='js/Leaflet.Editable.js') }}"></script>
+	<!-- ESRI Leaflet for basemaps and geocoding -->
+	<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+	<script src="https://unpkg.com/esri-leaflet-geocoder@3.1.4/dist/esri-leaflet-geocoder.js"></script>
+	
+	<!-- TouchTerrain global variables from Jinja2 template -->
+	<script id="touchterrain-config" type="application/json">
+	{
+		"map_lat": {{ map_lat|tojson }},
+		"map_lon": {{ map_lon|tojson }},
+		"map_zoom": {{ map_zoom|tojson }},
+		"trlat": {{ trlat|tojson }},
+		"trlon": {{ trlon|tojson }},
+		"bllat": {{ bllat|tojson }},
+		"bllon": {{ bllon|tojson }},
+		"DEM_name": {{ DEM_name|tojson }},
+		"tilewidth": {{ tilewidth|tojson }},
+		"printres": {{ printres|tojson }},
+		"ntilesx": {{ ntilesx|tojson }},
+		"ntilesy": {{ ntilesy|tojson }},
+		"basethick": {{ basethick|tojson }},
+		"zscale": {{ zscale|tojson }},
+		"fileformat": {{ fileformat|tojson }},
+		"manual": {{ manual|tojson }},
+		"polyURL": {{ polyURL|tojson }},
+		"warning": {{ warning|tojson }},
+		"hsazi": {{ hsazi|tojson }},
+		"hselev": {{ hselev|tojson }},
+		"transp": {{ transp|tojson }},
+		"mapid": {{ mapid|tojson }},
+		"esri_api_key": {{ esri_api_key|tojson }}
+		}
+		</script>
+		<script type="text/javascript">
+			// Parse configuration from JSON and create global variables
+			(function() {
+				var config = JSON.parse(document.getElementById('touchterrain-config').textContent);
+				window.map_lat = config.map_lat;
+				window.map_lon = config.map_lon;
+				window.map_zoom = config.map_zoom;
+				window.trlat = config.trlat;
+				window.trlon = config.trlon;
+				window.bllat = config.bllat;
+				window.bllon = config.bllon;
+				window.DEM_name = config.DEM_name;
+				window.tilewidth = config.tilewidth;
+				window.printres = config.printres;
+				window.ntilesx = config.ntilesx;
+				window.ntilesy = config.ntilesy;
+				window.basethick = config.basethick;
+				window.zscale = config.zscale;
+				window.fileformat = config.fileformat;
+				window.manual = config.manual;
+				window.polyURL = config.polyURL;
+				window.warning = config.warning;
+				window.hsazi = config.hsazi;
+				window.hselev = config.hselev;
+				window.transp = config.transp;
+				window.MAPID = config.mapid;
+				window.ESRI_API_KEY = config.esri_api_key; // null or a key string
+		})();
+	</script>	
+	<!-- TouchTerrain JavaScript -->
+	<script type="text/javascript" src="{{ url_for('static', filename='js/touchterrain.js') }}"></script>
+</head>
 
-	<body>
-		<div class="container-fluid" id="outermost_div">
-			<div class="page-header text-truncate" style="min-width: 635px;">
-			  <h4 class="text-truncate">
+<body>
+	<div class="container-fluid" id="outermost_div">
+		<div class="page-header text-truncate" style="min-width: 635px;">
+		  <h4 class="text-truncate">
 				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models &nbsp
 				<div class="text-truncate float-right"> 
@@ -75,13 +140,7 @@
 					<div style="height: 900px; position: relative; overflow: hidden; margin-top: 4px;" id="map">
 						Map didn't load
 					</div>
-					<!-- search bar stuff start, will be positioned inside map via JS later -->
-					<div id="searchbar_div"> 
-						<input id="pac-input" class="form-control form-control-sm ml-3 mt-3 text-truncate" style="max-width: 420px;"
-							type="text" placeholder="Search for a place" aria-label="Search for a place"
-						>
-					</div> 
-					<!-- search bar stuff end  -->
+					<!-- ESRI Leaflet Geocoder search control is added programmatically in touchterrain.js -->
 				</div>
 				<div class="col-sm-4 form-control-sm" >
 					<!-- form 1 -->
@@ -313,7 +372,7 @@
 									<input type="text" id="options_polyURL" name="polyURL" size="16"> URL to cloud KML polygon file</br>
 									-->
 
-									<!- hidden input that needs to go into the form ... -->
+									<!-- hidden input that needs to go into the form ... -->
 									<input type="hidden" name="DEM_name" id="DEM_name2" value="NULL">
 
 									<div class="form-inline text-truncate">
@@ -360,10 +419,10 @@
 										<div class="form-group">
 											<select  class="form-control custom-select-sm"
 													id="options_print_resolution" name="printres" onchange="update_options_hidden();">
-												<!-- <option value="-1">source resolution</option> CH Mar 16 not advisable to allow anymore with new API d/l restrictions-->
-												<option value="0.199">CNC high detail</option>
-												<option value="0.299">CNC medium detail</option>
-												<option value="0.399">CNC low detail</option>
+
+												<option value="0.4">CNC high detail</option>
+												<option value="0.5">CNC medium detail</option>
+												<option value="0.6">CNC low detail</option>
 												<option value="0.2">0.2 mm</option>
 												<option value="0.25">0.25 mm</option>
 												<option value="0.3">0.3 mm</option>
@@ -530,7 +589,7 @@
 					  	</div>
 						</div>
 
-						<!- hidden input for storing the warning string given to Python -->
+						<!-- hidden input for storing the warning string given to Python -->
 						<input type="hidden" name="warning" id="warning" value="NULL">
 
 						<!-- duplicating these hidden ids from the first form here, so they also get submitted in this form -->

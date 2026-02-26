@@ -50,7 +50,21 @@ import logging
 import time
 from zipfile import ZipFile
 
-# Google Maps key removed - ESRI/Leaflet version does not use Google Maps
+# Google Maps key file: must be called GoogleMapsKey.txt and contain key as a single string
+google_maps_key = ""
+try:
+    with open(GOOGLE_MAPS_KEY_FILE) as f:
+        google_maps_key = f.read().rstrip()
+        if google_maps_key == "Put your Google Maps key here":
+            google_maps_key = ""
+        else:
+            print("Google Maps key is:", google_maps_key)
+except:
+     # file does not exist - will show the ugly Google map version
+     logging.warning("Problem with Google Maps key file - you will only get the ugly Google Map!")
+
+# CH Jun 27, 2025 disabled Google Maps
+google_maps_key = ""      
 
 # RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
 # recaptcha secret key and flask secret key as single strings in separate lines 
@@ -90,10 +104,9 @@ def verify_recaptcha(token):
     app.config["score"] = result.get('score', 0)
 
     # JSON structure ex: {'success': True, 'challenge_ts': '2025-04-24T19:36:47Z', 'hostname': '127.0.0.1', 'score': 0.9, 'action': 'submit'}
-    if RECAPTCHA_V3_LOG_FILE:
-        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
-            f.write(f"{result.get('challenge_ts', '')}, {result.get('success', False)}, "
-                    f"{result.get('score', 0)}, {app.config['score_threshold']}, {result.get('hostname', '')}\n")
+    with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
+        f.write(f"{result.get('challenge_ts', '')}, {result.get('success', False)}, "
+                f"{result.get('score', 0)}, {app.config['score_threshold']}, {result.get('hostname', '')}\n")
 
     return result.get('success', False) and result.get('score', 0) > app.config["score_threshold"]
 
@@ -183,6 +196,7 @@ def main_page():
 
         # defines optional polygon (currently not used)
         'polyURL': "", #"https://drive.google.com/file/d/1qrBnX-VHXiHCIIxCZhyG1NDicKnbKu8p/view?usp=sharing", # in KML file at Google Drive
+        "google_maps_key": google_maps_key,  # '' or a key from GoogleMapsKey.txt
         'warning':"",
     }
         
@@ -227,9 +241,8 @@ def main_page():
     if session.get('recaptcha_verified') == True:
         print("User has been verified, showing main page.", file=sys.stderr)
         # string with index.html "file" with mapid, token, etc. inlined
-        html_str = render_template("index.html", **args,
-                                    GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID,
-                                    esri_api_key=ESRI_API_KEY)
+        html_str = render_template("index.html", **args, 
+                                    GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID)
         return html_str
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
@@ -297,11 +310,11 @@ def preview(zip_file):
     return html
 
 
-# called behind the scenes to serve an STL file from the previews folder
+# called vehind the scenes load the STL file
 @app.route("/previews/<job_id>/<filename>")
 def serve_stl(job_id, filename):
-    # Use PREVIEWS_FOLDER (from config) so extraction and serving both resolve to the same directory
-    previews_dir = os.path.join(PREVIEWS_FOLDER, job_id)
+    # Adjust the path as needed
+    previews_dir = os.path.join(os.path.dirname(__file__), "previews", job_id)
     return send_from_directory(previews_dir, filename)
 
 def make_current_URL(query_string_names_and_values_list):

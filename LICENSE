@@ -1,2 +1,44 @@
 This project falls under GPL (v3) license rules. 
-For details see: https://www.gnu.org/licenses/gpl-3.0.en.html 
+
+GNU GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (C) 2025, TouchTerrain
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+-------------------------------------------------------------------------------
+
+GPLv3 License FAQ 
+
+1. What is GPLv3?
+It's a free software license that lets you use, share, and change the app.
+
+2. Can I sell 3D prints made from STL files created with this app?
+Yes, you can sell the prints. The license applies to the app, not the STL files.
+
+3. Can I change the app?
+Yes, you can modify it. If you share your version, it must also be GPLv3 and include the source code.
+
+4. Can I sell the app or charge for it?
+Yes, you can charge for it. But it must stay under GPLv3 and include the source code.
+
+5. Do I have to share the STL files I make?
+No, the STL files are yours. You don’t have to share them.
+
+6. Can I add rules for how others use the app?
+No, GPLv3 doesn’t allow extra restrictions. Others must have the same freedoms you had.
+
+7. Do I need to add a license to my STL files?
+No, STL files are output and don’t need a GPLv3 notice.

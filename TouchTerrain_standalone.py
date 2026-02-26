@@ -219,16 +219,16 @@ def main():
     # get all stl files in that folder
     from glob import glob
     mesh_files = glob(folder + os.sep + "*.stl")
-    print "in folder", folder, "using", mesh_files
+    print ("in folder", folder, "using", mesh_files)
     
     plot = k3d.plot()
     
     for m in mesh_files:
-        print m
+        print(m)
         buf = open(m, 'rb').read()
         #buf = str(stl_model)
         #buf = buf.encode('utf_32')
-        print buf[:100]
+        print (buf[:100])
         plot += k3d.stl(buf)
     
     plot.display()
