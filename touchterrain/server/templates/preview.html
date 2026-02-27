@@ -2,11 +2,17 @@
 <html>
 <head>
     {{ ga_script|safe }}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
+<div class="container-fluid px-3 py-2">
     <script src="{{ url_for('static', filename='js/stl_viewer.min.js') }}"></script>
-    <progress id="pbtotal" value="0" max="1" style="display:block;margin:0 auto 10px auto; width:100%"></progress>
-    <h4 id="working" style="display:inline; white-space:nowrap">Preparing for preview, please be patient ...</h4>
+    <div class="progress my-2" id="pbtotal_wrapper" style="width:100%">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" id="pbtotal"
+             role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <h5 id="working" class="text-muted my-2">Preparing for preview, please be patient ...</h5>
     <div id="stl_cont" style="height:90vh;"></div>
 
     <script id="stl-viewer-config" type="application/json">
@@ -27,7 +33,7 @@
                     total += load_status[model_id].total;
                 }
             });
-            document.getElementById("pbtotal").value = loaded/total;
+            document.getElementById("pbtotal").style.width = Math.round(loaded/total*100) + '%';
         }
     
         // Parse configuration from JSON
@@ -38,7 +44,7 @@
             {
                 loading_progress_callback: load_prog,
                 all_loaded_callback: function(){
-                    document.getElementById("pbtotal").style.display='none';
+                    document.getElementById("pbtotal_wrapper").style.display='none';
                     document.getElementById("working").innerHTML = "Model Previewer: Zoom with mouse wheel, rotate with left mouse drag, pan with right mouse drag";
                 },
                 models: config.models,
@@ -48,9 +54,14 @@
         );
     </script>
 
-    <form style="float:left" action="{{ zip_url }}" method="GET" enctype="multipart/form-data">
-        <input type="submit" value="Download zip File" onclick="gtag('event', 'Click', {'event_category':'Download', 'event_label':'preview_dl', 'value':'1'})" title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">
-    </form>
+    <div class="mt-2">
+        <form action="{{ zip_url }}" method="GET" enctype="multipart/form-data">
+            <input type="submit" class="btn btn-primary" value="Download zip File"
+                onclick="gtag('event', 'Click', {'event_category':'Download', 'event_label':'preview_dl', 'value':'1'})"
+                title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">
+        </form>
+    </div>
+</div><!-- /container-fluid -->
 
 </body>
 </html>

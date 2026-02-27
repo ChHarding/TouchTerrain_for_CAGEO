@@ -308,9 +308,11 @@ def make_current_URL(query_string_names_and_values_list):
     '''Assembles a string from a list of query names and value tuples:
     [('trlat', '12.34'), ('trlon', '-56,78')] into "?trlat=12.34&trlon=-56,78" '''
     from urllib.parse import quote
+    # display-only fields that are not valid /main query params
+    _skip_keys = {'DEMresolution', 'scale', 'place'}
     query = '/main?'
-    for kv in query_string_names_and_values_list: 
-        if kv[1] != '': # skip empty
+    for kv in query_string_names_and_values_list:
+        if kv[1] != '' and kv[1] != 'NULL' and kv[0] not in _skip_keys: # skip empty, unset placeholders, and display-only fields
             query += quote(kv[0]) + "=" + quote(kv[1]) + "&" 
     return query[:-1] # omit last &
 
@@ -358,15 +360,17 @@ def export():
         html += '  }, 5 * 60 * 1000);\n' # 5 * 60 * 1000 = 5 mins
         html += '</script>\n'
 
+        html += '<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">\n'
         html += '</head>\n' # end head
 
         ## start body 
         # with the setTimeout the onerror should not be needed anymore, leaving it in just in case
         html += '''<body onerror="document.getElementById('error').innerHTML=\'''' + 'onerror: ' + timeout_msg + ''''"\n'''
         # onload event will only be triggered once </body> is given
-        html += '''onload="document.getElementById('gif').style.display='none'; document.getElementById('working').innerHTML='Processing finished'">\n'''
-        html += '<h2 id="working" >Processing terrain data into 3D print file(s), please be patient.<br>\n'
-        html += 'Once the animation stops, you can preview and download your file.</h2>\n'
+        html += '''onload="var g=document.getElementById('gif'); if(g) g.remove(); document.getElementById('working').innerHTML='Processing finished'">\n'''
+        html += '<div class="container mt-3">\n'
+        html += '<div class="alert alert-info" id="working">Processing terrain data into 3D print file(s), please be patient.<br>\n'
+        html += 'Once the animation stops, you can preview and download your file.</div>\n'
         
         yield html  # this effectively prints html into the browser but doesn't block, so we can keep going and append more html later ...
 
@@ -520,11 +524,10 @@ def export():
                     pageLoadedSuccessfully = true;
                 </script>'''
 
-            html +=  '</body></html>'
+            html +=  '</div></body></html>'
             yield html
+            return
 
-        
-        
         # Set number of cores to use 
         # server/config.py defined NUM_CORES 0 means all, 1 means single, etc. which can be overwritten
         # via manual option CPU_cores_to_use. 
@@ -540,7 +543,7 @@ def export():
             s = "temp folder " + args["temp_folder"] + " does not exist!"
             print(s, file=sys.stderr)
             logging.error(s)
-            html = '</body></html>Error:' + s
+            html = '</div></body></html>Error:' + s
             yield html
             return "bailing out!"# Cannot continue without proper temp folder
 
@@ -555,7 +558,7 @@ def export():
         args["polygon"] = geojson_polygon
 
         # show snazzy animated gif - set to style="display: none to hide once processing is done
-        html = '<img src="static/processing.gif" id="gif" alt="processing animation" style="display: block;">\n'
+        html = '<img src="static/processing.gif" id="gif" alt="processing animation" class="d-block my-3" style="display: block;">\n'
 
         # add an empty paragraph for error messages during processing that come from JS
         html += '<p id="error"> </p>\n'
@@ -568,14 +571,14 @@ def export():
             totalsize, full_zip_file_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
         except Exception as e:
             print("Error:", e, file=sys.stderr)
-            html =  '</body></html>' + "Error: " + str(e)
+            html =  '</div></body></html>' + "Error: " + str(e)
             yield html
             return "bailing out!"
 
         # if totalsize is negative, something went wrong, error message is in full_zip_file_name
         if totalsize < 0:
             print("Error:", full_zip_file_name, file=sys.stderr)
-            html =  '</body></html>' + "Error:," + str(full_zip_file_name)
+            html =  '</div></body></html>' + "Error:," + str(full_zip_file_name)
             yield html
             return "bailing out!"
 
@@ -588,7 +591,7 @@ def export():
                 os.rename(full_zip_file_name, os.path.join(DOWNLOADS_FOLDER, zip_file))
             except Exception as e:
                 print("Error moving file from tmp to downloads:", e, file=sys.stderr)
-                html =  '</body></html>' + "Error:," + str(e)
+                html =  '</div></body></html>' + "Error:," + str(e)
                 yield html
                 return "bailing out!"
 
@@ -597,36 +600,31 @@ def export():
 
             if args["fileformat"] in ("STLa", "STLb"):
                 html += '<br><form action="' + url_for("preview", zip_file=zip_file)  +'" method="GET" enctype="multipart/form-data">'
-                html += '  <input type="submit" value="Preview STL " '
+                html += '  <input type="submit" class="btn btn-warning mb-2" value="Preview STL " '
                 html += ''' onclick="gtag('event', 'Click', {'event_category':'Preview', 'event_label':'preview', 'value':'1'})" '''
                 html += '   title=""> '
                 html += 'Note: This uses WebGL for in-browser 3D rendering and may take a while to load for large models.<br>\n'
                 html += 'You may not see anything for a while even after the progress bar is full!'
                 html += '</form>\n'
 
-            html += "Optional: Tell us what you're using this model for<br>\n"
-            html += '''<textarea autofocus form="dl" id="comment" cols="100" maxlength=150 rows="2"></textarea><br>\n'''
+            html += '<div class="form-group mt-3"><label>Optional: Tell us what you\'re using this model for:</label>\n'
+            html += '''<textarea autofocus form="dl" id="comment" class="form-control" maxlength=150 rows="2"></textarea></div>\n'''
 
-            html += '<br>\n<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
-            html += '  <input type="submit" value="Download zip File " \n'
+            html += '<form id="dl" action="' + zip_url +'" method="GET" enctype="multipart/form-data">\n'
+            html += '  <input type="submit" class="btn btn-success btn-lg mb-2" value="Download zip File " \n'
             html += '''  onclick=onclick_for_dl();\n'''
             html += '   title="zip file contains a log file, the geotiff of the processed area and the 3D model file (stl/obj) for each tile">\n'
             html += "   Size: %.2f Mb   (All files will be deleted in 6 hrs.)<br>\n" % totalsize
             html += '</form>\n'
-            
-            html += "   <br><br>If you take picture of your touchterrain 3D prints (or CNC carves) and put them on Instagram why not tag them with #touchterrain?"
+        
 
-            
-            #html += "<br>Click on the URL below to return to the selection map:<br>"
+                        
+            html += "<br>To have somebody else generate the same model click this button and then use paste:\n"
+            url_js = json.dumps(URL_query_str)  # safely JSON-encoded, used inside a <script> block (not an HTML attribute)
+            html += f'<script>var _shareUrl = {url_js};</script>\n'
+            html += '<button class="btn btn-secondary btn-sm mt-1" onclick="var b=this; navigator.clipboard.writeText(_shareUrl).then(function(){b.textContent=\'Copied!\'; b.classList.replace(\'btn-secondary\',\'btn-success\');}).catch(function(e){alert(\'Copy failed — try HTTPS or allow clipboard access.\');});">Copy URL to clipboard</button>\n'
 
-            # print out the query parameter URL 
-            #html += '<a href = "'
-            #html += URL_query_str + '">' + URL_query_str + "</a><br>"
-            
-            html += "<br>To have somebody else generate the same model, have them copy&paste this URL into a browser<br>" 
-            html += URL_query_str # using non-link for know as bots may follow it 
-
-            html += "<br><br><br><h3>If you want to process a new model, close this tab and switch back to the TouchTerrain tab<br></h3>"
+            html += "<br>To process a new model, close this tab and switch back to the TouchTerrain tab"
  
             # set timout flag to true, so the timeout script doesn't fire
             html += '''\n
@@ -634,7 +632,7 @@ def export():
                     pageLoadedSuccessfully = true;
                 </script>'''
 
-            html +=  '</body></html>'
+            html +=  '</div></body></html>'
             yield html
 
     r =  Response(stream_with_context(preflight_generator()), mimetype='text/html')
@@ -645,4 +643,3 @@ def download(filename):
     return send_from_directory(DOWNLOADS_FOLDER,
                                filename, as_attachment=True)
 
-#print "end of TouchTerrain_app.py"
