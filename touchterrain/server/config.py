@@ -58,8 +58,9 @@ PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.
 #   2. Dashboard -> New Application -> create app
 #   3. API Keys -> Generate key, enable "Basemaps" and "Geocoding" scopes
 #   4. Paste the key string below
-ESRI_API_KEY = None
-#ESRI_API_KEY = "YOUR_KEY_HERE"
+#ESRI_API_KEY = None
+ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJMjEqwPcUyBKANFtC-kXx_cejQZmUvfFTNSREVrBOm3-gDYo3szp_P-LyGUaNYYe-UmdzRlioTlLHvCXHzfrHaeWHaaDiZDjnoV5uD3yef-laJ2358EUefeF_mz481dUbGnS0Sf3vWGBOzCwlHvovG1ikQ-n4qfsXTGladVPiHSFi54L66foBfHJLb7wqUiP-Zr2IZ1OVBjckA35Znkc__VluaBK-V8GvHVqxlLaUilAT1_yNPrasRz"
+# CH Note: public but limited to our domain. It will need to be renewed on Mar. 4, 2027
 
 # This will be inlined in index.html to enable Google Analytics, However, this is
 # my tracking id, so if you use google analytics, make sure to use your own Tracking ID!

@@ -41,22 +41,13 @@ window.onload = function () {
     });
 
     // Build an ESRI tile URL for the given service name.
-    // If window.ESRI_API_KEY is set, use the official Location Platform CDN with token;
-    // otherwise fall back to the free public CDN (no account required).
-    function esriTileUrl(service) {
-        if (window.ESRI_API_KEY) {
-            return 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/' + service
-                 + '/MapServer/tile/{z}/{y}/{x}?token=' + window.ESRI_API_KEY;
-        }
-        return 'https://server.arcgisonline.com/ArcGIS/rest/services/' + service
-             + '/MapServer/tile/{z}/{y}/{x}';
-    }
+    // Use L.esri.basemapLayer so esri-leaflet handles raster vs vector tiles and
+    // token passing automatically for both the public CDN and the authenticated
+    // Location Platform CDN.
+    var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
 
     // Add ESRI Street Map layer
-    basemap_layer = L.tileLayer(esriTileUrl('World_Street_Map'), {
-        attribution: 'Tiles &copy; Esri',
-        maxZoom: 18
-    }).addTo(map);
+    basemap_layer = L.esri.basemapLayer('Streets', _esriBasemapOpts).addTo(map);
 
     // Add basemap switcher (simple button control)
     L.Control.BasemapSwitcher = L.Control.extend({
@@ -578,28 +569,15 @@ window.onload = function () {
 function toggleBasemap() {
     map.removeLayer(basemap_layer);
 
-    function esriTileUrl(service) {
-        if (window.ESRI_API_KEY) {
-            return 'https://ibasemaps-api.arcgis.com/arcgis/rest/services/' + service
-                 + '/MapServer/tile/{z}/{y}/{x}?token=' + window.ESRI_API_KEY;
-        }
-        return 'https://server.arcgisonline.com/ArcGIS/rest/services/' + service
-             + '/MapServer/tile/{z}/{y}/{x}';
-    }
+    var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
 
     if (current_basemap === 'streets') {
-        basemap_layer = L.tileLayer(esriTileUrl('World_Imagery'), {
-            attribution: 'Tiles &copy; Esri',
-            maxZoom: 18
-        }).addTo(map);
+        basemap_layer = L.esri.basemapLayer('Imagery', _esriBasemapOpts).addTo(map);
         current_basemap = 'imagery';
         const basemapToggle = getById('basemap-toggle');
         if (basemapToggle) basemapToggle.innerText = 'Toggle Street Map';
     } else {
-        basemap_layer = L.tileLayer(esriTileUrl('World_Street_Map'), {
-            attribution: 'Tiles &copy; Esri',
-            maxZoom: 18
-        }).addTo(map);
+        basemap_layer = L.esri.basemapLayer('Streets', _esriBasemapOpts).addTo(map);
         current_basemap = 'streets';
         const basemapToggle = getById('basemap-toggle');
         if (basemapToggle) basemapToggle.innerText = 'Toggle Satellite';

@@ -68,6 +68,58 @@ except:
 else:
     print("Recaptcha_v3_keys.txt sucessfully parsed.")
 
+# Check ESRI API key at startup (if one is configured)
+def check_esri_api_key(key):
+    """Test basemap tile and geocoding endpoints with the given key.
+    Prints a one-line status for each service. Returns True if both pass."""
+    if not key:
+        print("ESRI_API_KEY: not set — using free public CDN (no auth required).")
+        return True
+
+    # ESRI enforces referrer restrictions on all requests (including server-side).
+    # Send Referer matching the first allowed domain so the check isn't blocked
+    # by the referrer restriction itself.
+    headers = {'Referer': 'http://127.0.0.1'}
+    results = {}
+
+    # 1. Basemap: request a World_Imagery tile (always raster; Streets is vector so
+    #    its /MapServer/tile path returns 404 — Imagery covers the same privilege).
+    try:
+        url = ("https://ibasemaps-api.arcgis.com/arcgis/rest/services/"
+               "World_Imagery/MapServer/tile/0/0/0?token=" + key)
+        r = requests.get(url, timeout=10, headers=headers)
+        ct = r.headers.get('Content-Type', '')
+        if r.status_code == 200 and 'image' in ct:
+            print("ESRI_API_KEY basemap:   OK  (ibasemaps-api.arcgis.com)")
+            results['basemap'] = True
+        else:
+            print(f"ESRI_API_KEY basemap:   FAILED  (HTTP {r.status_code}, {ct}) — check key & Basemaps privilege")
+            results['basemap'] = False
+    except Exception as e:
+        print(f"ESRI_API_KEY basemap:   ERROR  ({e})")
+        results['basemap'] = False
+
+    # 2. Geocoding: single candidate lookup — success = 200 + no "error" key in JSON
+    try:
+        url = ("https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer/"
+               "findAddressCandidates?SingleLine=Ames%2C+IA&f=json&maxLocations=1&token=" + key)
+        r = requests.get(url, timeout=10, headers=headers)
+        data = r.json() if r.headers.get('Content-Type','').startswith('application/json') else {}
+        if r.status_code == 200 and 'error' not in data:
+            print("ESRI_API_KEY geocoding: OK  (geocode-api.arcgis.com)")
+            results['geocoding'] = True
+        else:
+            err = data.get('error', {})
+            print(f"ESRI_API_KEY geocoding: FAILED  (HTTP {r.status_code}, {err.get('message','unknown error')}) — check key & Geocoding privilege")
+            results['geocoding'] = False
+    except Exception as e:
+        print(f"ESRI_API_KEY geocoding: ERROR  ({e})")
+        results['geocoding'] = False
+
+    return all(results.values())
+
+check_esri_api_key(ESRI_API_KEY)
+
 # May 2025: set the mimetype for javascript files to application/javascript so that 
 # load_stl_min.js can be loaded
 mimetypes.add_type('application/javascript', '.js')
