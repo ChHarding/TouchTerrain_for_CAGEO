@@ -1,5 +1,6 @@
 from touchterrain.common import config
 import os
+import platform
 
 # TouchTerrain server config settings
 
@@ -8,13 +9,23 @@ import os
 # Miles made /tmp read-only so it doesn't get wiped on rebuilds
 #
 
+#
 # file for Recptcha v3 keys
-RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_keys.txt')
-#RECAPTCHA_V3_KEYS_FILE = "/tmp/Recaptcha_v3_keys.txt"
+#
+
+# Win debug server
+_system_name = platform.system().lower()
+if _system_name == "windows":
+    RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
+elif _system_name in ("linux", "darwin"): # linux or MaxOS
+    RECAPTCHA_V3_KEYS_FILE = "/tmp/Recaptcha_v3_keys.txt"
+else: # Neither
+    print(f"ERROR: Unsupported OS '{platform.system()}'; using local server directory for Recaptcha keys.")
+    RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
 
 # log for recaptcha v3, — set to None to disable logging
-#RECAPTCHA_V3_LOG_FILE = None
-RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
+RECAPTCHA_V3_LOG_FILE = None
+#RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
 
 
 # DEBUG_MODE will be True if running in a local development environment.
