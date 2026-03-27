@@ -144,7 +144,13 @@ window.onload = function () {
       });
       */
     
-    eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
+    // Create hillshade overlay from Earth Engine (if available)
+    if (MAPID && MAPID !== "") {
+        eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
+    } else {
+        eemap = null; // EE not available, no hillshade overlay
+        console.log("Earth Engine not available - hillshade overlay disabled");
+    }
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
     update_options_hidden(); // also store values in hidden ids
     SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
