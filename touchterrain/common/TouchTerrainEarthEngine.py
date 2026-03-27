@@ -82,6 +82,7 @@ logger.setLevel(logging.INFO)
 # crap from happening. It assumes that any "main" file imports TouchTerrainEarthEngine anyway.
 # But, as this could also be run in a standalone scenario where EE should not be involved,
 # the failed to EE init messages are just warnings
+EE_INITIALIZED = False
 try:
     import ee
     # uses .config/earthengine/credentials, since Nov. 2024 this must be a service account json file not a p12 file!
@@ -89,6 +90,7 @@ try:
     # Authenticate using the service account
     credentials = ee.ServiceAccountCredentials(EE_ACCOUNT, EE_CREDS)
     ee.Initialize(credentials, project=EE_PROJECT)
+    EE_INITIALIZED = True
 except Exception as e:
     logging.warning(f"EE init() error (with {EE_CREDS}) {e} (This is OK if you don't use earthengine anyway!)")
 else:
