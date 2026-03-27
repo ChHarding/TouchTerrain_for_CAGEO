@@ -870,7 +870,9 @@ function SetDEM_name(){
 // set opacity of hillshade as inverse of transparency given
 function updateTransparency(transparency_pct) {
     let op = 1.0 - transparency_pct / 100.0 // opacity
-    map.overlayMapTypes.getAt(0).setOpacity(op)
+    if (map.overlayMapTypes.getLength() > 0) {
+        map.overlayMapTypes.getAt(0).setOpacity(op)
+    }
     document.getElementById('hillshade_transparency_slider').value=transparency_pct;
     document.getElementById('transp').value=transparency_pct; // id in hidden reload 1
     document.getElementById('transp3').value=transparency_pct; // id in hidden reload 2
