@@ -41,7 +41,12 @@
         {% endif %}
         <form id="recaptcha-form" method="POST" action="/">
             <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-            <img src="{{ url_for('static', filename='world.jpg') }}" alt="Click to continue" style="cursor:pointer; width:100%;" onclick="onImageClick(event)">
+            <button 
+              onclick="onImageClick(event)" 
+              class="p-0 border-0 bg-transparent d-block w-100" 
+              style="cursor:pointer;">
+                <img src="{{ url_for('static', filename='world.jpg') }}" alt="Click to continue" class="img-fluid d-block">
+              </button>
         </form>
     </body>
 </html>
