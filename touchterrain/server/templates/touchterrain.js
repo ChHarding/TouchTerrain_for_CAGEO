@@ -375,8 +375,7 @@ window.onload = function () {
                       </ul>',
         html: true,
         trigger: 'click hover',
-        placement: 'auto',
-        container: $(this)
+        placement: 'auto'
     });
 
     $('#terrain_settings_popover').popover({
@@ -578,6 +577,14 @@ window.onload = function () {
         trigger: 'hover',
         placement: 'auto',
         delay: { "show": 2000, "hide": 0 },
+    });
+
+    // Accessibility: update aria attributes on popover show/hide
+    $('.help-popover').on('shown.bs.popover', function() {
+        $(this).attr('aria-expanded', 'true');
+        $(this).attr('aria-describedby', '');
+    }).on('hidden.bs.popover', function() {
+        $(this).attr('aria-expanded', 'false');
     });
 }; // end of onload()
 

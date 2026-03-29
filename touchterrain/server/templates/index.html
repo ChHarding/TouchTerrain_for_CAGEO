@@ -1,3 +1,4 @@
+{% from "macros.html" import help_popover %}
 <!DOCTYPE html>
 <html>
 	<head>
@@ -58,17 +59,13 @@
 	<body>
 		<div class="container-fluid" id="outermost_div">
 			<div class="page-header text-truncate" style="min-width: 635px;">
-			  <h4 class="text-truncate">
+			  <h1 class="text-truncate">
 				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
-				TouchTerrain: Easily Create 3D-Printable Terrain Models &nbsp
+				TouchTerrain: Easily Create 3D-Printable Terrain Models</h1>
 				<div class="text-truncate float-right"> 
 					<a href="https://touchterrain.blogspot.com/" target="_blank"> Blog - what's new in version 3.6?</a> 
-					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
-							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-								<i class="fas fa-question"></i>
-						</button>
-				</div>
-			  </h4>
+					 	{{ help_popover(id="Whats_new__popover") }}
+        </div>
 			</div>
 			<div class="row">
 				<div class="col-sm-8">
@@ -92,20 +89,14 @@
 								<a class="card-link" data-toggle="collapse" href="#terrain_settings_panel" aria-expanded="true">
 					            Terrain Settings:
 					      		</a>
-								<button type="button" id="terrain_settings_popover" class="btn btn-outline-info btn-sm" 
-									data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-            		 					<i class="fas fa-question"></i>
-    							</button>
+								{{ help_popover('terrain_settings_popover') }}
 							</div>
 							<div id="terrain_settings_panel" class="collapse show">
 								<div class="card-body">
 									<div class="row text-truncate">
 										<div class="col-sm-6" form-inline>
 											<label for="DEM_name">Elevation Data source:</label>
-											<button type="button" id="elevation_data_source_popover" class="btn btn-outline-info btn-sm" 
-														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-            		 									<i class="fas fa-question"></i>
-    										</button>
+											{{ help_popover('elevation_data_source_popover') }}
 											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(DEM Info)</a>
 										</div>
 										<div class="col-sm-6 form-inline">
@@ -145,10 +136,7 @@
 													<option value="90"></option>
 													<option value="100"></option>
 												</datalist>
-												<button type="button" id="transparency_popover" class="btn btn-outline-info btn-sm" 
-														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-														<i class="fas fa-question"></i>
-												</button>
+												{{ help_popover('transparency_popover') }}
 											</div>
 										</div>
 										<div class="col-sm-5">
@@ -157,10 +145,7 @@
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
 													style="max-width: 40px;"
 													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET')};"> 
-												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-													<i class="fas fa-question"></i>
-												</button>
+												{{ help_popover('gamma_popover') }}
 											</div>
 										</div>
 									</div>
@@ -169,10 +154,7 @@
 										<div class="col-sm-6"> 
 												<div class="form-horizontal form-group">
 													<label for="hsazi2">Sun direction:</label>
-													<button type="button" id="sun_direction_popover" class="btn btn-outline-info btn-sm" 
-														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-														<i class="fas fa-question"></i>
-													</button>
+													{{ help_popover('sun_direction_popover') }}
 													<select class="form-control custom-select-sm"  
 														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
 													>
@@ -188,10 +170,7 @@
 										<div class="col-sm-6">
 											<div class="form-horizontal form-group">
 												<label for="hselev2">Sun angle:</label>
-												<button type="button" id="sun_angle_popover" class="btn btn-outline-info btn-sm" 
-														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-														<i class="fas fa-question"></i>
-												</button>
+												{{ help_popover('sun_angle_popover') }}
 												<select class="form-control custom-select-sm"  
 													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
 													<option value="55">steep (55 degr.)</option> 
@@ -242,10 +221,7 @@
 							<a class="card-link" data-toggle="collapse" href="#area_box_panel" aria-expanded="false">
 									Area Selection Box:  
 							</a>
-							<button type="button" id="area_selection_box_popover" class="btn btn-outline-info btn-sm" 
-								data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-								<i class="fas fa-question"></i>
-							</button>
+							{{ help_popover('area_selection_box_popover') }}
 							<input id="recenter-box-button" type="button" class="btn btn-primary float-right"
 							    data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto"
 								onclick="center_rectangle()"
@@ -293,14 +269,8 @@
 							<div class="card-header">
 								<div class="panel-title">
 									<a class="card-link" data-toggle="collapse" href="#printOptionPanel" aria-expanded="true">3D Printer Options:</a>
-									<button type="button" id="3D_printer_options_popover" class="btn btn-outline-info btn-sm" 
-										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-										<i class="fas fa-question"></i>
-									</button>
-									<button type="button" id="3D_printer_CNC_options_popover" class="btn btn-outline-secondary btn-sm" 
-										data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-										CNC<i class="fas fa-question"></i>
-									</button>
+									{{ help_popover('3D_printer_options_popover') }}
+									{{ help_popover('3D_printer_CNC_options_popover', btn_class='btn btn-outline-secondary btn-sm', btn_text='CNC<i class="fas fa-question"></i>') }}
 					      		</div>
 							</div>
 							<div id="printOptionPanel" class="collapse show">
@@ -349,10 +319,7 @@
 											<label for="options_tile_width"> &nbsp Width, &nbsp &nbsp </label> 
 											<b id="options_tile_height"></b>
 											<label for="options_tile_width"> &nbsp Height</label>
-											<button type="button" id="tile_width_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-											</button> 
+											{{ help_popover('tile_width_popover') }} 
 										</div>
 									</div>
 
@@ -375,10 +342,7 @@
 												<option value="1.0">1.0 mm</option>
 										</select> 
 										<label for="options_print_resolution"> &nbsp Nozzle diameter</label>
-										<button type="button" id="print_resolution_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('print_resolution_popover') }} 
 									</div>
 								</div>
 
@@ -412,10 +376,7 @@
 										</select> 
 
 										<label for="options_numTiles_y"> &nbsp Tiles to print (X by Y)</label>
-										<button type="button" id="tile_config_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('tile_config_popover') }} 
 									</div>
 								</div>
 
@@ -423,10 +384,7 @@
 								<div class="form-inline text-truncate">
 									<div class="form-group">
 										<label for="DEMresolution">Effective DEM resolution:</label>
-										<button type="button" id="effective_resolution_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('effective_resolution_popover') }} 
 										<input type="text" id="DEMresolution" class="form-control form-control-sm" 
 													name="DEMresolution" maxlength="5" size="3" value="NULL" readonly> 
 										m, &nbsp (source DEM is:&nbsp <b id="source_resolution"></b>)
@@ -451,10 +409,7 @@
                                                 <option value="5">50 mm</option>
 										</select>  
 										<label for="options_base_thickness"> &nbsp Model Base thickness</label>
-										<button type="button" id="base_thickness_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('base_thickness_popover') }} 
 									</div>
 								</div>
 
@@ -489,10 +444,7 @@
 												<option value="100">x 100</option>
 										</select> 
 										<label for="options_z_scale"> &nbsp Vertical Exaggeration (Z-scale)</label>
-										<button type="button" id="zscale_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('zscale_popover') }} 
 									</div>
 								</div>
 
@@ -506,10 +458,7 @@
 												<option value="GeoTiff"> GeoTiff</option>
 										</select>
 										<label for="options_fileformat"> &nbsp File format </label>
-										<button type="button" id="fileformat_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-										</button> 
+										{{ help_popover('fileformat_popover') }} 
 									</div>
 								</div>
 
@@ -518,10 +467,7 @@
 										<input class="form-control"  size="80" type="text" placeholder="Manual settings:"
 											id="options_manual" value="" name="manual">
 										<div class="input-group-append">
-											<button type="button" id="manual_settings_popover" class="btn btn-outline-info btn-sm" 
-													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
-												<i class="fas fa-question"></i>
-											</button> 
+											{{ help_popover('manual_settings_popover') }} 
 										</div>
 									</div>
 								</div>
