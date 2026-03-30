@@ -13,7 +13,7 @@ let div_lines_y = [];
 let marker = null;     // search result marker
 let overlay = null;    // DEM overlay layer
 let basemap_layer = null; // current basemap layer
-let current_basemap = 'streets'; // 'streets' or 'imagery'
+let current_basemap = 'NationalGeographic';
 let corner_handles = []; // custom corner drag handles (NE/NW/SE/SW)
 let edge_handles = [];   // custom edge-midpoint drag handles (N/S/E/W)
 let _drag_anchor_ll = null; // anchor latlng (opposite corner) during corner drag
@@ -46,38 +46,44 @@ window.onload = function () {
     // Location Platform CDN.
     var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
 
-    // Add ESRI Street Map layer
-    basemap_layer = L.esri.basemapLayer('Streets', _esriBasemapOpts).addTo(map);
+    // Add ESRI National Geographic layer as default
+    basemap_layer = L.esri.basemapLayer('NationalGeographic', _esriBasemapOpts).addTo(map);
 
-    // Add basemap switcher (simple button control)
+    // Add basemap selector dropdown control
     L.Control.BasemapSwitcher = L.Control.extend({
         onAdd: function(map) {
             let div = L.DomUtil.create('div', 'basemap-switcher');
-            div.innerHTML = '<button id="basemap-toggle" class="btn btn-sm btn-light">Toggle Satellite</button>';
+            div.innerHTML =
+                '<select id="basemap-select" class="basemap-select">'
+              + '<option value="NationalGeographic" selected>National Geographic</option>'
+              + '<option value="ImageryClarity">Satellite</option>'
+              + '<option value="Streets">Streets</option>'
+              + '<option value="Topographic">Topographic</option>'
+              + '</select>';
             L.DomEvent.disableClickPropagation(div);
+            L.DomEvent.disableScrollPropagation(div);
             return div;
         }
     });
-    
+
     L.control.basemapSwitcher = function(opts) {
         return new L.Control.BasemapSwitcher(opts);
     }
-    
+
     L.control.basemapSwitcher({ position: 'topleft' }).addTo(map);
-    
-    // Basemap toggle event handler
-    map.on('basemap-switcher-added', function() {
-        document.getElementById('basemap-toggle').addEventListener('click', function() {
-            toggleBasemap();
-        });
-    });
-    
-    // Trigger the event after a short delay to ensure DOM is ready
+
+    // Scale bar (metric + imperial)
+    L.control.scale({ position: 'bottomleft', imperial: true, metric: true }).addTo(map);
+
+    // Mouse position (lat/lon display)
+    L.control.mousePosition({ position: 'bottomright', numDigits: 4, prefix: 'Lat/Lon:&nbsp;' }).addTo(map);
+
+    // Basemap select event handler
     setTimeout(function() {
-        let btn = document.getElementById('basemap-toggle');
-        if (btn) {
-            btn.addEventListener('click', function() {
-                toggleBasemap();
+        let sel = document.getElementById('basemap-select');
+        if (sel) {
+            sel.addEventListener('change', function() {
+                switchBasemap(this.value);
             });
         }
     }, 500);
@@ -565,28 +571,14 @@ window.onload = function () {
 // HELPER FUNCTIONS
 //
 
-// Toggle between Street Map and Satellite basemap
-function toggleBasemap() {
+// Switch to a named ESRI basemap
+function switchBasemap(esriName) {
+    if (esriName === current_basemap) return;
     map.removeLayer(basemap_layer);
-
     var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
-
-    if (current_basemap === 'streets') {
-        basemap_layer = L.esri.basemapLayer('Imagery', _esriBasemapOpts).addTo(map);
-        current_basemap = 'imagery';
-        const basemapToggle = getById('basemap-toggle');
-        if (basemapToggle) basemapToggle.innerText = 'Toggle Street Map';
-    } else {
-        basemap_layer = L.esri.basemapLayer('Streets', _esriBasemapOpts).addTo(map);
-        current_basemap = 'streets';
-        const basemapToggle = getById('basemap-toggle');
-        if (basemapToggle) basemapToggle.innerText = 'Toggle Satellite';
-    }
-    
-    // Ensure overlay stays on top
-    if (overlay) {
-        overlay.bringToFront();
-    }
+    basemap_layer = L.esri.basemapLayer(esriName, _esriBasemapOpts).addTo(map);
+    current_basemap = esriName;
+    if (overlay) overlay.bringToFront();
 }
 
 // Helper: update all 8 form fields from current rectangle bounds (no division lines)
@@ -1033,16 +1025,18 @@ function SetDEM_name() {
 
     let res = "unknown resolution";
     switch(DEM_name){
-        case "USGS/3DEP/10m": res = "10"; break;
+        case "USGS/3DEP/10m_collection": res = "10"; break;
         case "NRCan/CDEM": res = "20"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
-        case "USGS/SRTMGL1_003": res = "30"; break;
         case "MERIT/DEM/v1_0_3": res = "90"; break;
         case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
         case "USGS/GMTED2010": res = "230"; break;
         case "USGS/GTOPO30": res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM": res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
+        case "IGN/RGE_ALTI/1M/2_0/FXX": res = "1"; break;
+        case "UK/EA/ENGLAND_1M_TERRAIN/2022": res = "1"; break;
+        case "USGS/3DEP/1m": res = "1"; break;
     }
     
     document.getElementById('source_resolution').value = parseInt(res);
@@ -1094,7 +1088,10 @@ function update_options_hidden() {
     document.getElementById('manual').value = document.getElementById('options_manual').value;
     document.getElementById('polyURL').value = document.getElementById('options_polyURL').value;
 
+    document.getElementById('maptype').value = current_basemap;
     document.getElementById('maptype3').value = current_basemap;
+    document.getElementById('gamma').value = document.getElementById('gamma2').value;
+    document.getElementById('transp').value = document.getElementById('hillshade_transparency_slider').value;
     document.getElementById('hsazi3').value = document.getElementById('hsazi2').value;
     document.getElementById('hselev3').value = document.getElementById('hselev2').value;
 
