@@ -201,16 +201,18 @@ window.onload = function () {
     // show link for current DEM source
     let link = "https://developers.google.com/earth-engine/datasets"
     switch(DEM_name){
-        case "USGS/3DEP/10m": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_10m"; break;
+        case "USGS/3DEP/10m_collection": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_10m"; break;
         case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": link = "https://developers.google.com/earth-engine/datasets/catalog/AU_GA_AUSTRALIA_5M_DEM"; break;
-        case "USGS/SRTMGL1_003": link ="https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003"; break;
         case "MERIT/DEM/v1_0_3": link = "https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3"; break;
-        case "JAXA/ALOS/AW3D30/V2_2": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V2_2"; break;
+        case "JAXA/ALOS/AW3D30/V4_1": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V4_1"; break;
         case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
         case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
         case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
+        case "IGN/RGE_ALTI/1M/2_0/FXX": link = "https://developers.google.com/earth-engine/datasets/catalog/IGN_RGE_ALTI_1M_2_0"; break;
+        case "UK/EA/ENGLAND_1M_TERRAIN/2022": link = "https://developers.google.com/earth-engine/datasets/catalog/UK_EA_ENGLAND_1M_TERRAIN_2022"; break;
+        case "USGS/3DEP/1m": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_1m"; break;
     }
     document.getElementById('DEM_link').href = link;
 
@@ -843,16 +845,18 @@ function SetDEM_name(){
 
     let res = "unknown resolution"
     switch(DEM_name){
-        case "USGS/3DEP/10m": res = "10"; break;
+        case "USGS/3DEP/10m_collection": res = "10"; break;
         case "NRCan/CDEM": res = "20"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
-        case "USGS/SRTMGL1_003": res = "30"; break;
         case "MERIT/DEM/v1_0_3": res= "90"; break;
         case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
         case "USGS/GMTED2010": res = "230"; break;
         case "USGS/GTOPO30" : res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
+        case "IGN/RGE_ALTI/1M/2_0/FXX": res = "1"; break;
+        case "UK/EA/ENGLAND_1M_TERRAIN/2022": res = "1"; break;
+        case "USGS/3DEP/1m": res = "1"; break;
     }
     
     // set resolution of DEM source
