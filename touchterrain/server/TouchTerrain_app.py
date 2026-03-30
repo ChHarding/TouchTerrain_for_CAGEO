@@ -203,7 +203,7 @@ def main_page():
 
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
-        'DEM_name': 'USGS/3DEP/10m',
+        'DEM_name': 'USGS/3DEP/10m_collection',
 
         # defines map location
         'map_lat': "44.59982",
@@ -246,17 +246,30 @@ def main_page():
         qs = qs + k + "=" + v + "&"
     #print qs
 
-    # overwrite args with values from flask request args 
+    # overwrite args with values from flask request args (skip NULL placeholder values from unset form fields)
     for key in request.args:
-        args[key] = request.args[key]
+        if request.args[key] != 'NULL':
+            args[key] = request.args[key]
         #print(key, request.args[key])
 
     # get hillshade for elevation
-    if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
+    _IC_BANDS = {
+        "USGS/3DEP/10m_collection": "elevation",
+        "USGS/3DEP/1m": "elevation",
+        "NRCan/CDEM": "elevation",
+        "AU/GA/AUSTRALIA_5M_DEM": "elevation",
+        "JAXA/ALOS/AW3D30/V4_1": "DSM",
+    }
+    if args["DEM_name"] in _IC_BANDS:  # Image collection?
+        band = _IC_BANDS[args["DEM_name"]]
         dataset = ee.ImageCollection(args["DEM_name"])
-        elev = dataset.select('elevation')
+        elev = dataset.select(band)
         proj = elev.first().select(0).projection() # must use common projection(?)
         elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+    elif args["DEM_name"] == "IGN/RGE_ALTI/1M/2_0/FXX":
+        elev = ee.Image(args["DEM_name"]).select("MNT")
+    elif args["DEM_name"] == "UK/EA/ENGLAND_1M_TERRAIN/2022":
+        elev = ee.Image(args["DEM_name"]).select("dtm")
     else:
         elev = ee.Image(args["DEM_name"])
 
@@ -554,10 +567,13 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/3DEP/10m":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
-                                  "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30, "USGS/SRTMGL1_003":1,
-                                  "JAXA/ALOS/AW3D30/V3_2":1, "NRCan/CDEM": 0.75, 
-                                  "AU/GA/AUSTRALIA_5M_DEM": 1/18} # in arcseconds!
+            cell_width_arcsecs = {"USGS/3DEP/10m_collection":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+                                  "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30,
+                                  "JAXA/ALOS/AW3D30/V4_1":1, "NRCan/CDEM": 0.75, 
+                                  "AU/GA/AUSTRALIA_5M_DEM": 1/18,
+                                  "IGN/RGE_ALTI/1M/2_0/FXX": 1/111,
+                                  "UK/EA/ENGLAND_1M_TERRAIN/2022": 1/111,
+                                  "USGS/3DEP/1m": 1/111} # in arcseconds!
             cwas = float(cell_width_arcsecs[DEM_name])
             tot_pix = int((((dlon * 3600) / cwas) *  ((dlat * 3600) / cwas)) / div_by)
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is",  MAX_CELLS_PERMITED, file=sys.stderr)
