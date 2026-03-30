@@ -88,6 +88,17 @@
     margin: 0 !important;
 }
 
+/* Basemap dropdown select styling */
+.basemap-select {
+    height: 30px;
+    padding: 0 6px;
+    font-size: 0.875rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
 /* Make geocoder control stay inline and adjust width */
 .leaflet-top.leaflet-left .geocoder-control {
     margin: 0 !important;
