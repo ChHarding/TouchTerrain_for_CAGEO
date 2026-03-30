@@ -1,8 +1,8 @@
 /* TouchTerrain ESRI/Leaflet custom styles */
 
-/* Ensure map container has proper height */
+/* Map fills viewport minus the page header (~60px) + small margin */
 #map {
-    height: 900px;
+    height: calc(100vh - 70px);
     position: relative;
     overflow: hidden;
     margin-top: 4px;
