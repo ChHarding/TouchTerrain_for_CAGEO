@@ -618,7 +618,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          clean_diags=False,
                          dirty_triangles=False,
                          kd3_render=False,
-                         min_cell_size_m=None,  # if set, clamp GEE request to at least this resolution (meters)
                          **otherargs):
     """
     args:
@@ -1030,14 +1029,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # if cellsize is <= 0, just get whatever GEE's default cellsize is (printres = -1)
         if cell_size_m <= 0: del request_dict["scale"]
-
-        # GEE rate-limit protection: if a minimum cell size is configured and the
-        # requested resolution is finer than it, clamp to avoid 429 errors.
-        if min_cell_size_m is not None and cell_size_m > 0 and cell_size_m < min_cell_size_m:
-            print(f"GEE rate-limit guard: clamping requested {cell_size_m:.2f} m resolution "
-                  f"to {min_cell_size_m:.1f} m (area threshold exceeded)")
-            request_dict["scale"] = min_cell_size_m
-            cell_size_m = min_cell_size_m
 
         # force to use unprojected (lat/long) instead of UTM projection, can only work for Geotiff export
         if unprojected == True: del request_dict["crs"]
