@@ -278,7 +278,23 @@ def main_page():
     hs = ee.Terrain.hillshade(elev, hsazi, hselev)
 
     gamma = float(args["gamma"])
-    mapid = hs.getMapId( {'gamma':gamma}) # request map from EE, transparency will be set in JS
+    if GEE_HILLSHADE_SCALE_M:
+        # Cap the hillshade rendering scale only for large viewports to save GEE quota.
+        # The viewport (not the red box) is what the hillshade image covers, so its
+        # area determines the rendering cost. Small viewports get full native resolution.
+        try:
+            import math
+            _vp_trlat = float(args["vp_trlat"]); _vp_trlon = float(args["vp_trlon"])
+            _vp_bllat = float(args["vp_bllat"]); _vp_bllon = float(args["vp_bllon"])
+            _hs_lat_m = abs(_vp_trlat - _vp_bllat) * 111320
+            _hs_lon_m = abs(_vp_trlon - _vp_bllon) * 111320 \
+                        * math.cos(math.radians((_vp_trlat + _vp_bllat) / 2))
+            _hs_area_km2 = (_hs_lat_m * _hs_lon_m) / 1e6
+        except Exception:
+            _hs_area_km2 = float('inf')  # viewport coords missing → apply cap to be safe
+        if _hs_area_km2 > GEE_HIRES_AREA_LIMIT_KM2:
+            hs = hs.reproject(crs='EPSG:3857', scale=GEE_HILLSHADE_SCALE_M)
+    mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
 
     # these have to be added to the args so they end up in the template
     args['mapid'] = mapid['mapid']
@@ -621,6 +637,29 @@ def export():
 
         # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
+
+        # GEE rate-limit protection for high-resolution DEMs:
+        # if the requested cell size is finer than the threshold AND the area exceeds the limit,
+        # clamp the GEE download resolution to the threshold value.
+        args["min_cell_size_m"] = None  # default: no clamping
+        try:
+            import math
+            _trlat = float(args["trlat"]); _trlon = float(args["trlon"])
+            _bllat = float(args["bllat"]); _bllon = float(args["bllon"])
+            _lat_m  = abs(_trlat - _bllat) * 111320  # approx metres per degree lat
+            _lon_m  = abs(_trlon - _bllon) * 111320 * math.cos(math.radians((_trlat + _bllat) / 2))
+            _area_km2 = (_lat_m * _lon_m) / 1e6
+            _printres_mm = float(args.get("printres", 0.4))
+            _tilewidth_mm = float(args.get("tilewidth", 100)) * int(args.get("ntilesx", 1))
+            _cell_m = (_lat_m / (_tilewidth_mm / _printres_mm)) if _printres_mm > 0 else 0
+            print(f"GEE rate-limit check: area={_area_km2:.1f} km², est. cell={_cell_m:.2f} m", file=sys.stderr)
+            if (_cell_m > 0 and _cell_m < GEE_HIRES_CELL_THRESHOLD_M
+                    and _area_km2 > GEE_HIRES_AREA_LIMIT_KM2):
+                args["min_cell_size_m"] = GEE_HIRES_CELL_THRESHOLD_M
+                print(f"GEE rate-limit guard active: clamping to {GEE_HIRES_CELL_THRESHOLD_M} m "
+                      f"(area {_area_km2:.1f} km² > {GEE_HIRES_AREA_LIMIT_KM2} km² limit)", file=sys.stderr)
+        except Exception as _e:
+            print(f"GEE rate-limit check failed (ignored): {_e}", file=sys.stderr)
 
         # set geojson_polygon as polygon arg (None by default)
         args["polygon"] = geojson_polygon
