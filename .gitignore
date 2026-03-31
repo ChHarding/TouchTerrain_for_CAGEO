@@ -67,6 +67,7 @@ terrain
 !touchterrain/server/tmp/
 !touchterrain/server/tmp/.gitkeep
 !touchterrain/server/static/*
+!touchterrain/docs/*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
