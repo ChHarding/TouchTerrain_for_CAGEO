@@ -618,6 +618,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                          clean_diags=False,
                          dirty_triangles=False,
                          kd3_render=False,
+                         min_cell_size_m=None,  # if set, clamp GEE request to at least this resolution (meters)
                          **otherargs):
     """
     args:
@@ -1030,14 +1031,23 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # if cellsize is <= 0, just get whatever GEE's default cellsize is (printres = -1)
         if cell_size_m <= 0: del request_dict["scale"]
 
+        # GEE rate-limit protection: if a minimum cell size is configured and the
+        # requested resolution is finer than it, clamp to avoid 429 errors.
+        if min_cell_size_m is not None and cell_size_m > 0 and cell_size_m < min_cell_size_m:
+            print(f"GEE rate-limit guard: clamping requested {cell_size_m:.2f} m resolution "
+                  f"to {min_cell_size_m:.1f} m (area threshold exceeded)")
+            request_dict["scale"] = min_cell_size_m
+            cell_size_m = min_cell_size_m
+
         # force to use unprojected (lat/long) instead of UTM projection, can only work for Geotiff export
         if unprojected == True: del request_dict["crs"]
 
         request = image1.getDownloadUrl(request_dict)
         pr("URL for geotiff is: ", request)
 
-        # Retry download zipfile from url until request was successfull
+        # Retry download zipfile from url until request was successfull (exponential backoff)
         web_sock = None
+        _retry_attempt = 0
         while web_sock == None:
             try:
                 web_sock = urllib.request.urlopen(request, timeout=20) # 20 sec timeout
@@ -1045,8 +1055,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 raise logger.error("Timeout error %r" % e)
             except urllib.error.HTTPError as e:
                 logger.error('HTTPError = ' + str(e.code))
-                if e.code == 429:  # 429: quota reached
-                    time.sleep(random.randint(1,10)) # wait for a couple of secs
+                if e.code == 429:  # 429: GEE quota / rate limit
+                    wait = min(2 ** _retry_attempt + random.uniform(0, 1), 120) # cap at 2 min
+                    logger.error(f'GEE rate limit hit (attempt {_retry_attempt+1}), backing off {wait:.1f}s')
+                    time.sleep(wait)
+                    _retry_attempt += 1
+                    continue  # skip the generic wait below
             except urllib.error.URLError as e:
                 logger.error('URLError = ' + str(e.reason))
             except http.client.HTTPException as e:
@@ -1055,9 +1069,9 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
                 import traceback
                 logger.error('generic exception: ' + traceback.format_exc())
 
-            # at any exception, wait for a couple of secs
+            # at any non-429 exception, wait briefly before retrying
             if web_sock == None:
-                time.sleep(random.randint(1,10))
+                time.sleep(random.randint(1, 10))
 
         # read the zipped folder into memory
         buf = web_sock.read()
