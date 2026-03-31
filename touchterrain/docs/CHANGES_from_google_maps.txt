@@ -1,0 +1,104 @@
+Changes made to switch TouchTerrain server from Google Maps to ESRI/Leaflet
+==========================================================================
+Chris Harding, February 2026 (used Copilot/Claude for most of the work)
+
+
+FOLDER / FILE STRUCTURE
+-----------------------
+- touchterrain/server/          (was server_ESRI/) — now the active server
+- touchterrain/server_google_maps/  (was server/)  — legacy Google Maps version, kept for reference
+- touchterrain/common/config.py: SERVER_DIR now defaults to "server" and is
+  overridable via TOUCHTERRAIN_SERVER_DIR environment variable
+- Removed duplicate Run_TouchTerrain_debug_server_app_ESRI.py (root + server/)
+  Use Run_TouchTerrain_debug_server_app.py in the project root instead
+
+
+LIBRARIES REPLACED
+------------------
+- Removed: Google Maps JavaScript API (required API key)
+- Removed: Google Maps Data Layer (polygon/KML display)
+- Added:   Leaflet 1.9.4 (map display and rectangle/polygon handling)
+- Added:   ESRI Leaflet 3.0.12 (basemap tile layers)
+- Added:   ESRI Leaflet Geocoder 3.1.4 (place search / geocoding)
+- Added:   Leaflet.Editable.js (loaded but not actively used; kept for reference)
+- Added:   touchterrain_leaflet.css (custom handle and map styles)
+
+
+JAVASCRIPT (server/static/js/touchterrain.js)
+---------------------------------------------
+- Complete rewrite of map initialisation; no Google Maps objects remain
+- Map uses Leaflet with ESRI basemap (Streets/Imagery toggle)
+- server/templates/touchterrain.js (Jinja2 inline JS) replaced by
+  server/static/js/touchterrain.js (proper static file)
+- Config is now passed from Flask to JS via a JSON <script> block in index.html
+  (id="touchterrain-config") instead of inline Jinja2 variable substitution
+- Rectangle (red selection box) is drawn with L.rectangle; not Google Maps Rectangle
+- Rectangle editing uses fully custom raw-DOM mousedown/mousemove/mouseup handles
+  instead of Leaflet.Editable or Google Maps event listeners — this was necessary
+  because Leaflet's L.Draggable blocks drag events when Shift is held
+- Corner handles (NE/NW/SE/SW): free drag resizes box; Shift+drag constrains to
+  original pixel aspect ratio
+- Edge handles (N/S/E/W): drag moves one edge at a time
+- Dragging inside the box (not on a handle) translates the entire box
+- KML/KMZ file processing preserved; processKMLFile() fixed to return [null,null]
+  (not null) on all error paths
+- Division lines (tile grid) rebuilt on dragend and form field changes
+- Hillshade overlay (Earth Engine) preserved and working
+
+
+HTML TEMPLATE (server/templates/index.html)
+-------------------------------------------
+- Removed Google Maps JS API <script> tag and API key injection
+- Removed google_maps_key from JSON config block and from window globals
+- Added Leaflet, ESRI Leaflet, ESRI Geocoder CDN <script> and <link> tags
+- Added <link> for touchterrain_leaflet.css
+- Map div kept; initialisation now done entirely in touchterrain.js
+
+
+FLASK APP (server/TouchTerrain_app.py)
+--------------------------------------
+- Removed entire google_maps_key try/except block (file read + key injection)
+- Removed "google_maps_key" from main_page() args dict
+- Fixed imports: server_ESRI -> server throughout
+- serve_stl() route now uses PREVIEWS_FOLDER from config (was re-deriving path
+  from __file__ which pointed to the wrong directory after the rename)
+
+
+SERVER CONFIG (server/config.py)
+---------------------------------
+- Removed GOOGLE_MAPS_KEY_FILE setting (not needed for ESRI/Leaflet)
+- RECAPTCHA_V3_LOG_FILE now defaults to None (logging disabled); set to a file
+  path to re-enable
+- TMP_FOLDER, DOWNLOADS_FOLDER, PREVIEWS_FOLDER all resolve via config.SERVER_DIR
+  which now correctly points to the server/ folder
+
+
+COMMON CONFIG (touchterrain/common/config.py)
+---------------------------------------------
+- SERVER_DIR default changed from hardcoded "server" path to the same value but
+  now also honoured via TOUCHTERRAIN_SERVER_DIR environment variable, allowing
+  deployers to override without editing source
+
+
+CSS (server/static/css/touchterrain_leaflet.css)
+-------------------------------------------------
+- New file (was not present in server_google_maps)
+- Styles corner handles (.leaflet-vertex-icon) and edge handles (.leaflet-middle-icon)
+- .editing-active class: sets opacity:0 + pointer-events:none on handles during drag
+  to prevent ghost markers (display:none was not used as it breaks drag tracking)
+
+
+GITIGNORE
+---------
+- Added touchterrain/server/Recaptcha_v3_keys.txt
+- Added touchterrain/server/Recaptcha_v3_log.txt
+
+
+THINGS NOT CHANGED
+------------------
+- Earth Engine authentication and DEM processing are identical
+- STL/OBJ generation pipeline unchanged
+- Preview page (preview.html) template unchanged
+- ZIP download routes unchanged
+- Standalone mode (TouchTerrain_standalone.py) unchanged
+- Jupyter notebooks unchanged

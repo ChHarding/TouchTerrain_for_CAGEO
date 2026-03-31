@@ -1,0 +1,125 @@
+GEE Quota / Rate-Limiting in TouchTerrain (ESRI branch)
+========================================================
+Last updated: 2026-03-31
+
+There are TWO completely separate GEE operations that each have their own
+quota rules:
+
+  1. HILLSHADE PREVIEW  — happens on every map page load ("Reload map")
+  2. DEM DOWNLOAD       — happens only when the user clicks "Export"
+
+These are kept entirely separate because the hillshade covers the whole
+map viewport, while the download only covers the red selection box.
+
+─────────────────────────────────────────────────────────────────────────
+1. HILLSHADE PREVIEW (map page load)
+─────────────────────────────────────────────────────────────────────────
+
+What happens:
+  ee.Terrain.hillshade(elev, ...).getMapId(...)
+  GEE generates a tiled map; Leaflet fetches individual tiles on demand.
+  The quota cost here is "Map Display" compute (EECU-time per tile).
+
+The problem:
+  For 1 m / 5 m DEMs, GEE renders tiles at full native resolution, which
+  can be extremely expensive when zoomed out over a large viewport.
+
+Our fix — two config settings in touchterrain/server/config.py:
+
+  GEE_HILLSHADE_SCALE_M = 10.0
+    The coarsest scale (metres/pixel) to allow when rendering hillshade
+    tiles.  GEE is told: "render at no finer than this resolution."
+    ·  Set to 0 or None to disable the cap entirely (not recommended for
+       1 m DEMs over large areas).
+    ·  Value of 10 is visually indistinguishable for a preview at typical
+       zoom levels, but reduces tile compute cost ~100× for a 1 m DEM.
+
+  GEE_HIRES_AREA_LIMIT_KM2 = 50.0
+    The scale cap is ONLY applied when the viewport area exceeds this
+    threshold (km²).  Small viewports (user is zoomed in close) get
+    full native resolution so the 1 m hillshade detail is visible.
+    ·  Area is estimated from the viewport's lat/lon corners (vp_trlat,
+       vp_trlon, vp_bllat, vp_bllon), which are sent from the JS
+       submit_for_reload() function as hidden form fields.
+    ·  If the viewport bounds are unavailable (e.g. old bookmarked URL),
+       the cap is applied as a safe fallback.
+
+Decision logic (TouchTerrain_app.py, hillshade section):
+  if GEE_HILLSHADE_SCALE_M:
+      compute viewport area in km²
+      if viewport_area > GEE_HIRES_AREA_LIMIT_KM2:
+          hs = hs.reproject('EPSG:3857', scale=GEE_HILLSHADE_SCALE_M)
+          # → coarse tiles, saves quota
+      else:
+          # → full native resolution, 1 m detail visible when zoomed in
+  mapid = hs.getMapId(...)
+
+Log output (stderr) on every page load:
+  "GEE quota [hillshade]: viewport 12.3 km² <= 50.0 km² limit → full native resolution"
+  "GEE quota [hillshade]: viewport 183.7 km² > 50.0 km² limit → capping render scale to 10.0 m/px"
+  "GEE quota [hillshade]: GEE_HILLSHADE_SCALE_M=0/None → no scale cap applied"
+  "GEE quota: could not compute viewport area (...), applying hillshade cap as fallback"
+
+─────────────────────────────────────────────────────────────────────────
+2. DEM DOWNLOAD (Export button)
+─────────────────────────────────────────────────────────────────────────
+
+What happens:
+  image.getDownloadURL({scale, region, ...})
+  GEE returns a ZIP file containing a GeoTIFF file (for 1 or more tile)
+  covering the red selection box at the requested resolution.
+
+The resolution is determined by the user's print settings:
+  cell_size_m ≈ (box_height_m) / (tilewidth_mm / printres_mm)
+  It is NOT overridden or clamped — it reflects the nozzle diameter and
+  tile width the user chose, and must not be silently altered.
+
+GEE's hard limits (fixed, cannot be adjusted):
+  · Max file size per request: 32 MB
+  · Max dimension per request: 10,000 pixels in either width or height
+
+Our pre-flight guard — config setting:
+  MAX_CELLS_PERMITED = 1000 * 1000 * 0.7   (= 700,000 cells)
+    If the estimated cell count for the requested area + resolution
+    exceeds this number, the export is BLOCKED before any GEE call is
+    made, and the user sees an error page with instructions to reduce
+    the pixel count.
+    ·  At float32 (4 bytes/cell): 700,000 cells = 2.8 MB — well under
+       the 32 MB GEE hard limit.
+    ·  √700,000 ≈ 836 px per side — well under the 10,000 px dimension
+       hard limit.
+    ·  Set MAX_CELLS_PERMITED = 1000*1000*4 for a private/single-user
+       server (still safely below GEE's hard ceiling).
+
+  MAX_CELLS = MAX_CELLS_PERMITED / 4
+    Internal threshold: if the DEM has more cells than this, data is
+    written to a temp file instead of held in RAM.
+
+What the user sees when blocked:
+  "Export blocked: your requested job requires N pixels, which exceeds
+   this server's limit of 700,000 pixels."
+  + list of options: shrink box, coarser resolution, narrower tiles,
+    fewer tiles.
+
+Transient 429 errors on valid requests:
+  Even a request within MAX_CELLS_PERMITED may get a 429 (Too Many
+  Requests) from GEE if concurrent usage has burned through the project's
+  rolling quota window (max 40 concurrent interactive requests).
+  
+  These are handled automatically in TouchTerrainEarthEngine.py by
+  exponential backoff:
+    wait = min(2 ** attempt + random.uniform(0, 1), 120)  # cap: 2 min
+  The engine retries until success or a non-recoverable error occurs.
+  Non-429 errors get a flat 1–10 s random wait before retry.
+
+─────────────────────────────────────────────────────────────────────────
+SUMMARY TABLE
+─────────────────────────────────────────────────────────────────────────
+
+  Scenario                   | Governs        | Config setting           | Action
+  ─────────────────────────────────────────────────────────────────────────────────
+  Hillshade, large viewport  | Hillshade only | GEE_HILLSHADE_SCALE_M    | Coarsen tile rendering
+  Hillshade, small viewport  | Hillshade only | GEE_HIRES_AREA_LIMIT_KM2 | Full native resolution
+  Export, too many cells     | Download only  | MAX_CELLS_PERMITED       | Block + user error msg
+  Export, transient 429      | Download only  | (hardcoded in engine)    | Exponential backoff
+  Export, valid size         | Download only  | —                        | No restriction
