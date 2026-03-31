@@ -1131,6 +1131,10 @@ function submit_for_reload(trans_method) {
     const viewport = map.getBounds();
     const vpne = viewport.getNorthEast();
     const vpsw = viewport.getSouthWest();
+    document.getElementById('vp_trlat').value = vpne.lat;
+    document.getElementById('vp_trlon').value = vpne.lng;
+    document.getElementById('vp_bllat').value = vpsw.lat;
+    document.getElementById('vp_bllon').value = vpsw.lng;
     const bounds = rectangle.getBounds();
     const ne = bounds.getNorthEast();
     const sw = bounds.getSouthWest();
