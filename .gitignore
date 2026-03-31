@@ -68,6 +68,7 @@ terrain
 !touchterrain/server/tmp/.gitkeep
 !touchterrain/server/static/*
 !touchterrain/docs/*
+!Run_TouchTerrain_debug_server_app.py
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
