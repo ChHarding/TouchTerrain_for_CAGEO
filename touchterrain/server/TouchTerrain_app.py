@@ -290,10 +290,18 @@ def main_page():
             _hs_lon_m = abs(_vp_trlon - _vp_bllon) * 111320 \
                         * math.cos(math.radians((_vp_trlat + _vp_bllat) / 2))
             _hs_area_km2 = (_hs_lat_m * _hs_lon_m) / 1e6
-        except Exception:
+        except Exception as _e:
+            print(f"GEE quota: could not compute viewport area ({_e}), applying hillshade cap as fallback", file=sys.stderr)
             _hs_area_km2 = float('inf')  # viewport coords missing → apply cap to be safe
         if _hs_area_km2 > GEE_HIRES_AREA_LIMIT_KM2:
+            print(f"GEE quota [hillshade]: viewport {_hs_area_km2:.1f} km² > {GEE_HIRES_AREA_LIMIT_KM2} km² limit "
+                  f"→ capping render scale to {GEE_HILLSHADE_SCALE_M} m/px", file=sys.stderr)
             hs = hs.reproject(crs='EPSG:3857', scale=GEE_HILLSHADE_SCALE_M)
+        else:
+            print(f"GEE quota [hillshade]: viewport {_hs_area_km2:.1f} km² <= {GEE_HIRES_AREA_LIMIT_KM2} km² limit "
+                  f"→ full native resolution", file=sys.stderr)
+    else:
+        print("GEE quota [hillshade]: GEE_HILLSHADE_SCALE_M=0/None → no scale cap applied", file=sys.stderr)
     mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
 
     # these have to be added to the args so they end up in the template
@@ -595,12 +603,20 @@ def export():
             print("total requested pixels to print at a source resolution of", round(cwas,2), "arc secs is ", tot_pix, ", max is",  MAX_CELLS_PERMITED, file=sys.stderr)
 
         # warn user if job is large
-        if tot_pix >  MAX_CELLS_PERMITED:  
-            html = "Your requested job is very large! You may run into the GoogleEarthEngine imposed download cap or your job may eventually consume <br>"
-            html += "enough server memory to make the job fail."
-        
-            # print out the query parameter URL 
-            html += '\nIf that happens, go <a href="' + URL_query_str + '">' + " back to the main page </a> to make adjustments."
+        if tot_pix >  MAX_CELLS_PERMITED:
+            html  = f'<b>Export blocked:</b> your requested job requires <b>{tot_pix:,}</b> pixels, '
+            html += f'which exceeds this server\'s limit of <b>{int(MAX_CELLS_PERMITED):,}</b> pixels. '
+            html += 'The job has <b>not</b> been submitted.<br><br>'
+            html += 'Please <a href="' + URL_query_str + '">go back to the main page</a> and reduce the pixel count by:'
+            html += '<ul>'
+            html += '<li><b>Shrink the red selection box</b> — a smaller area means fewer DEM pixels to download.</li>'
+            html += '<li><b>Increase the print resolution</b> (nozzle diameter / mm per pixel) — a coarser resolution means fewer pixels for the same area.</li>'
+            html += '<li><b>Reduce the tile width</b> — narrower tiles at the same resolution cover less area.</li>'
+            html += '<li><b>Use fewer tiles</b> (reduce tile count in X or Y) — each tile downloads a separate DEM chunk.</li>'
+            html += '</ul>'
+            html += f'(Note: Google Earth Engine also has its own hard limits — max 32 MB or 10,000 pixels per side per request. '
+            html += f'This server\'s limit of {int(MAX_CELLS_PERMITED):,} pixels is intentionally below those ceilings '
+            html += f'to protect shared server memory.)'
  
             # set timout flag to true, so the timeout script doesn't fire ...
             html += '''\n
@@ -637,29 +653,10 @@ def export():
 
         # if this number of cells to process is exceeded, use a temp file instead of memory only
         args["max_cells_for_memory_only"] = MAX_CELLS
-
-        # GEE rate-limit protection for high-resolution DEMs:
-        # if the requested cell size is finer than the threshold AND the area exceeds the limit,
-        # clamp the GEE download resolution to the threshold value.
-        args["min_cell_size_m"] = None  # default: no clamping
-        try:
-            import math
-            _trlat = float(args["trlat"]); _trlon = float(args["trlon"])
-            _bllat = float(args["bllat"]); _bllon = float(args["bllon"])
-            _lat_m  = abs(_trlat - _bllat) * 111320  # approx metres per degree lat
-            _lon_m  = abs(_trlon - _bllon) * 111320 * math.cos(math.radians((_trlat + _bllat) / 2))
-            _area_km2 = (_lat_m * _lon_m) / 1e6
-            _printres_mm = float(args.get("printres", 0.4))
-            _tilewidth_mm = float(args.get("tilewidth", 100)) * int(args.get("ntilesx", 1))
-            _cell_m = (_lat_m / (_tilewidth_mm / _printres_mm)) if _printres_mm > 0 else 0
-            print(f"GEE rate-limit check: area={_area_km2:.1f} km², est. cell={_cell_m:.2f} m", file=sys.stderr)
-            if (_cell_m > 0 and _cell_m < GEE_HIRES_CELL_THRESHOLD_M
-                    and _area_km2 > GEE_HIRES_AREA_LIMIT_KM2):
-                args["min_cell_size_m"] = GEE_HIRES_CELL_THRESHOLD_M
-                print(f"GEE rate-limit guard active: clamping to {GEE_HIRES_CELL_THRESHOLD_M} m "
-                      f"(area {_area_km2:.1f} km² > {GEE_HIRES_AREA_LIMIT_KM2} km² limit)", file=sys.stderr)
-        except Exception as _e:
-            print(f"GEE rate-limit check failed (ignored): {_e}", file=sys.stderr)
+        print(f"GEE quota [download]: MAX_CELLS_PERMITED={MAX_CELLS_PERMITED:.0f} "
+              f"(requests exceeding this are rejected before hitting GEE; "
+              f"transient 429s on valid requests are handled by exponential backoff in the engine)",
+              file=sys.stderr)
 
         # set geojson_polygon as polygon arg (None by default)
         args["polygon"] = geojson_polygon

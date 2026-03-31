@@ -206,7 +206,7 @@ def main_page():
     for k,v in requ_args:
         v = v.replace('\"', '&quot;')
         qs = qs + k + "=" + v + "&"
-    #print qs
+    #print(qs)
 
     # overwrite args with values from flask request args 
     for key in request.args:
