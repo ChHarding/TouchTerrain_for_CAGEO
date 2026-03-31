@@ -47,7 +47,8 @@ if SERVER_TYPE == "flask_local": NUM_CORES = 1 # 1 means don't use multi-core at
 # limits for ISU server
 
 # for STL/OBJ don't even start with a DEM bigger than that number. GeoTiff export is this * 100!
-#MAX_CELLS_PERMITED =   1000 * 1000 * 4  # private
+# Note: Must not exceed 8,000,000!
+# MAX_CELLS_PERMITED =   1000 * 1000 * 4  # private
 MAX_CELLS_PERMITED =   1000 * 1000 * 0.7
 
 # if DEM has > this number of cells, use tempfile instead of memory
@@ -73,12 +74,10 @@ PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.
 ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJMjEqwPcUyBKANFtC-kXx_cejQZmUvfFTNSREVrBOm3-gDYo3szp_P-LyGUaNYYe-UmdzRlioTlLHvCXHzfrHaeWHaaDiZDjnoV5uD3yef-laJ2358EUefeF_mz481dUbGnS0Sf3vWGBOzCwlHvovG1ikQ-n4qfsXTGladVPiHSFi54L66foBfHJLb7wqUiP-Zr2IZ1OVBjckA35Znkc__VluaBK-V8GvHVqxlLaUilAT1_yNPrasRz"
 # CH Note: public but limited to our domain. It will need to be renewed on Mar. 4, 2027
 
-# GEE rate-limit protection for high-resolution DEMs
-# If the requested cell_size_m is below GEE_HIRES_CELL_THRESHOLD_M *and*
-# the selected area exceeds GEE_HIRES_AREA_LIMIT_KM2, the cell size is
-# clamped to GEE_HIRES_CELL_THRESHOLD_M to avoid 429 / RESOURCE_EXHAUSTED errors.
-GEE_HIRES_CELL_THRESHOLD_M = 6.0   # clamp if requested resolution is finer than this (meters)
-GEE_HIRES_AREA_LIMIT_KM2   = 50.0  # clamp only when the area exceeds this (km²)
+# Threshold area (km²) used by the hillshade scale cap:
+# viewports larger than this get the hillshade rendered at GEE_HILLSHADE_SCALE_M
+# instead of full native resolution, to reduce GEE tile-rendering quota usage.
+GEE_HIRES_AREA_LIMIT_KM2 = 50.0
 
 # Maximum resolution (metres/pixel) used to render the hillshade map preview.
 # GEE renders tiles at full native resolution by default; capping at 10 m is
