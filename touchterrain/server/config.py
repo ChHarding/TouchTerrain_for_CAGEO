@@ -80,6 +80,12 @@ ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJM
 GEE_HIRES_CELL_THRESHOLD_M = 6.0   # clamp if requested resolution is finer than this (meters)
 GEE_HIRES_AREA_LIMIT_KM2   = 50.0  # clamp only when the area exceeds this (km²)
 
+# Maximum resolution (metres/pixel) used to render the hillshade map preview.
+# GEE renders tiles at full native resolution by default; capping at 10 m is
+# visually indistinguishable for a preview but greatly reduces compute quota
+# for 1 m / 5 m DEMs.  Set to 0 or None to disable the cap entirely.
+GEE_HILLSHADE_SCALE_M = 10.0
+
 # This will be inlined in index.html to enable Google Analytics, However, this is
 # my tracking id, so if you use google analytics, make sure to use your own Tracking ID!
 GOOGLE_ANALYTICS_TRACKING_ID = "G-EGX5Y3PBYH"
