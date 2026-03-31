@@ -24,8 +24,8 @@ else: # Neither
     RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
 
 # log for recaptcha v3, — set to None to disable logging
-RECAPTCHA_V3_LOG_FILE = None
-#RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
+#RECAPTCHA_V3_LOG_FILE = None
+RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
 
 
 # DEBUG_MODE will be True if running in a local development environment.
@@ -72,6 +72,13 @@ PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.
 #ESRI_API_KEY = None
 ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJMjEqwPcUyBKANFtC-kXx_cejQZmUvfFTNSREVrBOm3-gDYo3szp_P-LyGUaNYYe-UmdzRlioTlLHvCXHzfrHaeWHaaDiZDjnoV5uD3yef-laJ2358EUefeF_mz481dUbGnS0Sf3vWGBOzCwlHvovG1ikQ-n4qfsXTGladVPiHSFi54L66foBfHJLb7wqUiP-Zr2IZ1OVBjckA35Znkc__VluaBK-V8GvHVqxlLaUilAT1_yNPrasRz"
 # CH Note: public but limited to our domain. It will need to be renewed on Mar. 4, 2027
+
+# GEE rate-limit protection for high-resolution DEMs
+# If the requested cell_size_m is below GEE_HIRES_CELL_THRESHOLD_M *and*
+# the selected area exceeds GEE_HIRES_AREA_LIMIT_KM2, the cell size is
+# clamped to GEE_HIRES_CELL_THRESHOLD_M to avoid 429 / RESOURCE_EXHAUSTED errors.
+GEE_HIRES_CELL_THRESHOLD_M = 6.0   # clamp if requested resolution is finer than this (meters)
+GEE_HIRES_AREA_LIMIT_KM2   = 50.0  # clamp only when the area exceeds this (km²)
 
 # This will be inlined in index.html to enable Google Analytics, However, this is
 # my tracking id, so if you use google analytics, make sure to use your own Tracking ID!
