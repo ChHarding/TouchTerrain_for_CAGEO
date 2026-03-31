@@ -275,6 +275,7 @@ def main_page():
 
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
+    elev = elev.resample('bilinear')  # smooth elevation before computing hillshade gradients
     hs = ee.Terrain.hillshade(elev, hsazi, hselev)
 
     gamma = float(args["gamma"])
@@ -302,6 +303,7 @@ def main_page():
                   f"→ full native resolution", file=sys.stderr)
     else:
         print("GEE quota [hillshade]: GEE_HILLSHADE_SCALE_M=0/None → no scale cap applied", file=sys.stderr)
+    hs = hs.resample('bilinear')  # bilinearly upsample hillshade tiles when browser zooms past native DEM resolution
     mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
 
     # these have to be added to the args so they end up in the template
@@ -607,7 +609,7 @@ def export():
             html  = f'<b>Export blocked:</b> your requested job requires <b>{tot_pix:,}</b> pixels, '
             html += f'which exceeds this server\'s limit of <b>{int(MAX_CELLS_PERMITED):,}</b> pixels. '
             html += 'The job has <b>not</b> been submitted.<br><br>'
-            html += 'Please <a href="' + URL_query_str + '">go back to the main page</a> and reduce the pixel count by:'
+            html += 'Please <b>close this tab</b>, return to the main page, and reduce the pixel count by:'
             html += '<ul>'
             html += '<li><b>Shrink the red selection box</b> — a smaller area means fewer DEM pixels to download.</li>'
             html += '<li><b>Increase the print resolution</b> (nozzle diameter / mm per pixel) — a coarser resolution means fewer pixels for the same area.</li>'
