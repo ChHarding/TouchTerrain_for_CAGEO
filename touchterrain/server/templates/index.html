@@ -168,7 +168,7 @@
 														data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
             		 									<i class="fas fa-question"></i>
     										</button>
-											<a href="https://developers.google.com/earth-engine/datasets/" id="DEM_link" target="_blank">(DEM Info)</a>
+											<a href="https://developers.google.com/earth-engine/datasets/tags/elevation-topography" id="DEM_link" target="_blank">(DEM Info)</a>
 										</div>
 										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
@@ -189,11 +189,11 @@
 									</div>
 									
 									<div class="row">
-										<div class="col-sm-7">
+										<div class="col-sm-6">
 											<div class="form-inline text-truncate">
 												<label for="hillshade_transparency_slider">Transparency:</label>
 												<input type="range" class="slider form-control-sm" id="hillshade_transparency_slider" min="0" 
-                                                    max="100"  style="max-width: 80px;"
+                                                    max="100"  value="{{ transp }}"  style="max-width: 80px;"
 													list="tickmarks" step="1" oninput="updateTransparency(this.value);">
 												<datalist id="tickmarks">
 													<option value="0"></option>
@@ -214,7 +214,7 @@
 												</button>
 											</div>
 										</div>
-										<div class="col-sm-5">
+									<div class="col-sm-6">
 											<div class="form-inline  text-truncate">
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 

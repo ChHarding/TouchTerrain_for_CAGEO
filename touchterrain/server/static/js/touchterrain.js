@@ -13,7 +13,16 @@ let div_lines_y = [];
 let marker = null;     // search result marker
 let overlay = null;    // DEM overlay layer
 let basemap_layer = null; // current basemap layer
-let current_basemap = 'NationalGeographic';
+let current_basemap = 'Streets';
+
+// Max native zoom per ESRI basemap — tiles above this zoom are scaled up by Leaflet
+// rather than requesting non-existent tiles (which return grey "not available" placeholders).
+const BASEMAP_MAX_NATIVE_ZOOM = {
+    NationalGeographic: 16,
+    Topographic:        23,
+    Streets:            23,
+    ImageryClarity:     19,
+};
 let corner_handles = []; // custom corner drag handles (NE/NW/SE/SW)
 let edge_handles = [];   // custom edge-midpoint drag handles (N/S/E/W)
 let _drag_anchor_ll = null; // anchor latlng (opposite corner) during corner drag
@@ -46,8 +55,10 @@ window.onload = function () {
     // Location Platform CDN.
     var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
 
-    // Add ESRI National Geographic layer as default
-    basemap_layer = L.esri.basemapLayer('NationalGeographic', _esriBasemapOpts).addTo(map);
+    // Add ESRI Streets layer as default
+    basemap_layer = L.esri.basemapLayer('Streets',
+        Object.assign({ maxNativeZoom: BASEMAP_MAX_NATIVE_ZOOM['Streets'] || 19 }, _esriBasemapOpts)
+    ).addTo(map);
 
     // Add basemap selector dropdown control
     L.Control.BasemapSwitcher = L.Control.extend({
@@ -55,10 +66,10 @@ window.onload = function () {
             let div = L.DomUtil.create('div', 'basemap-switcher');
             div.innerHTML =
                 '<select id="basemap-select" class="basemap-select">'
-              + '<option value="NationalGeographic" selected>National Geographic</option>'
+              + '<option value="Streets" selected>Streets</option>'
               + '<option value="ImageryClarity">Satellite</option>'
-              + '<option value="Streets">Streets</option>'
               + '<option value="Topographic">Topographic</option>'
+              + '<option value="NationalGeographic">National Geographic</option>'
               + '</select>';
             L.DomEvent.disableClickPropagation(div);
             L.DomEvent.disableScrollPropagation(div);
@@ -74,6 +85,25 @@ window.onload = function () {
 
     // Scale bar (metric + imperial)
     L.control.scale({ position: 'bottomleft', imperial: true, metric: true }).addTo(map);
+
+    // Zoom level display — shown above the scale bars (bottomleft, added first so it stacks on top)
+    const ZoomLevelControl = L.Control.extend({
+        options: { position: 'bottomleft' },
+        onAdd: function(m) {
+            const div = L.DomUtil.create('div', '');
+            Object.assign(div.style, {
+                background: 'rgba(255,255,255,0.8)', border: '1px solid #999',
+                borderRadius: '3px', padding: '1px 5px',
+                font: '11px/1.5 Arial, sans-serif', color: '#333',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+            });
+            div.id = 'zoom-level-display';
+            div.textContent = 'zoom: ' + m.getZoom();
+            m.on('zoomend', () => { div.textContent = 'zoom: ' + m.getZoom(); });
+            return div;
+        }
+    });
+    new ZoomLevelControl().addTo(map);
 
     // Mouse position (lat/lon display)
     L.control.mousePosition({ position: 'bottomright', numDigits: 4, prefix: 'Lat/Lon:&nbsp;' }).addTo(map);
@@ -142,7 +172,6 @@ window.onload = function () {
     // Initialize Earth Engine if MAPID is available
     if (MAPID && MAPID !== "None") {
         overlay = create_overlay(MAPID, map);
-        overlay.setOpacity(1.0 - transp / 100.0);
     }
 
     // Create the red bounding box rectangle
@@ -368,7 +397,7 @@ window.onload = function () {
     $('#terrain_settings_popover').popover({
         content: 'Click on the Terrain settings label to expand or compact this section. <br> \
                   Terrain settings define the type and appearance of the gray hillshade overlay.\
-                  You can change the type of the basemap (Street Map, Satellite) via the toggle button.<br>',
+                  You can change the type of the basemap (Street Map, Satellite, etc.) via the pulldown in teh upper left.<br>',
         html: true,
         trigger: 'click hover',
         delay: { "show": 500, "hide": 0 },
@@ -576,7 +605,9 @@ function switchBasemap(esriName) {
     if (esriName === current_basemap) return;
     map.removeLayer(basemap_layer);
     var _esriBasemapOpts = window.ESRI_API_KEY ? { token: window.ESRI_API_KEY } : {};
-    basemap_layer = L.esri.basemapLayer(esriName, _esriBasemapOpts).addTo(map);
+    basemap_layer = L.esri.basemapLayer(esriName,
+        Object.assign({ maxNativeZoom: BASEMAP_MAX_NATIVE_ZOOM[esriName] || 19 }, _esriBasemapOpts)
+    ).addTo(map);
     current_basemap = esriName;
     if (overlay) overlay.bringToFront();
 }
@@ -771,14 +802,129 @@ function create_edge_handles() {
 // Create an Earth Engine tile layer using the MapID
 function create_overlay(MAPID, map) {
     const EE_MAP_PATH = 'https://earthengine.googleapis.com/v1';
-    
+
+    // For hi-res DEMs, don't attach the tile layer to the map when zoomed out past this
+    // threshold — GEE would still have to compute enormously downsampled tiles, which is
+    // very slow.  Removing the layer entirely suppresses all tile requests.
+    const HIRES_DEMS = {
+        'USGS/3DEP/1m':                    16,
+        'IGN/RGE_ALTI/1M/2_0/FXX':        16,
+        'UK/EA/ENGLAND_1M_TERRAIN/2022':   16,
+        'AU/GA/AUSTRALIA_5M_DEM':          14,
+    };
+    const _minZoom = HIRES_DEMS[window.DEM_name] || 0;
+
+    // Inject blink keyframe once
+    if (!document.getElementById('hs-lamp-style')) {
+        const s = document.createElement('style');
+        s.id = 'hs-lamp-style';
+        s.textContent = '@keyframes hs-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }' +
+                        '.hs-lamp-blink { animation: hs-blink 0.8s ease-in-out infinite; }';
+        document.head.appendChild(s);
+    }
+
+    // Hillshade status indicator — reuse existing div if already in the map container
+    let lamp = document.getElementById('hs-status-lamp');
+    if (!lamp) {
+        lamp = document.createElement('div');
+        lamp.id = 'hs-status-lamp';
+        Object.assign(lamp.style, {
+            position: 'absolute', top: '10px', right: '10px', zIndex: '1000',
+            cursor: 'default'
+        });
+        document.getElementById('map').appendChild(lamp);
+    }
+
+    function _setDot(bg, title, blink) {
+        Object.assign(lamp.style, {
+            width: '14px', height: '14px', borderRadius: '50%',
+            border: '2px solid #444', boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+            background: bg, padding: '', font: '', color: '', lineHeight: '', whiteSpace: ''
+        });
+        lamp.textContent = '';
+        lamp.title = title;
+        if (blink) lamp.classList.add('hs-lamp-blink');
+        else lamp.classList.remove('hs-lamp-blink');
+    }
+
+    function _setZoomHint() {
+        lamp.classList.remove('hs-lamp-blink');
+        Object.assign(lamp.style, {
+            width: 'auto', height: 'auto', borderRadius: '3px',
+            border: '1px solid #333', boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            background: '#fff', color: '#000', font: 'bold 11px sans-serif',
+            padding: '2px 6px', lineHeight: '16px', whiteSpace: 'nowrap'
+        });
+        lamp.textContent = `Zoom in to ${_minZoom} to see terrain`;
+        lamp.title = `${window.DEM_name} has 1\u20135 m resolution \u2014 zoom to level ${_minZoom}+ to load terrain`;
+    }
+
+    _setDot('#888', 'Terrain: initializing', false);
+
+    // Always read current slider value so zoom-in/out restores the user's chosen opacity.
+    function _sliderOpacity() {
+        const slider = document.getElementById('hillshade_transparency_slider');
+        const v = slider ? parseFloat(slider.value) : (typeof transp !== 'undefined' ? transp : 20);
+        return 1.0 - v / 100.0;
+    }
+
     const overlay = L.tileLayer(`${EE_MAP_PATH}/${MAPID}/tiles/{z}/{x}/{y}`, {
         attribution: 'Google Earth Engine',
-        opacity: 0.8
+        opacity: _sliderOpacity()
     });
-    
-    overlay.addTo(map);
+
+    const _t0 = Date.now();
+    let _errCount = 0, _okCount = 0;
+
+    overlay.on('loading', () => {
+        _errCount = 0; _okCount = 0;
+        _setDot('#f5c518', 'Terrain: loading tiles\u2026', true);
+        browser_log(`tile loading started  zoom=${map.getZoom()}  mapid=${MAPID}`);
+    });
+    overlay.on('tileload',  () => { _okCount++; });
+    overlay.on('load', () => {
+        overlay.setOpacity(_sliderOpacity());
+        if (_errCount === 0) {
+            _setDot('#4caf50', 'Terrain: loaded OK', false);
+        } else if (_okCount > 0) {
+            _setDot('#ff9800', `Terrain: ${_okCount} tiles OK, ${_errCount} failed (edge of coverage?)`, false);
+        } else {
+            _setDot('#e53935', 'Terrain: all tiles failed \u2013 GEE quota exceeded?', false);
+        }
+        browser_log(`tile loading complete in ${((Date.now()-_t0)/1000).toFixed(1)}s  ok=${_okCount} errors=${_errCount}  mapid=${MAPID}`);
+    });
+    overlay.on('tileerror', (e) => { _errCount++;
+        browser_log(`tile error: ${e.tile && e.tile.src ? e.tile.src.split('/tiles/')[1] : 'unknown'}  mapid=${MAPID}`); });
+
+    // Add or remove the tile layer based on current zoom level.
+    // Removing it entirely stops all GEE tile requests — no hidden background work.
+    function _applyZoomState() {
+        if (_minZoom > 0 && map.getZoom() < _minZoom) {
+            if (map.hasLayer(overlay)) overlay.remove();
+            _setZoomHint();
+        } else {
+            if (!map.hasLayer(overlay)) {
+                overlay.setOpacity(_sliderOpacity());
+                overlay.addTo(map);   // triggers 'loading' → yellow dot automatically
+            }
+        }
+    }
+
+    // Hide stale tiles during zoom animation, restore correct state after zoom settles
+    map.on('zoomstart', () => { if (map.hasLayer(overlay)) overlay.setOpacity(0); });
+    map.on('zoomend',   _applyZoomState);
+
+    _applyZoomState();   // set correct initial state without waiting for first zoom
     return overlay;
+}
+
+// Send a short log message to the server's quota.log for browser-side debugging
+function browser_log(msg) {
+    fetch('/log', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({msg: msg})
+    }).catch(() => {});  // fire-and-forget; silently ignore network errors
 }
 
 // Function to return an arc-degree distance in meters at a given latitude
