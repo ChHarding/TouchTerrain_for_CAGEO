@@ -50,6 +50,16 @@ import logging
 import time
 from zipfile import ZipFile
 
+# Dedicated quota logger — appends to quota.log next to this file
+_quota_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quota.log')
+quota_log = logging.getLogger('touchterrain.quota')
+quota_log.setLevel(logging.DEBUG)
+quota_log.propagate = False  # don't bleed into Flask's root logger
+if not quota_log.handlers:
+    _qh = logging.FileHandler(_quota_log_path, mode='w', encoding='utf-8')  # 'w' clears on startup
+    _qh.setFormatter(logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    quota_log.addHandler(_qh)
+
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
 # RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
@@ -279,32 +289,20 @@ def main_page():
     hs = ee.Terrain.hillshade(elev, hsazi, hselev)
 
     gamma = float(args["gamma"])
-    if GEE_HILLSHADE_SCALE_M:
-        # Cap the hillshade rendering scale only for large viewports to save GEE quota.
-        # The viewport (not the red box) is what the hillshade image covers, so its
-        # area determines the rendering cost. Small viewports get full native resolution.
-        try:
-            import math
-            _vp_trlat = float(args["vp_trlat"]); _vp_trlon = float(args["vp_trlon"])
-            _vp_bllat = float(args["vp_bllat"]); _vp_bllon = float(args["vp_bllon"])
-            _hs_lat_m = abs(_vp_trlat - _vp_bllat) * 111320
-            _hs_lon_m = abs(_vp_trlon - _vp_bllon) * 111320 \
-                        * math.cos(math.radians((_vp_trlat + _vp_bllat) / 2))
-            _hs_area_km2 = (_hs_lat_m * _hs_lon_m) / 1e6
-        except Exception as _e:
-            print(f"GEE quota: could not compute viewport area ({_e}), applying hillshade cap as fallback", file=sys.stderr)
-            _hs_area_km2 = float('inf')  # viewport coords missing → apply cap to be safe
-        if _hs_area_km2 > GEE_HIRES_AREA_LIMIT_KM2:
-            print(f"GEE quota [hillshade]: viewport {_hs_area_km2:.1f} km² > {GEE_HIRES_AREA_LIMIT_KM2} km² limit "
-                  f"→ capping render scale to {GEE_HILLSHADE_SCALE_M} m/px", file=sys.stderr)
-            hs = hs.reproject(crs='EPSG:3857', scale=GEE_HILLSHADE_SCALE_M)
-        else:
-            print(f"GEE quota [hillshade]: viewport {_hs_area_km2:.1f} km² <= {GEE_HIRES_AREA_LIMIT_KM2} km² limit "
-                  f"→ full native resolution", file=sys.stderr)
-    else:
-        print("GEE quota [hillshade]: GEE_HILLSHADE_SCALE_M=0/None → no scale cap applied", file=sys.stderr)
+    _zoom = int(args.get('map_zoom', 0) or 0)
+    quota_log.info(f"[hillshade] request: DEM={args['DEM_name']}  zoom={_zoom}  azi={hsazi}  elev={hselev}  gamma={gamma}")
+    # No reproject() — GEE's tile pyramid auto-selects the computation scale per tile zoom level.
+    # reproject() pins ALL zoom levels to one scale, causing wide-zoom tiles to time out.
+    quota_log.info("[hillshade] using GEE native tile pyramid (scale auto-selected per tile zoom level)")
     hs = hs.resample('bilinear')  # bilinearly upsample hillshade tiles when browser zooms past native DEM resolution
-    mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
+    quota_log.info("[hillshade] calling getMapId()…")
+    _t0 = time.time()
+    try:
+        mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
+        quota_log.info(f"[hillshade] getMapId OK in {time.time()-_t0:.2f}s  mapid={mapid['mapid']}")
+    except Exception as _gee_err:
+        quota_log.error(f"[hillshade] getMapId FAILED after {time.time()-_t0:.2f}s: {_gee_err}")
+        raise  # re-raise so Flask returns an error page as before
 
     # these have to be added to the args so they end up in the template
     args['mapid'] = mapid['mapid']
@@ -743,6 +741,15 @@ def export():
 
     r =  Response(stream_with_context(preflight_generator()), mimetype='text/html')
     return r
+
+@app.route('/log', methods=['POST'])
+def browser_log():
+    """Receive a short log message from the browser and append it to quota.log."""
+    msg = request.get_json(silent=True, force=True)
+    if isinstance(msg, dict):
+        text = str(msg.get('msg', ''))[:500]  # cap length, avoid injecting huge strings
+        quota_log.info(f"[browser] {text}")
+    return '', 204
 
 @app.route('/download/<string:filename>')
 def download(filename):
