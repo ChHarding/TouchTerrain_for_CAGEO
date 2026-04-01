@@ -74,16 +74,9 @@ PREVIEWS_FOLDER = os.getenv('TOUCHTERRAIN_PREVIEWS_FOLDER', os.path.join(config.
 ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJMjEqwPcUyBKANFtC-kXx_cejQZmUvfFTNSREVrBOm3-gDYo3szp_P-LyGUaNYYe-UmdzRlioTlLHvCXHzfrHaeWHaaDiZDjnoV5uD3yef-laJ2358EUefeF_mz481dUbGnS0Sf3vWGBOzCwlHvovG1ikQ-n4qfsXTGladVPiHSFi54L66foBfHJLb7wqUiP-Zr2IZ1OVBjckA35Znkc__VluaBK-V8GvHVqxlLaUilAT1_yNPrasRz"
 # CH Note: public but limited to our domain. It will need to be renewed on Mar. 4, 2027
 
-# Threshold area (km²) used by the hillshade scale cap:
-# viewports larger than this get the hillshade rendered at GEE_HILLSHADE_SCALE_M
-# instead of full native resolution, to reduce GEE tile-rendering quota usage.
-GEE_HIRES_AREA_LIMIT_KM2 = 50.0
-
-# Maximum resolution (metres/pixel) used to render the hillshade map preview.
-# GEE renders tiles at full native resolution by default; capping at 10 m is
-# visually indistinguishable for a preview but greatly reduces compute quota
-# for 1 m / 5 m DEMs.  Set to 0 or None to disable the cap entirely.
-GEE_HILLSHADE_SCALE_M = 10.0
+# Note: hillshade reproject() scale caps were removed — reproject() pins ALL zoom levels
+# to one scale, so wide-zoom tiles time out. GEE's tile pyramid auto-selects the
+# computation scale per tile request, which is the correct behaviour for a tile service.
 
 # This will be inlined in index.html to enable Google Analytics, However, this is
 # my tracking id, so if you use google analytics, make sure to use your own Tracking ID!
