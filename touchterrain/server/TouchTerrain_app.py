@@ -193,7 +193,14 @@ def intro_page():
         if token and verify_recaptcha(token):
             session['recaptcha_verified'] = True  # Store in Flask session
             print("User has been verified (intro), showing main page.", file=sys.stderr)
-            return redirect(url_for('main_page'))
+            # Pass click coordinates from the splash map to the main page
+            map_lat  = request.form.get('map_lat',  '39.0')
+            map_lon  = request.form.get('map_lon',  '-98.0')
+            map_zoom = request.form.get('map_zoom', '8')
+            DEM_name = request.form.get('DEM_name', 'USGS/3DEP/10m_collection')
+            return redirect(url_for('main_page',
+                                    map_lat=map_lat, map_lon=map_lon,
+                                    map_zoom=map_zoom, DEM_name=DEM_name))
         else:
             session['recaptcha_verified'] = False # default to False, set to True if recaptcha is verified
             print("Verification failed", file=sys.stderr)

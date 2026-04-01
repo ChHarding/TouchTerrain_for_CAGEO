@@ -23,9 +23,71 @@
 
         <meta charset="UTF-8">
         <script src="https://www.google.com/recaptcha/api.js?render={{ site_key }}"></script>
+        <style>
+            html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
+            #splash-wrapper { width: 100vw; height: 100vh; overflow: hidden; cursor: crosshair; }
+            #splash-inner { position: relative; display: block; line-height: 0; }
+            #splash-inner img { display: block; width: 100vw; height: auto; }
+            #splash-tooltip {
+                position: absolute; pointer-events: none; display: none;
+                background: rgba(0,0,0,0.65); color: #fff;
+                font: 13px/1.5 monospace; padding: 3px 7px; border-radius: 3px;
+            }
+            #splash-hint {
+                position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+                background: rgba(0,0,0,0.55); color: #fff;
+                font: bold 18px/1.5 sans-serif; padding: 8px 18px; border-radius: 6px;
+                pointer-events: none; text-align: center;
+            }
+        </style>
         <script>
+            // Image geographic extents (world_mercator_cropped.png)
+            var IMG_LON_WEST  = -180, IMG_LON_EAST  = 180;  // longitude range = 360 deg
+            var IMG_LAT_NORTH =   75, IMG_LAT_SOUTH = -60;  // Mercator top/bottom
+
+            // Precompute Mercator y for top and bottom
+            var _yTop = Math.log(Math.tan(Math.PI/4 + (IMG_LAT_NORTH * Math.PI/180)/2));
+            var _yBot = Math.log(Math.tan(Math.PI/4 + (IMG_LAT_SOUTH * Math.PI/180)/2));
+
+            function pixelToLatLon(px, py, imgW, imgH) {
+                var lon = IMG_LON_WEST + (px / imgW) * (IMG_LON_EAST - IMG_LON_WEST);
+                var yMerc = _yTop - (py / imgH) * (_yTop - _yBot);
+                var lat = (2 * Math.atan(Math.exp(yMerc)) - Math.PI/2) * 180 / Math.PI;
+                return { lat: Math.round(lat * 100) / 100,
+                         lon: Math.round(lon * 100) / 100 };
+            }
+
+            function onMouseMove(e) {
+                var img = document.getElementById('splash-img');
+                var rect = img.getBoundingClientRect();
+                var tip  = document.getElementById('splash-tooltip');
+                var px = e.clientX - rect.left, py = e.clientY - rect.top;
+                var ll = pixelToLatLon(px, py, rect.width, rect.height);
+                var wrapRect = document.getElementById('splash-inner').getBoundingClientRect();
+                tip.style.display = 'block';
+                tip.style.left = (e.clientX - wrapRect.left + 14) + 'px';
+                tip.style.top  = (e.clientY - wrapRect.top  +  4) + 'px';
+                tip.textContent = ll.lat.toFixed(1) + '°, ' + ll.lon.toFixed(1) + '°';
+            }
+
             function onImageClick(e) {
                 e.preventDefault();
+                var img  = document.getElementById('splash-img');
+                var rect = img.getBoundingClientRect();
+                var px   = e.clientX - rect.left;
+                var py   = e.clientY - rect.top;
+                var ll   = pixelToLatLon(px, py, rect.width, rect.height);
+
+                // Contiguous US box → 10 m DEM; everywhere else → AW3D30 30 m
+                var inUS = (ll.lat >= 24 && ll.lat <= 49 &&
+                            ll.lon >= -125 && ll.lon <= -67);
+                var dem  = inUS ? 'USGS/3DEP/10m_collection' : 'JAXA/ALOS/AW3D30/V4_1';
+
+                document.getElementById('click-map-lat').value  = ll.lat;
+                document.getElementById('click-map-lon').value  = ll.lon;
+                document.getElementById('click-map-zoom').value = '8';
+                document.getElementById('click-dem-name').value = dem;
+
                 grecaptcha.ready(function() {
                     grecaptcha.execute('{{ site_key }}', {action: 'submit'}).then(function(token) {
                         document.getElementById('g-recaptcha-response').value = token;
@@ -41,7 +103,19 @@
         {% endif %}
         <form id="recaptcha-form" method="POST" action="/">
             <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-            <img src="{{ url_for('static', filename='world.jpg') }}" alt="Click to continue" style="cursor:pointer; width:100%;" onclick="onImageClick(event)">
+            <input type="hidden" id="click-map-lat"  name="map_lat"  value="">
+            <input type="hidden" id="click-map-lon"  name="map_lon"  value="">
+            <input type="hidden" id="click-map-zoom" name="map_zoom" value="8">
+            <input type="hidden" id="click-dem-name" name="DEM_name" value="">
+            <div id="splash-wrapper" onclick="onImageClick(event)" onmousemove="onMouseMove(event)">
+                <div id="splash-inner">
+                <img id="splash-img"
+                     src="{{ url_for('static', filename='world.png') }}"
+                     alt="Click a location to start">
+                <div id="splash-tooltip"></div>
+                <div id="splash-hint">Welcome to TouchTerrain, a web app for<br>creating 3D printable terrain models<br>Select a starting area by clicking on it</div>
+                </div>
+            </div>
         </form>
     </body>
 </html>
