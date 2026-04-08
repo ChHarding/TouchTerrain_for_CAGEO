@@ -1033,7 +1033,11 @@ function processKMLFile(xmlfile){
             $('#kml_file_name').html("Error: file could not be parsed!");
             return null;
         }else{
-            let coords = $xml.find("coordinates").text();
+            let allCoordElems = $xml.find("coordinates");
+            if (allCoordElems.length > 1) {
+                alert("Warning: KML file contains " + allCoordElems.length + " polygons. Only the first polygon will be used.");
+            }
+            let coords = allCoordElems.first().text();
             //console.dir(JSON.stringify(coords)); //"\n\t\t\t1\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t -109.5396705603448,38.47691322695024,0 -109.5396705603448,38.47691322695024,0 \n\t\t\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t"
 
             // remove tabs and newlines and trim
