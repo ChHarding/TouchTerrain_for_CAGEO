@@ -107,7 +107,7 @@ def pr(*arglist):
 use_zigzag_magic = False
 
 #  List of DEM sources  Earth engine offers and their nominalresolutions (only used for guessing the size of a geotiff ...)
-DEM_sources = ["USGS/3DEP/10m_collection",
+DEM_sources = ["USGS/3DEP/10m",
                "USGS/GMTED2010",
                "NOAA/NGDC/ETOPO1",
                "JAXA/ALOS/AW3D30/V4_1",
@@ -121,6 +121,14 @@ DEM_sources = ["USGS/3DEP/10m_collection",
                "USGS/3DEP/1m"
               ]
 
+HIRES_AOE = {
+        "AU/GA/AUSTRALIA_5M_DEM":[109, -44, 155, -9],
+        "IGN/RGE_ALTI/1M/2_0/FXX":[-5, 41, 10, 51],
+        "UK/EA/ENGLAND_1M_TERRAIN/2022":[-6, 49.5, 2, 56],
+        "USGS/3DEP/1m":[-125, 24, -66, 50]
+}
+
+
 # Map of DEM sources that use a non-default elevation band name (ee.Image sources only need this if band auto-select fails)
 _DEM_BAND_OVERRIDES = {
     "IGN/RGE_ALTI/1M/2_0/FXX": "MNT",
@@ -131,7 +139,7 @@ _DEM_BAND_OVERRIDES = {
 # Define default parameters
 # Print settings that can be used to initialize the actual args
 initial_args = {
-    "DEM_name": 'USGS/3DEP/10m_collection',# DEM_name:    name of DEM source used in Google Earth Engine
+    "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
     "bllat": 39.32205105794382,   # bottom left corner lat
     "bllon": -120.37497608519418, # bottom left corner long
     "trlat": 39.45763749030933,   # top right corner lat
@@ -964,7 +972,7 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         # Map of ImageCollection DEM sources to their elevation band name
         _IC_BANDS = {
-            "USGS/3DEP/10m_collection": "elevation",
+            "USGS/3DEP/10m": "elevation",
             "USGS/3DEP/1m": "elevation",
             "NRCan/CDEM": "elevation",
             "AU/GA/AUSTRALIA_5M_DEM": "elevation",
