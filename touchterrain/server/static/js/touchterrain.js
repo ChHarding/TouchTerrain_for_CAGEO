@@ -831,10 +831,10 @@ function create_overlay(MAPID, map) {
     // threshold — GEE would still have to compute enormously downsampled tiles, which is
     // very slow.  Removing the layer entirely suppresses all tile requests.
     const HIRES_DEMS = {
-        'USGS/3DEP/1m':                   9,
-        'IGN/RGE_ALTI/1M/2_0/FXX':        9,
-        'UK/EA/ENGLAND_1M_TERRAIN/2022':  9,
-        'AU/GA/AUSTRALIA_5M_DEM':         9,
+        'USGS/3DEP/1m':                   14,
+        'IGN/RGE_ALTI/1M/2_0/FXX':        14,
+        'UK/EA/ENGLAND_1M_TERRAIN/2022':  14,
+        'AU/GA/AUSTRALIA_5M_DEM':         14,
     };
     const _minZoom = HIRES_DEMS[window.DEM_name] || 0;
 
@@ -1199,7 +1199,7 @@ function SetDEM_name() {
         case "NRCan/CDEM": res = "20"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
         case "MERIT/DEM/v1_0_3": res = "90"; break;
-        case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
+        case "JAXA/ALOS/AW3D30/V4_1": res = "30"; break;
         case "USGS/GMTED2010_FULL": res = "230"; break;
         case "USGS/GTOPO30": res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM": res = "1000"; break;
