@@ -60,8 +60,8 @@ def main():
     # The JSON file overwrites values for the following keys, which are used as
     # args for get_zipped_tiles() 
     args = {
-        "DEM_name": 'USGS/3DEP/10m', # DEM_name: name of DEM source used in Google Earth Engine
-                            # valid sources: USGS/3DEP/10m, USGS/3DEP/1m, USGS/GMTED2010,
+        "DEM_name": 'USGS/3DEP/10m_collection', # DEM_name: name of DEM source used in Google Earth Engine
+                            # valid sources: USGS/3DEP/10m_collection, USGS/3DEP/1m, USGS/GMTED2010_FULL,
                             # NOAA/NGDC/ETOPO1, JAXA/ALOS/AW3D30/V4_1, NRCan/CDEM, AU/GA/AUSTRALIA_5M_DEM,
                             # USGS/GTOPO30, CPOM/CryoSat2/ANTARCTICA_DEM, MERIT/DEM/v1_0_3,
                             # IGN/RGE_ALTI/1M/2_0/FXX, UK/EA/ENGLAND_1M_TERRAIN/2022
@@ -139,8 +139,8 @@ def main():
         # no JSON config file given, setting config values in code
         # you can comment out lines for which you don't want to overwrite the default settings
         overwrite_args = {
-            "DEM_name": 'USGS/3DEP/10m', # DEM_name: name of DEM source used in Google Earth Engine
-                                        # valid sources: USGS/3DEP/10m, USGS/3DEP/1m, USGS/GMTED2010,
+            "DEM_name": 'USGS/3DEP/10m_collection', # DEM_name: name of DEM source used in Google Earth Engine
+                                        # valid sources: USGS/3DEP/10m_collection, USGS/3DEP/1m, USGS/GMTED2010_FULL,
                                         # NOAA/NGDC/ETOPO1, JAXA/ALOS/AW3D30/V4_1, NRCan/CDEM, AU/GA/AUSTRALIA_5M_DEM,
                                         # USGS/GTOPO30, CPOM/CryoSat2/ANTARCTICA_DEM, MERIT/DEM/v1_0_3,
                                         # IGN/RGE_ALTI/1M/2_0/FXX, UK/EA/ENGLAND_1M_TERRAIN/2022
