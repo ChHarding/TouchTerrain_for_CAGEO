@@ -175,21 +175,24 @@ window.onload = function () {
         overlay = create_overlay(MAPID, map);
     }
 
-    // Draw green coverage boundary for image-collection DEMs that cover a
-    // specific region.  Fetched from the server-cached GeoJSON computed at startup.
-    const _IC_BOUNDARY_DEMS = new Set([
-        'USGS/3DEP/10m_collection',
-        'USGS/3DEP/1m',
-        'NRCan/CDEM',
-        'AU/GA/AUSTRALIA_5M_DEM',
-    ]);
-    if (_IC_BOUNDARY_DEMS.has(window.DEM_name)) {
+    // Draw a per-DEM coloured coverage boundary if a boundary file is available
+    // for the selected DEM.  window.valid_dem_ids is populated from the server's
+    // app.config['VALID_DEM_IDS'] (set at startup from DEM_outlines/ contents).
+    const _BOUNDARY_COLORS = {
+        'AU/GA/AUSTRALIA_5M_DEM':        '#ff8c00',  // orange
+        'IGN/RGE_ALTI/1M/2_0/FXX':      '#1e90ff',  // dodger blue
+        'UK/EA/ENGLAND_1M_TERRAIN/2022': '#9932cc',  // purple
+        'USGS/3DEP/1m':                  '#00ced1',  // dark cyan
+    };
+    if (dem_boundary_layer) { map.removeLayer(dem_boundary_layer); dem_boundary_layer = null; }
+    if (window.valid_dem_ids && window.valid_dem_ids.includes(window.DEM_name)) {
+        const _bcolor = _BOUNDARY_COLORS[window.DEM_name] || '#00cc44';
         fetch('/dem_boundary/' + window.DEM_name)
             .then(r => r.ok ? r.json() : null)
             .then(gj => {
                 if (!gj || gj.error) return;
                 dem_boundary_layer = L.geoJSON(gj, {
-                    style: { color: '#00cc44', weight: 2, fill: false, opacity: 0.85 }
+                    style: { color: _bcolor, weight: 2.5, fill: false, opacity: 0.9 }
                 }).addTo(map);
             })
             .catch(() => {});
@@ -876,7 +879,7 @@ function create_overlay(MAPID, map) {
             background: '#fff', color: '#000', font: 'bold 11px sans-serif',
             padding: '2px 6px', lineHeight: '16px', whiteSpace: 'nowrap'
         });
-        lamp.textContent = `Zoom in to ${_minZoom} to see terrain`;
+        lamp.innerHTML = `Zoom in to ${_minZoom} to inside<br>the boundary to see terrain`;
         lamp.title = `${window.DEM_name} has 1\u20135 m resolution \u2014 zoom to level ${_minZoom}+ to load terrain`;
     }
 

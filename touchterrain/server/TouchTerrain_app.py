@@ -44,7 +44,7 @@ app = Flask(__name__)
 
 # import modules from common
 from touchterrain.common import TouchTerrainEarthEngine # will also init EE
-from touchterrain.common.TouchTerrainEarthEngine import MULTI_BANDS, IMG_COLL_DEMS
+from touchterrain.common.TouchTerrainEarthEngine import MULTI_BANDS, IMG_COLL_DEMS, HIRES_AOE_DEMS
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import logging
@@ -132,23 +132,29 @@ def check_esri_api_key(key):
 
 check_esri_api_key(ESRI_API_KEY) # prints out status of ESRI basemap usage
 
-'''
-# ─── DEM coverage boundary cache ─────────────────────────────────────────────
-# GeoJSON boundary files are pre-computed by running:
-#   python touchterrain/server/create_DEM_boundaries_cache.py
-# and stored in DEM_outlines/.  The server only reads them — it never computes
+
+# GeoJSON boundary files are pre-computed and stored in DEM_outlines/.  
+# The server only reads them — it never computes
 # them.  If the folder is missing, boundary display is silently skipped (warning
 # is printed below).  /dem_boundary/<dem_id> serves the cached file to the JS.
-from touchterrain.common.TouchTerrainEarthEngine import IC_DEM_BOUNDARY_SIMPLIFY as _IC_DEM_SIMPLIFY
 _GEOJSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'DEM_outlines')
+app.config['VALID_DEM_IDS'] = []  # only show boundaries for these DEMs, if files are present
 
 if not os.path.isdir(_GEOJSON_DIR):
     print("WARNING: DEM_outlines/ folder not found — DEM coverage boundaries will "
           "not be shown on the map.\n"
           "         Run touchterrain/server/create_DEM_boundaries_cache.py once to "
           "generate them.", file=sys.stderr)
-# ──────────────────────────────────────────────────────────────────────────────
-'''
+else:
+    # check if boundary files for each HIRES_AOE DEM exists, if not warn and don't try to display it 
+    for dem_id in HIRES_AOE_DEMS:
+        safe = dem_id.replace('/', '_')
+        path = os.path.join(_GEOJSON_DIR, safe + '.geojson')
+        if not os.path.isfile(path):
+            print(f"WARNING: boundary file {safe}.geojson for DEM {dem_id} not found in DEM_outlines/ — coverage boundary for this DEM will not be shown on the map.", file=sys.stderr)
+        else:
+            app.config['VALID_DEM_IDS'].append(dem_id)
+
 # May 2025: set the mimetype for javascript files to application/javascript so that 
 # load_stl_min.js can be loaded
 mimetypes.add_type('application/javascript', '.js')
@@ -202,12 +208,12 @@ def make_GA_script(page_title):
     </script>        
     """
     return html
-'''
+
 @app.route('/dem_boundary/<path:dem_id>')
 def dem_boundary(dem_id):
     """Serve cached GeoJSON coverage boundary for an image-collection DEM."""
-    #if dem_id not in _IC_DEM_SIMPLIFY:
-    #    return Response('{"error":"unknown DEM"}', status=404, mimetype='application/json')
+    if dem_id not in app.config['VALID_DEM_IDS']: # check this!
+        return Response('{"error":"unknown DEM"}', status=404, mimetype='application/json')
     safe = dem_id.replace('/', '_')
     path = os.path.join(_GEOJSON_DIR, safe + '.geojson')
     if not os.path.exists(path):
@@ -215,7 +221,7 @@ def dem_boundary(dem_id):
     with open(path) as f:
         content = f.read()
     return Response(content, mimetype='application/json')
-'''
+
 
 # entry page that shows a world map does the Recaptch_v3 and, if passed, 
 # loads the main page when clicked
@@ -354,7 +360,8 @@ def main_page():
         # string with index.html "file" with mapid, token, etc. inlined
         html_str = render_template("index.html", **args,
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID,
-                                    esri_api_key=ESRI_API_KEY)
+                                    esri_api_key=ESRI_API_KEY,
+                                    valid_dem_ids=app.config['VALID_DEM_IDS'])
         return html_str
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA

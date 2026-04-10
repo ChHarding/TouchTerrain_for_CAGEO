@@ -87,7 +87,8 @@
 		"hselev": {{ hselev|tojson }},
 		"transp": {{ transp|tojson }},
 		"mapid": {{ mapid|tojson }},
-		"esri_api_key": {{ esri_api_key|tojson }}
+		"esri_api_key": {{ esri_api_key|tojson }},
+		"valid_dem_ids": {{ valid_dem_ids|tojson }}
 		}
 		</script>
 		<script type="text/javascript">
@@ -117,6 +118,7 @@
 				window.transp = config.transp;
 				window.MAPID = config.mapid;
 				window.ESRI_API_KEY = config.esri_api_key; // null or a key string
+				window.valid_dem_ids = config.valid_dem_ids; // DEMs with a coverage boundary file
 		})();
 	</script>	
 	<!-- TouchTerrain JavaScript -->

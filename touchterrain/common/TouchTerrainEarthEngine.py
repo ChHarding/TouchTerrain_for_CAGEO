@@ -156,6 +156,10 @@ HIRES_AOE = {
         "USGS/3DEP/1m":                  [-125, 24,  -66,  50]
 }
 
+# DEMs for which a coverage boundary GeoJSON file exists in server/DEM_outlines/.
+# These are the keys of HIRES_AOE — defined as a separate list so the server
+# can import it without importing the bounding-box values.
+HIRES_AOE_DEMS = list(HIRES_AOE.keys())
 
 
 
