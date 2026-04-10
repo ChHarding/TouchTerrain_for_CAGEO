@@ -48,6 +48,7 @@ from touchterrain.common.Coordinate_system_conv import * # arc to meters convers
 
 import logging
 import time
+import threading
 from zipfile import ZipFile
 
 # Dedicated quota logger — appends to quota.log next to this file
@@ -130,6 +131,22 @@ def check_esri_api_key(key):
 
 check_esri_api_key(ESRI_API_KEY)
 
+# ─── DEM coverage boundary cache ─────────────────────────────────────────────
+# GeoJSON boundary files are pre-computed by running:
+#   python touchterrain/server/create_DEM_boundaries_cache.py
+# and stored in DEM_outlines/.  The server only reads them — it never computes
+# them.  If the folder is missing, boundary display is silently skipped (warning
+# is printed below).  /dem_boundary/<dem_id> serves the cached file to the JS.
+from touchterrain.common.TouchTerrainEarthEngine import IC_DEM_BOUNDARY_SIMPLIFY as _IC_DEM_SIMPLIFY
+_GEOJSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'DEM_outlines')
+
+if not os.path.isdir(_GEOJSON_DIR):
+    print("WARNING: DEM_outlines/ folder not found — DEM coverage boundaries will "
+          "not be shown on the map.\n"
+          "         Run touchterrain/server/create_DEM_boundaries_cache.py once to "
+          "generate them.", file=sys.stderr)
+# ──────────────────────────────────────────────────────────────────────────────
+
 # May 2025: set the mimetype for javascript files to application/javascript so that 
 # load_stl_min.js can be loaded
 mimetypes.add_type('application/javascript', '.js')
@@ -184,6 +201,19 @@ def make_GA_script(page_title):
     """
     return html
 
+@app.route('/dem_boundary/<path:dem_id>')
+def dem_boundary(dem_id):
+    """Serve cached GeoJSON coverage boundary for an image-collection DEM."""
+    if dem_id not in _IC_DEM_SIMPLIFY:
+        return Response('{"error":"unknown DEM"}', status=404, mimetype='application/json')
+    safe = dem_id.replace('/', '_')
+    path = os.path.join(_GEOJSON_DIR, safe + '.geojson')
+    if not os.path.exists(path):
+        return Response('{"error":"not ready"}', status=202, mimetype='application/json')
+    with open(path) as f:
+        content = f.read()
+    return Response(content, mimetype='application/json')
+
 # entry page that shows a world map does the Recaptch_v3 and, if passed, 
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
@@ -197,7 +227,7 @@ def intro_page():
             map_lat  = request.form.get('map_lat',  '39.0')
             map_lon  = request.form.get('map_lon',  '-98.0')
             map_zoom = request.form.get('map_zoom', '8')
-            DEM_name = request.form.get('DEM_name', 'USGS/3DEP/10m_collection')
+            DEM_name = request.form.get('DEM_name', 'USGS/3DEP/10m')
             return redirect(url_for('main_page',
                                     map_lat=map_lat, map_lon=map_lon,
                                     map_zoom=map_zoom, DEM_name=DEM_name))
@@ -220,7 +250,7 @@ def main_page():
 
     # init all browser args with defaults, these must be strings and match the SELECT values
     args = {
-        'DEM_name': 'USGS/3DEP/10m_collection',
+        'DEM_name': 'USGS/3DEP/10m',
 
         # defines map location
         'map_lat': "44.59982",
@@ -270,25 +300,24 @@ def main_page():
         #print(key, request.args[key])
 
     # get hillshade for elevation
-    _IC_BANDS = {
-        "USGS/3DEP/10m_collection": "elevation",
+    MULTI_BANDS = { # multi band elevation data
+        "USGS/3DEP/10m": "elevation",
         "USGS/3DEP/1m": "elevation",
         "NRCan/CDEM": "elevation",
         "AU/GA/AUSTRALIA_5M_DEM": "elevation",
         "JAXA/ALOS/AW3D30/V4_1": "DSM",
+        "IGN/RGE_ALTI/1M/2_0/FXX": "MTN",
+        "UK/EA/ENGLAND_1M_TERRAIN/2022": "dtm"
+
     }
-    if args["DEM_name"] in _IC_BANDS:  # Image collection?
-        band = _IC_BANDS[args["DEM_name"]]
+    if args["DEM_name"] in MULTI_BANDS:  # Image collection?
+        band = MULTI_BANDS[args["DEM_name"]]
         dataset = ee.ImageCollection(args["DEM_name"])
         elev = dataset.select(band)
         proj = elev.first().select(0).projection() # must use common projection(?)
         elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
-    elif args["DEM_name"] == "IGN/RGE_ALTI/1M/2_0/FXX":
-        elev = ee.Image(args["DEM_name"]).select("MNT")
-    elif args["DEM_name"] == "UK/EA/ENGLAND_1M_TERRAIN/2022":
-        elev = ee.Image(args["DEM_name"]).select("dtm")
     else:
-        elev = ee.Image(args["DEM_name"])
+        elev = ee.Image(args["DEM_name"]) # 1 band elevation
 
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
@@ -598,7 +627,7 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/3DEP/10m_collection":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+            cell_width_arcsecs = {"USGS/3DEP/10m":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30,
                                   "JAXA/ALOS/AW3D30/V4_1":1, "NRCan/CDEM": 0.75, 
                                   "AU/GA/AUSTRALIA_5M_DEM": 1/18,
