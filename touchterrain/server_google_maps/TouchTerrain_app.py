@@ -214,15 +214,15 @@ def main_page():
         #print(key, request.args[key])
 
     # get hillshade for elevation
-    _IC_BANDS = {
+    MULTI_BANDS = {
         "USGS/3DEP/10m_collection": "elevation",
         "USGS/3DEP/1m": "elevation",
         "NRCan/CDEM": "elevation",
         "AU/GA/AUSTRALIA_5M_DEM": "elevation",
         "JAXA/ALOS/AW3D30/V4_1": "DSM",
     }
-    if args["DEM_name"] in _IC_BANDS:  # Image collection?
-        band = _IC_BANDS[args["DEM_name"]]
+    if args["DEM_name"] in MULTI_BANDS:  # Image collection?
+        band = MULTI_BANDS[args["DEM_name"]]
         dataset = ee.ImageCollection(args["DEM_name"])
         elev = dataset.select(band)
         proj = elev.first().select(0).projection() # must use common projection(?)
@@ -523,7 +523,7 @@ def export():
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
             DEM_name = args["DEM_name"]
-            cell_width_arcsecs = {"USGS/3DEP/10m_collection":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
+            cell_width_arcsecs = {"USGS/3DEP/10m_collection":1/9,  "MERIT/DEM/v1_0_3":3,"USGS/GMTED2010_FULL":7.5, "CPOM/CryoSat2/ANTARCTICA_DEM":30,
                                   "NOAA/NGDC/ETOPO1":60, "USGS/GTOPO30":30,
                                   "JAXA/ALOS/AW3D30/V4_1":1, "NRCan/CDEM": 0.75, 
                                   "AU/GA/AUSTRALIA_5M_DEM": 1/18,
