@@ -12,6 +12,7 @@ let div_lines_x = [];
 let div_lines_y = [];
 let marker = null;     // search result marker
 let overlay = null;    // DEM overlay layer
+let dem_boundary_layer = null;  // green coverage outline for IC DEMs
 let basemap_layer = null; // current basemap layer
 let current_basemap = 'Streets';
 
@@ -172,6 +173,26 @@ window.onload = function () {
     // Initialize Earth Engine if MAPID is available
     if (MAPID && MAPID !== "None") {
         overlay = create_overlay(MAPID, map);
+    }
+
+    // Draw green coverage boundary for image-collection DEMs that cover a
+    // specific region.  Fetched from the server-cached GeoJSON computed at startup.
+    const _IC_BOUNDARY_DEMS = new Set([
+        'USGS/3DEP/10m_collection',
+        'USGS/3DEP/1m',
+        'NRCan/CDEM',
+        'AU/GA/AUSTRALIA_5M_DEM',
+    ]);
+    if (_IC_BOUNDARY_DEMS.has(window.DEM_name)) {
+        fetch('/dem_boundary/' + window.DEM_name)
+            .then(r => r.ok ? r.json() : null)
+            .then(gj => {
+                if (!gj || gj.error) return;
+                dem_boundary_layer = L.geoJSON(gj, {
+                    style: { color: '#00cc44', weight: 2, fill: false, opacity: 0.85 }
+                }).addTo(map);
+            })
+            .catch(() => {});
     }
 
     // Create the red bounding box rectangle
@@ -406,7 +427,7 @@ window.onload = function () {
 
     $('#elevation_data_source_popover').popover({
         content: ' Elevation data source defines which DEM (Digital Elevation Model) will be used and at what resolution.\
-                   The highest resolution DEM, the 10m USGS/3DEP/10m DEM, is only available for the lower 48 US states. Outside the US,\
+                   The highest resolution DEM, the 10m USGS/3DEP/10m_collection DEM, is only available for the lower 48 US states. Outside the US,\
                    use AW3D30 (30m resolution). For more info on the current DEM source, click on the (DEM info) link.\
                    The current DEM will appear as a gray hillshade (relief) layer overlaying the basemap.',
         html: true,
@@ -807,10 +828,10 @@ function create_overlay(MAPID, map) {
     // threshold — GEE would still have to compute enormously downsampled tiles, which is
     // very slow.  Removing the layer entirely suppresses all tile requests.
     const HIRES_DEMS = {
-        'USGS/3DEP/1m':                    16,
-        'IGN/RGE_ALTI/1M/2_0/FXX':        16,
-        'UK/EA/ENGLAND_1M_TERRAIN/2022':   16,
-        'AU/GA/AUSTRALIA_5M_DEM':          14,
+        'USGS/3DEP/1m':                   9,
+        'IGN/RGE_ALTI/1M/2_0/FXX':        9,
+        'UK/EA/ENGLAND_1M_TERRAIN/2022':  9,
+        'AU/GA/AUSTRALIA_5M_DEM':         9,
     };
     const _minZoom = HIRES_DEMS[window.DEM_name] || 0;
 
@@ -1176,7 +1197,7 @@ function SetDEM_name() {
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
         case "MERIT/DEM/v1_0_3": res = "90"; break;
         case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
-        case "USGS/GMTED2010": res = "230"; break;
+        case "USGS/GMTED2010_FULL": res = "230"; break;
         case "USGS/GTOPO30": res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM": res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
