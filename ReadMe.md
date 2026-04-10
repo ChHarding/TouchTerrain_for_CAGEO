@@ -60,7 +60,7 @@ The JSON config file has the following format:
 ```json
 {
 "CPU_cores_to_use": 0,
-"DEM_name": "USGS/3DEP/10m",
+"DEM_name": "USGS/3DEP/10m_collection",
 "basethick": 1,
 "bllat": 44.50185267072875,
 "bllon": -108.25427910156247,
@@ -102,11 +102,11 @@ The JSON config file has the following format:
   - `null`: forces use of only a single core, even for multiple tiles, which is useful when running the multi-tile code in a Debugger.
 
 - `DEM_name`: (resolutions are approximate and strictly true only at the equator!)
-  - USGS/3DEP/10m: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
+  - USGS/3DEP/10m_collection: 10 m, continental USA only. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_NED)
   - JAXA/ALOS/AW3D30/V3_2: Global: 30 m, worldwide, but has some small "holes". [link](https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V3_2)
   - USGS/SRTMGL1_003: 30 m, "worldwide", but not very far north (lower quality and older than ALOS!). [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003)
   - MERIT/DEM/v1_0_3: 90 m, worldwide, with less error in low relief areas. [link](https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3)
-  - USGS/GMTED2010: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
+  - USGS/GMTED2010_FULL: ~230 m, truly worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010)
   - GTOPO30: 30 Arc-Second, 1000 m, 1996, worldwide. [link](https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30)
   - CryoSat-2 Antarctica: 1000 m, antarctica only. [link](https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM)
   - NOAA/NGDC/ETOPO1: 2000 m, worldwide, with bathymetry. [link](https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1)
