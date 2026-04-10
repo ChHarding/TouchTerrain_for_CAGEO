@@ -201,12 +201,12 @@ window.onload = function () {
     // show link for current DEM source
     let link = "https://developers.google.com/earth-engine/datasets"
     switch(DEM_name){
-        case "USGS/3DEP/10m_collection": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_10m"; break;
+        case "USGS/3DEP/10m_collection_collection": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_10m"; break;
         case "NRCan/CDEM": link = "https://developers.google.com/earth-engine/datasets/catalog/NRCan_CDEM"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": link = "https://developers.google.com/earth-engine/datasets/catalog/AU_GA_AUSTRALIA_5M_DEM"; break;
         case "MERIT/DEM/v1_0_3": link = "https://developers.google.com/earth-engine/datasets/catalog/MERIT_DEM_v1_0_3"; break;
         case "JAXA/ALOS/AW3D30/V4_1": link = "https://developers.google.com/earth-engine/datasets/catalog/JAXA_ALOS_AW3D30_V4_1"; break;
-        case "USGS/GMTED2010": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
+        case "USGS/GMTED2010_FULL": link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GMTED2010"; break;
         case "USGS/GTOPO30" : link = "https://developers.google.com/earth-engine/datasets/catalog/USGS_GTOPO30"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : link = "https://developers.google.com/earth-engine/datasets/catalog/CPOM_CryoSat2_ANTARCTICA_DEM"; break;
         case "NOAA/NGDC/ETOPO1": link ="https://developers.google.com/earth-engine/datasets/catalog/NOAA_NGDC_ETOPO1"; break;
@@ -388,7 +388,7 @@ window.onload = function () {
     $('#elevation_data_source_popover').popover({
         //title: '<h6>Help for Elevation data source:</h6>',
         content: ' Elevation data source defines which DEM (Digital Elevation Model) will be used and at what resolution.\
-                   The highest resolution DEM, the 10m USGS/3DEP/10m DEM, is only available for the lower 48 US states. Outside the US,\
+                   The highest resolution DEM, the 10m USGS/3DEP/10m_collection DEM, is only available for the lower 48 US states. Outside the US,\
                    use AW3D30 (30m resolution). For more info on the current DEM source, click on the (DEM info) link.\
                    The current DEM will appear as a gray hillshade (relief) layer overlaying the Google Map.',
         html: true,
@@ -845,12 +845,12 @@ function SetDEM_name(){
 
     let res = "unknown resolution"
     switch(DEM_name){
-        case "USGS/3DEP/10m_collection": res = "10"; break;
+        case "USGS/3DEP/10m_collection_collection": res = "10"; break;
         case "NRCan/CDEM": res = "20"; break;
         case "AU/GA/AUSTRALIA_5M_DEM": res = "5"; break;
         case "MERIT/DEM/v1_0_3": res= "90"; break;
         case "JAXA/ALOS/AW3D30/V3_2": res = "30"; break;
-        case "USGS/GMTED2010": res = "230"; break;
+        case "USGS/GMTED2010_FULL": res = "230"; break;
         case "USGS/GTOPO30" : res = "1000"; break;
         case "CPOM/CryoSat2/ANTARCTICA_DEM" : res = "1000"; break;
         case "NOAA/NGDC/ETOPO1": res = "2000"; break;
