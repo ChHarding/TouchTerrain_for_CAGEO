@@ -68,7 +68,7 @@ class MyTests(unittest.TestCase):
         '''Basic test to get Sheep Mountain via EE'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -89,7 +89,7 @@ class MyTests(unittest.TestCase):
         '''single tile EE but saves as OBJ file'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -110,7 +110,7 @@ class MyTests(unittest.TestCase):
         '''single tile EE but saves as STLa (ascii STL) file'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -131,7 +131,7 @@ class MyTests(unittest.TestCase):
         '''Basic test to get Sheep Mountain via EE (using tempfiles)'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -153,7 +153,7 @@ class MyTests(unittest.TestCase):
         '''single tile EE but saves as OBJ file using tempfiles'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -175,7 +175,7 @@ class MyTests(unittest.TestCase):
         '''single tile EE but saves as STLa (ascii STL) file using tempfiles'''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -197,7 +197,7 @@ class MyTests(unittest.TestCase):
         '''EE multiple tiles '''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 "bllat": 44.50185267072875,   # bottom left corner lat
                 "bllon": -108.25427910156247, # bottom left corner long
                 "trlat": 44.69741706507476,   # top right corner lat
@@ -219,7 +219,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -243,7 +243,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -267,7 +267,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -293,7 +293,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -319,7 +319,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -345,7 +345,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -371,7 +371,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -397,7 +397,7 @@ class MyTests(unittest.TestCase):
 
         args = {
                     "importedDEM": None,
-                    "DEM_name": "USGS/3DEP/10m",   # DEM source
+                    "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                     "bllat": 44.50185267072875,   # bottom left corner lat
                     "bllon": -108.25427910156247, # bottom left corner long
                     "trlat": 44.69741706507476,   # top right corner lat
@@ -422,7 +422,7 @@ class MyTests(unittest.TestCase):
         '''Test using gpx files in stuff gpx-test '''
         args = {
                 "importedDEM": None,
-                "DEM_name": "USGS/3DEP/10m",   # DEM source
+                "DEM_name": "USGS/3DEP/10m_collection",   # DEM source
                 # area for gpx test
                 "bllat": 39.32205105794382,   # bottom left corner lat
                 "bllon": -120.37497608519418, # bottom left corner long
