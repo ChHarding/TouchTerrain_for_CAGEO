@@ -980,8 +980,8 @@ function make_center_box() {
     let swx = bottomLeft.lng;
     let swy = bottomLeft.lat;
 
-    let box_size_x = (nex - swx) / 3.0;
-    let box_size_y = (ney - swy) / 3.0;
+    let box_size_x = (nex - swx) / 6.0;
+    let box_size_y = (ney - swy) / 6.0;
 
     let box = L.latLngBounds(
         L.latLng(cy - box_size_y, cx - box_size_x),
