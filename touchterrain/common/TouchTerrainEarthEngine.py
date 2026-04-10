@@ -106,9 +106,15 @@ def pr(*arglist):
 # Use zig-zag magic?
 use_zigzag_magic = False
 
-#  List of DEM sources  Earth engine offers and their nominalresolutions (only used for guessing the size of a geotiff ...)
-DEM_sources = ["USGS/3DEP/10m",
-               "USGS/GMTED2010",
+# ============================================================
+# DEM source metadata — single source of truth for all DEM-
+# related lookups used throughout TouchTerrain.
+# ============================================================
+
+# All valid DEM source names (GEE asset paths).
+# Used only for input validation in get_zipped_tiles().
+DEM_sources = ["USGS/3DEP/10m_collection",
+               "USGS/GMTED2010_FULL",
                "NOAA/NGDC/ETOPO1",
                "JAXA/ALOS/AW3D30/V4_1",
                "NRCan/CDEM",
@@ -121,25 +127,42 @@ DEM_sources = ["USGS/3DEP/10m",
                "USGS/3DEP/1m"
               ]
 
+# DEMs that are ImageCollections (must be loaded with ee.ImageCollection, not ee.Image).
+IMG_COLL_DEMS = ["USGS/3DEP/10m_collection",
+                 "JAXA/ALOS/AW3D30/V4_1",
+                 "NRCan/CDEM",
+                 "AU/GA/AUSTRALIA_5M_DEM",
+                 "USGS/3DEP/1m",
+                 ]
+
+# For DEMs with multiple bands (Image or ImageCollection), the name of the band that holds elevation data.
+# DEMs not listed here are single-band and need no band selection.
+MULTI_BANDS = {
+        "USGS/3DEP/10m_collection": "elevation",
+        "USGS/3DEP/1m": "elevation",
+        "NRCan/CDEM": "elevation",
+        "AU/GA/AUSTRALIA_5M_DEM": "elevation",
+        "JAXA/ALOS/AW3D30/V4_1": "DSM",
+        "IGN/RGE_ALTI/1M/2_0/FXX": "MNT",
+        "UK/EA/ENGLAND_1M_TERRAIN/2022": "dtm"
+    }
+
+# High-resolution regional DEMs that should only be shown when the map is zoomed in
+# within the given bounding box [lon_min, lat_min, lon_max, lat_max].
 HIRES_AOE = {
-        "AU/GA/AUSTRALIA_5M_DEM":[109, -44, 155, -9],
-        "IGN/RGE_ALTI/1M/2_0/FXX":[-5, 41, 10, 51],
-        "UK/EA/ENGLAND_1M_TERRAIN/2022":[-6, 49.5, 2, 56],
-        "USGS/3DEP/1m":[-125, 24, -66, 50]
+        "AU/GA/AUSTRALIA_5M_DEM":        [109, -44, 155,  -9],
+        "IGN/RGE_ALTI/1M/2_0/FXX":      [ -5,  41,  10,  51],
+        "UK/EA/ENGLAND_1M_TERRAIN/2022": [ -6,  49.5, 2,  56],
+        "USGS/3DEP/1m":                  [-125, 24,  -66,  50]
 }
 
 
-# Map of DEM sources that use a non-default elevation band name (ee.Image sources only need this if band auto-select fails)
-_DEM_BAND_OVERRIDES = {
-    "IGN/RGE_ALTI/1M/2_0/FXX": "MNT",
-    "UK/EA/ENGLAND_1M_TERRAIN/2022": "dtm",
-}
 
 
 # Define default parameters
 # Print settings that can be used to initialize the actual args
 initial_args = {
-    "DEM_name": 'USGS/3DEP/10m',# DEM_name:    name of DEM source used in Google Earth Engine
+    "DEM_name": 'USGS/3DEP/10m_collection',# DEM_name:    name of DEM source used in Google Earth Engine
     "bllat": 39.32205105794382,   # bottom left corner lat
     "bllon": -120.37497608519418, # bottom left corner long
     "trlat": 39.45763749030933,   # top right corner lat
@@ -971,26 +994,20 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         # Get a download URL for DEM from Earth Engine
         #
         # Map of ImageCollection DEM sources to their elevation band name
-        _IC_BANDS = {
-            "USGS/3DEP/10m": "elevation",
-            "USGS/3DEP/1m": "elevation",
-            "NRCan/CDEM": "elevation",
-            "AU/GA/AUSTRALIA_5M_DEM": "elevation",
-            "JAXA/ALOS/AW3D30/V4_1": "DSM",
-        }
-        if DEM_name in _IC_BANDS:  # Image collection?
-            band = _IC_BANDS[DEM_name]
+ 
+        if DEM_name in IMG_COLL_DEMS:  # Image collection?
+            band = MULTI_BANDS[DEM_name] # name of elevation band
             coll = ee.ImageCollection(DEM_name)
             info = coll.getInfo()
             elev = coll.select(band)
             proj = elev.first().select(0).projection() # must use common projection(?)
             image1 = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
-        else:
+        else: # simple Image
             image1 = ee.Image(DEM_name)
             info = image1.getInfo()
             # select specific band if needed (e.g. IGN uses MNT, not elevation)
-            if DEM_name in _DEM_BAND_OVERRIDES:
-                image1 = image1.select(_DEM_BAND_OVERRIDES[DEM_name])
+            if DEM_name in MULTI_BANDS:
+                image1 = image1.select(MULTI_BANDS[DEM_name])
 
 
         pr("Earth Engine raster:", info["id"])
