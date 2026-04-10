@@ -1002,6 +1002,10 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         if DEM_name in IMG_COLL_DEMS:  # Image collection?
             band = MULTI_BANDS[DEM_name] # name of elevation band
             coll = ee.ImageCollection(DEM_name)
+            # Filter to the requested bbox BEFORE any collection operation (mosaic, first, getInfo).
+            # Without this, large collections like USGS/3DEP/1m exceed GEE's 5000-element query limit.
+            _bbox = ee.Geometry.Rectangle([[bllon, bllat], [trlon, trlat]])
+            coll = coll.filterBounds(_bbox)
             info = coll.getInfo()
             elev = coll.select(band)
             proj = elev.first().select(0).projection() # must use common projection(?)

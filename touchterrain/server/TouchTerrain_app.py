@@ -52,15 +52,18 @@ import time
 import threading
 from zipfile import ZipFile
 
-# Dedicated quota logger — appends to quota.log next to this file
-_quota_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'quota.log')
+# Dedicated quota logger — logs every getMapId() call and outcome.
+# Controlled by QUOTA_LOG_FILE in config.py: set to a path to enable, None to disable.
 quota_log = logging.getLogger('touchterrain.quota')
 quota_log.setLevel(logging.DEBUG)
 quota_log.propagate = False  # don't bleed into Flask's root logger
-if not quota_log.handlers:
-    _qh = logging.FileHandler(_quota_log_path, mode='w', encoding='utf-8')  # 'w' clears on startup
+if QUOTA_LOG_FILE and not quota_log.handlers:
+    _qh = logging.FileHandler(QUOTA_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on startup
     _qh.setFormatter(logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
     quota_log.addHandler(_qh)
+if not QUOTA_LOG_FILE:
+    quota_log.addHandler(logging.NullHandler())
+print(f"Quota log: {'enabled → ' + str(QUOTA_LOG_FILE) if QUOTA_LOG_FILE else 'disabled'}")
 
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
@@ -316,6 +319,15 @@ def main_page():
     #   (e.g. IGN uses "MNT", UK EA uses "dtm").
     if args["DEM_name"] in IMG_COLL_DEMS:
         dataset = ee.ImageCollection(args["DEM_name"])
+        # Filter to viewport bounds BEFORE first()/mosaic() to avoid GEE's 5000-element limit
+        # on large collections like USGS/3DEP/1m.  Use viewport bounds (whole visible map)
+        # rather than the selection box so the hillshade covers the full view.
+        try:
+            _vp = [float(args['vp_bllon']), float(args['vp_bllat']),
+                   float(args['vp_trlon']), float(args['vp_trlat'])]
+            dataset = dataset.filterBounds(ee.Geometry.Rectangle(_vp))
+        except (KeyError, ValueError, TypeError):
+            pass  # viewport args absent on first load — proceed unfiltered
         if args["DEM_name"] in MULTI_BANDS:
             dataset = dataset.select(MULTI_BANDS[args["DEM_name"]])
         proj = dataset.first().select(0).projection()
