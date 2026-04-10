@@ -82,3 +82,9 @@ ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJM
 # my tracking id, so if you use google analytics, make sure to use your own Tracking ID!
 GOOGLE_ANALYTICS_TRACKING_ID = "G-EGX5Y3PBYH"
 # If you don't wan to use GA, set this to "" !
+
+# Quota / hillshade activity log.
+# Set to a file path to enable logging of every getMapId() call and outcome.
+# Set to None to disable.
+#QUOTA_LOG_FILE = os.path.join(config.SERVER_DIR, 'quota.log')
+QUOTA_LOG_FILE = None
