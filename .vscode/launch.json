@@ -1,0 +1,233 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python Debugger: MAG TT Standalone PA-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA-land.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
+      "name": "Python Debugger: MAG TT Standalone PA-water-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA-water.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
+      "name": "Python Debugger: MAG TT Standalone PA3-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA3-land.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
+      "name": "Python Debugger: MAG TT Standalone PA3-water-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/../map-auto-generation/workflow/mesh_tools/touchterrain/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../map-auto-generation/",
+      "args": ["../templates//il-israel-linear//workspace//ttConfig/PA3-water.json", "../templates/output/il-israel-linear/250/PA/"]
+    },
+    {
+      "name": "Python Debugger: TT Standalone PA-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "PA-river.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-water.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-water.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-land-clip.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone IP-water-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "IP-water-clip.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-land-only.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-land-only.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-river.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-land-clip.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-river-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-river-clip.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-land-thru.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-land-thru.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone DC-new-river-thru.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "DC-new-river-thru.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone WV-new-land-only.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "WV-new-land-only.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone WV-new-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "WV-new-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone WV-new-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "WV-new-river.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone WV-new-land-thru.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "WV-new-land-thru.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone WV-new-river-thru.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "WV-new-river-thru.json"
+    },
+        {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-land.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-land.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-river.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-river.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-land-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-land-clip.json"
+    },
+    {
+      "name": "Python Debugger: TT Standalone simplePolygon-new-river-clip.json",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/TouchTerrain_standalone.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/../touchterrain-dev/",
+      "args": "simplePolygon-new-river-clip.json"
+    },
+  ]
+}

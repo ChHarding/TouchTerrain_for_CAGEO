@@ -28,24 +28,38 @@
 #  multiple grids are processed together.
 # CH July 2015
 
-import numpy as np
-import warnings # for muting warnings about nan in e.g. nanmean()
-import struct # for making binary STL
-import sys
-import multiprocessing
 import io
+import warnings # for muting warnings about nan in e.g. nanmean()
+import multiprocessing
 import os
 import shutil   
+import struct # for making binary STL
+import sys
 
 # get root logger, will later be redirected into a logfile
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+from typing import Union, Any, Callable
+
+import numpy as np
+import shapely
+
+from touchterrain.common.Vertex import vertex
+from touchterrain.common.Quad import quad
+
 from touchterrain.common.vectors import Vector, Point  # local copy of vectors package which was no longer working in python 3
 import touchterrain.common.utils as utils
 
+from touchterrain.common.tile_info import TouchTerrainTileInfo
 
+from touchterrain.common.RasterVariants import RasterVariants
+from touchterrain.common.BorderEdge import BorderEdge
+
+from touchterrain.common.shapely_utils import flatten_geometries
+from touchterrain.common.shapely_polygon_utils import polygon_to_list_of_vertex, polygons_equal_3d
+from touchterrain.common.interpolate_Z import interpolate_z_planar
 
 # function to calculate the normal for a triangle
 def get_normal(tri):
@@ -68,234 +82,30 @@ def get_normal(tri):
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
 
-
-class vertex:
-
-    # dict of index value for each vertex
-    # key is tuple of coordinates, value is a unique index
-    vertex_index_dict = -1  
-
-    def __init__(self, x,y,z):
-        self.coords = tuple([float(d) for d in (x,y,z)])  # made this a tuple (zigzag won't work wth this anymore but it's not used anyway ...)
-        vdict = vertex.vertex_index_dict # class attribute
-
-        # for non obj file this is set to -1, and there's no need to deal with vertex indices
-        if vdict != -1:
-            # This creates a dict (a grid class attribute) with a tuple of the
-            # 3 coords as key and a int as value. The int is a running index i.e. for each new
-            # (not yet hashed) vertex this index just increases by 1, based on the current number of dict
-            # entries. If a vertex has coords that already exist in the dict, nothing needs to be done.
-            # This ensures that each index number is unique but can be shared by multiple indices
-            # (e.g. when 2 triangles have vertices at exactly the same coords)
-            # as it's easy to look up the index based on self.coords, a vertex does not actually 
-            # have to store its index.
-
-            # if we don't have an index value for these coords (as key)
-            if self.coords not in vdict: # can't hash list
-                vdict[self.coords] = len(vdict) # and set next running index as new value for key
-                #print(self.coords, "now has idx", self.vert_idx) # DEBUG
-            else: # this vertex has an idx in vdict
-                #print(self.coords, "already has idx", vdict[tuple(self.coords)]) # DEBUG
-                pass
-
-    def get_id(self):
-        '''return Id for my coords'''
-        return vertex.vertex_index_dict[self.coords]
-
-    def get(self):
-        "returns [x,y,z] list of vertices"
-        return self.coords
-
-    def __str__(self):
-        return "%.2f %.2f %.2f " % (self.coords[0], self.coords[1], self.coords[2])
-
-    def __getitem__(self, index): 
-        "enables use of index brackets for vertex objects: v[0] returns coords[0]"
-        return self.coords[index]
-
-
-
-
-class quad:
-    """return list of 2 triangles (counterclockwise) per quad
-       wall quads will NOT subdivide their quad into subquads if they are too skinny
-       as this would require to re-index the entire mesh. However, I left the subdive
-       stuff in in case we want to re-visit it later.
-    """
-    # class attribute, use quad.too_skinny_ratio
-    too_skinny_ratio = 0.1 # border quads with a horizontal vs vertical ratio smaller than this will be subdivided
-
-    # order is NE, NW, SW, SE
-    # can be just a triangle, if it just any 3 ccw consecutive corners 
-    def __init__(self, v0, v1, v2, v3=None): 
-        self.vl = [v0, v1, v2, v3]
-        self.subdivide_by = None # if not None, we need to subdivide the quad into that many subquads
-
-    def get_copy(self):
-        ''' returns a copy of the quad'''
-        vl = self.vl[:]
-        cp = quad(vl[0], vl[1], vl[2], vl[3])
-        return cp
-
-    def check_if_too_skinny(self, direction):
-        '''if a border quad is too skinny it will to be subdivided into multiple quads'''
-        #print direction, [str(v) for v in self.vl]
-
-        # order of verts will be different for N,S vs E,W walls!
-        if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
-            horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
-            max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
-            min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
-            vert_dist = max_elev - min_elev # z diff of v0 and v1
-        else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
-            horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
-            max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
-            min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
-            vert_dist = max_elev - min_elev # z diff of v0 and v1
-        if vert_dist == 0: return # walls can be 0 height
-
-        ratio = horz_dist / float (vert_dist)
-        #print ratio, quad.too_skinny_ratio, quad.too_skinny_ratio / ratio
-        if ratio < quad.too_skinny_ratio:
-            sb = int(quad.too_skinny_ratio / ratio)
-            self.subdivide_by = sb
-
-    def get_triangles(self):
-        "return list of 2 triangles (counterclockwise)"
-        v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
-        t0 = (v0, v1, v2)  # verts of first triangle
-
-        # if v3 is None, we only return t0
-        if v3 != None:
-            t1 = (v0, v2, v3)  # verts of second triangle
-            return (t0,t1)
-        else:
-            return(t0, None)
-
-    # this isn't used anymore 
-    def get_triangles_with_indexed_verts(self):
-        "return list of 2 triangles (counterclockwise) as vertex indices"
-
-        vertidx = [] # list of the 4 verts as index
-        for v in self.vl: # quad as list of 4 verts, each as (x,y,z)
-            if v != None: # v3 could be None
-                vi = v.get_id()
-                vertidx.append(vi)
-            #print v,vi
-
-        t0 = (vertidx[0], vertidx[1], vertidx[2])  # verts of first triangle
-        # if v3 is None(i.e. we didn't get a 4. index), we only return t0
-        if len(vertidx) > 3:
-            t1 = (vertidx[0], vertidx[2], vertidx[3])  # verts of second triangle
-            return (t0,t1)
-        else:
-            return(t0, None)
-
-    '''
-    # splits skinny triangles
-    def get_triangles(self, direction=None):
-        """return list of 2 triangles (counterclockwise) per quad
-           wall quads will subdivide their quad into subquads if they are too skinny
-        """
-        v0,v1,v2,v3 = self.vl[0],self.vl[1],self.vl[2],self.vl[3]
-
-        # do we need to subdivide?
-        if self.subdivide_by is None: # no, either not a wall or a chunky wall
-            t0 = (v0, v1, v2)  # verts of first triangle
-            t1 = (v0, v2, v3)  # verts of second triangle
-            return (t0,t1)
-
-        else:
-            # subdivde into sub quads and return their triangles
-
-            # order of verts will be different for N,S vs E,W walls!
-            if direction in ("S", "N"): # '-49.50 49.50 0.00 ', '-49.50 49.50 10.00 ', '-50.00 49.50 10.00 ', '-50.00 49.50 0.00 '
-                horz_dist = abs(self.vl[0][0] - self.vl[2][0]) # x diff of v0 and v2
-                max_elev = max(self.vl[1][2], self.vl[2][2]) # max elevation of v1 vs v2
-                min_elev = min(self.vl[0][2], self.vl[3][2]) # min elevation v0 vs v3
-                vert_dist = max_elev - min_elev # z diff of v0 and v1
-            else: # -49.50 50.00 10.00 ', '-49.50 49.50 10.00 ', '-49.50 49.50 0.00 ', '-49.50 50.00 0.00 '
-                horz_dist = abs(self.vl[0][1] - self.vl[1][1]) # y diff of v0 and v1
-                max_elev = max(self.vl[0][2], self.vl[1][2]) # max elevation of v0 vs v1
-                min_elev = min(self.vl[2][2], self.vl[3][2]) # min elevation v2 vs v3
-                vert_dist = max_elev - min_elev # z diff of v0 and v1
-
-
-
-            tri_list = []
-
-            # for finding the height of the sub quads I don't care about the different vert order
-            z_list =[v[2] for v in self.vl]
-            z_top = max(z_list) # z height of the top (take min() b/c one might be higher)
-            z_bot = min(z_list) # z height at bottom
-            z_dist = z_top - z_bot # distance to be
-
-            #self.subdivide_by = 3 # DEBUG
-
-            qheight = z_dist / float(self.subdivide_by) # height (elevation dist) of each quad
-            height_list = [ z_top - qheight * i for i in range(self.subdivide_by+1) ] # list of h
-
-            # make new subquads and return a list of their triangles
-            vl_copy = copy.deepcopy(self.vl) # must make a deep copy, otherwise changing the subquads affect the current quad
-            tl = [] # triangle list
-
-            bottom_height_list = height_list[1:]
-            for n,_ in enumerate(bottom_height_list):
-                v0_,v1_,v2_,v3_ = vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3] # unroll copy
-                #print n,v0_,v1_,v2_,v3_
-
-                # as order of verts will be different for N,S vs E,W walls we need 2 different cases
-                if direction in ("N", "S"):
-                    top_inds = (1,2)
-                    bot_inds = (0,3)
-                else:
-                    top_inds = (0,1)
-                    bot_inds = (2,3)
-
-
-                # top verts
-                if n > 0: # don't change top z for topmost sub quad
-                    h = height_list[n]
-                    v= vl_copy[top_inds[0]] # first vertex of subquad
-                    v.coords[2] = h         # set its z value
-                    v= vl_copy[top_inds[1]]
-                    v.coords[2] = h
-
-                # bottom verts
-                if n < len(bottom_height_list): # don't change bottom z for bottommost sub quad
-                    h = height_list[n+1]
-                    v = vl_copy[bot_inds[0]]
-                    v.coords[2] = h
-                    v = vl_copy[bot_inds[1]]
-                    v.coords[2] = h
-
-                # make a sub quad
-                sq = copy.deepcopy(quad(vl_copy[0], vl_copy[1], vl_copy[2],vl_copy[3])) # each subquad needs to be its own copy
-                #print n, sq,
-
-                t0,t1 = sq.get_triangles()
-                tl.append(t0)
-                tl.append(t1)
-
-            return tl
-    '''
-
-    def __str__(self):
-        rs ="  "
-        for n,v in enumerate(self.vl):
-            rs = rs + "v" + str(n) + ": " + str(v) + "  "
-        return rs
-
-
 class cell:
     '''a cell with a top and bottom quad, constructor: uses refs and does NOT copy ...
        except for triangle cells
        '''
+    topquad: quad # 4 corner square quad with X,Y,Z
+    bottomquad: quad | None
+    borders: dict[str, quad]
+    
+    topSurfacePolygons: list[shapely.Polygon] | None = None
+    "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the topquad"
+    bottomSurfacePolygons: list[shapely.Polygon] | None = None
+    "list of polygons (preferably tris) with X,Y,Z to use for the mesh instead of the bottomquad"
+    surfacePolygonBorders: list[quad] | None = None
+    # surface polygon borders should be generated using raster polygon edge buckets BorderEdge wall value
+       
     def __init__(self, topquad, bottomquad, borders, is_tri_cell=False):
         self.topquad = topquad
         self.bottomquad = bottomquad
         self.borders = borders
         self.is_tri_cell = is_tri_cell
+
+        # Debug: keep the original quads to see what the cell functions changed
+        # self.topquadoriginal = topquad
+        # self.bottomquadtoriginal = bottomquad
 
     def __str__(self):
         r = hex(id(self)) + "\n top:" + str(self.topquad) + "\n btm:" + str(self.bottomquad) + "\n borders:\n"
@@ -303,6 +113,30 @@ class cell:
             if self.borders[d] != False:
                 r = r + "  " + d + ": " + str(self.borders[d]) + "\n"
         return r
+
+    def meshes_for_model(self) -> list[Union[quad, shapely.Polygon]]:
+        """Returns a list of all the meshes to actually include in the ouitput model for this cell. Meshes are in the form of a quad or shapely.Polygon (triangulated)"""
+        meshes = []        
+        if self.topSurfacePolygons:
+            meshes.extend(self.topSurfacePolygons)
+        elif self.topquad:
+            meshes.append(self.topquad)
+            # if we use topquad, we also use cardinal direction borders
+            for k in self.borders:  # k is N, S, E, W
+                if self.borders[k] is not False: meshes.append(self.borders[k])
+        # else:
+        # It is possible to have a cell with no top quad or topSurfacePolygon because all volumes in the cell were removed in zero volume check
+        #     raise AttributeError("cell has no top quad or topSurfacePolygons")
+        
+        if self.bottomSurfacePolygons:
+            meshes.extend(self.bottomSurfacePolygons)
+        elif self.bottomquad:
+            meshes.append(self.bottomquad)
+            
+        if self.surfacePolygonBorders:
+            meshes.extend(self.surfacePolygonBorders)
+        
+        return meshes
 
     def check_for_tri_cell(self):
         """Returns True if cell has borders on 2 consecutive sides False otherwise.
@@ -367,7 +201,79 @@ class cell:
         self.is_tri_cell = True
 
         return None
+    
+    def remove_zero_height_volumes(self):
+        """Remove volumes that should have zero height due to the top and bottom Z being equal.
+        """
 
+        b = self.borders    
+        tq =  self.topquad.get_copy()
+        bq =  self.bottomquad.get_copy()
+        tvl = tq.vl
+        bvl = bq.vl
+        
+        """Vertices mapping     NW SW SE NE
+        Top                      0  1  2  3
+        Bottom                   0  3  2  1
+        The vertices seem to be a different mapping than commented in convert_to_tri_cell() and the above mapping makes much more sense for normals' directions. This assumes we are viewing the quad from straight above from the positive Z direction.
+        """
+        
+        # All vertexes of the top and bottom quad are at the same Z coordinate so the entire quad has 0 volume.
+        if (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2] and
+                tvl[3].coords[2] == bvl[1].coords[2]):
+            self.topquad = None #quad(None, None, None, None)
+            self.bottomquad = None #quad(None, None, None, None)
+            b["N"] = b["W"] = b["S"] = b["E"] = False
+        # (NW case) NW NE SW vertices are same Z, keep tri of SE SW NE
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2]):
+            self.topquad = quad(tvl[3], tvl[1], tvl[2], None)
+            self.bottomquad = quad(bvl[1], bvl[2], bvl[3], None) 
+            b["N"] = False #quad(tvl[1], tvl[3], bvl[1], bvl[3])
+            b["W"] = False
+        # (NE case) NW NE SE vertices are same Z, keep tri of SE SW NW
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[0], tvl[1], tvl[2], None)
+            self.bottomquad = quad(bvl[0], bvl[2], bvl[3], None) 
+            b["N"] = False #quad(tvl[0], tvl[2], bvl[2], bvl[0])
+            b["E"] = False 
+        # (SE case) NE SE SW vertices are same Z, keep tri of SW NW NE
+        elif (tvl[3].coords[2] == bvl[1].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[3], tvl[0], tvl[1], None)
+            self.bottomquad = quad(bvl[3], bvl[0], bvl[1], None)
+            b["S"] = False #quad(tvl[3], tvl[1], bvl[3], bvl[1])
+            b["E"] = False
+        # (SW case) SE SW NW vertices are same Z, keep tri of NW NE SE
+        elif (tvl[0].coords[2] == bvl[0].coords[2] and 
+                tvl[1].coords[2] == bvl[3].coords[2] and 
+                tvl[2].coords[2] == bvl[2].coords[2]):
+            self.topquad = quad(tvl[2], tvl[3], tvl[0], None)
+            self.bottomquad = quad(bvl[0], bvl[1], bvl[2], None)
+            b["S"] = False #quad(tvl[2], tvl[0], bvl[0], bvl[2])
+            b["W"] = False
+            
+        # for surface polygons we can remove matching tris that have the same Z for all vertex
+        if self.topSurfacePolygons and self.bottomSurfacePolygons:
+            ti = 0
+            while ti < len(self.topSurfacePolygons):
+                match = False
+                bi = 0
+                while bi < len(self.bottomSurfacePolygons):
+                    if polygons_equal_3d(self.topSurfacePolygons[ti], self.bottomSurfacePolygons[bi]):
+                        del self.topSurfacePolygons[ti]
+                        del self.bottomSurfacePolygons[bi]
+                        match = True
+                        break
+                    bi += 1
+                if not match:
+                    ti += 1
 
 '''
 #profiling decorator
@@ -389,17 +295,70 @@ def profile_me(func):
     return wraps
 '''
 
+class ProcessingTile:
+    tile_info: TouchTerrainTileInfo
+    top_raster_variants: RasterVariants
+    bottom_raster_variants: Union[None, RasterVariants]
+    
+    def __init__(self, tile_info: TouchTerrainTileInfo, top: RasterVariants, bottom: Union[None, RasterVariants]):
+        self.tile_info = tile_info
+        self.top_raster_variants = top
+        self.bottom_raster_variants = bottom
+   
+def interpolate_with_NaN(elev: np.ndarray, i, j) -> tuple[float|None, float|None, float|None, float|None]:
+    '''Get elevation of 4 corners of current cell and return them as NEelev, NWelev, SEelev, SWelev
+    If any of the corners is NaN, return None for all 4 corners'''
 
+    # interpolate each corner with possible NaNs, using mean()
+    # Note: if we have 1 or more NaNs, we get a warning: warnings.warn("Mean of empty slice", RuntimeWarning)
+    # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error')
+        NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
+        NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
+        SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
+        SWar = np.array([elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1]]).astype(np.float64)
 
+        try: 
+            # init all elevs with NaN
+            NEelev = NWelev = SEelev = SWelev = np.nan
 
+            # nanmean() is expensive, so only use it when actually needed
+            # if any of the interp sources are < basethick, leave the corner height as the cell height
+            NEelev = np.nanmean(NEar) if np.isnan(np.sum(NEar)) else (elev[j+0,i+0] + elev[j-1,i-0] + elev[j-1,i+1] + elev[j-0,i+1]) / 4.0
+            NWelev = np.nanmean(NWar) if np.isnan(np.sum(NWar)) else (elev[j+0,i+0] + elev[j+0,i-1] + elev[j-1,i-1] + elev[j-1,i+0]) / 4.0
+            SEelev = np.nanmean(SEar) if np.isnan(np.sum(SEar)) else (elev[j+0,i+0] + elev[j-0,i+1] + elev[j+1,i+1] + elev[j+1,i+0]) / 4.0
+            SWelev = np.nanmean(SWar) if np.isnan(np.sum(SWar)) else (elev[j+0,i+0] + elev[j+1,i+0] + elev[j+1,i-1] + elev[j+0,i-1]) / 4.0
 
+        except RuntimeWarning: #  corner is surrounded by NaN elevations - skip this cell
+            #print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
+            #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
+            num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
+            if num_nans > 0: # yes, set cell to None and skip it ...
+                # self.cells[j-1, i-1] = None # I commented this out since I have moved interpolate_with_NaN() out of grid class. Not sure what this part does if we return None for the 4 corners already?? -Anson
+                return None, None, None, None
+        else:
+            
+            '''
+            print("\n", i,j)
+            print("NE", elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1], NEelev)
+            print("NW", elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0], NWelev)
+            print("SE", elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0], SEelev)
+            print("SW", elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1], SWelev)
+            '''
+            return NEelev, NWelev, SEelev, SWelev    
+        
 class grid:
     """makes cell data structure from two np arrays (top, bottom) of the same shape."""
     #@profile # https://pypi.org/project/memory-profiler/
 
     # I'm unclear why these class attributes need to be created here (added by keerl)
-    top = None
-    bottom = None
+    tile: ProcessingTile = None 
+    # Check self.tile.bottom_raster_variants is not None to check if doing a "difference mesh" mode generation with a bottom array present.
+    # If bottom_raster_variants is None, we only generate from top to flat bottom which is "top mesh" mode. 
+    
+    bottom_thru_base: bool = False # Indicates if generating the "thru" mode
+    
     tile_info = None
     xmaxidx = None
     ymaxidx = None
@@ -410,25 +369,28 @@ class grid:
     fo = None  
     
 
-    def __init__(self, top, bottom, top_orig, tile_info):
-        '''top: top elevation raster, must hang over by 1 row/column on each side (be already padded)
-        bottom: None => bottom elevation is 0, otherwise either a 8 bit raster that will be resized to top's size or a bottom elevation raster
-        top_orig: top elevation raster before top dilation
-        tile_info: dict with info about the current tile + some tile global settings
+    def __init__(self, tile: ProcessingTile):
+        '''tile: Includes Top and Bottom raster variants and tile_info dict
         '''
+        self.tile = tile
+        self.tile_info = tile.tile_info
         
-
-        self.top = top
-        self.bottom = bottom
-        self.top_orig = top_orig
-        self.throughwater = tile_info["throughwater"]    # Anson's all-the-way-through water case
-        self.tile_info = tile_info
+        self.bottom_thru_base = tile.tile_info.config.bottom_thru_base    # Anson's all-the-way-through case
+        self.tile_info = tile.tile_info
 
 
-        if self.tile_info["fileformat"] == 'obj':
+        if self.tile_info.config.fileformat == 'obj':
             vertex.vertex_index_dict = {} # will be filled with vertex indices
 
         self.cells = None # stores the cells in  a 2D array of cells
+
+        if tile.top_raster_variants.dilated is None:
+            print("grid.init() error: No prepared top raster. tile.top_raster_variants.dilated is None")
+            return None
+        
+        if tile.bottom_raster_variants is None:
+            print("grid.init() error: No bottom_raster_variants passed in. bottom_raster_variants required to be passed in even if the variants are None.") # We may set bottom_raster_variants to None later to signal that we are not in "difference mesh" mode.
+            return None
 
         # Important: in 2D np arrays, x and y coordinate are "flipped" in the sense that when printing top
         # top[0,0] appears to the upper left (NW) corner and [0,1] (East) of it:
@@ -445,188 +407,123 @@ class grid:
         #print "normalized x/y delta:", x_norm_delta, y_norm_delta
 
         # cell size (x and y delta)
-        self.cell_size = self.tile_info["pixel_mm"]
+        self.cell_size = self.tile_info.pixel_mm
 
         # does top have NaNs?
-        self.tile_info["have_nan"] = np.any(np.isnan(self.top)) # True => we have NaN values    
+        #self.tile_info.have_nan = np.any(np.isnan(self.top)) # True => we have NaN values  
+        self.tile_info.have_nan = np.any(np.isnan(tile.top_raster_variants.dilated)) # True => we have NaN values    
     
         # same for bottom, if we have one
-        if self.tile_info["bottom_elevation"] is not None:
-            self.tile_info["have_bot_nan"] = np.any(np.isnan(self.bottom))# True => we have NaN values, 
+        if self.tile_info.config.bottom_elevation is not None and tile.bottom_raster_variants.dilated is not None:
+            self.tile_info.have_bot_nan = np.any(np.isnan(tile.bottom_raster_variants.dilated))# True => we have NaN values, 
 
         # Jan 2019: no idea why, but sometimes changing top also changes the elevation
         # array of another tile in the tile list
         # for now I make a copy of all rasters and convert them to float
-        self.top = self.top.copy().astype(np.float64) # writeable
+        # self.top = tile.top_raster_variants.dilated.copy().astype(np.float64) # writeable
+        
+        # if tile.top_raster_variants.original is not None:
+        #     tile.top_raster_variants.original = tile.top_raster_variants.original.copy().astype(np.float64) # writeable
+        
+        # if tile.top_raster_variants.nan_close is not None:
+        #     tile.top_raster_variants.nan_close = tile.top_raster_variants.nan_close.copy().astype(np.float64)
 
-        if self.bottom is not None:
-            self.bottom = bottom.copy().astype(np.float64) # writeable
-
-        if self.top_orig is not None:
-            self.top_orig = top_orig.copy().astype(np.float64)
-
-
+        # if tile.bottom_raster_variants is not None:
+        #     if tile.bottom_raster_variants.dilated is not None:
+        #         tile.bottom_raster_variants.dilated = tile.bottom_raster_variants.dilated.copy().astype(np.float64) # writeable
+                
+        #     if tile.bottom_raster_variants.original is not None:
+        #         tile.bottom_raster_variants.original = tile.bottom_raster_variants.original.copy().astype(np.float64) # writeable
+        
         #
         # Some sanity checks
         #
 
-        # if bottom is not an ndarray, we don't have a bottom raster, so the bottom is a constant 0
-        if isinstance(self.bottom, np.ndarray) == False:  
-            self.bottom = 0
-            self.tile_info["have_bottom_array"] = False
+        # if bottom_raster_variants.dilated (last processed variant) is not an ndarray, we don't have a bottom raster, so bottom_raster_variants is set to None
+        if isinstance(tile.bottom_raster_variants.dilated, np.ndarray) == False: 
+            tile.bottom_raster_variants = None
         # can't have a bottom_image and NaNs in top
-        elif tile_info["bottom_image"] is not None and isinstance(self.bottom, np.ndarray) == True and self.tile_info["have_nan"] == True:  
-            self.tile_info["have_bottom_array"] = False
-            self.bottom = 0
+        elif self.tile_info.config.bottom_image is not None and isinstance(tile.bottom_raster_variants.dilated, np.ndarray) == True and self.tile_info.have_nan == True:  
+            tile.bottom_raster_variants = None
             print("Top has NaN values, requested bottom image will be ignored!")
         # bottom is a elevation raster. It's ok to have NaNs in the bottom raster and/or top raster
-        elif tile_info["bottom_elevation"] is not None and isinstance(self.bottom, np.ndarray) == True:
-            self.tile_info["have_bottom_array"] = True
+        elif self.tile_info.config.bottom_elevation is not None and isinstance(tile.bottom_raster_variants.dilated, np.ndarray) == True:
+            tile.bottom_raster_variants = tile.bottom_raster_variants
 
         # need to use the tilewide min/max for each tile, otherwise the boudaries don't line up perfectly! 
-
-        if self.tile_info["bottom_elevation"] is not None: # we have a bottom raster
             
-            '''
-
-            # where top is actually lower than bottom (which can happen with Anson's data), set top to bottom
-            self.top = np.where(self.top < self.bottom, self.bottom, self.top)
-            
-            #
-            # Checking for all-the-way-through bottom NaNs and for top == bottom or bottom < top
-            #
-
-            # If the bottom has NaNs where top does not, set them to 0
-            # This is very specific to Anson's way of creating all-the-way-through water
-            # where his preprocessing sets the bottom to NaN for the water. (here called throughwater case)
-            if self.tile_info["have_bot_nan"] == True:
-                # CH1
-                # bool array with True where self.bottom has NaN values but self.top does not
-                nan_values = np.logical_and(np.isnan(self.bottom), np.logical_not(np.isnan(self.top)))
-                if np.any(nan_values) == True: 
-                    self.bottom[nan_values] = 0 # set bottom NaN values to 0 
-                    self.throughwater = True # flag for easy checking
-
-
-            # if both have the same value (or very close to) set both to Nan
-            # No relative tolerance here as we don't care about this concept here. Set the abs. tolerance to 0.001 m (1 mm)
-            close_values = np.isclose(self.top, self.bottom, rtol=0, atol=0.001, equal_nan=False) # bool array
-
-            # for any True values in array, set corresponding top and bottom cells to NaN
-            # Also set NaN flags
-            if np.any(close_values) == True: 
-                # save pre-dilated top for later dilation
-                top_pre_dil = self.top.copy()  
-                self.top[close_values] = np.nan   # set close values to NaN   
-
-                # if diagonal cleanup is requested, we need to do it again after setting NaNs
-                #clean_up_diags_check(self.top)
-
-                # save original top after setting NaNs so we can skip the undilated NaN cells later
-                self.top_orig = self.top.copy()  
-                self.top = dilate_array(self.top, top_pre_dil) # dilate the NaN'd top with the original (pre NaN'd) top
-
-                self.bottom[close_values] = np.nan # set close values to NaN 
-                #clean_up_diags_check(self.bottom) # re-check for diags
-                
-                
-                if self.throughwater == True:
-                    self.bottom = dilate_array(self.bottom) # dilate with 3x3 nanmean #  
-                else:
-                    self.bottom = dilate_array(self.bottom, top_pre_dil) # dilate the NaN'd bottom with the original (pre NaN'd) top (same as original bottom)
-                
-
-                # as we may have changed the rasters, recalculate min elev (TODO: not sure if this is needed any more)
-                self.tile_info["min_elev"] = np.nanmin(self.top)  
-                self.tile_info["min_bot_elev"] = np.nanmin(self.bottom)  
-
-                # check if we have NaNs in the top and/or bottom now (any() returns Bools)
-                self.tile_info["have_nan"] = np.any(np.isnan(self.top))
-                self.tile_info["have_bot_nan"] = np.any(np.isnan(self.bottom))
-
-                # pre-dilated top is not needed anymore
-                del top_pre_dil
-
-        # if we have no bottom but have NaNs in top, make a copy and 3x3 dilate it. We'll still use the non-dilated top
-        # when we need to skip NaN cells
-        elif self.tile_info["have_nan"] == True:
-
-            self.top_orig = self.top.copy()   # save original top before it gets dilated
-            self.top = dilate_array(self.top) # dilate with 3x3 nanmean 
-    
-        # CH2
-        '''
         #
-        # Convert elevation from real word elevation (m) to model height (mm)
+        # Convert elevation from real word elevation (m) to model print3D height (mm)
         # 
-        if self.tile_info["use_geo_coords"] is None: # Coordinates need to be in mm 
+        if self.tile_info.config.use_geo_coords is None: # Coordinates need to be in mm 
 
-            scz = 1 / self.tile_info["scale"] * 1000.0 # scale z to mm
-
-            if self.tile_info["have_bottom_array"] == False:
-                self.top -= self.tile_info["min_elev"] # subtract global min from top to get to 0 
+            scz = 1 / self.tile_info.scale * 1000.0 # scale z to mm
                 
-            else:
-                if self.throughwater == False:  # normal water case,  
-                    self.top -= self.tile_info["min_bot_elev"] # subtract global bottom min 
-                    self.bottom -= self.tile_info["min_bot_elev"]
-                    self.bottom += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-                    self.bottom *= scz * self.tile_info["z_scale"] # apply z-scale to bottom
-                    self.bottom += self.tile_info["base_thickness_mm"] # add base thickness to bottom
+            if tile.bottom_raster_variants is not None: # Top-Bottom difference mesh mode
+                if self.bottom_thru_base == False:  # normal case,  
+                    tile.bottom_raster_variants -= self.tile_info.config.min_elev
+                    
+                    tile.bottom_raster_variants *= scz * self.tile_info.config.zscale # apply z-scale to bottom
+                    tile.bottom_raster_variants += self.tile_info.config.basethick # add base thickness to bottom
 
-                    # Update with per-tile mm min/max 
-                    self.tile_info["min_bot_elev"] = np.nanmin(self.bottom) 
-                    self.tile_info["max_bot_elev"] = np.nanmax(self.bottom)
-                    print("bottom min/max (mm) for tile:", self.tile_info["min_bot_elev"], self.tile_info["max_bot_elev"])
-                else: # throughwater case
-                    self.top -= self.tile_info["min_elev"] 
-                    # bottom was set to 0 earlier
+                    if tile.bottom_raster_variants.dilated is not None:
+                        # Update with per-tile mm min/max 
+                        self.tile_info.min_bot_elev = np.nanmin(tile.bottom_raster_variants.dilated) 
+                        self.tile_info.max_bot_elev = np.nanmax(tile.bottom_raster_variants.dilated)
+                        print("bottom min/max (mm) for tile:", self.tile_info.min_bot_elev, self.tile_info.max_bot_elev)
+                    else:
+                        print("tile.bottom_raster_variants.dilated not found")
+                        return None
+                #else: 
+                    # do nothing in the bottom_thru_base case because we previously set bottom raster to 0
 
-            self.top += self.tile_info["user_offset"] # add potential user offset from top (default: 0)
-            self.top *= scz * self.tile_info["z_scale"] # apply z-scale to top
-            self.top += self.tile_info["base_thickness_mm"] # add base thickness to top
+            tile.top_raster_variants -= self.tile_info.config.min_elev
+            tile.top_raster_variants *= scz * self.tile_info.config.zscale # apply z-scale to top
+            tile.top_raster_variants += self.tile_info.config.basethick # add base thickness to top
 
             # post-scale (i.e. in mm) top elevations (for this tile)
-            self.tile_info["min_elev"] = np.nanmin(self.top)
-            self.tile_info["max_elev"] = np.nanmax(self.top)
-            print("top min/max for tile (mm):", self.tile_info["min_elev"], self.tile_info["max_elev"])
+            self.tile_info.config.min_elev = np.nanmin(tile.top_raster_variants.dilated)
+            self.tile_info.max_elev = np.nanmax(tile.top_raster_variants.dilated)
+            print("top min/max for tile (mm):", self.tile_info.config.min_elev, self.tile_info.max_elev)
 
         else:  # using geo coords (UTM, meter based) - thickness is meters
             # TODO: Just noticed that we don't apply a z-scale to the top. Not sure if we should
-            self.bottom = self.tile_info["min_elev"] - self.tile_info["base_thickness_mm"] * 10
-            logger.info("Using geo coords with a base thickness of " + str(self.tile_info["base_thickness_mm"] * 10) + " meters")
+            tile.bottom_raster_variants.dilated = self.tile_info.config.min_elev - self.tile_info.config.basethick * 10
+            logger.info("Using geo coords with a base thickness of " + str(self.tile_info.config.basethick * 10) + " meters")
+            
+        # After this point, all values are in real print3D units (mm) and 0 is the bottom.
 
         # max index in x and y for "inner" raster
-        self.xmaxidx = self.top.shape[1]-2
-        self.ymaxidx = self.top.shape[0]-2
+        self.xmaxidx = tile.top_raster_variants.dilated.shape[1]-2
+        self.ymaxidx = tile.top_raster_variants.dilated.shape[0]-2
         #print range(1, xmaxidx+1), range(1, ymaxidx+1)
 
         # offset so that 0/0 is the center of this tile (local) or so that 0/0 is the lower left corner of all tiles (global)
-        if self.tile_info["tile_centered"] == False: # global offset, best for looking at all tiles together
-            self.offsetx = -self.tile_info["tile_width"]  * (self.tile_info["tile_no_x"]-1)  # tile_no starts with 1! This is the top end of the tile, not 0!
-            self.offsety = -self.tile_info["tile_height"] * (self.tile_info["tile_no_y"]-1)  + self.tile_info["tile_height"] * self.tile_info["ntilesy"]
+        if self.tile_info.config.tile_centered == False: # global offset, best for looking at all tiles together
+            self.offsetx = -self.tile_info.tile_width  * (self.tile_info.tile_no_x-1)  # tile_no starts with 1! This is the top end of the tile, not 0!
+            self.offsety = -self.tile_info.tile_height * (self.tile_info.tile_no_y-1)  + self.tile_info.tile_height * self.tile_info.config.ntilesy
 
         else: # local centered for printing
-            self.offsetx = self.tile_info["tile_width"] / 2.0
-            self.offsety = self.tile_info["tile_height"] / 2.0
+            self.offsetx = self.tile_info.tile_width / 2.0
+            self.offsety = self.tile_info.tile_height / 2.0
 
         # geo coords are in meters (UTM). tile_centered is ignored for geo coords 
-        if self.tile_info["use_geo_coords"] != None:
+        if self.tile_info.config.use_geo_coords != None:
 
-            geo_transform = self.tile_info["geo_transform"]
+            geo_transform = self.tile_info.geo_transform
             self.cell_size = abs(geo_transform[1]) # rw pixel size of geotiff in m
             tile_width_m  = self.xmaxidx * self.cell_size # number of (unpadded) pixels of current tile
             tile_height_m = self.ymaxidx * self.cell_size
 
             # Place the tiles so that the center is at 0/0, which is what Blender GIS needs.
-            if self.tile_info["use_geo_coords"] == "centered":
+            if self.tile_info.config.use_geo_coords == "centered":
 
-                self.offsetx = -tile_width_m  * (self.tile_info["tile_no_x"]-1)
-                self.offsety = tile_height_m  * self.tile_info["ntilesy"] - tile_height_m * (self.tile_info["tile_no_y"]-1)
+                self.offsetx = -tile_width_m  * (self.tile_info.tile_no_x-1)
+                self.offsety = tile_height_m  * self.tile_info.config.ntilesy - tile_height_m * (self.tile_info.tile_no_y-1)
 
                 # center by half the total size
-                self.offsetx += (self.tile_info["full_raster_width"] * self.cell_size) / 2
-                self.offsety -= (self.tile_info["full_raster_height"] * self.cell_size) / 2
+                self.offsetx += (self.tile_info.full_raster_width * self.cell_size) / 2
+                self.offsety -= (self.tile_info.full_raster_height * self.cell_size) / 2
 
                 # correct for off-by-1 cells
                 self.offsetx -= self.cell_size
@@ -636,37 +533,37 @@ class grid:
             # UTM coordinates. Not sure what CAD/modelling system uses that but if needed it's an option.
             else:  # "UTM"
 
-                self.offsetx = -tile_width_m  * (self.tile_info["tile_no_x"]-1)
-                self.offsety = -tile_height_m * (self.tile_info["tile_no_y"]-1)
+                self.offsetx = -tile_width_m  * (self.tile_info.tile_no_x-1)
+                self.offsety = -tile_height_m * (self.tile_info.tile_no_y-1)
 
                 self.offsetx = -geo_transform[0] + self.offsetx # UTM x of upper left corner
                 self.offsety =  geo_transform[3] + self.offsety # UTM y
 
         
         # put corner coordinates tile info dict (may later be needed for 2 bottom triangles)
-        if self.tile_info["tile_centered"] == False:
-            #print("tile width", self.tile_info["tile_width"])
-            #print("tile_no_x", self.tile_info["tile_no_x"])
-            #print("tile_no_y", self.tile_info["tile_no_y"])
-            #print("tile_height", self.tile_info["tile_height"])
-            #print("ntilesy", self.tile_info["ntilesy"])
-            self.tile_info["W"] = self.tile_info["tile_width"]  * (self.tile_info["tile_no_x"]-1)  
-            self.tile_info["E"] = self.tile_info["W"] + self.tile_info["tile_width"]
-            tot_height = self.tile_info["tile_height"] * self.tile_info["ntilesy"]
+        if self.tile_info.config.tile_centered == False:
+            #print("tile width", self.tile_info.tile_width)
+            #print("tile_no_x", self.tile_info.tile_no_x)
+            #print("tile_no_y", self.tile_info.tile_no_y)
+            #print("tile_height", self.tile_info.tile_height)
+            #print("ntilesy", self.tile_info.ntilesy)
+            self.tile_info.W = self.tile_info.tile_width  * (self.tile_info.tile_no_x-1)  
+            self.tile_info.E = self.tile_info.W + self.tile_info.tile_width
+            tot_height = self.tile_info.tile_height * self.tile_info.config.ntilesy
             # y tiles index goes top(0) DOWN to bottom
-            self.tile_info["N"] = tot_height - (self.tile_info["tile_height"] * (self.tile_info["tile_no_y"]-1))
-            self.tile_info["S"] = self.tile_info["N"] - self.tile_info["tile_height"]
-            #print("WENS", self.tile_info["W"] , self.tile_info["E"], self.tile_info["N"] ,self.tile_info["S"] )
+            self.tile_info.N = tot_height - (self.tile_info.tile_height * (self.tile_info.tile_no_y-1))
+            self.tile_info.S = self.tile_info.N - self.tile_info.tile_height
+            #print("WENS", self.tile_info.W , self.tile_info.E, self.tile_info.N ,self.tile_info.S )
         else:
-            self.tile_info["W"] = -self.tile_info["tile_width"] / 2
-            self.tile_info["E"] =  self.tile_info["tile_width"] / 2
-            self.tile_info["S"] = -self.tile_info["tile_height"] / 2
-            self.tile_info["N"] =  self.tile_info["tile_height"] / 2
+            self.tile_info.W = -self.tile_info.tile_width / 2
+            self.tile_info.E =  self.tile_info.tile_width / 2
+            self.tile_info.S = -self.tile_info.tile_height / 2
+            self.tile_info.N =  self.tile_info.tile_height / 2
 
     def clean_up_diags_check(self, ras):
         '''Local function to check for NaNs in the raster and clean up diagonal NaNs if requested'''
         if np.any(np.isnan(ras)) == True: # do we have any NaNs?
-            if self.tile_info["clean_diags"] == True: # cleanup requested?
+            if self.tile_info.config.clean_diags == True: # cleanup requested?
                 ras = utils.clean_up_diags(ras)
 
     def create_cells(self):
@@ -677,16 +574,22 @@ class grid:
         for vertex coordinates. Here, only the index part (s[1] and fo[1]) is stored, the vertex coordinates will be
         created and stored later based on the keys of the vertex class attribute vertex_index_dict'''
         
+        if self.tile_info is None:
+            print("create_cells: Error: self.tile_info is None")
+            return
+        
+        top: Union[None, np.ndarray] = None
+        
         # store cells in an array, init to None
         self.cells = np.empty([self.ymaxidx, self.xmaxidx], dtype=cell)
 
         # TODO: not sure we need this any more, given that this was done on the full raster
         # and after the operations that could have changed the raster 
-        if self.tile_info["clean_diags"] == True:
-            self.top = utils.fillHoles(self.top, 1, 8, True) # fill single holes
-            self.top = utils.clean_up_diags(self.top)
-            if self.top_orig is not None:
-                self.top_orig = utils.clean_up_diags(self.top_orig)
+        # if self.tile_info.config.clean_diags == True:
+        #     self.tile.top_raster_variants.dilated = utils.fillHoles(self.tile.top_raster_variants.dilated, 1, 8, True) # fill single holes
+        #     self.tile.top_raster_variants.dilated = utils.clean_up_diags(self.tile.top_raster_variants.dilated)
+        #     if self.tile.top_raster_variants.nan_close is not None:
+        #         self.tile.top_raster_variants.nan_close = utils.clean_up_diags(self.tile.top_raster_variants.nan_close)
 
         # report progress in %
         percent = 10
@@ -702,231 +605,418 @@ class grid:
             for i in range(1, self.xmaxidx + 1):# x dim.
                 #print("y=",j," x=",i, " elev=",top[j,i])
 
-                # for throughwater we must use the pre-dilated, but for NaN'd top only use this check 
+                # for bottom_thru_base we must use the pre-dilated, but for NaN'd top only use this check 
                 # same for top with NaNs which have been 3x3 dilated
                 # dirty_trianglescreates a technically better fit fit of the water into the terrain but will create triangles
                 # that are collapsed into a line or a point. This should not be a problem for a modern slicer but will
                 # lead to issues when using the model in a 3D mesh modeling program
-                if self.tile_info["have_nan"] == True and self.tile_info["dirty_triangles"] == False: 
-                    top = self.top_orig
+                # Top set here determines which cells to skip based on the cells' values
+                if self.tile_info.have_nan == True and self.tile_info.config.dirty_triangles == False:
+                    top = self.tile.top_raster_variants.dilated
                 else:
-                    top = self.top
-
+                    top = self.tile.top_raster_variants.dilated
+                    
+                # For Difference Mesh mode + bottom_thru_base
+                if self.tile.bottom_raster_variants is not None and self.tile_info.config.bottom_thru_base:
+                        top = self.tile.bottom_raster_variants.nan_close
 
                 # if center elevation of current top cell is NaN, set its cell to None and skip the rest
-                if self.tile_info["have_nan"] and np.isnan(top[j, i]):
+                if self.tile_info.have_nan and np.isnan(top[j, i]):
                     self.cells[j-1, i-1] = None
                     continue
                 
                 # x/y coords of cell "walls", origin is upper left
-                E = (i-1) * self.cell_size - self.offsetx # index -1 as it's ref'ing to top, not ptop
-                W = E + self.cell_size  # CH Nov 2021: I think E and W are flipped (?) but I must correct for that later somewhere (?)
+                W = (i-1) * self.cell_size - self.offsetx # index -1 as it's ref'ing to top, not ptop
+                E = W + self.cell_size
                 N = -(j-1) * self.cell_size + self.offsety # y is flipped to negative
                 S = N - self.cell_size
                 #print(i,j, " ", E,W, " ",  N,S, " ", top[j,i])
                 
-                ## Which directions will need to have a wall?
+                
+
+                
+                
+                
+                #region Make top cell vertices' heights
+                interpolation_top_raster: Union[np.ndarray, None]
+                if not self.tile_info.have_nan:
+                    interpolation_top_raster = self.tile.top_raster_variants.dilated
+                    # non NaNs: interpolate elevation of four corners (array order is top[y,x]!)
+                    NEelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j-1,i-0] + interpolation_top_raster[j-1,i+1] + interpolation_top_raster[j-0,i+1]) / 4.0
+                    NWelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j+0,i-1] + interpolation_top_raster[j-1,i-1] + interpolation_top_raster[j-1,i+0]) / 4.0
+                    SEelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j-0,i+1] + interpolation_top_raster[j+1,i+1] + interpolation_top_raster[j+1,i+0]) / 4.0
+                    SWelev = (interpolation_top_raster[j+0,i+0] + interpolation_top_raster[j+1,i+0] + interpolation_top_raster[j+1,i-1] + interpolation_top_raster[j+0,i-1]) / 4.0
+                else:
+                    # NaNs: set borders to True if we have any NaNs in any of the adjacent cells
+                    # Do this only for top as we assume that any bottom raster NaNs are the same as on top
+
+                    # Interpolate with edge_interpolation raster variant if available. 
+                    interpolation_top_raster = self.tile.top_raster_variants.edge_interpolation
+                    if interpolation_top_raster is None:
+                        if self.tile.bottom_raster_variants is None:
+                            # Normal (not difference mesh) mode
+                            # Otherwise use "original" top raster (it's only modified at top_hint mask locs to bottom_floor_elev
+                            interpolation_top_raster = self.tile.top_raster_variants.original
+                            # Use top.dilated for borders
+                        else:
+                            # Difference mesh mode
+                            interpolation_top_raster = self.tile.top_raster_variants.original
+                            if self.tile_info.config.bottom_thru_base:
+                                # Use original top raster so we get accurate NaN location and borders
+                                interpolation_top_raster = self.tile.top_raster_variants.original
+
+                    # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
+                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(interpolation_top_raster, i, j)
+
+                    # top
+                    # set breakpoint for specific points for debugging
+                    # if j == 10 and i ==9:
+                    #     0==0
+
+                    if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
+                        continue
+                    
+                    # compare values with real print3D heights at this point
+                    # Pull values set to bottom_floor_elev (which will be just below basethick) to actual 0 because we added basethick to all raster.
+                    if NEelev < self.tile_info.config.basethick:
+                        NEelev = 0
+                    if NWelev < self.tile_info.config.basethick:
+                        NWelev = 0
+                    if SEelev < self.tile_info.config.basethick:
+                        SEelev = 0
+                    if SWelev < self.tile_info.config.basethick:
+                        SWelev = 0
+                
+                #
+                # Note that here we flip x and y coordinate axis to the system used in 3D graphics
+                #
+
+                # make top quad (x,y,z) vertices   vi is the vertex index dict of the grids
+                NEt = vertex(E, N, NEelev)
+                NWt = vertex(W, N, NWelev)
+                SEt = vertex(E, S, SEelev)
+                SWt = vertex(W, S, SWelev)
+                # a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
+                # top quad vertex order is so that the normal points up
+                topq = quad(NWt, SWt, SEt, NEt) 
+                #print(i, j, topq)
+                
+                top_bottom_surface_geometries_2D: list[shapely.Geometry] | None = None
+                top_bottom_surface_polygons_triangulated_2D: list[shapely.GeometryCollection] | None = None # tris for top and bottom surfaces
+                # Check if non-quad top_surface polygon should be used
+                top_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
+                # by checking if the cell is NOT contains_properly and if it has polygon_intersection_geometry
+                if (self.tile.top_raster_variants.polygon_intersection_contains_properly is not None and self.tile.top_raster_variants.polygon_intersection_contains_properly[j-1][i-1] == False) and self.tile.top_raster_variants.polygon_intersection_geometry is not None:
+                    top_bottom_surface_polygons_triangulated_2D = []
+                    
+                    top_bottom_surface_geometries_2D = self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1]
+                    if top_bottom_surface_geometries_2D is not None:
+                        # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
+                        #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
+                        top_bottom_surface_geometries_2D = self.tile.top_raster_variants.polygon_intersection_geometry[j-1][i-1]
+                        top_surface_polygons_triangulated_3D = [] #init array
+                        # Only interpolate the Polygons for the top surface
+                        for polygon in [item for item in (top_bottom_surface_geometries_2D if top_bottom_surface_geometries_2D else []) if isinstance(item, shapely.Polygon)]:
+                            top_bottom_surface_polygons_triangulated_2D.append(shapely.constrained_delaunay_triangles(polygon))
+                        for gc in top_bottom_surface_polygons_triangulated_2D:
+                            for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
+                                tri_ccw_order = shapely.orient_polygons(tri, exterior_cw=False)
+                                tri_with_z = interpolate_z_planar(geometry_2d=tri_ccw_order, planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))
+                                #tri_with_z = interpolate_geometry_with_quad(geometry=tri_ccw_order, quad=topq, split_rotation=self.tile_info.config.split_rotation)
+                                if isinstance(tri_with_z, shapely.Polygon):
+                                    top_surface_polygons_triangulated_3D.append(tri_with_z)
+                                else:
+                                    raise ValueError(f"tri_with_z is not Polygon, it is {type(tri_with_z)}")
+                
+                #endregion
+                
+                #
+                #region Make bottom quad  
+                #
+
+                # get corners for bottom array
+                if self.tile.bottom_raster_variants is None:
+                    # Normal mode
+                    NEelev = NWelev = SEelev = SWelev = 0
+                else:
+                    # Difference mode
+                    # for the through water case, simply set the bottom to 0
+                    if self.bottom_thru_base == True:
+                        NEelev = NWelev = SEelev = SWelev = 0
+                    else:
+                        # simple interpolation
+                        if not self.tile_info.have_bot_nan:
+                            NEelev = (self.tile.bottom_raster_variants.dilated[j+0,i+0] + self.tile.bottom_raster_variants.dilated[j-1,i-0] + self.tile.bottom_raster_variants.dilated[j-1,i+1] + self.tile.bottom_raster_variants.dilated[j-0,i+1]) / 4.0
+                            NWelev = (self.tile.bottom_raster_variants.dilated[j+0,i+0] + self.tile.bottom_raster_variants.dilated[j+0,i-1] + self.tile.bottom_raster_variants.dilated[j-1,i-1] + self.tile.bottom_raster_variants.dilated[j-1,i+0]) / 4.0
+                            SEelev = (self.tile.bottom_raster_variants.dilated[j+0,i+0] + self.tile.bottom_raster_variants.dilated[j-0,i+1] + self.tile.bottom_raster_variants.dilated[j+1,i+1] + self.tile.bottom_raster_variants.dilated[j+1,i+0]) / 4.0
+                            SWelev = (self.tile.bottom_raster_variants.dilated[j+0,i+0] + self.tile.bottom_raster_variants.dilated[j+1,i+0] + self.tile.bottom_raster_variants.dilated[j+1,i-1] + self.tile.bottom_raster_variants.dilated[j+0,i-1]) / 4.0
+                        else:
+                            # Nan aware interpolation 
+                            NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.tile.bottom_raster_variants.original, i, j)
+                            
+                            # bottom
+                            # set breakpoint for specific points for debugging
+                            # if j == 10 and i ==9:
+                            #     0==0
+                            
+                            if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
+                                continue # skip this cell
+                            
+                            # Pull values set to bottom_floor_elev to actual 0
+                            # compare values with real print3D heights at this point
+                            if NEelev < self.tile_info.config.basethick:
+                                NEelev = 0
+                            if NWelev < self.tile_info.config.basethick:
+                                NWelev = 0
+                            if SEelev < self.tile_info.config.basethick:
+                                SEelev = 0
+                            if SWelev < self.tile_info.config.basethick:
+                                SWelev = 0
+
+                # from whatever bottom values we have now, make the bottom quad
+                # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
+                NEb = vertex(E, N, NEelev)
+                NWb = vertex(W, N, NWelev)
+                SEb = vertex(E, S, SEelev)
+                SWb = vertex(W, S, SWelev)
+                botq = quad(NWb, NEb, SEb, SWb)
+
+                # Check if non-quad top_surface polygon should be used for bottom quad
+                bottom_surface_polygons_triangulated_3D: list[shapely.Polygon] | None = None
+                if top_bottom_surface_polygons_triangulated_2D is not None:
+                    # We can verify if our shapely utils coordinate converter matches the N W S E made in create_cells. (it does if you adjust for the padding difference)
+                    #quadPrint2DCoords = utils.arrayCellCoordToQuadPrint2DCoords(array_coord_2D=(i-1,j-1), cell_size=self.cell_size, tile_y_shape=self.tile.top_raster_variants.polygon_intersection_geometry.shape[0])
+                    
+                    bottom_surface_polygons_triangulated_3D = []
+                    # Only interpolate the Polygons for the top surface
+                    for gc in top_bottom_surface_polygons_triangulated_2D:
+                        for tri in [item for item in gc.geoms if isinstance(item, shapely.Polygon)]:
+                            tri_cw_order = shapely.orient_polygons(tri, exterior_cw=True)
+                            tri_with_z = interpolate_z_planar(geometry_2d=tri_cw_order, planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))
+                            if isinstance(tri_with_z, shapely.Polygon):
+                                bottom_surface_polygons_triangulated_3D.append(tri_with_z)
+                            else:
+                                raise TypeError('tri_with_z is not Polygon. interpolate_z_planar did not return the same Polygon type passed in')
+                
+                #endregion
+                
+                #print(topq)
+                #print(botq)
+                 
+                #
+                #region Make borders
+                #
+                
+                # Simple rectangular mesh case with no NaN
+                # Which directions will need to have a wall?
                 # True means: we have an adjacent cell and need a wall in that direction
                 borders =   dict([[drct, False] for drct in ["N", "S", "E", "W"]]) # init with no walls                   
-                
                 # set walls for fringe cells
                 if j == 1             : borders["N"] = True
                 if j == self.ymaxidx  : borders["S"] = True
                 if i == 1             : borders["W"] = True
                 if i == self.xmaxidx  : borders["E"] = True
-
                 
-                def interpolate_with_NaN(elev, i, j):
-                    '''Get elevation of 4 corners of current cell and return them as NEelev, NWelev, SEelev, SWelev
-                    If any of the corners is NaN, return None for all 4 corners'''
+                #cell_clipping_intersection_geometry = self.tile.top_raster_variants.polygon_intersection_geometry[j][i] if self.tile.top_raster_variants.polygon_intersection_geometry else None
+                #if cell_clipping_intersection_geometry and len(cell_clipping_intersection_geometry) > 0: # Cell is partially intersecting or sharing edges with polygon
+                if False:
+                    pass
+                else: # Cell contained properly in polygon
+                    # Figure out which raster array to use when determining borders
+                    borders_top_raster: Union[np.ndarray, None] = None
+                    if self.tile.bottom_raster_variants is None:
+                        # Normal mode
+                        borders_top_raster = self.tile.top_raster_variants.dilated
 
-                    # interpolate each corner with possible NaNs, using mean()
-                    # Note: if we have 1 or more NaNs, we get a warning: warnings.warn("Mean of empty slice", RuntimeWarning)
-                    # but if the result of ANY corner is NaN (b/c it used 4 NaNs), skip this cell entirely by setting it to None instead a cell object
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings('error')
-                        NEar = np.array([elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1]]).astype(np.float64)
-                        NWar = np.array([elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0]]).astype(np.float64)
-                        SEar = np.array([elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0]]).astype(np.float64)
-                        SWar = np.array([elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1]]).astype(np.float64)
-            
-                        try: 
-                            # init all elevs with NaN
-                            NEelev = NWelev = SEelev = SWelev = np.nan
-
-                            # nanmean() is expensive, so only use it when actually needed
-                            NEelev = np.nanmean(NEar) if np.isnan(np.sum(NEar)) else (elev[j+0,i+0] + elev[j-1,i-0] + elev[j-1,i+1] + elev[j-0,i+1]) / 4.0  
-                            NWelev = np.nanmean(NWar) if np.isnan(np.sum(NWar)) else (elev[j+0,i+0] + elev[j+0,i-1] + elev[j-1,i-1] + elev[j-1,i+0]) / 4.0
-                            SEelev = np.nanmean(SEar) if np.isnan(np.sum(SEar)) else (elev[j+0,i+0] + elev[j-0,i+1] + elev[j+1,i+1] + elev[j+1,i+0]) / 4.0
-                            SWelev = np.nanmean(SWar) if np.isnan(np.sum(SWar)) else (elev[j+0,i+0] + elev[j+1,i+0] + elev[j+1,i-1] + elev[j+0,i-1]) / 4.0
-
-                        except RuntimeWarning: #  corner is surrounded by NaN elevations - skip this cell
-                            #print(j-1, i-1, ": elevation of at least one corner of this cell is NaN - skipping cell")
-                            #print " NW",NWelev," NE", NEelev, " SE", SEelev, " SW", SWelev # DEBUG
-                            num_nans = sum(np.isnan(np.array([NEelev, NWelev, SEelev, SWelev]))) # is ANY of the corners NaN?
-                            if num_nans > 0: # yes, set cell to None and skip it ...
-                                self.cells[j-1, i-1] = None
-                                return None, None, None, None
-                        else:
-                            
-                            '''
-                            print("\n", i,j)
-                            print("NE", elev[j+0,i+0], elev[j-1,i-0], elev[j-1,i+1], elev[j-0,i+1], NEelev)
-                            print("NW", elev[j+0,i+0], elev[j+0,i-1], elev[j-1,i-1], elev[j-1,i+0], NWelev)
-                            print("SE", elev[j+0,i+0], elev[j-0,i+1], elev[j+1,i+1], elev[j+1,i+0], SEelev)
-                            print("SW", elev[j+0,i+0], elev[j+1,i+0], elev[j+1,i-1], elev[j+0,i-1], SWelev)
-                            '''
-                            return NEelev, NWelev, SEelev, SWelev    
-
-
-                if not self.tile_info["have_nan"]:
-                    # non NaNs: interpolate elevation of four corners (array order is top[y,x]!)
-                    NEelev = (self.top[j+0,i+0] + self.top[j-1,i-0] + self.top[j-1,i+1] + self.top[j-0,i+1]) / 4.0
-                    NWelev = (self.top[j+0,i+0] + self.top[j+0,i-1] + self.top[j-1,i-1] + self.top[j-1,i+0]) / 4.0
-                    SEelev = (self.top[j+0,i+0] + self.top[j-0,i+1] + self.top[j+1,i+1] + self.top[j+1,i+0]) / 4.0
-                    SWelev = (self.top[j+0,i+0] + self.top[j+1,i+0] + self.top[j+1,i-1] + self.top[j+0,i-1]) / 4.0
-                    '''
-                    print("\n", i,j)
-                    print("NE",self.top[j+0,i+0],self.top[j-1,i-0],self.top[j-1,i+1],self.top[j-0,i+1], NEelev)
-                    print("NW",self.top[j+0,i+0],self.top[j+0,i-1],self.top[j-1,i-1],self.top[j-1,i+0], NWelev)
-                    print("SE",self.top[j+0,i+0],self.top[j-0,i+1],self.top[j+1,i+1],self.top[j+1,i+0], SEelev)
-                    print("SW",self.top[j+0,i+0],self.top[j+1,i+0],self.top[j+1,i-1],self.top[j+0,i-1], SWelev)
-                    '''
-                else:
-                    # NaNs: set borders to True if we have any NaNs in any of the adjacent cells
-                    # Do this only for top as we assume that any bottom raster NaNs are the same as on top
-
-                    # get values for current cell i, j, NEelev, NWelev, SEelev, SWelev
-                    NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.top, i, j)
-                    if NEelev is None: # if any of the corners is NaN, we have set the cell to None and can skip it
-                        continue 
-                    
-                    # for the through water case or Top NaN, base the walls on the original (non-dilated) top
-                    if self.tile_info["have_nan"] == True: 
-                        top = self.top_orig
                     else:
-                        top = self.top
-
+                        # Difference mesh mode
+                        #force dilated top because using predilated version has NaNs at edge which makes extra walls
+                        borders_top_raster = self.tile.top_raster_variants.dilated
+                        
+                        #for difference mesh in bottom_thru_base case, check for walls with the nan_close version before dilation
+                        if self.bottom_thru_base == True:
+                            borders_top_raster = self.tile.top_raster_variants.nan_close
+                    
                     with warnings.catch_warnings():
                         warnings.filterwarnings('error')
                         try:
-                            if np.isnan(top[j-1,i]): borders["N"] = True
-                            if np.isnan(top[j+1,i]): borders["S"] = True
-                            if np.isnan(top[j,i-1]): borders["W"] = True
-                            if np.isnan(top[j,i+1]): borders["E"] = True
+                            if np.isnan(borders_top_raster[j-1,i]): borders["N"] = True
+                            if np.isnan(borders_top_raster[j+1,i]): borders["S"] = True
+                            if np.isnan(borders_top_raster[j,i-1]): borders["W"] = True
+                            if np.isnan(borders_top_raster[j,i+1]): borders["E"] = True
                         except RuntimeWarning:
                             pass # nothing wrong - just here to ignore the warning
                     
+                    # Quads for walls: in borders dict, replace any True with a quad of that wall
+                    if borders["N"] == True: borders["N"] = quad(NWb, NWt, NEt, NEb)
+                    if borders["S"] == True: borders["S"] = quad(SEb, SEt, SWt, SWb)
+                    if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
+                    if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
 
-                #
-                # Make top and bottom quads and wall. Note that here we flip x and y coordinate axis to the system 
-                # used in 3D graphics
-                #
+                # create borders if there is a top surface polygon using the edge buckets
+                surface_polygon_borders_3D: list[quad] = []
+                if self.tile.top_raster_variants.polygon_intersection_edge_buckets is not None and self.tile.top_raster_variants.polygon_intersection_edge_buckets[j-1][i-1] is not None:
+                    # Get list of all BorderEdges with edge geometry that should be walls
+                    wall_borderEdges = []
+                    buckets = self.tile.top_raster_variants.polygon_intersection_edge_buckets[j-1][i-1]
+                    if isinstance(buckets, dict):
+                        for bucket in buckets.values():
+                            if isinstance(bucket, list):
+                                for be in bucket:
+                                    if isinstance(be, BorderEdge):
+                                        if be.make_wall:
+                                            wall_borderEdges.append(be)
+                    
+                    if top_bottom_surface_geometries_2D:
+                        top_surface_edges_3D: list[shapely.LineString] = []
+                        bot_surface_edges_3D: list[shapely.LineString] = []
+                        for geom in top_bottom_surface_geometries_2D:
+                            if isinstance(geom, shapely.Polygon):
+                                flattened_top_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=shapely.orient_polygons(geom, exterior_cw=False), planes_3d=topq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
+                                top_surface_edges_3D.extend([item for item in flattened_top_geom if isinstance(item, shapely.LineString)])
+                                flattened_bot_geom = flatten_geometries(geometries=[interpolate_z_planar(geometry_2d=shapely.orient_polygons(geom, exterior_cw=True), planes_3d=botq.get_triangles_in_polygons(split_rotation=self.tile_info.config.split_rotation))], to_single_lines=True)
+                                bot_surface_edges_3D.extend([item for item in flattened_bot_geom if isinstance(item, shapely.LineString)])
+                        
+                        # Find matching interpolated top and bottom surface edges for all BorderEdges that should be a wall
+                        # This match is O(n^2) and optimized to O(n^2/2) in the optimal case by removing matched top/bottom surface edges from the array so matched edges are looked through again
+                        for be in wall_borderEdges:
+                            topEdgeMatch: shapely.LineString | None = None
+                            botEdgeMatch: shapely.LineString | None = None
+                            for ti in range(0, len(top_surface_edges_3D)):
+                                if be.geometry.equals(top_surface_edges_3D[ti]):
+                                    topEdgeMatch = top_surface_edges_3D[ti]
+                                    del top_surface_edges_3D[ti]
+                                    break
+                            for bi in range(0, len(bot_surface_edges_3D)):
+                                if be.geometry.equals(bot_surface_edges_3D[bi]):
+                                    botEdgeMatch = bot_surface_edges_3D[bi]
+                                    del bot_surface_edges_3D[bi]
+                                    break
+                            if topEdgeMatch and botEdgeMatch:
+                                # Success condition where wall BorderEdge and top edge and bottom edge share the same X,Y endpoints
+                                top_edge_v0 = vertex(*topEdgeMatch.coords[1])
+                                top_edge_v1 = vertex(*topEdgeMatch.coords[0])
+                                bot_edge_v0 = vertex(*botEdgeMatch.coords[1])
+                                bot_edge_v1 = vertex(*botEdgeMatch.coords[0])
+                                tb_wall = quad(top_edge_v0, top_edge_v1, bot_edge_v0, bot_edge_v1)
+                                surface_polygon_borders_3D.append(tb_wall)
+                                pass
+                            elif topEdgeMatch:
+                                raise RuntimeError('Border creation: top edge match found but no bot edge match.')
+                            elif botEdgeMatch:
+                                raise RuntimeError('Border creation: bot edge match found but no top edge match.')
+                            else:
+                                raise RuntimeError('Border creation: no top edge or bot edge matches')
+                            # create border geometry with top and bot edge
+                            # top and bot edges are in CW order (viewed from top) from shapely
+                            
+                            
+                        
 
-                # make top quad (x,y,z)    vi is the vertex index dict of the grids
-                NEt = vertex(E, N, NWelev)  # yes, NEt gets the z of NWelev, has to do with coordinate system change
-                NWt = vertex(W, N, NEelev)
-                SEt = vertex(E, S, SWelev)
-                SWt = vertex(W, S, SEelev)
-                # a certain vertex order is needed to make the 2 triangles be counter clockwise and so point outwards
-                topq = quad(NEt, SEt, SWt, NWt) 
-                #print(i, j, topq)
-                
+                #endregion
 
-                #
-                # make bottom quad  
-                #
-
-                # get corner for bottom array
-                if self.tile_info["have_bottom_array"] == True:
-
-                    # for the through water case, simply set the bottom to 0
-                    if self.throughwater == True:
-                        NEelev = NWelev = SEelev = SWelev = 0
-                    else:
-                        # simple interpolation
-                        if not self.tile_info["have_bot_nan"]:
-                            NEelev = (self.bottom[j+0,i+0] + self.bottom[j-1,i-0] + self.bottom[j-1,i+1] + self.bottom[j-0,i+1]) / 4.0
-                            NWelev = (self.bottom[j+0,i+0] + self.bottom[j+0,i-1] + self.bottom[j-1,i-1] + self.bottom[j-1,i+0]) / 4.0
-                            SEelev = (self.bottom[j+0,i+0] + self.bottom[j-0,i+1] + self.bottom[j+1,i+1] + self.bottom[j+1,i+0]) / 4.0
-                            SWelev = (self.bottom[j+0,i+0] + self.bottom[j+1,i+0] + self.bottom[j+1,i-1] + self.bottom[j+0,i-1]) / 4.0
-                        else:
-                            # Nan aware interpolation 
-                            NEelev, NWelev, SEelev, SWelev = interpolate_with_NaN(self.bottom, i, j)
-                            if NEelev is None: # if any of the corners is NaN, we have set the cell to None and are skippping it
-                                continue # skip this cell
-                else:
-                    NEelev = NWelev = SEelev = SWelev = self.bottom # otherwise use the constant bottom elevation value
-
-                # from whatever bottom values we have now, make the bottom quad
-                # (if we do the 2 tri bottom, these will end up not be used for the bottom but they may be used for any walls ...)
-                NEb = vertex(E, N, NWelev)
-                NWb = vertex(W, N, NEelev)
-                SEb = vertex(E, S, SWelev)
-                SWb = vertex(W, S, SEelev)
-                botq = quad(NEb, NWb, SWb, SEb)
-
-                #print(topq)
-                #print(botq)
-                 
-                # Quads for walls: in borders dict, replace any True with a quad of that wall
-                if borders["N"] == True: borders["N"] = quad(NEb, NEt, NWt, NWb)
-                if borders["S"] == True: borders["S"] = quad(SWb, SWt, SEt, SEb)
-                if borders["E"] == True: borders["E"] = quad(NWt, SWt, SWb, NWb)
-                if borders["W"] == True: borders["W"] = quad(SEt, NEt, NEb, SEb)
-
-                # Make cell
-                if self.tile_info["no_bottom"] == True:
+                #region Make cell
+                if self.tile_info.config.no_bottom == True:
                     c = cell(topq, None, borders) # omit bottom - do not fill with 2 tris later (may have NaNs)
                 else:
-                    if self.tile_info["have_nan"] == True or self.tile_info["have_bottom_array"] == True: 
+                    if self.tile_info.have_nan == True or self.tile.bottom_raster_variants is not None: #self.tile_info.have_bottom_array == True: 
                         # for through water case make sure this in not one of the dilated cells
 
                         c = cell(topq, botq, borders) # full cell: top quad, bottom quad and wall quads
                     else:
                         c = cell(topq, None, borders) # omit bottom, will fill with 2 tris later
+                
+                # set surface polygons for cell if clipping border affects this cell
+                if top_surface_polygons_triangulated_3D:
+                    c.topSurfacePolygons = top_surface_polygons_triangulated_3D
+                if bottom_surface_polygons_triangulated_3D:
+                    c.bottomSurfacePolygons = bottom_surface_polygons_triangulated_3D
+                if surface_polygon_borders_3D:
+                    c.surfacePolygonBorders = surface_polygon_borders_3D
 
                 # DEBUG: store i,j, and central elev
                 #c.iy = j-1
                 #c.ix = i-1
                 #c.central_elev = top[j-1,i-1]
 
+                if j == 10 and i == 10:
+                    pass
+
+                if self.tile.bottom_raster_variants is not None and self.tile_info.config.split_rotation == 1:
+                    c.remove_zero_height_volumes()
+
                 # if we have nan cells, do some postprocessing on this cell to get rid of stair case patterns
                 # This will create special triangle cells that have a triangle of any orientation at top/bottom, which 
                 # are flagged as is_tri_cell = True, and have only v0, v1 and v2. One border is deleted, the other
                 # is set as a diagonal wall.
                 # Note: this will not be done if we have a bottom as it will lead to lots of triangle holes! 
-                if self.tile_info["have_nan"] == True and self.tile_info["smooth_borders"] == True and self.tile_info["have_bottom_array"] == False:
+                if self.tile_info.have_nan == True and self.tile_info.config.smooth_borders == True and self.tile.bottom_raster_variants is None: #self.tile_info.have_bottom_array == False:
                     #print(i,j, c.borders)
                     if c.check_for_tri_cell():
                         c.convert_to_tri_cell()  # collapses top and bot quads into a triangle quad and make diagonal wall
                 
+                #endregion
+                
                 #
                 # Make quads for top, bottom and walls
                 #
-                no_bottom = self.tile_info["no_bottom"]
-                # list of quads for this cell,
-                if no_bottom == False and (self.tile_info["have_nan"] or self.tile_info["have_bottom_array"]): #  
-                    quads = [c.topquad, c.bottomquad]
-                else:
-                    quads = [c.topquad] # no bottom quads, only top
+                
+                # list of meshes for this cell,
+                meshes = c.meshes_for_model()
+                
+                # # list of quads for this cell,
+                # if no_bottom == False and (self.tile_info.have_nan or self.tile.bottom_raster_variants is not None): #self.tile_info.have_bottom_array): #  
+                #     quads = [c.topquad, c.bottomquad]
+                # else:
+                #     quads = [c.topquad] # no bottom quads, only top
 
                 # add border quads if we have any (False means no border quad) 
-                for k in c.borders:  # k is N, S, E, W
-                    if c.borders[k] is not False: quads.append(c.borders[k])
+                # for k in c.borders:  # k is N, S, E, W
+                #     if c.borders[k] is not False: meshes.append(c.borders[k])
+                        
+                def triangle_rounded_to_precision(decimals: int, triangle: list[vertex]) -> list[vertex]:
+                    output: list[vertex] = []
+                    for tv in triangle:
+                        output.append(tv.vertex_rounded_to_precision(decimals=decimals))
+                    return output
+                   
+                decimal_precision = 6
                 
-                # write the triangles of this quad to buffer
-                for q in quads:
-                    t0, t1 = q.get_triangles() # tri vertices
+                # Debug: inspect cell
+                if j == 6 and i == 5:
+                    pass
+                
+                # write the triangles of the meshes to buffer
+                for q in meshes:
+                    mesh_triangles: list[list[vertex]] = []                    
+                    if isinstance(q, quad):
+                        quad_triangles = q.get_triangles(split_rotation=self.tile_info.config.split_rotation) # tri vertices
 
-                    # for STL this will write triangles (vertices) but for obj this will
-                    # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
-                    self.write_triangle_to_buffer(t0)
-                    self.write_triangle_to_buffer(t1) # could be empty ...        
+                        # for STL this will write triangles (vertices) but for obj this will
+                        # write indices into s[1]/fo[1] (indices), vertices have to written based on these later 
+                        for t in quad_triangles:
+                            #mesh_triangles.append(list(t))
+                            mesh_triangles.append(
+                                triangle_rounded_to_precision(decimals=decimal_precision, triangle=list(t))
+                                )
+                        # if any(t0):
+                        #     self.write_triangle_to_buffer(t0)
+                        #     self.write_triangle_to_buffer(t1) # could be empty ...    
+                    elif isinstance(q, shapely.Polygon):
+                        pass
+                        t0 = tuple(polygon_to_list_of_vertex(polygon=q))
+                        if len(t0) == 4 and t0[0].coords == t0[3].coords:
+                           #mesh_triangles.append(list(t0[:3]))
+                           mesh_triangles.append(triangle_rounded_to_precision(decimals=decimal_precision, triangle=list(t0[:3])))
+                        else:
+                           raise ValueError(f"create_cells: found a polygon to write to buffer that is not a triangle. Expected a tri of length 3+1=4 and [0]==[3] vertex. Polygon had vertex count f{len(t0)}.")
+                    
+                    for mt in mesh_triangles:
+                        self.write_triangle_to_buffer(tuple(mt))
         
         print("100%", multiprocessing.current_process(), "\n", file=sys.stderr)
     
-    def write_triangle_to_buffer(self, t):
+    def write_triangle_to_buffer(self, t: tuple[vertex, ...]):
         '''write triangle vertices for triangle t to stream buffer self.s for caching.
         Once the cache is full, is is writting to disk (self.fo)'''
         
@@ -936,30 +1026,34 @@ class grid:
         self.num_triangles += 1
 
         # Create triangle coords list, for STL including normal coords (no normals for obj)
-        if self.tile_info["fileformat"] != "obj":
-            tl = get_normal(t) if self.tile_info["no_normals"] == False else [0,0,0]
+        if self.tile_info.config.fileformat != "obj":
+            tl = get_normal(t) if self.tile_info.config.no_normals == False else [0,0,0]
             for v in t:
                 coords = v.get() # get() => list of coords [x,y,z]
+                # pack 64 bit float to 32 bit and unpack 32 bit back to 64 bit to try to get the same value represented in 32 bit
+                #coords = tuple(map(lambda x: struct.unpack('<f', struct.pack('<f', x))[0], coords))
+                # add 0.0 to value to force -0 value to +0
+                coords = tuple(map(lambda x: x+0.0, coords))
                 tl.extend(coords) # like append() but extend() unpacks that list!
             tl.append(0) # append attribute byte 0
 
-        if self.tile_info["fileformat"] == "STLb":
+        if self.tile_info.config.fileformat == "STLb":
             # en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-            BINARY_FACET = "12fH" # 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
+            BINARY_FACET = "<12fH" # little endian order 12 32-bit floating-point numbers + 2-byte ("short") unsigned integer ("attribute byte count" -> use 0)
             self.s.write(struct.pack(BINARY_FACET, *tl)) # append to s
 
-        elif self.tile_info["fileformat"] == "STLa":
+        elif self.tile_info.config.fileformat == "STLa":
             ASCII_FACET ="""facet normal {face[0]:f} {face[1]:f} {face[2]:f}\nouter loop\nvertex {face[3]:f} {face[4]:f} {face[5]:f}\nvertex {face[6]:f} {face[7]:f} {face[8]:f}\nvertex {face[9]:f} {face[10]:f} {face[11]:f}\nendloop\nendfacet\n"""
             self.s.write(ASCII_FACET.format(face=tl))
 
-        elif self.tile_info["fileformat"] == "obj":
+        elif self.tile_info.config.fileformat == "obj":
             # add facet indices to index stream buffer
             vl = [v.get_id() + 1 for v in t] # vertex list +1 b/c obj indices start at 1
             self.s[1].write(f"f {vl[0]}, {vl[1]}, {vl[2]}\n") 
 
         # for STL maybe write to temp file. This can't work for obj b/c we need the full list 
         # of tri indices first. Once we have that, we can create a buffer/tempfile
-        if self.tile_info["fileformat"] != "obj":  
+        if self.tile_info.config.fileformat != "obj":  
             self.write_buffer_to_file()
             
     def write_buffer_to_file(self, flush=False, chunk_size=100000):
@@ -969,26 +1063,26 @@ class grid:
         # for obj, write only the indices [1], vertices [0] will be done later
         
         # Only write to file if we're actually using temp files, otherwise just bail out
-        if self.tile_info.get("temp_file") is None:
+        if self.tile_info.temp_file is None:
             return
         
         if self.num_triangles % chunk_size == 0  or flush == True:
-            if self.tile_info["fileformat"] == "STLb":
+            if self.tile_info.config.fileformat == "STLb":
                 self.fo.write(self.s.getbuffer())   # append (partial) binary buffer to file
                 self.s.close()
                 self.s = io.BytesIO()
-            elif self.tile_info["fileformat"] == "STLa":
+            elif self.tile_info.config.fileformat == "STLa":
                 self.fo.write(self.s.getvalue())   # append (partial) text buffer to file
                 self.s.close()
                 self.s = io.StringIO()
-            elif self.tile_info["fileformat"] == "obj":
+            elif self.tile_info.config.fileformat == "obj":
                 self.fo[1].write(self.s[1].getvalue())
                 self.s[1].close()
                 self.s[1] = io.StringIO()
 
         if flush == True:
             # close buffers (needed?)
-            if self.tile_info["fileformat"] == "obj":
+            if self.tile_info.config.fileformat == "obj":
                 self.s[1].close()
             else: # STLb and STLa
                 self.s.close()
@@ -1220,38 +1314,42 @@ class grid:
     # Convert grid into a file or memory buffer containing triangles (plus indices for obj)
     def make_file_buffer(self):
         
+        if self.tile_info is None:
+            print("make_file_buffer: Error: self.tile_info is None")
+            return
+        
         # check that we have a valid triangle file format
-        if self.tile_info["fileformat"] not in ["obj", "STLa", "STLb"]:
-            raise ValueError(f"Invalid file format: {self.tile_info['fileformat']}. Supported formats are 'obj', 'STLa', and 'STLb'")
+        if self.tile_info.config.fileformat not in ["obj", "STLa", "STLb"]:
+            raise ValueError(f"Invalid file format: {self.tile_info.config.fileformat}. Supported formats are 'obj', 'STLa', and 'STLb'")
 
         # get file name for temp file (or None if using memory)
-        if self.tile_info.get("temp_file") != None:  # contains None or a file name.
-            temp_file = self.tile_info["temp_file"]
+        if self.tile_info.temp_file != None:  # contains None or a file name.
+            temp_file = self.tile_info.temp_file
         else:
             temp_file = None # means: use memory
 
         # Open in-memory stream buffers s 
         # s is used to collect the data that is eventually written into a proper file
-        if self.tile_info["fileformat"] == "STLb":
+        if self.tile_info.config.fileformat == "STLb":
             self.s = io.BytesIO()
             mode = "ab"  # for using open() later
-        elif self.tile_info["fileformat"] == "STLa":
+        elif self.tile_info.config.fileformat == "STLa":
             self.s = io.StringIO() 
             mode = "a"
-        elif self.tile_info["fileformat"] == "obj":
+        elif self.tile_info.config.fileformat == "obj":
             mode = "a"   
             # 2 buffers: vertices and indices
             self.s = [io.StringIO(), io.StringIO()]
 
         # open temp file for appending, file object self.fo will be used in create_cells()
         if temp_file != None:
-            if self.tile_info["fileformat"] == "STLa" or self.tile_info["fileformat"] == "STLb":
+            if self.tile_info.config.fileformat == "STLa" or self.tile_info.config.fileformat == "STLb":
                 try:
                     self.fo = open(temp_file, mode)
                 except Exception as e:
                     print("Error opening:", temp_file, e, file=sys.stderr)
                     return e
-            elif self.tile_info["fileformat"] == "obj":
+            elif self.tile_info.config.fileformat == "obj":
                 # for obj we need 2  temp files and file objects, so s and fo are now lists
                 try:
                     vertsfo =  open(temp_file, mode)
@@ -1269,9 +1367,9 @@ class grid:
 
         # header for STLa and obj
         # (STLb header can only pre-pended later)
-        if self.tile_info["fileformat"] == "STLa":
+        if self.tile_info.config.fileformat == "STLa":
             self.s.write('solid digital_elevation_model\n') # digital_elevation_model is the name of the model
-        elif self.tile_info["fileformat"] == "obj":
+        elif self.tile_info.config.fileformat == "obj":
             self.s[0].write("g vert\n")
             self.s[1].write("g tris\n")
 
@@ -1282,24 +1380,24 @@ class grid:
         add_simple_bottom = True # True by default, set to False if we can't create a 2-triangle bottom
         
         # We don't have bottom tris but that's OK as we don't them anyway (no_bottom option was set)
-        if self.tile_info["no_bottom"] == True: add_simple_bottom = False # 
+        if self.tile_info.config.no_bottom == True: add_simple_bottom = False # 
         
         # With a NaN (masked) top array, we already have the corresponding full bottom
-        if self.tile_info["have_nan"] == True: add_simple_bottom = False 
+        if self.tile_info.have_nan == True: add_simple_bottom = False 
         
         # with a bottom image/elevation, we also already need a full bottom
-        if self.tile_info["bottom_image"] != None or self.tile_info["bottom_elevation"] != None: 
+        if self.tile_info.config.bottom_image != None or self.tile_info.config.bottom_elevation != None: 
             add_simple_bottom = False
 
         # obj files currently don't support simple bottoms
-        #if self.tile_info["fileformat"] == 'obj': add_simple_bottom = False
+        #if self.tile_info.fileformat == 'obj': add_simple_bottom = False
 
         # For simple bottom, add 2 triangles based on the corners of the tile
         if add_simple_bottom:
-            v0 = vertex(self.tile_info["W"], self.tile_info["S"], 0)
-            v1 = vertex(self.tile_info["E"], self.tile_info["S"], 0)
-            v2 = vertex(self.tile_info["E"], self.tile_info["N"], 0)
-            v3 = vertex(self.tile_info["W"], self.tile_info["N"], 0)
+            v0 = vertex(self.tile_info.W, self.tile_info.S, 0)
+            v1 = vertex(self.tile_info.E, self.tile_info.S, 0)
+            v2 = vertex(self.tile_info.E, self.tile_info.N, 0)
+            v3 = vertex(self.tile_info.W, self.tile_info.N, 0)
 
             t0 = (v0, v2, v1) #A
             t1 = (v0, v3, v2) #B
@@ -1311,12 +1409,12 @@ class grid:
         if temp_file is None: 
         
             # finish STLa stream buffer
-            if self.tile_info["fileformat"] == "STLa":
+            if self.tile_info.config.fileformat == "STLa":
                 self.s.write('endsolid digital_elevation_model') # append end clause
                 buf = self.s.getvalue()
 
             # For STLb buffer, prepend the header
-            if self.tile_info["fileformat"] == "STLb":
+            if self.tile_info.config.fileformat == "STLb":
                 BINARY_HEADER = "80sI" # up to 80 chars do NOT start with the word solid + number of faces as UINT32
                 stlb_header = io.BytesIO()
                 stlb_header.write(struct.pack(BINARY_HEADER, b'Binary STL Writer', self.num_triangles))
@@ -1325,7 +1423,7 @@ class grid:
                 buf = stlb_header.getvalue()  # CH 5/2025 changed from getbuffer to not return a memory object that c an't be pickled  
 
             # fill s[0] and append s[1]
-            elif self.tile_info["fileformat"] == "obj":
+            elif self.tile_info.config.fileformat == "obj":
                 # fill s[0] with all vertices used (keys of vertex class attribute dict)
                 print("Appending obj triangle indices\n", file=sys.stderr)
                 for vc in vertex.vertex_index_dict:
@@ -1342,12 +1440,12 @@ class grid:
             self.write_buffer_to_file(flush=True) # write leftover buffer to file, will NOT close fo!
 
             # STLa: append last line
-            if self.tile_info["fileformat"] == "STLa":
+            if self.tile_info.config.fileformat == "STLa":
                 self.fo.write('endsolid digital_elevation_model') 
                 self.fo.close()
 
             # for binary STL we can only now prepend a header as we didn't have num_triangles until now.
-            elif self.tile_info["fileformat"] == "STLb":
+            elif self.tile_info.config.fileformat == "STLb":
                 # rename curent file so we can append it to the header file
                 self.fo.close()
                 body_file = temp_file + ".body"
@@ -1361,7 +1459,7 @@ class grid:
             
             # For obj the the fo[0] temp file (vertices) must be filled, then the
             # .idx temp file needs to be appended to i 
-            elif self.tile_info["fileformat"] == "obj":
+            elif self.tile_info.config.fileformat == "obj":
                 # fill vertex temp file
                 print("Appending obj triangle indices\n", file=sys.stderr)
                 for vc in vertex.vertex_index_dict:

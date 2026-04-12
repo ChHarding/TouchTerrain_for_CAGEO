@@ -1,29 +1,36 @@
 '''Utilities for touchterrain'''
 
-import numpy
-import imageio
-import scipy.stats as stats
-from scipy import ndimage  
-from scipy.ndimage import binary_dilation, generic_filter
 import os.path
-import k3d
 import random
-from glob import glob
 import zipfile
+
+from glob import glob
+
+import imageio
+import k3d
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.colors as mcolors
+import numpy
+import scipy.stats as stats
+
+from scipy import ndimage  
+from scipy.ndimage import binary_dilation, generic_filter
+
 from matplotlib.colors import ListedColormap
-np = numpy
 
 from touchterrain.common.calculate_ticks import calculate_ticks # calculate nice ticks for elevation visualization
+
+np = numpy
+
+
 # Utility to save tile as binary png image
 def save_tile_as_image(tile, name):
     tile_elev_raster_mask = ~numpy.isnan(tile) * 255
     imageio.imsave(name + '.png', tile_elev_raster_mask.astype(numpy.uint8))
 
 
-def clean_up_diags(ras):
+def clean_up_diags(ras: numpy.ndarray):
     '''clean up diagonal cells as these lead to non-manifold vertices where they meet
     These are defined as either  0 1   or   1 0  where 0 == NaN and 1 == non-NaN)
                                  1 0        0 1
@@ -43,7 +50,7 @@ def clean_up_diags(ras):
                      [0, 1, 1, 0,]])
 
     '''
-    # If there are NaNs in the raster there cannot by any diagonal patterns, so we're done!
+    # If there are not NaNs in the raster there cannot by any diagonal patterns, so we're done!
     if not numpy.any(numpy.isnan(ras)):
         return ras
 
@@ -184,13 +191,114 @@ def fillHoles(raster, num_iters=-1,  num_neighbors=7, NaN_are_holes=False):
 
     return raster
 
+geoXMin = 0
+geoXPixelSize = 0
+geoYMin = 0
+geoYPixelSize = 0
+
+def arrayCellCoordToGeoCoord(array_coord_2D: tuple[float, float], geo_transform: tuple) -> tuple[float, float]:
+    """Transform a tuple of array based cell coordinates in X,Y order to geo coordinates. Returns the new tuple.
+
+    :param array_coord_2D: Tuple(X,Y) of array based cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param geo_transform: GDAL geotransform information in a tuple of order [tl X, pixel width, X-skew, tl Y, Y-skew, pixel height]
+    :type geo_transform: tuple
+    :return: Tuple of geo coordinates
+    :rtype: tuple[float, float]
+    """
+    geoXMin = geo_transform[0]
+    geoXPixelSize = geo_transform[1]
+    geoYMax = geo_transform[3]
+    geoYPixelSize = geo_transform[5]
+    
+    geoX = geoXMin + (array_coord_2D[0]+0.5)*geoXPixelSize
+    geoY = geoYMax + (array_coord_2D[1]+0.5)*geoYPixelSize
+    return (geoX, geoY)
+
+def arrayCellCoordToPrint2DCoord(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> tuple[float, float]:
+    """Transform a tuple of 0-based array cell coordinates in X,Y order to Print2D coordinates. Returns the new tuple.
+
+    :param array_coord_2D: Tuple(X,Y) of array based cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param cell_size: Cell size in Print2D coordinates (mm), likely print3D_resolution_mm
+    :type cell_size: float
+    :param tile_y_shape: Tile Y height in number of array indices, likely npim.shape[0]
+    :type tile_y_shape: int
+    :return: Tuple of Print2D coordinates in X,Y order
+    :rtype: tuple[float, float]
+    """
+
+    # The returned float may not be representable in float such as "0.1" or "8.7" which are actually very close number represented in float. But when they are written to STL with struct.pack("f", 0.1), they will be rounded to be equivalent to any other 0.1-ish value.
+
+    printX = 0 + (array_coord_2D[0]+0.5)*cell_size
+    printY = (tile_y_shape - array_coord_2D[1]-0.5)*cell_size
+    return (printX, printY)
+
+def arrayCellCoordToQuadPrint2DCoords(array_coord_2D: tuple[float, float], cell_size: float, tile_y_shape: int) -> list[tuple[float, float]]:
+    """Transform a tuple of 0-based array cell coordinates in X,Y order to Print2D coordinates of the quad corners. Returns the new tuple of Print2D coordinates in NW SW SE NE order.
+
+    :param array_coord_2D: Tuple of 0-based array cell coordinates 2D.
+    :type array_coord_2D: tuple[float, float]
+    :param cell_size: Cell size in Print3D dimension (mm)
+    :type cell_size: float
+    :param tile_y_shape: Tile Y height in number of array indices
+    :type tile_y_shape: int
+    :return:  of quad corner locations in Print2D coordinates in NW SW SE NE order
+    :rtype:  tuple[tuple[float, float], tuple[float, float], tuple[float, float], tuple[float, float]]
+    """
+    NW = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]-0.5, array_coord_2D[1]-0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    SW = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]-0.5, array_coord_2D[1]+0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    SE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]+0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    NE = arrayCellCoordToPrint2DCoord(array_coord_2D=(array_coord_2D[0]+0.5, array_coord_2D[1]-0.5), cell_size=cell_size, tile_y_shape=tile_y_shape)
+    
+    return [NW, SW, SE, NE]
+    
+import shapely
+def geoCoordToPrint2DCoord(geoCoord2D: shapely.Geometry | tuple[float, float] , scale: float, geoXMin: float, geoYMin: float) -> shapely.Geometry | tuple[float, float]:
+    """Transform a geometry or tuple from geo coordinates to print2D coordinates. Returns the new geometry or tuple. 
+    
+    Array coordinates have min Y at top
+    
+    Projected geo coordinates have origin at lower left.
+    Print2D coordinates have origin at lower left.
+
+    :param geoCoord2D: Shapely geometry type object to transform. Coordinates are in projected geo coordinates. The polygon from clipping boundary file CRS should be reprojected to the projected CRS of the raster.
+    :type geoCoord2D: shapely.Geometry
+    :param scale: raster to print 3D scale (use tileScale)
+    :type scale: float
+    :param geoXMin: geocoordinate X min of the raster
+    :type geoXMin: float
+    :param geoYMin: geo coordinate Y min of the raster
+    :type geoYMin: float
+    """
+    
+    returnAsTuple = False
+    if isinstance(geoCoord2D, tuple):
+        returnAsTuple = True
+        geoCoord2D = shapely.Point(geoCoord2D)
+    
+    scale /= 1000 # print2D coordinates are in mm but the scale is for real world meters to print meters. 
+    
+    def transform(x: numpy.ndarray):
+        return (x - [geoXMin, geoYMin]) / scale
+    
+    print3DCoord2D = shapely.transform(geoCoord2D, transformation=transform)
+    
+    if returnAsTuple:
+        if isinstance(print3DCoord2D, shapely.Point):
+            return (print3DCoord2D.x, print3DCoord2D.y)
+        else:
+            print(f'geoCoordToPrint3DCoord: could not return tuple')
+    
+    return print3DCoord2D
+    
+def interpolatePointWithQuadPrint2DCoordsAndCornerElev(interpolatePoint: tuple[float, float], quadPrint2DCoords: list[tuple[float, float]], quadCornerElev: list[float]):
+    pass
 
 def add_to_stl_list(stl, stl_list):
     stl_list.append(stl)
     return stl_list
     
-
-
 def k3d_render_to_html(stl_list, folder, buffer=False):
     """stl_list is either a list of buffers or a list of filenames
     folder is the folder where the html file will be saved
@@ -303,7 +411,7 @@ def plot_DEM_histogram(npim, DEM_name, temp_folder):
     return plot_file_name
 
 
-def dilate_array(raster, dilation_source=None):
+def dilate_array(raster, dilation_source:numpy.ndarray|None=None, dilation_cycles:int=1, limit_mask=None):
     '''Will dilate raster (1 cell incl diagonals) with the corresponding cell values of the dilation_source.
     If dilation_source is None the dilation will be filled with the 3 x 3 nanmean
     returns the dilated raster'''
@@ -313,8 +421,11 @@ def dilate_array(raster, dilation_source=None):
         # Convert raster to a binary array, where True represents non-NaN values
         nan_mask = ~np.isnan(raster) 
 
-        # Perform the binary dilation operation
-        dilated_nan_mask = binary_dilation(nan_mask) 
+        # Perform the binary dilation operation as many times as specified
+        # generate dilation mask with multiple cycles at once because some locations may be separated by NaN and not reachable with individual dilations
+        dilated_nan_mask = binary_dilation(nan_mask, mask=limit_mask) 
+        for _ in range(dilation_cycles-1):
+            dilated_nan_mask = binary_dilation(dilated_nan_mask, mask=limit_mask) 
 
         # Create a mask that is True for pixels in the dilation zone that are NaN in the bottom raster
         mask = dilated_nan_mask & ~nan_mask  
@@ -335,7 +446,7 @@ def dilate_array(raster, dilation_source=None):
         #  [False False  True  True]
         #  [ True  True  True  True]]
 
-        dilated_mask = binary_dilation(mask)   # Perform a binary dilation
+        dilated_mask = binary_dilation(mask, mask=limit_mask)   # Perform a binary dilation
         # [[False True  True  True]
         # [ True  True  True  True]
         # [ True  True  True  True]]

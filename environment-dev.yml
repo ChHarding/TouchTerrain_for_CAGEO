@@ -1,8 +1,8 @@
-name: touchterrain
+name: touchterrain-dev
 channels:
     - conda-forge
 dependencies:
     - gdal
     - pip
     - pip:
-        - .
+        - -e .
