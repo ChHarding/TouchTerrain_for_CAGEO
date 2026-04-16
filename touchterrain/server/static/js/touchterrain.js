@@ -119,18 +119,34 @@ window.onload = function () {
         }
     }, 500);
 
-    // Initialize search with ESRI geocoder
-    const searchControl = L.esri.Geocoding.geosearch({
+    // Initialize search with ESRI geocoder.
+    // Local/dev hosts often won't match referrer-locked keys, so fall back
+    // to the default provider there to avoid a permanently spinning search box.
+    const _host = (window.location && window.location.hostname) ? window.location.hostname : '';
+    const _isLocalHost = _host === 'localhost' || _host === '127.0.0.1' ||
+        _host.endsWith('.local') ||
+        /^10\./.test(_host) ||
+        /^192\.168\./.test(_host) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(_host);
+    const _useGeocoderKey = Boolean(window.ESRI_API_KEY) && !_isLocalHost;
+
+    const _geosearchOpts = {
         position: 'topleft',
         placeholder: 'Search for a place',
         useMapBounds: false,
-        providers: [L.esri.Geocoding.arcgisOnlineProvider({
-            apikey: window.ESRI_API_KEY || ''
-        })],
         collapseAfterResult: false,
         expanded: true,
         allowMultipleResults: false
-    }).addTo(map);
+    };
+    if (_useGeocoderKey) {
+        _geosearchOpts.providers = [L.esri.Geocoding.arcgisOnlineProvider({
+            apikey: window.ESRI_API_KEY
+        })];
+    } else if (window.ESRI_API_KEY && _isLocalHost) {
+        console.warn('ESRI geocoder: ignoring API key on local/dev host to avoid referrer-lock failures.');
+    }
+
+    const searchControl = L.esri.Geocoding.geosearch(_geosearchOpts).addTo(map);
 
     // Create marker for search results; hide pin when its popup is closed
     marker = L.marker([0, 0], { opacity: 0 }).addTo(map);
