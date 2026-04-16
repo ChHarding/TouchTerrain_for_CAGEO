@@ -148,6 +148,61 @@ window.onload = function () {
 
     const searchControl = L.esri.Geocoding.geosearch(_geosearchOpts).addTo(map);
 
+    // Show geocoder failures (e.g., key/referrer auth issues) instead of silently spinning.
+    const geocoderStatus = document.createElement('div');
+    geocoderStatus.id = 'geocoder-status-msg';
+    geocoderStatus.className = 'geocoder-status-msg';
+    geocoderStatus.style.display = 'none';
+    const mapEl = document.getElementById('map');
+    if (mapEl) mapEl.appendChild(geocoderStatus);
+
+    let geocoderWatchdog = null;
+    function clearGeocoderStatus() {
+        if (geocoderWatchdog) {
+            clearTimeout(geocoderWatchdog);
+            geocoderWatchdog = null;
+        }
+        geocoderStatus.style.display = 'none';
+        geocoderStatus.textContent = '';
+    }
+    function startGeocoderWatchdog() {
+        if (geocoderWatchdog) clearTimeout(geocoderWatchdog);
+        geocoderWatchdog = setTimeout(function() {
+            geocoderStatus.textContent = 'Search is taking too long. Geocoder may be blocked by API key/referrer settings.';
+            geocoderStatus.style.display = 'block';
+            browser_log('geocoder watchdog timeout: loading spinner did not resolve in 7s');
+        }, 7000);
+    }
+
+    // Monitor the geocoder loading class so a stuck spinner raises a visible warning.
+    setTimeout(function() {
+        const geocoderControlEl = document.querySelector('.geocoder-control');
+        if (!geocoderControlEl) return;
+
+        const syncWatchdogWithLoadingState = function() {
+            if (geocoderControlEl.classList.contains('geocoder-control-loading')) {
+                startGeocoderWatchdog();
+            } else {
+                clearGeocoderStatus();
+            }
+        };
+
+        const observer = new MutationObserver(syncWatchdogWithLoadingState);
+        observer.observe(geocoderControlEl, { attributes: true, attributeFilter: ['class'] });
+
+        const inputEl = geocoderControlEl.querySelector('.geocoder-control-input');
+        if (inputEl) {
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && inputEl.value.trim().length > 0) {
+                    startGeocoderWatchdog();
+                }
+            });
+            inputEl.addEventListener('input', function() {
+                if (!inputEl.value.trim()) clearGeocoderStatus();
+            });
+        }
+    }, 0);
+
     // Create marker for search results; hide pin when its popup is closed
     marker = L.marker([0, 0], { opacity: 0 }).addTo(map);
     marker.on('popupclose', function() {
@@ -156,6 +211,7 @@ window.onload = function () {
 
     // Handle search results
     searchControl.on('results', function(data) {
+        clearGeocoderStatus();
         if (data.results && data.results.length > 0) {
             const result = data.results[0];
             const latlng = result.latlng;

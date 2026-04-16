@@ -109,3 +109,26 @@
 .leaflet-popup-content {
     font-size: 14px;
 }
+
+/* Geocoder timeout/error status (shown if spinner is stuck) */
+.geocoder-status-msg {
+    position: absolute;
+    top: 46px;
+    left: 10px;
+    z-index: 1100;
+    max-width: 420px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #f0b7b7;
+    background: rgba(255, 244, 244, 0.97);
+    color: #8d1f1f;
+    font-size: 12px;
+    line-height: 1.35;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 700px) {
+    .geocoder-status-msg {
+        max-width: calc(100% - 20px);
+    }
+}
