@@ -120,15 +120,9 @@ window.onload = function () {
     }, 500);
 
     // Initialize search with ESRI geocoder.
-    // Local/dev hosts often won't match referrer-locked keys, so fall back
-    // to the default provider there to avoid a permanently spinning search box.
-    const _host = (window.location && window.location.hostname) ? window.location.hostname : '';
-    const _isLocalHost = _host === 'localhost' || _host === '127.0.0.1' ||
-        _host.endsWith('.local') ||
-        /^10\./.test(_host) ||
-        /^192\.168\./.test(_host) ||
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(_host);
-    const _useGeocoderKey = Boolean(window.ESRI_API_KEY) && !_isLocalHost;
+    // If an API key exists, always use it (including localhost) so local testing
+    // matches production behavior for keyed geocoding.
+    const _useGeocoderKey = Boolean(window.ESRI_API_KEY);
 
     const _geosearchOpts = {
         position: 'topleft',
@@ -142,8 +136,6 @@ window.onload = function () {
         _geosearchOpts.providers = [L.esri.Geocoding.arcgisOnlineProvider({
             apikey: window.ESRI_API_KEY
         })];
-    } else if (window.ESRI_API_KEY && _isLocalHost) {
-        console.warn('ESRI geocoder: ignoring API key on local/dev host to avoid referrer-lock failures.');
     }
 
     const searchControl = L.esri.Geocoding.geosearch(_geosearchOpts).addTo(map);
@@ -347,7 +339,7 @@ window.onload = function () {
 
     // Initialize form values
     update_corners_form();
-    SetDEM_name();
+    init_terrain_settings();
     init_print_options();
     create_divison_lines();
 
@@ -932,6 +924,8 @@ function create_overlay(MAPID, map) {
     }
 
     function _setDot(bg, title, blink) {
+        // Don't overwrite the rate-limit indicator while it's active
+        if (window._hsRateLimitedUntil && Date.now() < window._hsRateLimitedUntil) return;
         Object.assign(lamp.style, {
             width: '14px', height: '14px', borderRadius: '50%',
             border: '2px solid #444', boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
@@ -944,6 +938,7 @@ function create_overlay(MAPID, map) {
     }
 
     function _setZoomHint() {
+        if (window._hsRateLimitedUntil && Date.now() < window._hsRateLimitedUntil) return;
         lamp.classList.remove('hs-lamp-blink');
         Object.assign(lamp.style, {
             width: 'auto', height: 'auto', borderRadius: '3px',
@@ -977,7 +972,14 @@ function create_overlay(MAPID, map) {
         _setDot('#f5c518', 'Terrain: loading tiles\u2026', true);
         browser_log(`tile loading started  zoom=${map.getZoom()}  mapid=${MAPID}`);
     });
-    overlay.on('tileload',  () => { _okCount++; });
+    overlay.on('tileload',  (e) => {
+        _okCount++;
+        // Extract z/x/y from the tile URL (format: .../tiles/z/x/y)
+        const _src = e.tile && e.tile.src ? e.tile.src : '';
+        const _m = _src.match(/\/tiles\/([^?#]+)/);
+        const _zxy = _m ? _m[1] : 'unknown';
+        browser_log(`tile loaded  ${_zxy}  mapid=${MAPID}`);
+    });
     overlay.on('load', () => {
         overlay.setOpacity(_sliderOpacity());
         if (_errCount === 0) {
@@ -1007,8 +1009,14 @@ function create_overlay(MAPID, map) {
     }
 
     // Hide stale tiles during zoom animation, restore correct state after zoom settles
-    map.on('zoomstart', () => { if (map.hasLayer(overlay)) overlay.setOpacity(0); });
-    map.on('zoomend',   _applyZoomState);
+    map.on('zoomstart', () => {
+        if (map.hasLayer(overlay)) overlay.setOpacity(0);
+        browser_log(`zoom start: from z=${map.getZoom()}  center=${map.getCenter().lat.toFixed(4)},${map.getCenter().lng.toFixed(4)}  mapid=${MAPID}`);
+    });
+    map.on('zoomend', () => {
+        browser_log(`zoom end:   to   z=${map.getZoom()}  center=${map.getCenter().lat.toFixed(4)},${map.getCenter().lng.toFixed(4)}  mapid=${MAPID}`);
+        _applyZoomState();
+    });
 
     _applyZoomState();   // set correct initial state without waiting for first zoom
     return overlay;
@@ -1283,6 +1291,65 @@ function SetDEM_name() {
     
     document.getElementById('source_resolution').value = parseInt(res);
     document.getElementById('source_resolution').innerHTML = res + " m";
+
+    // Update the (DEM Info) link to point directly to the GEE catalog page for the selected DEM.
+    const _base = 'https://developers.google.com/earth-engine/datasets/catalog/';
+    let link;
+    switch(DEM_name){
+        case "USGS/3DEP/10m_collection":          link = _base + 'USGS_3DEP_10m'; break;
+        case "USGS/3DEP/1m":                      link = _base + 'USGS_3DEP_1m'; break;
+        case "NRCan/CDEM":                         link = _base + 'NRCan_CDEM'; break;
+        case "AU/GA/AUSTRALIA_5M_DEM":            link = _base + 'AU_GA_AUSTRALIA_5M_DEM'; break;
+        case "MERIT/DEM/v1_0_3":                  link = _base + 'MERIT_DEM_v1_0_3'; break;
+        case "JAXA/ALOS/AW3D30/V4_1":            link = _base + 'JAXA_ALOS_AW3D30_V4_1'; break;
+        case "USGS/SRTMGL1_003":                  link = _base + 'USGS_SRTMGL1_003'; break;
+        case "USGS/GMTED2010_FULL":               link = _base + 'USGS_GMTED2010'; break;
+        case "USGS/GTOPO30":                      link = _base + 'USGS_GTOPO30'; break;
+        case "CPOM/CryoSat2/ANTARCTICA_DEM":      link = _base + 'CPOM_CryoSat2_ANTARCTICA_DEM'; break;
+        case "NOAA/NGDC/ETOPO1":                  link = _base + 'NOAA_NGDC_ETOPO1'; break;
+        case "IGN/RGE_ALTI/1M/2_0/FXX":          link = _base + 'IGN_RGE_ALTI_1M_2_0'; break;
+        case "UK/EA/ENGLAND_1M_TERRAIN/2022":     link = _base + 'UK_EA_ENGLAND_1M_TERRAIN_2022'; break;
+        default: link = 'https://developers.google.com/earth-engine/datasets/tags/elevation-topography';
+    }
+    const _demLinkEl = document.getElementById('DEM_link');
+    if (_demLinkEl) _demLinkEl.href = link;
+}
+
+// Initialize all Terrain Settings controls from server-provided values
+// so they persist across hillshade refreshes.
+function init_terrain_settings() {
+    SetDEM_name();
+
+    const _transp = Number(window.tt_transp);
+    const _gamma = Number(window.tt_gamma);
+    const _hsazi = Number(window.tt_hsazi);
+    const _hselev = Number(window.tt_hselev);
+
+    const _safeTransp = Number.isFinite(_transp) ? _transp : 20;
+    const _safeGamma = Number.isFinite(_gamma)
+        ? (Number.isInteger(_gamma) ? _gamma.toFixed(1) : String(_gamma))
+        : '1.0';
+    const _safeHsazi = Number.isFinite(_hsazi) ? _hsazi : 315;
+    const _safeHselev = Number.isFinite(_hselev) ? _hselev : 45;
+
+    updateTransparency(_safeTransp);
+    updateGamma(_safeGamma);
+
+    const _hsazi2 = document.getElementById('hsazi2');
+    if (_hsazi2) _hsazi2.value = String(_safeHsazi);
+
+    const _hselev2 = document.getElementById('hselev2');
+    if (_hselev2) _hselev2.value = String(_safeHselev);
+
+    // Keep hidden reload/export fields in sync with visible controls.
+    const _hsaziHidden = document.getElementById('hsazi');
+    if (_hsaziHidden) _hsaziHidden.value = String(_safeHsazi);
+
+    const _hselevHidden = document.getElementById('hselev');
+    if (_hselevHidden) _hselevHidden.value = String(_safeHselev);
+
+    const _maptype = document.getElementById('maptype');
+    if (_maptype) _maptype.value = current_basemap;
 }
 
 // Set opacity of hillshade as inverse of transparency given
@@ -1368,8 +1435,52 @@ function saveMapSettings() {
     document.getElementById('map_zoom3').value = map.getZoom(); 
 }
 
+// Client-side hillshade refresh rate limiter.
+// Tracks timestamps of recent submits; if NUM_REFRESH_PER_MINUTE is set and the
+// rolling 60-second count is exceeded, blinks the terrain lamp red instead of submitting.
+// Timestamps are stored in sessionStorage so they survive the full-page reload that
+// submit_for_reload() triggers — an in-memory array would reset on every submit.
+const _HS_RATE_KEY = 'hs_refresh_timestamps';
+function _checkRefreshRateLimit() {
+    if (!window.NUM_REFRESH_PER_MINUTE) return true; // throttling disabled
+    const _now = Date.now();
+    // Load, prune, and save the sliding window from sessionStorage
+    let _ts = [];
+    try { _ts = JSON.parse(sessionStorage.getItem(_HS_RATE_KEY) || '[]'); } catch(e) {}
+    _ts = _ts.filter(t => _now - t < 60000); // keep only last 60 seconds
+    if (_ts.length >= window.NUM_REFRESH_PER_MINUTE) {
+        // Rate exceeded — slow-blink the lamp red without submitting.
+        // Set a flag that blocks _setDot/_setZoomHint from overwriting the indicator
+        // while it is showing (e.g. during a zoom in/out).
+        const _BLOCK_MS = 5000;
+        window._hsRateLimitedUntil = Date.now() + _BLOCK_MS;
+        const _lamp = document.getElementById('hs-status-lamp');
+        if (_lamp) {
+            Object.assign(_lamp.style, {
+                width: '14px', height: '14px', borderRadius: '50%',
+                border: '2px solid #444', boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                background: '#e53935',
+                padding: '', font: '', color: '', lineHeight: '', whiteSpace: ''
+            });
+            _lamp.textContent = '';
+            _lamp.title = 'Please be patient';
+            _lamp.classList.add('hs-lamp-blink');
+            // After the block window expires, remove the blink class so the next
+            // normal lamp update (_setDot) can restore the correct colour.
+            setTimeout(() => {
+                if (_lamp) _lamp.classList.remove('hs-lamp-blink');
+            }, _BLOCK_MS);
+        }
+        return false;
+    }
+    _ts.push(_now);
+    try { sessionStorage.setItem(_HS_RATE_KEY, JSON.stringify(_ts)); } catch(e) {}
+    return true;
+}
+
 // Updates hidden fields and submits a form
 function submit_for_reload(trans_method) {
+    if (!_checkRefreshRateLimit()) return;
     const viewport = map.getBounds();
     const vpne = viewport.getNorthEast();
     const vpsw = viewport.getSouthWest();
