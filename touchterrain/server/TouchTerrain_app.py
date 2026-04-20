@@ -65,6 +65,18 @@ if not QUOTA_LOG_FILE:
     quota_log.addHandler(logging.NullHandler())
 print(f"Quota log: {'enabled → ' + str(QUOTA_LOG_FILE) if QUOTA_LOG_FILE else 'disabled'}")
 
+# Hillshade debug logger — detailed per-request diagnostics, cleared on every server restart.
+hillshade_log = logging.getLogger('touchterrain.hillshade')
+hillshade_log.setLevel(logging.DEBUG)
+hillshade_log.propagate = False  # don't bleed into Flask's root logger
+if HILLSHADE_LOG_FILE and not hillshade_log.handlers:
+    _hh = logging.FileHandler(HILLSHADE_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on restart
+    _hh.setFormatter(logging.Formatter('%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    hillshade_log.addHandler(_hh)
+if not HILLSHADE_LOG_FILE:
+    hillshade_log.addHandler(logging.NullHandler())
+print(f"Hillshade log: {'enabled → ' + str(HILLSHADE_LOG_FILE) if HILLSHADE_LOG_FILE else 'disabled'}")
+
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
 # RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
@@ -317,25 +329,67 @@ def main_page():
     #   are always multi-band), but we guard the lookup just in case.
     # MULTI_BANDS: single-Image DEMs may also have a named elevation band
     #   (e.g. IGN uses "MNT", UK EA uses "dtm").
+    hillshade_log.info(
+        f"=== hillshade request ===  DEM={args['DEM_name']}  zoom={args.get('map_zoom','?')}  "
+        f"lat={args['map_lat']}  lon={args['map_lon']}  "
+        f"azi={args['hsazi']}  elev={args['hselev']}  gamma={args['gamma']}  transp={args['transp']}"
+    )
+    hillshade_log.debug(
+        f"  viewport bounds: bllon={args.get('vp_bllon','?')}  bllat={args.get('vp_bllat','?')}  "
+        f"trlon={args.get('vp_trlon','?')}  trlat={args.get('vp_trlat','?')}"
+    )
+    hillshade_log.debug(f"  selection box: bllon={args.get('bllon','?')}  bllat={args.get('bllat','?')}  trlon={args.get('trlon','?')}  trlat={args.get('trlat','?')}")
     if args["DEM_name"] in IMG_COLL_DEMS:
-        dataset = ee.ImageCollection(args["DEM_name"])
-        # Filter to viewport bounds BEFORE first()/mosaic() to avoid GEE's 5000-element limit
-        # on large collections like USGS/3DEP/1m.  Use viewport bounds (whole visible map)
-        # rather than the selection box so the hillshade covers the full view.
-        try:
-            _vp = [float(args['vp_bllon']), float(args['vp_bllat']),
-                   float(args['vp_trlon']), float(args['vp_trlat'])]
-            dataset = dataset.filterBounds(ee.Geometry.Rectangle(_vp))
-        except (KeyError, ValueError, TypeError):
-            pass  # viewport args absent on first load — proceed unfiltered
+        hillshade_log.debug(f"  DEM type: ImageCollection")
+        # Keep an unfiltered collection for stable metadata access (projection),
+        # then optionally filter the working collection to the viewport.
+        dataset_all = ee.ImageCollection(args["DEM_name"])
+        dataset = dataset_all
+        # Only very large collections need viewport clipping to avoid EE's 5000-element
+        # limit during map creation. For regional collections (e.g., NRCan/CDEM), keep
+        # full coverage so zooming out still shows terrain beyond the initial viewport.
+        _FILTER_TO_VIEWPORT_DEMS = {'USGS/3DEP/1m'}
+        if args["DEM_name"] in _FILTER_TO_VIEWPORT_DEMS:
+            # Use viewport bounds (whole visible map) rather than selection box.
+            try:
+                _vp = [float(args['vp_bllon']), float(args['vp_bllat']),
+                       float(args['vp_trlon']), float(args['vp_trlat'])]
+                dataset = dataset.filterBounds(ee.Geometry.Rectangle(_vp))
+                hillshade_log.debug(f"  viewport filter applied: {_vp}")
+            except (KeyError, ValueError, TypeError):
+                hillshade_log.debug(f"  viewport filter skipped: missing/invalid viewport args")
+                pass  # viewport args absent on first load — proceed unfiltered
+        else:
+            hillshade_log.debug(f"  viewport filter not applied (not in _FILTER_TO_VIEWPORT_DEMS)")
         if args["DEM_name"] in MULTI_BANDS:
-            dataset = dataset.select(MULTI_BANDS[args["DEM_name"]])
-        proj = dataset.first().select(0).projection()
+            band_name = MULTI_BANDS[args["DEM_name"]]
+            dataset = dataset.select(band_name)
+            dataset_all = dataset_all.select(band_name)
+            hillshade_log.debug(f"  band selected: {band_name}")
+
+        # If clipping was applied and produced no images, fall back to full collection.
+        if args["DEM_name"] in _FILTER_TO_VIEWPORT_DEMS:
+            try:
+                _coll_size = dataset.size().getInfo()
+                hillshade_log.debug(f"  filtered collection size: {_coll_size}")
+                if _coll_size == 0:
+                    print(f"WARNING: {args['DEM_name']} has no imagery in current viewport; using unfiltered collection.", file=sys.stderr)
+                    hillshade_log.warning(f"  filtered collection empty — falling back to full (unfiltered) collection")
+                    dataset = dataset_all
+            except Exception as _size_err:
+                print(f"WARNING: could not evaluate filtered collection size for {args['DEM_name']}: {_size_err}", file=sys.stderr)
+                hillshade_log.warning(f"  could not evaluate filtered collection size: {_size_err}")
+
+        # Use unfiltered collection for projection so regional DEMs don't fail when
+        # the viewport is outside their coverage (filtered collection may be empty).
+        proj = dataset_all.first().select(0).projection()
         elev = dataset.mosaic().setDefaultProjection(proj)
     else:
+        hillshade_log.debug(f"  DEM type: single Image")
         elev = ee.Image(args["DEM_name"])
         if args["DEM_name"] in MULTI_BANDS:
             elev = elev.select(MULTI_BANDS[args["DEM_name"]])
+            hillshade_log.debug(f"  band selected: {MULTI_BANDS[args['DEM_name']]}")
 
     hsazi = float(args["hsazi"]) # compass heading of sun
     hselev = float(args["hselev"]) # angle of sun above the horizon
@@ -349,13 +403,18 @@ def main_page():
     # reproject() pins ALL zoom levels to one scale, causing wide-zoom tiles to time out.
     quota_log.info("[hillshade] using GEE native tile pyramid (scale auto-selected per tile zoom level)")
     hs = hs.resample('bilinear')  # bilinearly upsample hillshade tiles when browser zooms past native DEM resolution
+    hillshade_log.debug(f"  calling getMapId(gamma={gamma}  sun_dir={hsazi}  sun_angle={hselev})...")
     quota_log.info("[hillshade] calling getMapId()…")
     _t0 = time.time()
     try:
         mapid = hs.getMapId({'gamma': gamma})  # request map from EE, transparency will be set in JS
-        quota_log.info(f"[hillshade] getMapId OK in {time.time()-_t0:.2f}s  mapid={mapid['mapid']}")
+        _elapsed = time.time() - _t0
+        quota_log.info(f"[hillshade] getMapId OK in {_elapsed:.2f}s  mapid={mapid['mapid']}")
+        hillshade_log.info(f"  getMapId OK in {_elapsed:.2f}s  mapid={mapid['mapid']}")
     except Exception as _gee_err:
-        quota_log.error(f"[hillshade] getMapId FAILED after {time.time()-_t0:.2f}s: {_gee_err}")
+        _elapsed = time.time() - _t0
+        quota_log.error(f"[hillshade] getMapId FAILED after {_elapsed:.2f}s: {_gee_err}")
+        hillshade_log.error(f"  getMapId FAILED after {_elapsed:.2f}s: {_gee_err}")
         raise  # re-raise so Flask returns an error page as before
 
     # these have to be added to the args so they end up in the template
@@ -373,7 +432,8 @@ def main_page():
         html_str = render_template("index.html", **args,
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID,
                                     esri_api_key=ESRI_API_KEY,
-                                    valid_dem_ids=app.config['VALID_DEM_IDS'])
+                                    valid_dem_ids=app.config['VALID_DEM_IDS'],
+                                    num_refresh_per_minute=NUM_REFRESH_PER_MINUTE)
         return html_str
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
@@ -799,11 +859,12 @@ def export():
 
 @app.route('/log', methods=['POST'])
 def browser_log():
-    """Receive a short log message from the browser and append it to quota.log."""
+    """Receive a short log message from the browser and write it to hillshade.log (and quota.log if enabled)."""
     msg = request.get_json(silent=True, force=True)
     if isinstance(msg, dict):
         text = str(msg.get('msg', ''))[:500]  # cap length, avoid injecting huge strings
         quota_log.info(f"[browser] {text}")
+        hillshade_log.info(f"[browser] {text}")
     return '', 204
 
 @app.route('/download/<string:filename>')
