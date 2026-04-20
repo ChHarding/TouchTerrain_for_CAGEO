@@ -88,3 +88,15 @@ GOOGLE_ANALYTICS_TRACKING_ID = "G-EGX5Y3PBYH"
 # Set to None to disable.
 #QUOTA_LOG_FILE = os.path.join(config.SERVER_DIR, 'quota.log')
 QUOTA_LOG_FILE = None
+
+# Hillshade debug log — detailed per-request diagnostic log, cleared on every server restart.
+# Logs DEM selection, viewport filtering, GEE collection/image paths, getMapId() timing, and errors.
+# Set to a file path to enable; set to None to disable (default).
+HILLSHADE_LOG_FILE = os.path.join(config.SERVER_DIR, 'hillshade.log')
+#HILLSHADE_LOG_FILE = None
+
+# Client-side hillshade refresh rate limit.
+# Maximum number of terrain-settings refreshes (getMapId calls) allowed per minute per browser tab.
+# Set to None to disable throttling entirely.
+NUM_REFRESH_PER_MINUTE = None
+#NUM_REFRESH_PER_MINUTE = 5
