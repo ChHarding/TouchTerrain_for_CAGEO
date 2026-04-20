@@ -1260,21 +1260,21 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # If we have a KML file, use it to mask (clip) and crop the importedDEM
         if poly_file != None and poly_file != '':
-            clipped_geotiff = "clipped_" + filename
+            folder = os.path.split(importedDEM)[0]
+            clipped_geotiff = os.path.join(folder, "clipped_" + filename)
 
             try:
-                gdal.Warp(clipped_geotiff, filename,
+                gdal.Warp(clipped_geotiff, importedDEM,
                     format='GTiff',
                     warpOptions=['CUTLINE_ALL_TOUCHED=TRUE'],
                     cutlineDSName=poly_file,
                     cropToCutline=True,
                     dstNodata=-32768)
             except Exception as e:
-                pr("clipping", filename, "with", poly_file, "failed, using unclipped geotiff. ", e)
+                pr("clipping", importedDEM, "with", poly_file, "failed, using unclipped geotiff. ", e)
             else:
-                pr("clipped", filename, "with", poly_file, "now using", clipped_geotiff, "instead")
-                folder = os.path.split(importedDEM)[0]
-                importedDEM = os.path.join(folder, clipped_geotiff)
+                pr("clipped", importedDEM, "with", poly_file, "now using", clipped_geotiff, "instead")
+                importedDEM = clipped_geotiff
 
         # Make numpy array from imported geotiff
         dem = gdal.Open(importedDEM)
