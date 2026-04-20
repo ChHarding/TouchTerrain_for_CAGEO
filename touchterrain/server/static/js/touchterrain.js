@@ -127,6 +127,7 @@ window.onload = function () {
     const _geosearchOpts = {
         position: 'topleft',
         placeholder: 'Search for a place',
+        title: 'Type in desired location and click on\nthe best auto suggestion to jump there',
         useMapBounds: false,
         collapseAfterResult: false,
         expanded: true,
