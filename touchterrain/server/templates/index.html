@@ -34,7 +34,7 @@
 		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 	<!-- ESRI Leaflet Geocoder CSS -->
-	<link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@3.1.4/dist/esri-leaflet-geocoder.css" />
+	<link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@3.1.7/dist/esri-leaflet-geocoder.css" />
 	
 	<!-- TouchTerrain custom Leaflet styles -->
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/touchterrain_leaflet.css') }}">
@@ -56,8 +56,8 @@
 	<!-- Leaflet.Editable for rectangle editing -->
 	<script type="text/javascript" src="{{ url_for('static', filename='js/Leaflet.Editable.js') }}"></script>
 	<!-- ESRI Leaflet for basemaps and geocoding -->
-	<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
-	<script src="https://unpkg.com/esri-leaflet-geocoder@3.1.4/dist/esri-leaflet-geocoder.js"></script>
+	<script src="https://unpkg.com/esri-leaflet@3.0.19/dist/esri-leaflet.js"></script>
+	<script src="https://unpkg.com/esri-leaflet-geocoder@3.1.7/dist/esri-leaflet-geocoder.js"></script>
 	<!-- Leaflet MousePosition plugin (local copy) -->
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/L.Control.MousePosition.css') }}" />
 	<script src="{{ url_for('static', filename='js/L.Control.MousePosition.js') }}"></script>
@@ -88,7 +88,8 @@
 		"transp": {{ transp|tojson }},
 		"mapid": {{ mapid|tojson }},
 		"esri_api_key": {{ esri_api_key|tojson }},
-		"valid_dem_ids": {{ valid_dem_ids|tojson }}
+		"valid_dem_ids": {{ valid_dem_ids|tojson }},
+		"num_refresh_per_minute": {{ num_refresh_per_minute|tojson }}
 		}
 		</script>
 		<script type="text/javascript">
@@ -119,6 +120,7 @@
 				window.MAPID = config.mapid;
 				window.ESRI_API_KEY = config.esri_api_key; // null or a key string
 				window.valid_dem_ids = config.valid_dem_ids; // DEMs with a coverage boundary file
+				window.NUM_REFRESH_PER_MINUTE = config.num_refresh_per_minute; // null = unlimited
 		})();
 	</script>	
 	<!-- TouchTerrain JavaScript -->
