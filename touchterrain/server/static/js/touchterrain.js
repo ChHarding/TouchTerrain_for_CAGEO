@@ -208,8 +208,12 @@ window.onload = function () {
             const result = data.results[0];
             const latlng = result.latlng;
             
-            // Move map to location
-            map.setView(latlng, 13);
+            // Move map to location — use result bounds when available so cities/regions
+            // zoom to their actual extent rather than always landing at level 13.
+            if (result.bounds && result.bounds.isValid())
+                map.fitBounds(result.bounds);
+            else
+                map.setView(latlng, 13);
             
             // Show marker
             marker.setLatLng(latlng);
