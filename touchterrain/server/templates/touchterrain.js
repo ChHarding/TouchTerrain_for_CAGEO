@@ -144,7 +144,13 @@ window.onload = function () {
       });
       */
     
-    eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
+    // Create hillshade overlay from Earth Engine (if available)
+    if (MAPID && MAPID !== "") {
+        eemap = create_overlay(MAPID, map); // (global) hillshade overlay from google earth engine
+    } else {
+        eemap = null; // EE not available, no hillshade overlay
+        console.log("Earth Engine not available - hillshade overlay disabled");
+    }
     init_print_options(); //update all print option values in the GUI to what was inlined by jinja
     update_options_hidden(); // also store values in hidden ids
     SetDEM_name();  // sets DEM_name pulldown to what was inlined by jinja
@@ -572,6 +578,14 @@ window.onload = function () {
         placement: 'auto',
         delay: { "show": 2000, "hide": 0 },
     });
+
+    // Accessibility: update aria attributes on popover show/hide
+    $('.help-popover').on('shown.bs.popover', function() {
+        $(this).attr('aria-expanded', 'true');
+        $(this).attr('aria-describedby', '');
+    }).on('hidden.bs.popover', function() {
+        $(this).attr('aria-expanded', 'false');
+    });
 }; // end of onload()
 
 
@@ -864,7 +878,9 @@ function SetDEM_name(){
 // set opacity of hillshade as inverse of transparency given
 function updateTransparency(transparency_pct) {
     let op = 1.0 - transparency_pct / 100.0 // opacity
-    map.overlayMapTypes.getAt(0).setOpacity(op)
+    if (map.overlayMapTypes.getLength() > 0) {
+        map.overlayMapTypes.getAt(0).setOpacity(op)
+    }
     document.getElementById('hillshade_transparency_slider').value=transparency_pct;
     document.getElementById('transp').value=transparency_pct; // id in hidden reload 1
     document.getElementById('transp3').value=transparency_pct; // id in hidden reload 2

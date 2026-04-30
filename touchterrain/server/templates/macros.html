@@ -1,0 +1,35 @@
+{# Reusable Jinja macros for TouchTerrain UI components #}
+
+{#
+  Help Popover - Button for Bootstrap popover with content defined in JS
+
+  Parameters:
+    id         - Unique identifier, must match JS popover init (required)
+    btn_class  - Button CSS classes (default: 'btn btn-outline-info btn-sm')
+    btn_text   - Button inner HTML (default: question mark icon)
+    placement  - Popover placement: auto, top, bottom, left, right (default: 'auto')
+    trigger    - Popover trigger: 'click hover', 'click', 'hover', 'focus' (default: 'click hover')
+    delay_show - Delay before showing in ms (default: 500)
+    delay_hide - Delay before hiding in ms (default: 0)
+
+  Usage:
+    {{ help_popover('my_popover') }}
+    {{ help_popover('custom', placement='left', delay_show=0) }}
+    {{ help_popover('cnc', btn_class='btn btn-outline-secondary btn-sm', btn_text='CNC <i class="fas fa-question" role="img" alt="Help"></i>') }}
+#}
+{% macro help_popover(id, btn_class='btn btn-outline-info btn-sm', btn_text='<i class="fas fa-question" role="img" aria-label="Help"></i>', placement='auto', trigger='click hover', delay_show=500, delay_hide=0) %}
+<button type="button"
+        id="{{ id }}"
+        class="{{ btn_class }} help-popover"
+        aria-expanded="false"
+        aria-controls="{{ id }}-content"
+        data-toggle="popover"
+        data-placement="{{ placement }}"
+        data-trigger="{{ trigger }}"
+        data-delay='{"show": {{ delay_show }}, "hide": {{ delay_hide }}}'
+        data-container="#{{ id }}-content"
+        data-html="true">
+    {{ btn_text | safe }}
+</button>
+<div id="{{ id }}-content"></div>
+{% endmacro %}
