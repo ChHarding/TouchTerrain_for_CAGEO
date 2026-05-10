@@ -9,7 +9,7 @@
         <meta name="keywords" content="HTML, JavaScript, 3D-printing, CNC, STL, terrain data, free">
         <meta name="author" content="Chris Harding">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
         {% if GOOGLE_ANALYTICS_TRACKING_ID %}
         <script async src="https://www.googletagmanager.com/gtag/js?id={{GOOGLE_ANALYTICS_TRACKING_ID}}"></script>
         <script>
@@ -19,9 +19,8 @@
             gtag('config', '{{GOOGLE_ANALYTICS_TRACKING_ID}}');
         </script>
         {% endif %}
-    
 
-        <meta charset="UTF-8">
+        {% if captcha_enabled %}
         <script src="https://www.google.com/recaptcha/api.js?render={{ site_key }}"></script>
         <script>
             function onImageClick(e) {
@@ -34,8 +33,21 @@
                 });
             }
         </script>
+        {% else %}
+        <script>
+            function onImageClick(e) {
+                e.preventDefault();
+                document.getElementById('recaptcha-form').submit();
+            }
+        </script>
+        {% endif %}
     </head>
     <body>
+        {% if not captcha_enabled %}
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; margin: 10px; border-radius: 4px; font-family: sans-serif;">
+            <strong>Development Mode:</strong> reCAPTCHA is disabled. This server is running in flask_local mode without captcha keys.
+        </div>
+        {% endif %}
         {% if error %}
         <p style="color: red;">{{ error }}</p>
         {% endif %}

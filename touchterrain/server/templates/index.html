@@ -56,6 +56,11 @@
 	</head>
 
 	<body>
+		{% if not ee_available %}
+		<div style="background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; margin: 10px; border-radius: 4px; font-family: sans-serif;">
+			<strong>Development Mode:</strong> Earth Engine is not configured. Hillshade overlay is disabled. You can still use local GeoTIFF files for terrain generation.
+		</div>
+		{% endif %}
 		<div class="container-fluid" id="outermost_div">
 			<div class="page-header text-truncate" style="min-width: 635px;">
 			  <h4 class="text-truncate">

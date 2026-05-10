@@ -44,6 +44,7 @@ app = Flask(__name__)
 
 # import modules from common
 from touchterrain.common import TouchTerrainEarthEngine # will also init EE
+from touchterrain.common.TouchTerrainEarthEngine import EE_INITIALIZED
 from touchterrain.common.Coordinate_system_conv import * # arc to meters conversion
 
 import logging
@@ -66,9 +67,10 @@ except:
 # CH Jun 27, 2025 disabled Google Maps
 google_maps_key = ""      
 
-# RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
-# recaptcha secret key and flask secret key as single strings in separate lines 
+# RecaptchaKeys.txt in server folder must contain keys for recaptcha site key,
+# recaptcha secret key and flask secret key as single strings in separate lines
 
+CAPTCHA_ENABLED = True
 try:
     with open(RECAPTCHA_V3_KEYS_FILE) as f:
         lines = f.readlines()
@@ -77,8 +79,19 @@ try:
         app.config['RECAPTCHA_SECRET_KEY'] = keys[1]
         app.secret_key = keys[2]
 except:
-     # file does not exist - will show the ugly Google map version
-     sys.exit("Problem with RecaptchaKeys.txt in server folder, it must contain keys for the (v3) recaptcha site key, recaptcha secret key and flask secret key as single strings in separate lines. Exiting.")
+    if SERVER_TYPE == "flask_local":
+        # In local dev mode, allow running without captcha
+        CAPTCHA_ENABLED = False
+        app.config['RECAPTCHA_SITE_KEY'] = None
+        app.config['RECAPTCHA_SECRET_KEY'] = None
+        app.secret_key = 'dev-secret-key-not-for-production'
+        logging.warning("=" * 60)
+        logging.warning("CAPTCHA DISABLED - Running in flask_local mode without reCAPTCHA keys")
+        logging.warning("This is fine for development but NOT for production!")
+        logging.warning("=" * 60)
+    else:
+        # Production mode requires captcha keys
+        sys.exit("Problem with RecaptchaKeys.txt in server folder, it must contain keys for the (v3) recaptcha site key, recaptcha secret key and flask secret key as single strings in separate lines. Exiting.")
 else:
     print("Recaptcha_v3_keys.txt sucessfully parsed.")
 
@@ -135,11 +148,17 @@ def make_GA_script(page_title):
     """
     return html
 
-# entry page that shows a world map does the Recaptch_v3 and, if passed, 
+# entry page that shows a world map does the Recaptch_v3 and, if passed,
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
 def intro_page():
     if request.method == 'POST':
+        # If captcha is disabled (flask_local without keys), auto-verify
+        if not CAPTCHA_ENABLED:
+            session['recaptcha_verified'] = True
+            print("CAPTCHA DISABLED - auto-verifying user (flask_local mode)", file=sys.stderr)
+            return redirect(url_for('main_page'))
+
         token = request.form.get('g-recaptcha-response')
         if token and verify_recaptcha(token):
             session['recaptcha_verified'] = True  # Store in Flask session
@@ -151,9 +170,10 @@ def intro_page():
             return render_template(
                 'intro.html',
                 site_key=app.config['RECAPTCHA_SITE_KEY'],
+                captcha_enabled=CAPTCHA_ENABLED,
                 error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)"
             )
-    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
+    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'], captcha_enabled=CAPTCHA_ENABLED)
 
 #
 # The page for selecting the ROI and putting in printer parameters
@@ -213,25 +233,36 @@ def main_page():
         args[key] = request.args[key]
         #print(key, request.args[key])
 
-    # get hillshade for elevation
-    if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
-        dataset = ee.ImageCollection(args["DEM_name"])
-        elev = dataset.select('elevation')
-        proj = elev.first().select(0).projection() # must use common projection(?)
-        elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+    # get hillshade for elevation from Earth Engine (if available)
+    if EE_INITIALIZED:
+        if args["DEM_name"] in ("NRCan/CDEM", "AU/GA/AUSTRALIA_5M_DEM"):  # Image collection?
+            dataset = ee.ImageCollection(args["DEM_name"])
+            elev = dataset.select('elevation')
+            proj = elev.first().select(0).projection() # must use common projection(?)
+            elev = elev.mosaic().setDefaultProjection(proj) # must mosaic collection into single image
+        else:
+            elev = ee.Image(args["DEM_name"])
+
+        hsazi = float(args["hsazi"]) # compass heading of sun
+        hselev = float(args["hselev"]) # angle of sun above the horizon
+        hs = ee.Terrain.hillshade(elev, hsazi, hselev)
+
+        gamma = float(args["gamma"])
+        mapid = hs.getMapId( {'gamma':gamma}) # request map from EE, transparency will be set in JS
+
+        # these have to be added to the args so they end up in the template
+        args['mapid'] = mapid['mapid']
+        #args['token'] = mapid['token'] # no token needed anymore
+        args['ee_available'] = True
     else:
-        elev = ee.Image(args["DEM_name"])
-
-    hsazi = float(args["hsazi"]) # compass heading of sun
-    hselev = float(args["hselev"]) # angle of sun above the horizon
-    hs = ee.Terrain.hillshade(elev, hsazi, hselev)
-
-    gamma = float(args["gamma"])
-    mapid = hs.getMapId( {'gamma':gamma}) # request map from EE, transparency will be set in JS
-
-    # these have to be added to the args so they end up in the template
-    args['mapid'] = mapid['mapid']
-    #args['token'] = mapid['token'] # no token needed anymore
+        # EE not initialized - in flask_local mode this is OK, just skip hillshade
+        if SERVER_TYPE == "flask_local":
+            logging.warning("EE not available - hillshade overlay will be disabled")
+            args['mapid'] = ''
+            args['ee_available'] = False
+        else:
+            # Production mode requires EE
+            raise RuntimeError("Earth Engine not initialized. Check credentials.")
    
     # in manual, replace " with \" i.e. ""ignore_leq":123" -> "\"ignore_leq\":123"
     # so that it's a valid JS string after it's been inlined
@@ -247,7 +278,7 @@ def main_page():
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
     print("User has not been verified, showing intro page.", file=sys.stderr)
-    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
+    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'], captcha_enabled=CAPTCHA_ENABLED)
 
 # Page that unzips the tiles and shows a preview of the STL files using a template
 @app.route("/preview/<string:zip_file>")
