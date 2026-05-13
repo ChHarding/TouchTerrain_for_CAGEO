@@ -969,10 +969,11 @@ function create_overlay(MAPID, map) {
         opacity: _sliderOpacity()
     });
 
-    const _t0 = Date.now();
+    let _t0 = Date.now();
     let _errCount = 0, _okCount = 0;
 
     overlay.on('loading', () => {
+        _t0 = Date.now();
         _errCount = 0; _okCount = 0;
         _setDot('#f5c518', 'Terrain: loading tiles\u2026', true);
         browser_log(`tile loading started  zoom=${map.getZoom()}  mapid=${MAPID}`);
@@ -1006,8 +1007,10 @@ function create_overlay(MAPID, map) {
             if (map.hasLayer(overlay)) overlay.remove();
             _setZoomHint();
         } else {
+            // Always restore opacity after zoom animation; otherwise a zoomstart
+            // can leave an existing layer stuck at opacity 0 (invisible tiles).
+            overlay.setOpacity(_sliderOpacity());
             if (!map.hasLayer(overlay)) {
-                overlay.setOpacity(_sliderOpacity());
                 overlay.addTo(map);   // triggers 'loading' → yellow dot automatically
             }
         }
@@ -1021,6 +1024,14 @@ function create_overlay(MAPID, map) {
     map.on('zoomend', () => {
         browser_log(`zoom end:   to   z=${map.getZoom()}  center=${map.getCenter().lat.toFixed(4)},${map.getCenter().lng.toFixed(4)}  mapid=${MAPID}`);
         _applyZoomState();
+    });
+
+    // Massive pans can trigger tile churn without zoom events; make sure a prior
+    // zoomstart opacity=0 state cannot persist after movement settles.
+    map.on('moveend', () => {
+        if (map.hasLayer(overlay)) {
+            overlay.setOpacity(_sliderOpacity());
+        }
     });
 
     _applyZoomState();   // set correct initial state without waiting for first zoom
