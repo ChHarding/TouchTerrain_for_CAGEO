@@ -497,6 +497,113 @@ window.onload = function () {
         });
     }
 
+    // -----------------------------------------------------------------------
+    // GeoTIFF upload handler
+    // Uploads the file to /upload_geotiff, snaps the red box to the returned
+    // bbox, removes all handles (box is now read-only), and stores the token
+    // for the export form.  Clearing the input restores handles.
+    // -----------------------------------------------------------------------
+    const geotiffInput = getById("geotiff_file");
+    if (geotiffInput) {
+        geotiffInput.addEventListener('change', function () {
+            const statusDiv = getById("geotiff_status");
+            const tokenField    = getById("geotiff_token");
+            const filenameField = getById("geotiff_filename");
+
+            // Helper: reset everything back to normal (handles restored)
+            function _clearGeotiff(token) {
+                if (token) {
+                    fetch('/clear_geotiff', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: token })
+                    }).catch(() => {});
+                }
+                tokenField.value    = '';
+                filenameField.value = '';
+                statusDiv.style.display = 'none';
+                statusDiv.textContent   = '';
+                // Restore handles so the box is editable again
+                create_corner_handles();
+                create_edge_handles();
+            }
+
+            // If the user cleared the input, undo everything
+            if (!geotiffInput.files || geotiffInput.files.length === 0) {
+                _clearGeotiff(tokenField.value);
+                $('#geotiff_file_name').html('Optional local GeoTIFF DEM:');
+                return;
+            }
+
+            const file = geotiffInput.files[0];
+
+            // Client-side extension check
+            if (!/\.(tif|tiff)$/i.test(file.name)) {
+                statusDiv.textContent   = 'Error: file must be a .tif or .tiff';
+                statusDiv.style.color   = 'red';
+                statusDiv.style.display = 'block';
+                $('#geotiff_file_name').html('Error: not a .tif/.tiff file');
+                _clearGeotiff(tokenField.value);
+                return;
+            }
+
+            // Clear any previous token before uploading a new file
+            _clearGeotiff(tokenField.value);
+
+            statusDiv.textContent   = 'Uploading and validating…';
+            statusDiv.style.color   = '#555';
+            statusDiv.style.display = 'block';
+            $('#geotiff_file_name').html(file.name + ' — uploading…');
+
+            const fd = new FormData();
+            fd.append('geotiff_file', file);
+
+            fetch('/upload_geotiff', { method: 'POST', body: fd })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || data.error) {
+                        const msg = data.error || 'upload failed';
+                        statusDiv.textContent   = 'Error: ' + msg;
+                        statusDiv.style.color   = 'red';
+                        statusDiv.style.display = 'block';
+                        $('#geotiff_file_name').html('Error: ' + msg);
+                        return;
+                    }
+
+                    // Store token + filename for the export form
+                    tokenField.value    = data.token;
+                    filenameField.value = data.filename;
+
+                    // Snap red box to GeoTIFF extent
+                    const newBounds = L.latLngBounds(
+                        L.latLng(data.minlat, data.minlon),
+                        L.latLng(data.maxlat, data.maxlon)
+                    );
+                    rectangle.setBounds(newBounds);
+                    update_corners_form();
+                    map.fitBounds(newBounds, { padding: [20, 20] });
+
+                    // Remove handles — box is fixed to the GeoTIFF extent
+                    remove_corner_handles();
+                    remove_edge_handles();
+
+                    const msg = `${data.filename}  [${data.minlat.toFixed(4)}°N, ${data.minlon.toFixed(4)}°E → ${data.maxlat.toFixed(4)}°N, ${data.maxlon.toFixed(4)}°E]`;
+                    const reproj = data.reprojected_msg ? `  (${data.reprojected_msg})` : '';
+                    statusDiv.textContent   = '✓ ' + msg + reproj;
+                    statusDiv.style.color   = data.reprojected_msg ? '#b8860b' : 'green';  // amber if reprojected
+                    statusDiv.style.display = 'block';
+                    $('#geotiff_file_name').html(data.filename);
+                })
+                .catch(err => {
+                    statusDiv.textContent   = 'Error: ' + err.message;
+                    statusDiv.style.color   = 'red';
+                    statusDiv.style.display = 'block';
+                    $('#geotiff_file_name').html('Upload error');
+                    _clearGeotiff('');
+                });
+        });
+    }
+
     // Help popovers (keeping all existing popover code)
     $('#Whats_new__popover').popover({
         content: 'Mouse over the question marks to see the help text or click on it to toggle the text on/off<br><br>\
