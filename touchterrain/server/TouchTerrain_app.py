@@ -238,6 +238,201 @@ def dem_boundary(dem_id):
     return Response(content, mimetype='application/json')
 
 
+# ---------------------------------------------------------------------------
+# GeoTIFF upload helpers
+# ---------------------------------------------------------------------------
+# Uploaded GeoTIFFs are saved as  <TMP_FOLDER>/uploaded_<token>.tif
+# where <token> is a random hex string returned to the client.  The client
+# passes the token back on export so the server can locate the file.
+
+_GEOTIFF_MAX_BYTES = 500 * 1024 * 1024  # 500 MB hard cap
+
+def _geotiff_path_from_token(token):
+    """Return the absolute path for a geotiff token (no filesystem access)."""
+    # Tokens are 16 hex chars; reject anything else to prevent path traversal.
+    import re
+    if not re.fullmatch(r'[0-9a-f]{16}', token):
+        return None
+    return os.path.join(TMP_FOLDER, f'uploaded_{token}.tif')
+
+
+@app.route('/upload_geotiff', methods=['POST'])
+def upload_geotiff():
+    """Validate and store an uploaded GeoTIFF; return its bbox and a token."""
+    from osgeo import gdal, osr
+    import secrets
+    gdal.UseExceptions()
+
+    if 'geotiff_file' not in request.files:
+        return Response('{"error":"no file"}', status=400, mimetype='application/json')
+
+    f = request.files['geotiff_file']
+    if not f.filename:
+        return Response('{"error":"empty filename"}', status=400, mimetype='application/json')
+
+    # Basic extension check
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.tif', '.tiff'):
+        return Response('{"error":"file must be a .tif or .tiff"}',
+                        status=400, mimetype='application/json')
+
+    # Read into memory to check size before writing to disk
+    data = f.read(_GEOTIFF_MAX_BYTES + 1)
+    if len(data) > _GEOTIFF_MAX_BYTES:
+        return Response(f'{{"error":"file exceeds {_GEOTIFF_MAX_BYTES // (1024*1024)} MB limit"}}',
+                        status=413, mimetype='application/json')
+
+    # Write to a temp file so GDAL can open it
+    token = secrets.token_hex(8)  # 16-char hex
+    save_path = _geotiff_path_from_token(token)
+    os.makedirs(TMP_FOLDER, exist_ok=True)
+    with open(save_path, 'wb') as out:
+        out.write(data)
+
+    # --- GDAL validation ---
+    try:
+        ds = gdal.Open(save_path, gdal.GA_ReadOnly)
+        if ds is None:
+            raise ValueError("GDAL could not open file")
+
+        # Must have at least one raster band
+        if ds.RasterCount < 1:
+            raise ValueError("no raster bands found")
+
+        # Must have a valid geotransform (not the default 0,1,0,0,0,1)
+        gt = ds.GetGeoTransform()
+        if gt == (0.0, 1.0, 0.0, 0.0, 0.0, 1.0):
+            raise ValueError("file has no spatial reference (default geotransform)")
+
+        # Parse the CRS
+        srs_wkt = ds.GetProjection()
+        src_srs = osr.SpatialReference()
+        if srs_wkt:
+            src_srs.ImportFromWkt(srs_wkt)
+        else:
+            raise ValueError("file has no CRS / projection information")
+
+        # Compute the four corners in projected/native space
+        width  = ds.RasterXSize
+        height = ds.RasterYSize
+        ulx = gt[0]
+        uly = gt[3]
+        lrx = gt[0] + width  * gt[1] + height * gt[2]
+        lry = gt[3] + width  * gt[4] + height * gt[5]
+
+        # Build a WGS84 target SRS for bbox computation
+        wgs84 = osr.SpatialReference()
+        wgs84.ImportFromEPSG(4326)
+        wgs84.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
+        reprojected_msg = None   # extra info to send back to client
+
+        # Web Mercator (EPSG:3857 and its aliases) is a projected CRS but its
+        # "metres" are distorted by 1/cos(lat) — not true ground metres.
+        _web_mercator_authorities = {('EPSG', '3857'), ('EPSG', '900913'),
+                                     ('EPSG', '102100'), ('EPSG', '102113')}
+        _is_web_mercator = (src_srs.GetAuthorityName(None),
+                            src_srs.GetAuthorityCode(None)) in _web_mercator_authorities
+
+        # Non-metre linear units (feet, US survey feet, etc.) — common in US
+        # State Plane and some feet-based UTM variants.  GetLinearUnits() returns
+        # the metres-per-unit conversion factor; 1.0 = metres, ~0.3048 = feet.
+        _linear_units_m = src_srs.GetLinearUnits()   # metres per unit
+        _is_non_metre = abs(_linear_units_m - 1.0) > 0.01  # not close to 1 m/unit
+
+        if (src_srs.IsGeographic() and not src_srs.IsProjected()) or _is_web_mercator or _is_non_metre:
+            # ----------------------------------------------------------------
+            # CRS is not in true ground metres:
+            #   - Geographic (lat/lon degrees)
+            #   - Web Mercator (distorted metres, inflated away from equator)
+            #   - Non-metre units (feet, US survey feet, etc.)
+            # Auto-reproject to the closest UTM zone (WGS84, true metres).
+            # ----------------------------------------------------------------
+            # First get bbox in degrees (corners are already in degrees)
+            ct_geo = osr.CoordinateTransformation(src_srs, wgs84)
+            ul_geo = ct_geo.TransformPoint(ulx, uly)
+            lr_geo = ct_geo.TransformPoint(lrx, lry)
+            minlon = min(ul_geo[0], lr_geo[0])
+            maxlon = max(ul_geo[0], lr_geo[0])
+            minlat = min(ul_geo[1], lr_geo[1])
+            maxlat = max(ul_geo[1], lr_geo[1])
+
+            # Pick UTM zone from centre
+            clon = (minlon + maxlon) / 2.0
+            clat = (minlat + maxlat) / 2.0
+            utm_zone, hemi = LatLon_to_UTM((clon, clat))
+            utm_epsg = UTM_zone_to_EPSG_code(utm_zone, hemi)
+
+            ds = None  # close before warp
+            reproj_path = save_path.replace('.tif', '_utm.tif')
+            warp_result = gdal.Warp(
+                reproj_path, save_path,
+                format='GTiff',
+                dstSRS=f'EPSG:{utm_epsg}',
+                resampleAlg=gdal.GRA_Bilinear
+            )
+            if warp_result is None:
+                raise ValueError("failed to reproject geographic GeoTIFF to UTM")
+            warp_result = None  # flush/close
+
+            # Swap: engine will use the reprojected file; remove the original
+            try: os.remove(save_path)
+            except OSError: pass
+            os.rename(reproj_path, save_path)
+
+            _reason = ("Web Mercator (distorted metres)" if _is_web_mercator
+                       else f"non-metre units ({_linear_units_m:.4f} m/unit, e.g. feet)" if _is_non_metre
+                       else "geographic CRS (lat/lon degrees)")
+            reprojected_msg = (
+                f"Input CRS is {_reason} — "
+                f"converted to closest UTM zone {utm_zone}{hemi} (EPSG:{utm_epsg})"
+            )
+
+        else:
+            # ----------------------------------------------------------------
+            # Already in a projected (metric) CRS — accept as-is.
+            # Reproject corners to WGS84 only for the Leaflet bbox.
+            # ----------------------------------------------------------------
+            ct = osr.CoordinateTransformation(src_srs, wgs84)
+            ul_geo = ct.TransformPoint(ulx, uly)
+            lr_geo = ct.TransformPoint(lrx, lry)
+            minlon = min(ul_geo[0], lr_geo[0])
+            maxlon = max(ul_geo[0], lr_geo[0])
+            minlat = min(ul_geo[1], lr_geo[1])
+            maxlat = max(ul_geo[1], lr_geo[1])
+
+            ds = None  # close
+
+        # Sanity-check the geographic bbox
+        if not (-180 <= minlon <= 180 and -180 <= maxlon <= 180 and
+                -90  <= minlat <=  90 and -90  <= maxlat <=  90):
+            raise ValueError(f"reprojected bbox out of range: {minlon},{minlat},{maxlon},{maxlat}")
+
+    except Exception as e:
+        try: os.remove(save_path)
+        except OSError: pass
+        return Response(json.dumps({"error": str(e)}), status=422, mimetype='application/json')
+
+    return Response(json.dumps({
+        "token":  token,
+        "minlon": minlon, "minlat": minlat,
+        "maxlon": maxlon, "maxlat": maxlat,
+        "filename": f.filename,
+        "reprojected_msg": reprojected_msg   # None if no reprojection was needed
+    }), status=200, mimetype='application/json')
+
+
+@app.route('/clear_geotiff', methods=['POST'])
+def clear_geotiff():
+    """Delete a previously-uploaded GeoTIFF temp file."""
+    token = (request.json or {}).get('token', '')
+    path  = _geotiff_path_from_token(token)
+    if path and os.path.isfile(path):
+        try: os.remove(path)
+        except OSError: pass
+    return Response('{}', mimetype='application/json')
+
+
 # entry page that shows a world map does the Recaptch_v3 and, if passed, 
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
@@ -667,6 +862,17 @@ def export():
                         geojson_polygon = Polygon([coords]) # coords must be [0], [1] etc. would be holes 
                         html  += "Using polygon from kml file " + kml_file.filename + " with " + str(len(coords)) + " points.<br>"                   
         
+        # see if a GeoTIFF was pre-uploaded (token passed as a hidden form field)
+        imported_dem_path = None
+        geotiff_token = args.get("geotiff_token", "").strip()
+        if geotiff_token:
+            candidate = _geotiff_path_from_token(geotiff_token)
+            if candidate and os.path.isfile(candidate):
+                imported_dem_path = candidate
+                html += f"Using uploaded GeoTIFF: {args.get('geotiff_filename', geotiff_token)}<br>"
+            else:
+                html += "Warning: uploaded GeoTIFF token not found on server; falling back to GEE DEM.<br>"
+
         html += "<br>"
         yield html
 
@@ -775,6 +981,10 @@ def export():
 
         # set geojson_polygon as polygon arg (None by default)
         args["polygon"] = geojson_polygon
+
+        # set importedDEM if the user uploaded a local GeoTIFF
+        if imported_dem_path:
+            args["importedDEM"] = imported_dem_path
 
         # show snazzy animated gif - set to style="display: none to hide once processing is done
         html = '<img src="static/processing.gif" id="gif" alt="processing animation" class="d-block my-3" style="display: block;">\n'
