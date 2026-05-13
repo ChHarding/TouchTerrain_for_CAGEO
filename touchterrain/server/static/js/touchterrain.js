@@ -24,6 +24,15 @@ const BASEMAP_MAX_NATIVE_ZOOM = {
     Streets:            23,
     ImageryClarity:     19,
 };
+// DEMs that require a minimum zoom level before hillshade tiles are useful.
+// At zoom < minZoom the overlay is removed and a hint is shown instead.
+const HIRES_DEMS = {
+    'USGS/3DEP/1m':                   14,
+    'IGN/RGE_ALTI/1M/2_0/FXX':        14,
+    'UK/EA/ENGLAND_1M_TERRAIN/2022':   14,
+    'AU/GA/AUSTRALIA_5M_DEM':          14,
+};
+let _boundary_color = null;  // stroke color of the current DEM boundary layer
 let corner_handles = []; // custom corner drag handles (NE/NW/SE/SW)
 let edge_handles = [];   // custom edge-midpoint drag handles (N/S/E/W)
 let _drag_anchor_ll = null; // anchor latlng (opposite corner) during corner drag
@@ -35,6 +44,20 @@ window.addEventListener('keyup',   function(e) { if (e.key === 'Shift') _shift_h
 
 function getById(id) {
     return document.getElementById(id);
+}
+
+// Update the boundary polygon fill based on the current zoom level.
+// Below the DEM's min-zoom threshold the polygon is filled at 0.2 alpha so
+// the coverage area is visible while zoomed out; at or above threshold it
+// reverts to hollow (outline-only) to avoid obscuring the hillshade.
+function _updateBoundaryFill() {
+    if (!dem_boundary_layer || !_boundary_color) return;
+    const minZoom = HIRES_DEMS[window.DEM_name] || 0;
+    if (minZoom > 0 && map.getZoom() < minZoom) {
+        dem_boundary_layer.setStyle({ fill: true, fillColor: _boundary_color, fillOpacity: 0.1 });
+    } else {
+        dem_boundary_layer.setStyle({ fill: false, fillOpacity: 0 });
+    }
 }
 
 //
@@ -254,8 +277,10 @@ window.onload = function () {
         'USGS/3DEP/1m':                  '#00ced1',  // dark cyan
     };
     if (dem_boundary_layer) { map.removeLayer(dem_boundary_layer); dem_boundary_layer = null; }
+    _boundary_color = null;
     if (window.valid_dem_ids && window.valid_dem_ids.includes(window.DEM_name)) {
         const _bcolor = _BOUNDARY_COLORS[window.DEM_name] || '#00cc44';
+        _boundary_color = _bcolor;
         fetch('/dem_boundary/' + window.DEM_name)
             .then(r => r.ok ? r.json() : null)
             .then(gj => {
@@ -263,6 +288,7 @@ window.onload = function () {
                 dem_boundary_layer = L.geoJSON(gj, {
                     style: { color: _bcolor, weight: 2.5, fill: false, opacity: 0.9 }
                 }).addTo(map);
+                _updateBoundaryFill();  // apply correct fill for current zoom immediately
             })
             .catch(() => {});
     }
@@ -340,7 +366,7 @@ window.onload = function () {
 
     // Map events
     map.on('moveend', saveMapSettings);
-    map.on('zoomend', saveMapSettings);
+    map.on('zoomend', () => { saveMapSettings(); _updateBoundaryFill(); });
 
     // Initialize form values
     update_corners_form();
@@ -899,12 +925,6 @@ function create_overlay(MAPID, map) {
     // For hi-res DEMs, don't attach the tile layer to the map when zoomed out past this
     // threshold — GEE would still have to compute enormously downsampled tiles, which is
     // very slow.  Removing the layer entirely suppresses all tile requests.
-    const HIRES_DEMS = {
-        'USGS/3DEP/1m':                   14,
-        'IGN/RGE_ALTI/1M/2_0/FXX':        14,
-        'UK/EA/ENGLAND_1M_TERRAIN/2022':  14,
-        'AU/GA/AUSTRALIA_5M_DEM':         14,
-    };
     const _minZoom = HIRES_DEMS[window.DEM_name] || 0;
 
     // Inject blink keyframe once
