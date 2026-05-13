@@ -342,6 +342,17 @@
 									</div>
 								</div>
 								<br>
+								<!-- GeoTIFF upload: uploaded file replaces GEE DEM; red box snaps to its extent -->
+								<div class="custom-file">
+										<input type="file" class="custom-file-input" id="geotiff_file" name="geotiff_file"
+											accept=".tif,.tiff">
+										<label class="custom-file-label" id="geotiff_file_name" for="geotiff_file">Optional local GeoTIFF DEM:</label>
+								</div>
+								<!-- hidden fields populated by JS after successful upload -->
+								<input type="hidden" id="geotiff_token"    name="geotiff_token"    value="">
+								<input type="hidden" id="geotiff_filename" name="geotiff_filename" value="">
+								<div id="geotiff_status" class="small mt-1" style="display:none;"></div>
+								<br>
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
 											onchange="gtag('event', 'KmlUpload', {'event_category':'filename', 'event_label':this.files[0].name, 'value':'1', 'nonInteraction': true});">
