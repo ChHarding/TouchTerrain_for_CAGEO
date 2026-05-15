@@ -57,25 +57,42 @@ from zipfile import ZipFile
 quota_log = logging.getLogger('touchterrain.quota')
 quota_log.setLevel(logging.DEBUG)
 quota_log.propagate = False  # don't bleed into Flask's root logger
-if QUOTA_LOG_FILE and not quota_log.handlers:
+quota_log.handlers.clear()  # remove stale handlers from previous config/reload
+if QUOTA_LOG_FILE:
     _qh = logging.FileHandler(QUOTA_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on startup
     _qh.setFormatter(logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
     quota_log.addHandler(_qh)
-if not QUOTA_LOG_FILE:
+else:
     quota_log.addHandler(logging.NullHandler())
 print(f"Quota log: {'enabled → ' + str(QUOTA_LOG_FILE) if QUOTA_LOG_FILE else 'disabled'}")
+print(f"  quota_log handlers after setup: {quota_log.handlers}", flush=True)
 
 # Hillshade debug logger — detailed per-request diagnostics, cleared on every server restart.
 hillshade_log = logging.getLogger('touchterrain.hillshade')
 hillshade_log.setLevel(logging.DEBUG)
 hillshade_log.propagate = False  # don't bleed into Flask's root logger
-if HILLSHADE_LOG_FILE and not hillshade_log.handlers:
+hillshade_log.handlers.clear()  # remove stale handlers from previous config/reload
+if HILLSHADE_LOG_FILE:
     _hh = logging.FileHandler(HILLSHADE_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on restart
     _hh.setFormatter(logging.Formatter('%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
     hillshade_log.addHandler(_hh)
-if not HILLSHADE_LOG_FILE:
+else:
     hillshade_log.addHandler(logging.NullHandler())
 print(f"Hillshade log: {'enabled → ' + str(HILLSHADE_LOG_FILE) if HILLSHADE_LOG_FILE else 'disabled'}")
+
+# GeoTIFF lifecycle logger — controlled by GEOTIFF_LOG_FILE in config.py.
+geotiff_log = logging.getLogger('touchterrain.geotiff')
+geotiff_log.setLevel(logging.DEBUG)
+geotiff_log.propagate = False
+geotiff_log.handlers.clear()  # remove stale handlers from previous config/reload
+if GEOTIFF_LOG_FILE:
+    _gl = logging.FileHandler(GEOTIFF_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on restart
+    _gl.setFormatter(logging.Formatter('%(asctime)s %(levelname)-5s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    geotiff_log.addHandler(_gl)
+else:
+    geotiff_log.addHandler(logging.NullHandler())
+print(f"GeoTIFF log: {'enabled → ' + str(GEOTIFF_LOG_FILE) if GEOTIFF_LOG_FILE else 'disabled'}")
+geotiff_log.info(f"=== server started ===  TMP_FOLDER={TMP_FOLDER}")
 
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
@@ -263,31 +280,53 @@ def upload_geotiff():
     import secrets
     gdal.UseExceptions()
 
+    geotiff_log.info("--- /upload_geotiff called ---")
+    geotiff_log.debug(f"  request.files keys: {list(request.files.keys())}")
+
     if 'geotiff_file' not in request.files:
+        geotiff_log.warning("  REJECTED: no 'geotiff_file' in request.files")
         return Response('{"error":"no file"}', status=400, mimetype='application/json')
 
     f = request.files['geotiff_file']
+    geotiff_log.debug(f"  filename from client: '{f.filename}'")
     if not f.filename:
+        geotiff_log.warning("  REJECTED: empty filename")
         return Response('{"error":"empty filename"}', status=400, mimetype='application/json')
 
     # Basic extension check
     ext = os.path.splitext(f.filename)[1].lower()
     if ext not in ('.tif', '.tiff'):
+        geotiff_log.warning(f"  REJECTED: bad extension '{ext}'")
         return Response('{"error":"file must be a .tif or .tiff"}',
                         status=400, mimetype='application/json')
 
-    # Read into memory to check size before writing to disk
-    data = f.read(_GEOTIFF_MAX_BYTES + 1)
-    if len(data) > _GEOTIFF_MAX_BYTES:
-        return Response(f'{{"error":"file exceeds {_GEOTIFF_MAX_BYTES // (1024*1024)} MB limit"}}',
-                        status=413, mimetype='application/json')
-
-    # Write to a temp file so GDAL can open it
+    # Stream to disk in 1 MB chunks; abort early if size limit exceeded.
+    # This avoids loading the entire file into RAM.
     token = secrets.token_hex(8)  # 16-char hex
     save_path = _geotiff_path_from_token(token)
     os.makedirs(TMP_FOLDER, exist_ok=True)
-    with open(save_path, 'wb') as out:
-        out.write(data)
+    geotiff_log.info(f"  generated token: {token}")
+    geotiff_log.info(f"  save_path: {save_path}")
+    geotiff_log.debug(f"  TMP_FOLDER exists: {os.path.isdir(os.path.dirname(save_path))}")
+    _CHUNK = 1024 * 1024  # 1 MB
+    total_bytes = 0
+    try:
+        with open(save_path, 'wb') as out:
+            while True:
+                chunk = f.stream.read(_CHUNK)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > _GEOTIFF_MAX_BYTES:
+                    raise ValueError(f"file exceeds {_GEOTIFF_MAX_BYTES // (1024*1024)} MB limit")
+                out.write(chunk)
+    except ValueError as _size_err:
+        geotiff_log.error(f"  REJECTED (size): {_size_err}")
+        try: os.remove(save_path)
+        except OSError: pass
+        return Response(json.dumps({"error": str(_size_err)}),
+                        status=413, mimetype='application/json')
+    geotiff_log.info(f"  streamed to disk: {total_bytes} bytes  file_exists={os.path.isfile(save_path)}")
 
     # --- GDAL validation ---
     try:
@@ -309,6 +348,11 @@ def upload_geotiff():
         src_srs = osr.SpatialReference()
         if srs_wkt:
             src_srs.ImportFromWkt(srs_wkt)
+            # GDAL 3.x uses authority-conformant axis order by default (lat-first for
+            # EPSG:4326).  Force traditional GIS order (x=lon/easting, y=lat/northing)
+            # to match how GDAL stores raster data in the GeoTransform.
+            src_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+            geotiff_log.debug(f"  source CRS: {src_srs.GetName()}  auth={src_srs.GetAuthorityName(None)}:{src_srs.GetAuthorityCode(None)}")
         else:
             raise ValueError("file has no CRS / projection information")
 
@@ -409,9 +453,15 @@ def upload_geotiff():
             raise ValueError(f"reprojected bbox out of range: {minlon},{minlat},{maxlon},{maxlat}")
 
     except Exception as e:
+        geotiff_log.error(f"  GDAL validation FAILED: {e}")
         try: os.remove(save_path)
         except OSError: pass
         return Response(json.dumps({"error": str(e)}), status=422, mimetype='application/json')
+
+    geotiff_log.info(f"  validation OK  bbox=[{minlat:.5f}N,{minlon:.5f}E → {maxlat:.5f}N,{maxlon:.5f}E]")
+    geotiff_log.info(f"  reprojected_msg: {reprojected_msg}")
+    geotiff_log.info(f"  final file_exists={os.path.isfile(save_path)}  size={os.path.getsize(save_path) if os.path.isfile(save_path) else 'N/A'}")
+    geotiff_log.info(f"  returning token={token} to client")
 
     return Response(json.dumps({
         "token":  token,
@@ -422,14 +472,58 @@ def upload_geotiff():
     }), status=200, mimetype='application/json')
 
 
+@app.route('/get_mapid', methods=['GET'])
+def get_mapid():
+    """Return a GEE tile MAPID for the requested DEM + hillshade settings.
+    Used by the JS overlay swap when the user changes the DEM while in GeoTIFF mode.
+    Query params: DEM_name, hsazi, hselev, gamma
+    """
+    dem_name = request.args.get('DEM_name', '')
+    if not dem_name:
+        return Response('{"error":"missing DEM_name"}', status=400, mimetype='application/json')
+    try:
+        hsazi  = float(request.args.get('hsazi',  315))
+        hselev = float(request.args.get('hselev', 45))
+        gamma  = float(request.args.get('gamma',  1.0))
+    except (TypeError, ValueError):
+        return Response('{"error":"invalid numeric param"}', status=400, mimetype='application/json')
+
+    try:
+        if dem_name in IMG_COLL_DEMS:
+            coll = ee.ImageCollection(dem_name)
+            if dem_name in MULTI_BANDS:
+                coll = coll.select(MULTI_BANDS[dem_name])
+            proj = coll.first().select(0).projection()
+            elev = coll.mosaic().setDefaultProjection(proj)
+        else:
+            elev = ee.Image(dem_name)
+            if dem_name in MULTI_BANDS:
+                elev = elev.select(MULTI_BANDS[dem_name])
+        elev = elev.resample('bilinear')
+        hs   = ee.Terrain.hillshade(elev, hsazi, hselev).resample('bilinear')
+        mapid_dict = hs.getMapId({'gamma': gamma})
+        return Response(f'{{"mapid":"{mapid_dict["mapid"]}"}}', mimetype='application/json')
+    except Exception as e:
+        geotiff_log.error(f"/get_mapid error for {dem_name}: {e}")
+        return Response(f'{{"error":"{str(e)}"}}', status=500, mimetype='application/json')
+
+
 @app.route('/clear_geotiff', methods=['POST'])
 def clear_geotiff():
     """Delete a previously-uploaded GeoTIFF temp file."""
+    geotiff_log.info("--- /clear_geotiff called ---")
     token = (request.json or {}).get('token', '')
+    geotiff_log.debug(f"  token received: '{token}'")
     path  = _geotiff_path_from_token(token)
+    geotiff_log.debug(f"  resolved path: {path}")
     if path and os.path.isfile(path):
-        try: os.remove(path)
-        except OSError: pass
+        try:
+            os.remove(path)
+            geotiff_log.info(f"  DELETED: {path}")
+        except OSError as e:
+            geotiff_log.error(f"  DELETE FAILED: {e}")
+    else:
+        geotiff_log.info(f"  file not found or invalid token — nothing deleted")
     return Response('{}', mimetype='application/json')
 
 
@@ -437,6 +531,7 @@ def clear_geotiff():
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
 def intro_page():
+    print("DEBUG: intro_page() called", file=sys.stderr, flush=True)
     if request.method == 'POST':
         token = request.form.get('g-recaptcha-response')
         if token and verify_recaptcha(token):
@@ -465,6 +560,7 @@ def intro_page():
 #
 @app.route("/main", methods=['GET', 'POST'])
 def main_page():
+    print("DEBUG: main_page() called", file=sys.stderr, flush=True)
     # example query string: ?DEM_name=USGS%2FNED&map_lat=44.59982&map_lon=-108.11694999999997&map_zoom=11&trlat=44.69741706507476&trlon=-107.97962089843747&bllat=44.50185267072875&bllon=-108.25427910156247&hs_gamma=1.0
 
     # init all browser args with defaults, these must be strings and match the SELECT values
@@ -594,6 +690,7 @@ def main_page():
     gamma = float(args["gamma"])
     _zoom = int(args.get('map_zoom', 0) or 0)
     quota_log.info(f"[hillshade] request: DEM={args['DEM_name']}  zoom={_zoom}  azi={hsazi}  elev={hselev}  gamma={gamma}")
+    print(f"DEBUG quota_log: writing request line, handlers={quota_log.handlers}, file={QUOTA_LOG_FILE}", file=sys.stderr, flush=True)
     # No reproject() — GEE's tile pyramid auto-selects the computation scale per tile zoom level.
     # reproject() pins ALL zoom levels to one scale, causing wide-zoom tiles to time out.
     quota_log.info("[hillshade] using GEE native tile pyramid (scale auto-selected per tile zoom level)")
@@ -628,7 +725,8 @@ def main_page():
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID,
                                     esri_api_key=ESRI_API_KEY,
                                     valid_dem_ids=app.config['VALID_DEM_IDS'],
-                                    num_refresh_per_minute=NUM_REFRESH_PER_MINUTE)
+                                    num_refresh_per_minute=NUM_REFRESH_PER_MINUTE,
+                                    browser_log_enabled=BROWSER_LOG_ENABLED)
         return html_str
 
     # if user has not been verified yet, show the intro page to get the reCAPTCHA
@@ -865,13 +963,25 @@ def export():
         # see if a GeoTIFF was pre-uploaded (token passed as a hidden form field)
         imported_dem_path = None
         geotiff_token = args.get("geotiff_token", "").strip()
+        geotiff_log.info("--- /export geotiff check ---")
+        geotiff_log.debug(f"  geotiff_token from form: '{geotiff_token}'")
+        geotiff_log.debug(f"  all form keys: {list(request.form.keys())}")
+        geotiff_log.debug(f"  all files keys: {list(request.files.keys())}")
         if geotiff_token:
             candidate = _geotiff_path_from_token(geotiff_token)
+            geotiff_log.info(f"  candidate path: {candidate}")
+            _tmp_contents = os.listdir(TMP_FOLDER) if os.path.isdir(TMP_FOLDER) else []
+            geotiff_log.debug(f"  TMP_FOLDER contents: {_tmp_contents}")
+            geotiff_log.debug(f"  os.path.isfile(candidate): {os.path.isfile(candidate) if candidate else 'N/A (None)'}")
             if candidate and os.path.isfile(candidate):
                 imported_dem_path = candidate
+                geotiff_log.info(f"  FOUND — using {candidate}  size={os.path.getsize(candidate)}")
                 html += f"Using uploaded GeoTIFF: {args.get('geotiff_filename', geotiff_token)}<br>"
             else:
+                geotiff_log.warning(f"  NOT FOUND — token='{geotiff_token}' candidate={candidate}")
                 html += "Warning: uploaded GeoTIFF token not found on server; falling back to GEE DEM.<br>"
+        else:
+            geotiff_log.info("  no geotiff_token in form — using GEE DEM")
 
         html += "<br>"
         yield html
@@ -896,6 +1006,15 @@ def export():
         if extra_args.get("only") != None:
             div_by = float(num_total_tiles)
 
+        # Block GeoTiff output when using a local uploaded DEM — the engine forbids it
+        if imported_dem_path and args["fileformat"] == "GeoTiff":
+            html  = '<b>Export blocked:</b> the output format <b>GeoTiff</b> cannot be used with an uploaded local DEM.'
+            html += ' Please close this tab, go back, and choose STL or OBJ as the output format.'
+            html += '''\n<script type="text/javascript">pageLoadedSuccessfully = true;</script>'''
+            html += '</div></body></html>'
+            yield html
+            return
+
         # for geotiffs only, set a much higher limit b/c we don't do any processing,
         # just d/l the GEE geotiff and zip it
         if args["fileformat"] == "GeoTiff":
@@ -908,6 +1027,17 @@ def export():
             pix_per_tile = (width / pr) * (height / pr) # pixels in each dimension
             tot_pix = int((pix_per_tile * num_total_tiles) / div_by) # total pixels to print
             print("total requested pixels to print", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
+        elif imported_dem_path:
+            # Local DEM with printres=-1 (use native cell size): pixel count comes
+            # from the file itself, not from the GEE arc-sec resolution tables.
+            from osgeo import gdal as _gdal
+            _ds = _gdal.Open(imported_dem_path, _gdal.GA_ReadOnly)
+            if _ds:
+                tot_pix = int((_ds.RasterXSize * _ds.RasterYSize) / div_by)
+                _ds = None
+                print("local DEM pixel count", tot_pix, ", max is", MAX_CELLS_PERMITED, file=sys.stderr)
+            else:
+                tot_pix = 0  # can't determine, let it through
         else:
             # estimates the total number of cells from area and arc sec resolution of source
             # this is done for the entire area, so number of cells is irrelevant
@@ -1003,6 +1133,11 @@ def export():
             html =  '</div></body></html>' + "Error: " + str(e)
             yield html
             return "bailing out!"
+        finally:
+            # Clean up the uploaded GeoTIFF temp file now that the engine is done with it
+            if imported_dem_path and os.path.isfile(imported_dem_path):
+                try: os.remove(imported_dem_path)
+                except OSError: pass
 
         # if totalsize is negative, something went wrong, error message is in full_zip_file_name
         if totalsize < 0:
