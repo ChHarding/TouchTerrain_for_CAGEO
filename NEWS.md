@@ -1,3 +1,47 @@
+May 15, 2026 (version 4.0)
+1. ESRI/Leaflet Basemap & Geocoder (core motivation of the branch)
+- Replaced the Google Maps basemap with ESRI/ArcGIS basemaps via Leaflet, using an optional API key (ESRI_API_KEY in config)
+- Replaced the Google geocoder with the ESRI Leaflet Geocoder, including fallback handling when no API key is present and error/timeout messaging
+- The old Google Maps server is preserved intact in server_google_maps/ as a reference
+
+2. Local GeoTIFF DEM Upload
+- Users can now upload a local GeoTIFF file as a DEM source instead of (or alongside) GEE DEMs
+- Upload includes validation, reprojection, bounding-box snapping of the red selection box, and a clear (×) button to switch back to online DEMs
+
+3. GEE Quota Protection
+- Removed the reproject() hillshade scale cap (it was pinning all zoom levels to one resolution, causing timeouts)
+- GEE now uses its native tile pyramid per-request — the correct behaviour for a tile service
+- Added viewport area estimation to selectively cap resolution only when zoomed out over large areas
+- Quota log (quota.log) can record every getMapId() call with DEM, zoom, timing, and success/failure
+
+4. Client-Side Rate Limiter
+- New NUM_REFRESH_PER_MINUTE config option throttles rapid DEM/hillshade changes per browser tab
+- Blocked requests auto-retry when the 60-second window clears; amber lamp signals waiting state
+
+5. New 1 meters resolution DEM for most of the US, France and England
+
+6. DEM Coverage Boundaries
+- Polygon outlines of high-resolution DEM coverage areas drawn on the map (fetched as GeoJSON, fill dynamically adjusts with zoom level)
+- note that these are static and not updated as more US areas get 1 m DEMs
+
+7. Logging Infrastructure
+- Four independent log files, all toggleable in config.py: quota.log, hillshade.log, geotiff.log, recaptcha.log
+- Optional browser-side tile/zoom event logging (POSTs to /log, off by default)
+
+8. UI Polish
+- Drag-to-resize handle between map and UI panel (width persisted in sessionStorage)
+- Intro page updated with an interactive world map and click-to-copy coordinates
+- Default basemap changed to Streets; zoom level display improvements
+- Zoom level indicator (lower left)
+- Zoom-gating for hi-res DEMs, need to zoom to >= level 14 to see the DEM
+
+9. Dev Infrastructure
+Run_TouchTerrain_debug_server_app.py — a one-click local Flask debug server
+Documentation added: how_rate_limiting_works.txt, quota/hillshade architecture notes
+
+
+
+
 Feb. 13, 2023 (version 3.6.0)
 - changed how touchterrain gets installed on the colab notebook
 - updated colab notebook after feedback from Steve Potter 
