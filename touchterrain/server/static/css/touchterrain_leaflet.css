@@ -1,5 +1,20 @@
 /* TouchTerrain ESRI/Leaflet custom styles */
 
+/* ESRI Leaflet sets mix-blend-mode:plus-lighter on all tile images. That mode
+   adds pixel colors together (clamped to white), so any sub-pixel tile overlap
+   produced by DPR scaling creates a bright-white seam. Override to normal so
+   adjacent/overlapping tiles render naturally without the additive brightening.
+   backface-visibility:hidden helps with GPU compositing alignment. */
+.leaflet-container img.leaflet-tile {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    mix-blend-mode: normal;
+}
+
+.leaflet-tile-pane {
+    will-change: transform;
+}
+
 /* Map fills viewport minus the page header (~60px) + small margin */
 #map {
     height: calc(100vh - 70px);
