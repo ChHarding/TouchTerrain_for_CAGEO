@@ -69,6 +69,7 @@ window.onload = function () {
     map = L.map('map', {
         center: [map_lat, map_lon],
         zoom: map_zoom,
+        maxZoom: 18,            // GEE hillshade tiles are not available beyond zoom 18
         boxZoom: false,         // disable Shift+drag box-zoom so Shift+corner-drag works
         doubleClickZoom: false
     });
@@ -565,6 +566,8 @@ window.onload = function () {
                     const el = getById(id); if (el) { el.readOnly = false; el.style.color = ''; el.style.backgroundColor = ''; }
                 });
                 const rcBtn = getById('recenter-box-button'); if (rcBtn) rcBtn.disabled = false;
+                // Restore the DEM-based source resolution (was overwritten while GeoTIFF was active)
+                SetDEM_name();
             }
 
             // If the user cleared the input, undo everything
@@ -669,6 +672,15 @@ window.onload = function () {
                     statusDiv.style.color   = data.reprojected_msg ? '#b8860b' : 'green';  // amber if reprojected
                     statusDiv.style.display = 'block';
                     $('#geotiff_file_name').html(data.filename);
+
+                    // Overwrite "source DEM is: X m" with the GeoTIFF's actual pixel resolution
+                    if (data.geotiff_res_m != null) {
+                        const _srcRes = document.getElementById('source_resolution');
+                        if (_srcRes) {
+                            _srcRes.value     = data.geotiff_res_m;
+                            _srcRes.innerHTML = data.geotiff_res_m + ' m';
+                        }
+                    }
                 })
                 .catch(err => {
                     console.log('[geotiff] upload fetch ERROR: ' + err.message);
@@ -1173,7 +1185,8 @@ function create_overlay(MAPID, map) {
 
     const overlay = L.tileLayer(`${EE_MAP_PATH}/${MAPID}/tiles/{z}/{x}/{y}`, {
         attribution: 'Google Earth Engine',
-        opacity: _sliderOpacity()
+        opacity: _sliderOpacity(),
+        maxNativeZoom: 18   // GEE doesn't serve tiles beyond zoom 18; Leaflet scales up from 18
     });
 
     let _t0 = Date.now();

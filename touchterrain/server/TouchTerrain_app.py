@@ -461,6 +461,21 @@ def upload_geotiff():
     geotiff_log.info(f"  validation OK  bbox=[{minlat:.5f}N,{minlon:.5f}E → {maxlat:.5f}N,{maxlon:.5f}E]")
     geotiff_log.info(f"  reprojected_msg: {reprojected_msg}")
     geotiff_log.info(f"  final file_exists={os.path.isfile(save_path)}  size={os.path.getsize(save_path) if os.path.isfile(save_path) else 'N/A'}")
+
+    # Compute the actual pixel resolution of the final (possibly reprojected) file
+    geotiff_res_m = None
+    try:
+        _ds_res = gdal.Open(save_path, gdal.GA_ReadOnly)
+        if _ds_res is not None:
+            _gt_res = _ds_res.GetGeoTransform()
+            _xres = abs(_gt_res[1])
+            _yres = abs(_gt_res[5])
+            geotiff_res_m = round((_xres + _yres) / 2, 2)
+            _ds_res = None
+            geotiff_log.info(f"  geotiff_res_m: {geotiff_res_m} m")
+    except Exception as _res_err:
+        geotiff_log.warning(f"  could not compute pixel resolution: {_res_err}")
+
     geotiff_log.info(f"  returning token={token} to client")
 
     return Response(json.dumps({
@@ -468,7 +483,8 @@ def upload_geotiff():
         "minlon": minlon, "minlat": minlat,
         "maxlon": maxlon, "maxlat": maxlat,
         "filename": f.filename,
-        "reprojected_msg": reprojected_msg   # None if no reprojection was needed
+        "reprojected_msg": reprojected_msg,   # None if no reprojection was needed
+        "geotiff_res_m": geotiff_res_m        # actual pixel size in metres (or null)
     }), status=200, mimetype='application/json')
 
 
