@@ -23,9 +23,10 @@ else: # Neither
     print(f"ERROR: Unsupported OS '{platform.system()}'; using local server directory for Recaptcha keys.")
     RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
 
-# log for recaptcha v3, — set to None to disable logging
-#RECAPTCHA_V3_LOG_FILE = None
-RECAPTCHA_V3_LOG_FILE = os.path.join(config.SERVER_DIR, 'Recaptcha_v3_log.txt')
+# All log files go into server/logs/.
+# Set any LOG_FILE to None to disable that log entirely.
+LOGS_DIR = os.path.join(config.SERVER_DIR, 'logs')
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 
 # DEBUG_MODE will be True if running in a local development environment.
@@ -83,20 +84,36 @@ ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJM
 GOOGLE_ANALYTICS_TRACKING_ID = "G-EGX5Y3PBYH"
 # If you don't wan to use GA, set this to "" !
 
-# Quota / hillshade activity log.
-# Set to a file path to enable logging of every getMapId() call and outcome.
-# Set to None to disable.
-#QUOTA_LOG_FILE = os.path.join(config.SERVER_DIR, 'quota.log')
-QUOTA_LOG_FILE = None
+# log for recaptcha v3 — set to None to disable
+RECAPTCHA_V3_LOG_FILE = os.path.join(LOGS_DIR, 'recaptcha.log')
+#RECAPTCHA_V3_LOG_FILE = None
 
-# Hillshade debug log — detailed per-request diagnostic log, cleared on every server restart.
-# Logs DEM selection, viewport filtering, GEE collection/image paths, getMapId() timing, and errors.
-# Set to a file path to enable; set to None to disable (default).
-HILLSHADE_LOG_FILE = os.path.join(config.SERVER_DIR, 'hillshade.log')
-#HILLSHADE_LOG_FILE = None
+# Quota / hillshade activity log.
+# Logs every getMapId() call and outcome. Set to None to disable.
+QUOTA_LOG_FILE = os.path.join(LOGS_DIR, 'quota.log')
+#QUOTA_LOG_FILE = None
+
+# Browser-side tile/zoom event logging.
+# When True, the browser POSTs short diagnostic messages to /log, which are written
+# to hillshade.log and/or quota.log (both must be enabled to capture them).
+# Set to False to suppress all POST /log traffic.
+BROWSER_LOG_ENABLED = False
+#BROWSER_LOG_ENABLED = True
+
+# Hillshade debug log — detailed per-request diagnostics, cleared on every restart.
+# Logs DEM selection, viewport filtering, GEE paths, getMapId() timing, and errors.
+# Set to None to disable.
+#HILLSHADE_LOG_FILE = os.path.join(LOGS_DIR, 'hillshade.log')
+HILLSHADE_LOG_FILE = None
+
+# GeoTIFF lifecycle log — upload, clear, and /get_mapid events.
+# Set to None to disable.
+#GEOTIFF_LOG_FILE = os.path.join(LOGS_DIR, 'geotiff.log')
+GEOTIFF_LOG_FILE = None
 
 # Client-side hillshade refresh rate limit.
 # Maximum number of terrain-settings refreshes (getMapId calls) allowed per minute per browser tab.
+# this is only used to prevent impatient users to change DEMs or switch hillshade parameters too quickly
 # Set to None to disable throttling entirely.
-NUM_REFRESH_PER_MINUTE = None
-#NUM_REFRESH_PER_MINUTE = 5
+#NUM_REFRESH_PER_MINUTE = None
+NUM_REFRESH_PER_MINUTE = 6
