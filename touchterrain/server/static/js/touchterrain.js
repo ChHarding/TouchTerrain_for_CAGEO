@@ -84,6 +84,11 @@ window.onload = function () {
         Object.assign({ maxNativeZoom: BASEMAP_MAX_NATIVE_ZOOM['Streets'] || 19 }, _esriBasemapOpts)
     ).addTo(map);
 
+    // Restore basemap from previous page load (survives DEM/sun/gamma refreshes)
+    if (window.maptype && window.maptype !== 'roadmap' && window.maptype !== current_basemap) {
+        switchBasemap(window.maptype);
+    }
+
     // Add basemap selector dropdown control
     L.Control.BasemapSwitcher = L.Control.extend({
         onAdd: function(map) {
@@ -136,6 +141,7 @@ window.onload = function () {
     setTimeout(function() {
         let sel = document.getElementById('basemap-select');
         if (sel) {
+            sel.value = current_basemap;  // sync dropdown to basemap restored from reload
             sel.addEventListener('change', function() {
                 switchBasemap(this.value);
             });
@@ -503,8 +509,29 @@ window.onload = function () {
     // bbox, removes all handles (box is now read-only), and stores the token
     // for the export form.  Clearing the input restores handles.
     // -----------------------------------------------------------------------
+
+    // Log token value at the exact moment the export form is submitted
+    const _exportForm = getById('accordion');
+    if (_exportForm) {
+        _exportForm.addEventListener('submit', function () {
+            const _tf = getById('geotiff_token');
+            console.log('[geotiff] FORM SUBMIT  geotiff_token field value="' + (_tf ? _tf.value : 'FIELD NOT FOUND') + '"');
+        });
+    }
+
     const geotiffInput = getById("geotiff_file");
     if (geotiffInput) {
+        // Wire up the static clear-link so it works even before a file is chosen
+        const _clearBtn = getById('geotiff_clear_btn');
+        if (_clearBtn) {
+            _clearBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                geotiffInput.value = '';  // reset file input
+                geotiffInput.dispatchEvent(new Event('change'));
+                // No reload — map stays at the exact same position/zoom, box gets handles back
+            });
+        }
+
         geotiffInput.addEventListener('change', function () {
             const statusDiv = getById("geotiff_status");
             const tokenField    = getById("geotiff_token");
@@ -512,6 +539,7 @@ window.onload = function () {
 
             // Helper: reset everything back to normal (handles restored)
             function _clearGeotiff(token) {
+                console.log('[geotiff] _clearGeotiff called  token="' + token + '"  caller=' + (new Error().stack.split('\n')[2] || '?').trim());
                 if (token) {
                     fetch('/clear_geotiff', {
                         method: 'POST',
@@ -526,10 +554,22 @@ window.onload = function () {
                 // Restore handles so the box is editable again
                 create_corner_handles();
                 create_edge_handles();
+                // Re-enable box dragging
+                const _rElC = rectangle.getElement();
+                if (_rElC) { _rElC.style.pointerEvents = ''; _rElC.style.cursor = 'move'; }
+                // Hillshade was never removed, nothing to restore
+                // Hide the clear button
+                if (_clearBtn) { _clearBtn.style.display = 'none'; }
+                // Re-enable coordinate fields and recenter button
+                ['trlat2','trlon2','bllat2','bllon2'].forEach(id => {
+                    const el = getById(id); if (el) { el.readOnly = false; el.style.color = ''; el.style.backgroundColor = ''; }
+                });
+                const rcBtn = getById('recenter-box-button'); if (rcBtn) rcBtn.disabled = false;
             }
 
             // If the user cleared the input, undo everything
             if (!geotiffInput.files || geotiffInput.files.length === 0) {
+                console.log('[geotiff] file input cleared by user');
                 _clearGeotiff(tokenField.value);
                 $('#geotiff_file_name').html('Optional local GeoTIFF DEM:');
                 return;
@@ -548,7 +588,20 @@ window.onload = function () {
             }
 
             // Clear any previous token before uploading a new file
-            _clearGeotiff(tokenField.value);
+            // NOTE: we do NOT delete it here — we wait until the new upload succeeds
+            // so that a failed upload doesn't lose the previously working token.
+            const _prevToken = tokenField.value;
+            tokenField.value    = '';
+            filenameField.value = '';
+            statusDiv.style.display = 'none';
+            statusDiv.textContent   = '';
+            if (_clearBtn) { _clearBtn.style.display = 'none'; }
+            // Re-enable coord fields / recenter while uploading
+            ['trlat2','trlon2','bllat2','bllon2'].forEach(id => {
+                const el = getById(id); if (el) { el.readOnly = false; el.style.color = ''; el.style.backgroundColor = ''; }
+            });
+            const _rcBtnPre = getById('recenter-box-button'); if (_rcBtnPre) _rcBtnPre.disabled = false;
+            console.log('[geotiff] staging new upload; old token "' + _prevToken + '" held until new upload succeeds');
 
             statusDiv.textContent   = 'Uploading and validating…';
             statusDiv.style.color   = '#555';
@@ -570,9 +623,20 @@ window.onload = function () {
                         return;
                     }
 
+                    // New upload succeeded — now safe to delete the old server file
+                    if (_prevToken) {
+                        console.log('[geotiff] new upload OK — now deleting old token "' + _prevToken + '"');
+                        fetch('/clear_geotiff', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: _prevToken })
+                        }).catch(() => {});
+                    }
+
                     // Store token + filename for the export form
                     tokenField.value    = data.token;
                     filenameField.value = data.filename;
+                    console.log('[geotiff] upload SUCCESS  server token="' + data.token + '"  tokenField.value after set="' + tokenField.value + '"');
 
                     // Snap red box to GeoTIFF extent
                     const newBounds = L.latLngBounds(
@@ -586,15 +650,28 @@ window.onload = function () {
                     // Remove handles — box is fixed to the GeoTIFF extent
                     remove_corner_handles();
                     remove_edge_handles();
+                    // Disable box dragging (pointer-events:none makes mouse pass through the SVG element)
+                    const _rEl = rectangle.getElement();
+                    if (_rEl) { _rEl.style.pointerEvents = 'none'; _rEl.style.cursor = 'default'; }
+                    // GEE hillshade stays visible — user can still see/change the DEM source in GeoTIFF mode
+                    // Show the clear button
+                    if (_clearBtn) { _clearBtn.style.display = 'inline-block'; }
 
-                    const msg = `${data.filename}  [${data.minlat.toFixed(4)}°N, ${data.minlon.toFixed(4)}°E → ${data.maxlat.toFixed(4)}°N, ${data.maxlon.toFixed(4)}°E]`;
+                    // Make coordinate fields read-only in geotiff mode (readonly still submits values, disabled does not)
+                    ['trlat2','trlon2','bllat2','bllon2'].forEach(id => {
+                        const el = getById(id); if (el) { el.readOnly = true; el.style.color = '#888'; el.style.backgroundColor = '#e9ecef'; }
+                    });
+                    const rcBtn = getById('recenter-box-button'); if (rcBtn) rcBtn.disabled = true;
+
+                    // Status message: filename + reprojection note (extent is visible in the coordinate fields)
                     const reproj = data.reprojected_msg ? `  (${data.reprojected_msg})` : '';
-                    statusDiv.textContent   = '✓ ' + msg + reproj;
+                    statusDiv.textContent   = '✓ ' + data.filename + reproj;
                     statusDiv.style.color   = data.reprojected_msg ? '#b8860b' : 'green';  // amber if reprojected
                     statusDiv.style.display = 'block';
                     $('#geotiff_file_name').html(data.filename);
                 })
                 .catch(err => {
+                    console.log('[geotiff] upload fetch ERROR: ' + err.message);
                     statusDiv.textContent   = 'Error: ' + err.message;
                     statusDiv.style.color   = 'red';
                     statusDiv.style.display = 'block';
@@ -1058,6 +1135,9 @@ function create_overlay(MAPID, map) {
     function _setDot(bg, title, blink) {
         // Don't overwrite the rate-limit indicator while it's active
         if (window._hsRateLimitedUntil && Date.now() < window._hsRateLimitedUntil) return;
+        // Remember the last real lamp state so the rate-limit timeout can restore it
+        window._hsLastLampBg = bg;
+        window._hsLastLampTitle = title;
         Object.assign(lamp.style, {
             width: '14px', height: '14px', borderRadius: '50%',
             border: '2px solid #444', boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
@@ -1130,6 +1210,7 @@ function create_overlay(MAPID, map) {
     // Add or remove the tile layer based on current zoom level.
     // Removing it entirely stops all GEE tile requests — no hidden background work.
     function _applyZoomState() {
+        if (overlay._discarded) return;  // stale overlay — don't re-add it on top of the new one
         if (_minZoom > 0 && map.getZoom() < _minZoom) {
             if (map.hasLayer(overlay)) overlay.remove();
             _setZoomHint();
@@ -1167,6 +1248,7 @@ function create_overlay(MAPID, map) {
 
 // Send a short log message to the server's quota.log for browser-side debugging
 function browser_log(msg) {
+    if (!window.BROWSER_LOG_ENABLED) return;
     fetch('/log', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1412,6 +1494,58 @@ function create_divison_lines(event) {
 }
 
 // Update functions, called from HTML
+
+// Shared helper: if in GeoTIFF mode, swap the hillshade overlay using the
+// current DEM + terrain settings and return true (caller should NOT reload).
+// Returns false when not in GeoTIFF mode so the caller can submit_for_reload.
+function _refreshOverlayInGeotiffMode() {
+    const _tok = document.getElementById('geotiff_token');
+    if (!_tok || !_tok.value) return false;   // not in GeoTIFF mode
+    const dem    = encodeURIComponent(window.DEM_name || document.getElementById('DEM_name').value);
+    const hsazi  = (document.getElementById('hsazi2')  || {}).value || 315;
+    const hselev = (document.getElementById('hselev2') || {}).value || 45;
+    const gamma  = (document.getElementById('gamma2')  || {}).value || 1.0;
+    fetch(`/get_mapid?DEM_name=${dem}&hsazi=${hsazi}&hselev=${hselev}&gamma=${gamma}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { console.warn('[geotiff] get_mapid error:', data.error); return; }
+            if (overlay) overlay._discarded = true;  // prevent stale zoomend listener re-adding old layer
+            if (overlay && map.hasLayer(overlay)) { overlay.remove(); }
+            overlay = create_overlay(data.mapid, map);
+        })
+        .catch(err => console.warn('[geotiff] get_mapid fetch failed:', err));
+    return true;
+}
+
+// Called when the DEM dropdown changes.
+function onDEMChange(sel) {
+    window.DEM_name = sel.value;
+    SetDEM_name();
+    if (_refreshOverlayInGeotiffMode()) return;
+    submit_for_reload('GET');
+}
+
+// Called when the Sun direction dropdown changes.
+function onHsaziChange(sel) {
+    document.getElementById('hsazi').value = sel.value;
+    if (_refreshOverlayInGeotiffMode()) return;
+    submit_for_reload('GET');
+}
+
+// Called when the Sun angle dropdown changes.
+function onHselevChange(sel) {
+    updateHillshadeElevation(sel.value);
+    if (_refreshOverlayInGeotiffMode()) return;
+    submit_for_reload('GET');
+}
+
+// Called when the Gamma field is committed (Enter key).
+function onGammaCommit(val) {
+    updateGamma(val);
+    if (_refreshOverlayInGeotiffMode()) return;
+    submit_for_reload('GET');
+}
+
 function SetDEM_name() {
     document.getElementById('DEM_name').value = DEM_name;
     document.getElementById('DEM_name2').value = DEM_name;
@@ -1463,10 +1597,10 @@ function SetDEM_name() {
 function init_terrain_settings() {
     SetDEM_name();
 
-    const _transp = Number(window.tt_transp);
-    const _gamma = Number(window.tt_gamma);
-    const _hsazi = Number(window.tt_hsazi);
-    const _hselev = Number(window.tt_hselev);
+    const _transp = Number(window.transp);
+    const _gamma = Number(window.gamma);
+    const _hsazi = Number(window.hsazi);
+    const _hselev = Number(window.hselev);
 
     const _safeTransp = Number.isFinite(_transp) ? _transp : 20;
     const _safeGamma = Number.isFinite(_gamma)
@@ -1580,42 +1714,49 @@ function saveMapSettings() {
 
 // Client-side hillshade refresh rate limiter.
 // Tracks timestamps of recent submits; if NUM_REFRESH_PER_MINUTE is set and the
-// rolling 60-second count is exceeded, blinks the terrain lamp red instead of submitting.
+// rolling 60-second count is exceeded, blinks the terrain lamp red instead of submitting,
+// then automatically retries as soon as the oldest timestamp ages out of the 60 s window.
 // Timestamps are stored in sessionStorage so they survive the full-page reload that
 // submit_for_reload() triggers — an in-memory array would reset on every submit.
 const _HS_RATE_KEY = 'hs_refresh_timestamps';
 function _checkRefreshRateLimit() {
     if (!window.NUM_REFRESH_PER_MINUTE) return true; // throttling disabled
+    // A new attempt cancels any pending auto-retry (user acted before it fired).
+    if (window._hsPendingRetryTimer) {
+        clearTimeout(window._hsPendingRetryTimer);
+        window._hsPendingRetryTimer = null;
+    }
     const _now = Date.now();
     // Load, prune, and save the sliding window from sessionStorage
     let _ts = [];
     try { _ts = JSON.parse(sessionStorage.getItem(_HS_RATE_KEY) || '[]'); } catch(e) {}
     _ts = _ts.filter(t => _now - t < 60000); // keep only last 60 seconds
     if (_ts.length >= window.NUM_REFRESH_PER_MINUTE) {
-        // Rate exceeded — slow-blink the lamp red without submitting.
-        // Set a flag that blocks _setDot/_setZoomHint from overwriting the indicator
-        // while it is showing (e.g. during a zoom in/out).
-        const _BLOCK_MS = 5000;
-        window._hsRateLimitedUntil = Date.now() + _BLOCK_MS;
+        // Rate exceeded — show slowly-blinking amber and schedule an auto-retry.
+        window._hsRateLimitCount = (window._hsRateLimitCount || 0) + 1;
+        const _msUntilFree = Math.max(_ts[0] + 60000 - _now, 100);
+        // Block _setDot/_setZoomHint from overwriting the amber until the retry fires.
+        window._hsRateLimitedUntil = _now + _msUntilFree;
         const _lamp = document.getElementById('hs-status-lamp');
         if (_lamp) {
             Object.assign(_lamp.style, {
                 width: '14px', height: '14px', borderRadius: '50%',
                 border: '2px solid #444', boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
-                background: '#e53935',
-                padding: '', font: '', color: '', lineHeight: '', whiteSpace: ''
+                background: '#ff9800',
+                padding: '', font: '', color: '', lineHeight: '', whiteSpace: '',
+                animationDuration: '1s'   // slower than the default 0.8 s
             });
             _lamp.textContent = '';
-            _lamp.title = 'Please be patient';
-            _lamp.classList.add('hs-lamp-blink');
-            // After the block window expires, remove the blink class so the next
-            // normal lamp update (_setDot) can restore the correct colour.
-            setTimeout(() => {
-                if (_lamp) _lamp.classList.remove('hs-lamp-blink');
-            }, _BLOCK_MS);
+            _lamp.title = `Auto-reloading new terrain soon\u2026 (${window._hsRateLimitCount} attempt${window._hsRateLimitCount > 1 ? 's' : ''} queued)`;
+            _lamp.classList.add('hs-lamp-blink'); // stays on until page reloads
         }
+        window._hsPendingRetryTimer = setTimeout(() => {
+            window._hsPendingRetryTimer = null;
+            submit_for_reload('GET');
+        }, _msUntilFree);
         return false;
     }
+    window._hsRateLimitCount = 0; // reset on a successful pass
     _ts.push(_now);
     try { sessionStorage.setItem(_HS_RATE_KEY, JSON.stringify(_ts)); } catch(e) {}
     return true;
