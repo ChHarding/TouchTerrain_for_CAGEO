@@ -1,4 +1,4 @@
-# TouchTerrain (version 3.6)
+# TouchTerrain (version 4.0)
 
 TouchTerrain converts digital elevation data into digital model files (STL or OBJ) suitable for 3D printing. It comes as a standalone version and as a server version for a web application. To see the server version in action, go to [http://touchterrain.org](http://touchterrain.org) or
 [http://touchterrain.geol.iastate.edu](http://touchterrain.geol.iastate.edu)
@@ -186,7 +186,7 @@ The JSON config file has the following format:
 
 - `tilewidth`: The width of a tile in mm, tile height will be calculated from the aspect ratio of your area.
 
-- `tilewidth_scale`: (default: `None`). Uses this scale factor to calculate and override the tile width. Ex: a factor of 10000 will divide the real-world width of the area by 10000 and multiply that value by 1000 to arrive at a new tilewidth (in mm). Note that the final x/y scale (reported in the log file) may be slightly different due to some projection adjustments. __(New in 3.6.1)__
+- `tilewidth_scale`: (default: `None`). Uses this scale factor to calculate and override the tile width. Ex: a factor of 10000 will divide the real-world width of the area by 10000 and multiply that value by 1000 to arrive at a new tilewidth (in mm). Note that the final x/y scale (reported in the log file) may be slightly different due to some projection adjustments. __
 
 - `unprojected`: (default: `false`). (__Works only for exporting GeoTiffs, not for meshes__) Normally, the DEM from EE is projected either into the UTM zone of the center of the selected region or into a polar-stereographic projection (m based) for Arctic/Antarctic regions. If this option is true, the raster is left unprojected.
 
