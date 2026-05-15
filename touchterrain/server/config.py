@@ -90,8 +90,8 @@ RECAPTCHA_V3_LOG_FILE = os.path.join(LOGS_DIR, 'recaptcha.log')
 
 # Quota / hillshade activity log.
 # Logs every getMapId() call and outcome. Set to None to disable.
-QUOTA_LOG_FILE = os.path.join(LOGS_DIR, 'quota.log')
-#QUOTA_LOG_FILE = None
+#QUOTA_LOG_FILE = os.path.join(LOGS_DIR, 'quota.log')
+QUOTA_LOG_FILE = None
 
 # Browser-side tile/zoom event logging.
 # When True, the browser POSTs short diagnostic messages to /log, which are written
