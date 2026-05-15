@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 3.6 - ESRI)</title>
+		<title>TouchTerrain: Easily Create 3D-Printable Terrain Models (version 4.0 - ESRI)</title>
 		<meta charset="UTF-8">
 		<meta name="description" content="Application for creating 3D printable terrain models">
 		<meta property="og:image" content="/static/touchTerrain_logo.png">
@@ -85,11 +85,14 @@
 		"warning": {{ warning|tojson }},
 		"hsazi": {{ hsazi|tojson }},
 		"hselev": {{ hselev|tojson }},
+		"gamma": {{ gamma|tojson }},
 		"transp": {{ transp|tojson }},
 		"mapid": {{ mapid|tojson }},
+		"maptype": {{ maptype|tojson }},
 		"esri_api_key": {{ esri_api_key|tojson }},
 		"valid_dem_ids": {{ valid_dem_ids|tojson }},
-		"num_refresh_per_minute": {{ num_refresh_per_minute|tojson }}
+		"num_refresh_per_minute": {{ num_refresh_per_minute|tojson }},
+		"browser_log_enabled": {{ browser_log_enabled|tojson }}
 		}
 		</script>
 		<script type="text/javascript">
@@ -116,11 +119,14 @@
 				window.warning = config.warning;
 				window.hsazi = config.hsazi;
 				window.hselev = config.hselev;
+				window.gamma = config.gamma;
 				window.transp = config.transp;
 				window.MAPID = config.mapid;
+				window.maptype = config.maptype;  // persisted basemap name across reloads
 				window.ESRI_API_KEY = config.esri_api_key; // null or a key string
 				window.valid_dem_ids = config.valid_dem_ids; // DEMs with a coverage boundary file
 				window.NUM_REFRESH_PER_MINUTE = config.num_refresh_per_minute; // null = unlimited
+				window.BROWSER_LOG_ENABLED = config.browser_log_enabled; // false = suppress POST /log calls
 		})();
 	</script>	
 	<!-- TouchTerrain JavaScript -->
@@ -134,7 +140,7 @@
 				<!-- TouchTerrain is currently NOT working, sorry! &nbsp -->
 				TouchTerrain: Easily Create 3D-Printable Terrain Models &nbsp
 				<div class="text-truncate float-right"> 
-					<a href="https://touchterrain.blogspot.com/" target="_blank"> Blog - what's new in version 3.6?</a> 
+					<a href="https://touchterrain.blogspot.com/" target="_blank"> What's new in version 4.0?</a> 
 					 	<button type="button" id="Whats_new__popover" class="btn btn-outline-info btn-sm" 
 							data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 								<i class="fas fa-question"></i>
@@ -142,14 +148,21 @@
 				</div>
 			  </h4>
 			</div>
-			<div class="row">
-				<div class="col-sm-8">
+			<div class="row" style="flex-wrap:nowrap;">
+				<div id="map-col" class="col-sm-8" style="flex:0 0 66.67%; max-width:66.67%; padding-right:0;">
 					<div style="height: calc(100vh - 70px); position: relative; overflow: hidden; margin-top: 4px;" id="map">
 						Map didn't load
 					</div>
 					<!-- ESRI Leaflet Geocoder search control is added programmatically in touchterrain.js -->
 				</div>
-				<div class="col-sm-4 form-control-sm" >
+				<div id="map-resize-handle" title="Drag to resize map"
+				     style="flex:0 0 8px; cursor:col-resize;
+				            background-color:#dee2e6;
+				            background-image:radial-gradient(circle, #999 1.5px, transparent 1.5px);
+				            background-size:4px 4px;
+				            border-left:1px solid #adb5bd; border-right:1px solid #adb5bd;
+				            user-select:none;"></div>
+				<div id="ui-col" class="col-sm-4 form-control-sm" style="flex:1 1 0%; min-width:0; max-width:none; overflow-y:auto; height:calc(100vh - 70px);">
 					<!-- form 1 -->
 					<form action="/main" class="form-horizontal" method="post" 
 					  id="reloadform" style="margin-bottom: 0px;"> 
@@ -176,7 +189,7 @@
 										</div>
 										<div class="col-sm-6 form-inline">
 											<select class="form-control custom-select-sm text-truncate" 
-															id="DEM_name" name="DEM_name" onchange="submit_for_reload('GET')">
+												id="DEM_name" name="DEM_name" onchange="onDEMChange(this)">
 												<option value="USGS/3DEP/10m_collection" selected>USGS/3DEP/10m_collection (10m resolution, US only)</option>
 												<option value="JAXA/ALOS/AW3D30/V4_1">AW3D30 (30m resolution, worldwide, good quality)</option>
 												<option value="NRCan/CDEM">NRCan/CDEM (20+m resolution, Canada only)</option>
@@ -223,7 +236,7 @@
 												<label for="gamma2">Gamma:</label>
 												<input type="text" id="gamma2" class="form-control form-control-sm" maxlength="5" size="2" value="1.0" 
 													style="max-width: 40px;"
-													onkeydown="if(event.keyCode == 13){updateGamma(this.value); submit_for_reload('GET')};"> 
+												onkeydown="if(event.keyCode == 13){event.preventDefault(); onGammaCommit(this.value)}">
 												<button type="button" id="gamma_popover" class="btn btn-outline-info btn-sm" 
 													data-bs-container="body" data-bs-toggle="popover" data-bs-placement="auto">
 													<i class="fas fa-question"></i>
@@ -241,7 +254,7 @@
 														<i class="fas fa-question"></i>
 													</button>
 													<select class="form-control custom-select-sm"  
-														id="hsazi2" name="hsazi" onchange="submit_for_reload('GET');"
+														id="hsazi2" name="hsazi" onchange="onHsaziChange(this)"
 													>
 														<option value="270">West (270 degr.)</option>
 														<option value="315" selected>North-West (315 degr.)</option>
@@ -260,7 +273,7 @@
 														<i class="fas fa-question"></i>
 												</button>
 												<select class="form-control custom-select-sm"  
-													id="hselev2" name="hselev" onchange="updateHillshadeElevation(this.value); submit_for_reload('GET');">
+											id="hselev2" name="hselev" onchange="onHselevChange(this);">
 													<option value="55">steep (55 degr.)</option> 
 													<option value="45" selected >normal (45 degr.)</option>
 													<option value="35">kinda flat (35 degr.)</option>
@@ -321,7 +334,7 @@
 								value="Re-center box on map">
 							</div>
 							<div id="area_box_panel" class="collapse">
-								<div class="card-body ">
+								<div class="card-body" style="padding-top:0.3rem; padding-bottom:0.3rem;">
 									<div class="form-inline">
 										<div class="form-group ">
 											<input type="text" class="form-control form-control-sm" id="trlat2" name="trlat" maxlength="18" size="7" value="NULL" 
@@ -341,17 +354,24 @@
 										</div>
 									</div>
 								</div>
-								<br>
 								<!-- GeoTIFF upload: uploaded file replaces GEE DEM; red box snaps to its extent -->
+							<div class="d-flex align-items-center mt-1">
+								<button type="button" id="geotiff_clear_btn"
+									title="Hit X to switch to online DEM source"
+									style="display:none; font-size:1.6rem; line-height:1; font-weight:bold;
+									       color:#fff; background:#dc3545; border:none; border-radius:4px;
+									       padding:0 0.35em 0.05em; margin-right:0.5rem; cursor:pointer;"
+									aria-label="Switch back to online DEM source">&times;</button>
 								<div class="custom-file">
-										<input type="file" class="custom-file-input" id="geotiff_file" name="geotiff_file"
-											accept=".tif,.tiff">
-										<label class="custom-file-label" id="geotiff_file_name" for="geotiff_file">Optional local GeoTIFF DEM:</label>
+									<input type="file" class="custom-file-input" id="geotiff_file" name="geotiff_file"
+										accept=".tif,.tiff">
+									<label class="custom-file-label" id="geotiff_file_name" for="geotiff_file">Optional local GeoTIFF DEM:</label>
 								</div>
-								<!-- hidden fields populated by JS after successful upload -->
-								<input type="hidden" id="geotiff_token"    name="geotiff_token"    value="">
-								<input type="hidden" id="geotiff_filename" name="geotiff_filename" value="">
-								<div id="geotiff_status" class="small mt-1" style="display:none;"></div>
+							</div>
+							<!-- hidden fields populated by JS after successful upload -->
+							<input type="hidden" id="geotiff_token"    name="geotiff_token"    value="">
+							<input type="hidden" id="geotiff_filename" name="geotiff_filename" value="">
+							<div id="geotiff_status" class="small mt-1" style="display:none;"></div>
 								<br>
 								<div class="custom-file"> <!-- https://stackoverflow.com/questions/43250263/bootstrap-4-file-input -->
 										<input type="file" class="custom-file-input" id="kml_file" name="kml_file"
@@ -667,5 +687,66 @@
 			  </div>
 			</div>
 		</div>
+
+		<script>
+		// Drag-to-resize: map col <-> UI panel
+		(function () {
+			const handle = document.getElementById('map-resize-handle');
+			const mapCol = document.getElementById('map-col');
+			const row    = mapCol.parentElement;
+			let _drag = false, _startX = 0, _startW = 0;
+			const _STORE_KEY = 'map_col_pct';
+
+			// Restore saved width from previous session/reload
+			const _saved = sessionStorage.getItem(_STORE_KEY);
+			if (_saved) {
+				mapCol.style.flex     = '0 0 ' + _saved + '%';
+				mapCol.style.maxWidth = _saved + '%';
+			}
+
+			function _applyPct(pct) {
+				mapCol.style.flex     = '0 0 ' + pct + '%';
+				mapCol.style.maxWidth = pct + '%';
+				sessionStorage.setItem(_STORE_KEY, pct);
+			}
+
+			handle.addEventListener('mouseenter', () => handle.style.backgroundColor = '#adb5bd');
+			handle.addEventListener('mouseleave', () => { if (!_drag) handle.style.backgroundColor = '#dee2e6'; });
+
+			handle.addEventListener('mousedown', function (e) {
+				_drag   = true;
+				_startX = e.clientX;
+				_startW = mapCol.getBoundingClientRect().width;
+				document.body.style.cursor     = 'col-resize';
+				document.body.style.userSelect = 'none';
+				e.preventDefault();
+			});
+
+			document.addEventListener('mousemove', function (e) {
+				if (!_drag) return;
+				const rowW = row.getBoundingClientRect().width;
+				const newW = _startW + (e.clientX - _startX);
+				const minW = rowW * 0.33;    // half of original ~66%
+				const maxW = rowW * 0.6667;  // original width
+				const pct  = (Math.max(minW, Math.min(maxW, newW)) / rowW * 100).toFixed(2);
+				mapCol.style.flex     = '0 0 ' + pct + '%';
+				mapCol.style.maxWidth = pct + '%';
+				if (window.map) window.map.invalidateSize({animate: false});
+			});
+
+			document.addEventListener('mouseup', function () {
+				if (!_drag) return;
+				_drag = false;
+				handle.style.backgroundColor   = '#dee2e6';
+				document.body.style.cursor     = '';
+				document.body.style.userSelect = '';
+				// Save on release so the next reload restores this position
+				const rowW = row.getBoundingClientRect().width;
+				const pct  = (mapCol.getBoundingClientRect().width / rowW * 100).toFixed(2);
+				_applyPct(pct);
+				if (window.map) window.map.invalidateSize({animate: false});
+			});
+		})();
+		</script>
 	</body>
 </html>
