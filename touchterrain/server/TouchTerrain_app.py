@@ -96,6 +96,20 @@ else:
 print(f"GeoTIFF log: {'enabled → ' + str(GEOTIFF_LOG_FILE) if GEOTIFF_LOG_FILE else 'disabled'}")
 geotiff_log.info(f"=== server started ===  TMP_FOLDER={TMP_FOLDER}")
 
+# Altcha activity logger — controlled by ALTCHA_LOG_FILE in config.py.
+altcha_log = logging.getLogger('touchterrain.altcha')
+altcha_log.setLevel(logging.DEBUG)
+altcha_log.propagate = False
+altcha_log.handlers.clear()  # remove stale handlers from previous config/reload
+if ALTCHA_LOG_FILE:
+    _al = logging.FileHandler(ALTCHA_LOG_FILE, mode='w', encoding='utf-8')  # 'w' clears on restart
+    _al.setFormatter(logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    altcha_log.addHandler(_al)
+    altcha_log.info('=== server started ===')
+else:
+    altcha_log.addHandler(logging.NullHandler())
+print(f"Altcha log: {'enabled → ' + str(ALTCHA_LOG_FILE) if ALTCHA_LOG_FILE else 'disabled'}")
+
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
 # altcha_keys.txt must contain two lines:
@@ -202,6 +216,7 @@ def altcha_challenge():
     )
     app.config['ALTCHA_MAX_NUMBER'] = 100000
     challenge = create_challenge_v1(options)
+    altcha_log.info('challenge issued max_number=%s expires_in_minutes=10', app.config['ALTCHA_MAX_NUMBER'])
     return Response(json.dumps(challenge.to_dict()), mimetype='application/json')
 
 
@@ -226,15 +241,37 @@ def verify_altcha(payload):
     number    = payload_dict.get('number', 'N/A')
     algorithm = payload_dict.get('algorithm', 'N/A')
     took_ms   = payload_dict.get('took', 'N/A')  # ms to solve, if widget reported it
+    challenge = payload_dict.get('challenge', 'N/A')
+    salt      = payload_dict.get('salt', 'N/A')
+    expires   = payload_dict.get('expires', 'N/A')
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    user_agent = request.user_agent.string or 'unknown'
+
+    max_number = app.config.get('ALTCHA_MAX_NUMBER', 100000)
+    try:
+        work_factor = float(number) / float(max_number)
+        work_pct = f"{work_factor * 100:.2f}%"
+    except (TypeError, ValueError, ZeroDivisionError):
+        work_pct = 'N/A'
 
     status = 'success' if ok else f'failed ({err})'
     print(f"Altcha: {status}, algorithm={algorithm}, number={number}, took={took_ms}ms", file=sys.stderr)
 
-    if ALTCHA_LOG_FILE:
-        with open(ALTCHA_LOG_FILE, 'a') as f:
-            f.write(f"{datetime.utcnow().isoformat()}, {status}, "
-                    f"algorithm={algorithm}, number={number}/{app.config.get('ALTCHA_MAX_NUMBER', 100000)}, "
-                    f"took={took_ms}ms\n")
+    altcha_log.info(
+        'verification status=%s ok=%s algorithm=%s number=%s/%s work=%s took_ms=%s challenge=%s salt=%s expires=%s ip=%s ua="%s"',
+        status,
+        ok,
+        algorithm,
+        number,
+        max_number,
+        work_pct,
+        took_ms,
+        challenge,
+        salt,
+        expires,
+        client_ip,
+        user_agent,
+    )
 
     return ok
 
@@ -570,8 +607,19 @@ def clear_geotiff():
 @app.route('/', methods=['GET', 'POST'])
 def intro_page():
     print("DEBUG: intro_page() called", file=sys.stderr, flush=True)
+    if request.method == 'GET':
+        altcha_log.info('intro page served verified_session=%s ip=%s ua="%s"',
+                        session.get('recaptcha_verified') == True,
+                        request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip(),
+                        request.user_agent.string or 'unknown')
     if request.method == 'POST':
         payload = request.form.get('altcha')
+        altcha_log.info('intro form POST received has_payload=%s ip=%s ua="%s"',
+                        bool(payload),
+                        request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip(),
+                        request.user_agent.string or 'unknown')
+        if not payload:
+            altcha_log.warning('verification skipped: POST / received without altcha payload')
         if payload and verify_altcha(payload):
             session['recaptcha_verified'] = True  # Store in Flask session
             print("User has been verified (intro), showing main page.", file=sys.stderr)
@@ -757,6 +805,9 @@ def main_page():
     # serve index.html unless user has not been verified earlier  
     if session.get('recaptcha_verified') == True:
         print("User has been verified, showing main page.", file=sys.stderr)
+        altcha_log.info('main page served with existing verified session ip=%s ua="%s"',
+                        request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip(),
+                        request.user_agent.string or 'unknown')
         # string with index.html "file" with mapid, token, etc. inlined
         html_str = render_template("index.html", **args,
                                     GOOGLE_ANALYTICS_TRACKING_ID=GOOGLE_ANALYTICS_TRACKING_ID,
@@ -768,6 +819,9 @@ def main_page():
 
     # if user has not been verified yet, show the intro page to get the Altcha check
     print("User has not been verified, showing intro page.", file=sys.stderr)
+    altcha_log.info('main page redirected to intro because session is not verified ip=%s ua="%s"',
+                    request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip(),
+                    request.user_agent.string or 'unknown')
     return render_template('intro.html')
 
 # Page that unzips the tiles and shows a preview of the STL files using a template
