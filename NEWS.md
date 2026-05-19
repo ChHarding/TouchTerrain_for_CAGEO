@@ -25,7 +25,7 @@ May 15, 2026 (version 4.0)
 - note that these are static and not updated as more US areas get 1 m DEMs
 
 7. Logging Infrastructure
-- Four independent log files, all toggleable in config.py: quota.log, hillshade.log, geotiff.log, recaptcha.log
+- Four independent log files, all toggleable in config.py: quota.log, hillshade.log, geotiff.log, altcha.log
 - Optional browser-side tile/zoom event logging (POSTs to /log, off by default)
 
 8. UI Polish
