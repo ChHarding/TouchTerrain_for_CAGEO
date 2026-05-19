@@ -5,23 +5,24 @@ import platform
 # TouchTerrain server config settings
 
 #
-# 5/2025: changed recaptcha file location to /tmp to make them not web accessible. 
-# Miles made /tmp read-only so it doesn't get wiped on rebuilds
+# 5/2025: changed keys file location to /tmp to make it not web accessible.
+# Miles made /tmp read-only so it doesn't get wiped on rebuilds.
 #
 
 #
-# file for Recptcha v3 keys
+# File for Altcha keys.
+# Two lines: flask_secret_key, altcha_hmac_key
 #
 
 # Win debug server
 _system_name = platform.system().lower()
 if _system_name == "windows":
-    RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
-elif _system_name in ("linux", "darwin"): # linux or MaxOS
-    RECAPTCHA_V3_KEYS_FILE = "/tmp/Recaptcha_v3_keys.txt"
+    ALTCHA_KEYS_FILE = os.path.join(config.SERVER_DIR, "altcha_keys.txt")
+elif _system_name in ("linux", "darwin"): # Linux or macOS
+    ALTCHA_KEYS_FILE = "/tmp/altcha_keys.txt"
 else: # Neither
-    print(f"ERROR: Unsupported OS '{platform.system()}'; using local server directory for Recaptcha keys.")
-    RECAPTCHA_V3_KEYS_FILE = os.path.join(config.SERVER_DIR, "Recaptcha_v3_keys.txt")
+    print(f"ERROR: Unsupported OS '{platform.system()}'; using local server directory for Altcha keys.")
+    ALTCHA_KEYS_FILE = os.path.join(config.SERVER_DIR, "altcha_keys.txt")
 
 # All log files go into server/logs/.
 # Set any LOG_FILE to None to disable that log entirely.
@@ -84,9 +85,9 @@ ESRI_API_KEY = "AAPTaE3l9gdOIfb3Lahd7EcDySw..FsU5ZGzkCfTYJsYfCRfQHQDUaRTLhXm-LJM
 GOOGLE_ANALYTICS_TRACKING_ID = "G-EGX5Y3PBYH"
 # If you don't wan to use GA, set this to "" !
 
-# log for recaptcha v3 — set to None to disable
-RECAPTCHA_V3_LOG_FILE = os.path.join(LOGS_DIR, 'recaptcha.log')
-#RECAPTCHA_V3_LOG_FILE = None
+# log for Altcha — set to None to disable
+ALTCHA_LOG_FILE = os.path.join(LOGS_DIR, 'altcha.log')
+#ALTCHA_LOG_FILE = None
 
 # Quota / hillshade activity log.
 # Logs every getMapId() call and outcome. Set to None to disable.
