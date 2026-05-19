@@ -31,6 +31,8 @@ from geojson import Polygon
 from io import BytesIO
 from zipfile import ZipFile
 
+from altcha import ChallengeOptionsV1, create_challenge_v1, verify_solution_v1
+
 from touchterrain.common import config # general settings
 from touchterrain.server.config import * # server only settings
 from touchterrain.server import app
@@ -96,21 +98,20 @@ geotiff_log.info(f"=== server started ===  TMP_FOLDER={TMP_FOLDER}")
 
 # Google Maps key removed - ESRI/Leaflet version does not use Google Maps
 
-# RecaptchaKeys.txt in server folder must contain keys for recaptcha site key, 
-# recaptcha secret key and flask secret key as single strings in separate lines 
+# altcha_keys.txt must contain two lines:
+#   line 1: Flask secret key
+#   line 2: Altcha HMAC key (any random secret string)
 
 try:
-    with open(RECAPTCHA_V3_KEYS_FILE) as f:
+    with open(ALTCHA_KEYS_FILE) as f:
         lines = f.readlines()
         keys = [line.rstrip() for line in lines]
-        app.config['RECAPTCHA_SITE_KEY'] = keys[0]
-        app.config['RECAPTCHA_SECRET_KEY'] = keys[1]
-        app.secret_key = keys[2]
+        app.secret_key = keys[0]
+        app.config['ALTCHA_HMAC_KEY'] = keys[1]
 except:
-     # file does not exist - will show the ugly Google map version
-     sys.exit("Problem with RecaptchaKeys.txt in server folder, it must contain keys for the (v3) recaptcha site key, recaptcha secret key and flask secret key as single strings in separate lines. Exiting.")
+    sys.exit(f"Problem with {ALTCHA_KEYS_FILE} — it must contain two lines: flask_secret_key and altcha_hmac_key. Exiting.")
 else:
-    print("Recaptcha_v3_keys.txt sucessfully parsed.")
+    print("altcha_keys.txt successfully parsed.")
 
 # Check ESRI API key at startup (if one is configured)
 def check_esri_api_key(key):
@@ -191,30 +192,51 @@ else:
 # load_stl_min.js can be loaded
 mimetypes.add_type('application/javascript', '.js')
 
-# set recaptcha v3 threshold for no-bot detection
-app.config["score"] = None
-app.config["score_threshold"] = 0.5 # 0.0 - 1.0
+# Altcha challenge endpoint — returns a new proof-of-work challenge to the browser widget
+@app.route('/altcha-challenge')
+def altcha_challenge():
+    options = ChallengeOptionsV1(
+        hmac_key=app.config['ALTCHA_HMAC_KEY'],
+        max_number=100000,
+        expires=datetime.utcnow() + timedelta(minutes=10),
+    )
+    app.config['ALTCHA_MAX_NUMBER'] = 100000
+    challenge = create_challenge_v1(options)
+    return Response(json.dumps(challenge.to_dict()), mimetype='application/json')
 
 
-def verify_recaptcha(token):
-    """Verify reCAPTCHA v3 token with Google."""
-    secret = app.config['RECAPTCHA_SECRET_KEY']
-    payload = {
-        'secret': secret,
-        'response': token
-    }
-    r = requests.post('https://www.google.com/recaptcha/api/siteverify', data=payload)
-    result = r.json()
-    print("recaptcha results:", result)
-    app.config["score"] = result.get('score', 0)
+def verify_altcha(payload):
+    """Verify Altcha proof-of-work payload submitted by the browser widget."""
+    # Decode the payload for logging detail (it's a base64 JSON string)
+    payload_dict = {}
+    try:
+        import base64
+        payload_dict = json.loads(base64.b64decode(payload).decode())
+    except Exception:
+        pass
 
-    # JSON structure ex: {'success': True, 'challenge_ts': '2025-04-24T19:36:47Z', 'hostname': '127.0.0.1', 'score': 0.9, 'action': 'submit'}
-    if RECAPTCHA_V3_LOG_FILE:
-        with open(RECAPTCHA_V3_LOG_FILE, 'a') as f:
-            f.write(f"{result.get('challenge_ts', '')}, {result.get('success', False)}, "
-                    f"{result.get('score', 0)}, {app.config['score_threshold']}, {result.get('hostname', '')}\n")
+    try:
+        ok, err = verify_solution_v1(payload, app.config['ALTCHA_HMAC_KEY'], check_expires=True)
+    except Exception as e:
+        print(f"Altcha verification error: {e}", file=sys.stderr)
+        ok, err = False, str(e)
 
-    return result.get('success', False) and result.get('score', 0) > app.config["score_threshold"]
+    # number = how much work the solver did; max_number=100000 so range is 0-100000.
+    # A very low number (e.g. <100) could indicate automation.
+    number    = payload_dict.get('number', 'N/A')
+    algorithm = payload_dict.get('algorithm', 'N/A')
+    took_ms   = payload_dict.get('took', 'N/A')  # ms to solve, if widget reported it
+
+    status = 'success' if ok else f'failed ({err})'
+    print(f"Altcha: {status}, algorithm={algorithm}, number={number}, took={took_ms}ms", file=sys.stderr)
+
+    if ALTCHA_LOG_FILE:
+        with open(ALTCHA_LOG_FILE, 'a') as f:
+            f.write(f"{datetime.utcnow().isoformat()}, {status}, "
+                    f"algorithm={algorithm}, number={number}/{app.config.get('ALTCHA_MAX_NUMBER', 100000)}, "
+                    f"took={took_ms}ms\n")
+
+    return ok
 
 # a JS script to init google analytics, so I can use ga send on the pages with preview and download buttons
 # Note this is inconsistent when used with the preview page as its download  events is fired off when its download
@@ -543,14 +565,14 @@ def clear_geotiff():
     return Response('{}', mimetype='application/json')
 
 
-# entry page that shows a world map does the Recaptch_v3 and, if passed, 
+# entry page that shows a world map, runs Altcha proof-of-work, and
 # loads the main page when clicked
 @app.route('/', methods=['GET', 'POST'])
 def intro_page():
     print("DEBUG: intro_page() called", file=sys.stderr, flush=True)
     if request.method == 'POST':
-        token = request.form.get('g-recaptcha-response')
-        if token and verify_recaptcha(token):
+        payload = request.form.get('altcha')
+        if payload and verify_altcha(payload):
             session['recaptcha_verified'] = True  # Store in Flask session
             print("User has been verified (intro), showing main page.", file=sys.stderr)
             # Pass click coordinates from the splash map to the main page
@@ -562,14 +584,13 @@ def intro_page():
                                     map_lat=map_lat, map_lon=map_lon,
                                     map_zoom=map_zoom, DEM_name=DEM_name))
         else:
-            session['recaptcha_verified'] = False # default to False, set to True if recaptcha is verified
+            session['recaptcha_verified'] = False
             print("Verification failed", file=sys.stderr)
             return render_template(
                 'intro.html',
-                site_key=app.config['RECAPTCHA_SITE_KEY'],
-                error=f"reCAPTCHA.v3 failed with score {app.config['score']} < {app.config['score_threshold']}. If you're not a bot, you may be penalized for using privacy tools, a VPN, or incognito mode. Disable them and try again. (Sorry!)"
+                error="Bot-detection check failed. Please try again."
             )
-    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
+    return render_template('intro.html')
 
 #
 # The page for selecting the ROI and putting in printer parameters
@@ -745,9 +766,9 @@ def main_page():
                                     browser_log_enabled=BROWSER_LOG_ENABLED)
         return html_str
 
-    # if user has not been verified yet, show the intro page to get the reCAPTCHA
+    # if user has not been verified yet, show the intro page to get the Altcha check
     print("User has not been verified, showing intro page.", file=sys.stderr)
-    return render_template('intro.html', site_key=app.config['RECAPTCHA_SITE_KEY'])
+    return render_template('intro.html')
 
 # Page that unzips the tiles and shows a preview of the STL files using a template
 @app.route("/preview/<string:zip_file>")
