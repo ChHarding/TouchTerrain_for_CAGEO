@@ -25,3 +25,4 @@ matplotlib>=3.9.2
 # The next line should only compile and install GDAL when on linux
 gdal>=3.2.1,<3.9.3; sys_platform == 'linux'
 gunicorn>=20.0.4
+altcha>=0.1.0
