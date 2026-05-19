@@ -3,6 +3,7 @@ import os
 import platform
 
 # TouchTerrain server config settings
+# Debug tip: if breakpoints/logs do not fire, verify port 8080 is owned by this workspace process (Windows: Get-NetTCPConnection -LocalPort 8080).
 
 #
 # 5/2025: changed keys file location to /tmp to make it not web accessible.
