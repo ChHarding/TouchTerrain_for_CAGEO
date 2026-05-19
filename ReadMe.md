@@ -233,6 +233,7 @@ Note on using GPX files: this will simply extrude those pixels covered by a path
 All server related files are in `touchterrain/server`
 
 Running `TouchTerrain_app.py` starts a Flask server module, which will be run inside Apache. Contact us if you want to know about the dockerized Gunicorn version we run at ISU. The server creates a webpage, through which the user inputs the area selection and print parameters.
+Troubleshooting tip: if breakpoints or new log lines do not fire locally, make sure port 8080 is owned by this workspace's Python process (Windows: `Get-NetTCPConnection -LocalPort 8080`).
 
 The server presents users with `index.html` (in templates), which can be styled to suit your needs, provided the various input dialogs and JavaScript remain. Starting with version 3, it is based on Bootstrap 4.
 
