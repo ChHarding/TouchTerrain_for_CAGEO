@@ -22,7 +22,7 @@
     
 
         <meta charset="UTF-8">
-        <script src="https://www.google.com/recaptcha/api.js?render={{ site_key }}"></script>
+        <script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js"></script>
         <style>
             html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
             #splash-wrapper { width: 100vw; height: 100vh; overflow: hidden; cursor: crosshair; }
@@ -88,12 +88,7 @@
                 document.getElementById('click-map-zoom').value = '8';
                 document.getElementById('click-dem-name').value = dem;
 
-                grecaptcha.ready(function() {
-                    grecaptcha.execute('{{ site_key }}', {action: 'submit'}).then(function(token) {
-                        document.getElementById('g-recaptcha-response').value = token;
-                        document.getElementById('recaptcha-form').submit();
-                    });
-                });
+                document.getElementById('recaptcha-form').submit();
             }
         </script>
     </head>
@@ -102,7 +97,7 @@
         <p style="color: red;">{{ error }}</p>
         {% endif %}
         <form id="recaptcha-form" method="POST" action="/">
-            <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+            <altcha-widget challengeurl="/altcha-challenge" auto="onload" hidefooter style="display:none"></altcha-widget>
             <input type="hidden" id="click-map-lat"  name="map_lat"  value="">
             <input type="hidden" id="click-map-lon"  name="map_lon"  value="">
             <input type="hidden" id="click-map-zoom" name="map_zoom" value="8">
