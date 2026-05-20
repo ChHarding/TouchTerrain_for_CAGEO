@@ -82,6 +82,26 @@ def get_normal(tri):
         normal = [c.x/m, c.y/m, c.z/m]
     return normal
 
+def make_wall_without_exact_duplicate_vertices(v0: vertex, v1: vertex, v2: vertex, v3: vertex) -> quad | None:
+    """Create a wall mesh, dropping exact duplicate vertices.
+
+    Difference meshes can produce wall endpoints where top and bottom are exactly
+    equal. In that case the wall should be a triangle, or omitted if the whole
+    wall has zero height.
+    """
+    unique_vertices: list[vertex] = []
+    unique_coords: set[tuple[float, ...]] = set()
+    for v in (v0, v1, v2, v3):
+        if v.coords not in unique_coords:
+            unique_vertices.append(v)
+            unique_coords.add(v.coords)
+
+    if len(unique_vertices) < 3:
+        return None
+    if len(unique_vertices) == 3:
+        return quad(unique_vertices[0], unique_vertices[1], unique_vertices[2], None)
+    return quad(v0, v1, v2, v3)
+
 class cell:
     '''a cell with a top and bottom quad, constructor: uses refs and does NOT copy ...
        except for triangle cells
@@ -848,10 +868,10 @@ class grid:
                             pass # nothing wrong - just here to ignore the warning
                     
                     # Quads for walls: in borders dict, replace any True with a quad of that wall
-                    if borders["N"] == True: borders["N"] = quad(NWb, NWt, NEt, NEb)
-                    if borders["S"] == True: borders["S"] = quad(SEb, SEt, SWt, SWb)
-                    if borders["E"] == True: borders["E"] = quad(NEt, SEt, SEb, NEb)
-                    if borders["W"] == True: borders["W"] = quad(SWt, NWt, NWb, SWb)
+                    if borders["N"] == True: borders["N"] = make_wall_without_exact_duplicate_vertices(NWb, NWt, NEt, NEb) or False
+                    if borders["S"] == True: borders["S"] = make_wall_without_exact_duplicate_vertices(SEb, SEt, SWt, SWb) or False
+                    if borders["E"] == True: borders["E"] = make_wall_without_exact_duplicate_vertices(NEt, SEt, SEb, NEb) or False
+                    if borders["W"] == True: borders["W"] = make_wall_without_exact_duplicate_vertices(SWt, NWt, NWb, SWb) or False
 
                 # create borders if there is a top surface polygon using the edge buckets
                 surface_polygon_borders_3D: list[quad] = []
@@ -898,8 +918,9 @@ class grid:
                                 top_edge_v1 = vertex(*topEdgeMatch.coords[0])
                                 bot_edge_v0 = vertex(*botEdgeMatch.coords[1])
                                 bot_edge_v1 = vertex(*botEdgeMatch.coords[0])
-                                tb_wall = quad(top_edge_v0, top_edge_v1, bot_edge_v0, bot_edge_v1)
-                                surface_polygon_borders_3D.append(tb_wall)
+                                tb_wall = make_wall_without_exact_duplicate_vertices(top_edge_v0, top_edge_v1, bot_edge_v0, bot_edge_v1)
+                                if tb_wall is not None:
+                                    surface_polygon_borders_3D.append(tb_wall)
                                 pass
                             elif topEdgeMatch:
                                 raise RuntimeError('Border creation: top edge match found but no bot edge match.')
