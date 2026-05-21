@@ -572,7 +572,21 @@ def get_bounding_box(coords):
     bllon -= width/100
     return trlat, trlon, bllat, bllon
 
+def get_tile_height(tile_width, region_width, region_height, ntiles_width, ntiles_height):
+    ''' return the height of a single tile for a given region, considering both the region
+        aspect ratio and the number of tiles in width and height, which may differ'''
+    region_height_width_ratio =  region_height / float(region_width)
+    width_per_tile = tile_width # EW
+    width_total = width_per_tile * ntiles_width # EW
+    height_total = width_total * region_height_width_ratio # NS
+    height_per_tile = height_total / float(ntiles_height) # NS
+    return height_per_tile
 
+def get_print_resolution(width_total_mm, raster_width):
+    ''' return the print resolution given the total millimeters wide for the
+        print, including potentially more than one tile, and the raster width'''
+    printresolution_mm = width_total_mm / float(raster_width)
+    return printresolution_mm  
 
 def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=None, # all args are keywords, so I can use just **args in calls ...
                          polygon=None,
@@ -913,7 +927,6 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
         #
         region_size_in_meters = [region_size_in_degrees[0] * longitude_in_m, # 0 -> EW, width
                                  region_size_in_degrees[1] * latitude_in_m]  # 1 -> NS, height
-        region_ratio =  region_size_in_meters[1] / float(region_size_in_meters[0])
 
         # if tilewidth_scale is given, overwrite tilewidth by region width / tilewidth_scale
         if tilewidth_scale != None:
@@ -922,11 +935,11 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
         # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
         print3D_width_per_tile = tilewidth # EW
-        print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+        print3D_height_per_tile = get_tile_height(print3D_width_per_tile, region_size_in_meters[0], region_size_in_meters[1], num_tiles[0], num_tiles[1]) # NS
 
         # width/height of full 3D model (all tiles together)
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
-        print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
+        print3D_height_total_mm = print3D_height_per_tile * num_tiles[1] # height => NS
 
         if print3D_resolution_mm > 0:
 
@@ -1154,21 +1167,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             #
             # based on the full raster's shape and given the model width, recalc the model height
             #
-            region_ratio =  npim.shape[0] / float(npim.shape[1])
-
             # width/height (in 2D) of 3D model of ONE TILE to be printed, in mm
             print3D_width_per_tile = tilewidth # EW
-            print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+            print3D_height_per_tile = get_tile_height(print3D_width_per_tile, npim.shape[1], npim.shape[0], num_tiles[0], num_tiles[1]) # NS
 
             # width/height of full 3D model (all tiles together)
             print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
-            print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
+            print3D_height_total_mm = print3D_height_per_tile * num_tiles[1] # height => NS
 
             #
             # (re) calculate print res needed to make that width/height from the given raster
             #
-            adjusted_print3D_resolution = print3D_width_total_mm / float(npim.shape[1])
-
+            adjusted_print3D_resolution = get_print_resolution(print3D_width_total_mm, npim.shape[1])
 
             if printres > 0: # did NOT use source resolution
                 pr("cell size:", cell_size_m, "m ")
@@ -1361,18 +1371,18 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
 
 
         # tile height
-        whratio = npim.shape[0] / float(npim.shape[1])
-        tileheight = tilewidth  * whratio
+        tileheight =  get_tile_height(tilewidth, npim.shape[1], npim.shape[0], num_tiles[0], num_tiles[1])
         pr("tile_width:", tilewidth)
         pr("tile_height:", tileheight)
         print3D_width_per_tile = tilewidth
         print3D_height_per_tile = tileheight
         print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0]
+        print3D_height_total_mm = print3D_height_per_tile * num_tiles[1]
         real_world_total_width_m = npim.shape[1] * cell_size_m
         pr("source raster width", real_world_total_width_m, "m,", "cell size:", cell_size_m, "m, elev. min/max is", numpy.nanmin(npim), numpy.nanmax(npim), "m")
 
         # What would be the 3D print resolution using the original/unresampled source resolution?
-        source_print3D_resolution =  (tilewidth*ntilesx) / float(npim.shape[1])
+        source_print3D_resolution =  get_print_resolution(print3D_width_total_mm, npim.shape[1])
         pr("source raster 3D print resolution would be", source_print3D_resolution, "mm")
 
         # Resample raster to get requested printres?
@@ -1403,12 +1413,12 @@ def get_zipped_tiles(DEM_name=None, trlat=None, trlon=None, bllat=None, bllon=No
             # based on the full raster's shape and given the model width, recalc the model height
             # and the adjusted printres that will give that width from the resampled raster
             #
-            region_ratio =  npim.shape[0] / float(npim.shape[1])
             print3D_width_per_tile = tilewidth # EW
-            print3D_height_per_tile = (print3D_width_per_tile * num_tiles[0] * region_ratio) / float(num_tiles[1]) # NS
+            print3D_height_per_tile = get_tile_height(print3D_width_per_tile, npim.shape[1], npim.shape[0], num_tiles[0], num_tiles[1]) # NS
+          
             print3D_width_total_mm =  print3D_width_per_tile * num_tiles[0] # width => EW
-            print3D_height_total_mm = print3D_width_total_mm * region_ratio   # height => NS
-            adjusted_print3D_resolution = print3D_width_total_mm / float(npim.shape[1])
+            print3D_height_total_mm = print3D_height_per_tile * num_tiles[1] # height => NS
+            adjusted_print3D_resolution = get_print_resolution(print3D_width_total_mm, npim.shape[1])
 
             cell_size_m *= scale_factor
             pr(" ",npim.shape[::-1], adjusted_print3D_resolution, "mm ", cell_size_m, "m ", numpy.nanmin(npim), "-", numpy.nanmax(npim), "m")
