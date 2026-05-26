@@ -39,6 +39,8 @@ May 15, 2026 (version 4.0)
 Run_TouchTerrain_debug_server_app.py — a one-click local Flask debug server
 Documentation added: how_rate_limiting_works.txt, quota/hillshade architecture notes
 
+10. switched from recaptcha3 to altcha
+
 
 
 
