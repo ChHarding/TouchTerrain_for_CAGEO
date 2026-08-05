@@ -1,0 +1,474 @@
+{
+  "legend": [
+    {
+      "row": 1,
+      "scenario": "2-adjacent vertical shared positive edge",
+      "approx_y_mm": 0.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 2,
+      "scenario": "2-adjacent horizontal shared positive edge",
+      "approx_y_mm": -28.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 3,
+      "scenario": "2-opposite SW+NE positive diagonal",
+      "approx_y_mm": -56.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 4,
+      "scenario": "2-opposite SE+NW positive diagonal",
+      "approx_y_mm": -84.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 5,
+      "scenario": "3-corner positive contact, only SE open",
+      "approx_y_mm": -112.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 6,
+      "scenario": "3-corner positive contact, only SW open",
+      "approx_y_mm": -140.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 7,
+      "scenario": "3-corner positive contact, only NW open",
+      "approx_y_mm": -168.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 8,
+      "scenario": "3-corner positive contact, only NE open",
+      "approx_y_mm": -196.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 9,
+      "scenario": "1-corner SW positive contact",
+      "approx_y_mm": -224.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 10,
+      "scenario": "1-corner SE positive contact",
+      "approx_y_mm": -252.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 11,
+      "scenario": "1-corner NE positive contact",
+      "approx_y_mm": -280.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    },
+    {
+      "row": 12,
+      "scenario": "1-corner NW positive contact",
+      "approx_y_mm": -308.0,
+      "columns": {
+        "normal before": 0.0,
+        "normal after": 34.0,
+        "difference before": 68.0,
+        "difference after": 102.0
+      }
+    }
+  ],
+  "stats": {
+    "row01 normal before - 2-adjacent vertical shared positive edge": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row01 normal after - 2-adjacent vertical shared positive edge": {
+      "triangles": 28,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row01 difference before - 2-adjacent vertical shared positive edge": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row01 difference after - 2-adjacent vertical shared positive edge": {
+      "triangles": 24,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row02 normal before - 2-adjacent horizontal shared positive edge": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row02 normal after - 2-adjacent horizontal shared positive edge": {
+      "triangles": 28,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row02 difference before - 2-adjacent horizontal shared positive edge": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row02 difference after - 2-adjacent horizontal shared positive edge": {
+      "triangles": 24,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row03 normal before - 2-opposite SW+NE positive diagonal": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row03 normal after - 2-opposite SW+NE positive diagonal": {
+      "triangles": 28,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row03 difference before - 2-opposite SW+NE positive diagonal": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row03 difference after - 2-opposite SW+NE positive diagonal": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row04 normal before - 2-opposite SE+NW positive diagonal": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row04 normal after - 2-opposite SE+NW positive diagonal": {
+      "triangles": 28,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row04 difference before - 2-opposite SE+NW positive diagonal": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row04 difference after - 2-opposite SE+NW positive diagonal": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row05 normal before - 3-corner positive contact, only SE open": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row05 normal after - 3-corner positive contact, only SE open": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row05 difference before - 3-corner positive contact, only SE open": {
+      "triangles": 6,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row05 difference after - 3-corner positive contact, only SE open": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row06 normal before - 3-corner positive contact, only SW open": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row06 normal after - 3-corner positive contact, only SW open": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row06 difference before - 3-corner positive contact, only SW open": {
+      "triangles": 6,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row06 difference after - 3-corner positive contact, only SW open": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row07 normal before - 3-corner positive contact, only NW open": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row07 normal after - 3-corner positive contact, only NW open": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row07 difference before - 3-corner positive contact, only NW open": {
+      "triangles": 6,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row07 difference after - 3-corner positive contact, only NW open": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row08 normal before - 3-corner positive contact, only NE open": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row08 normal after - 3-corner positive contact, only NE open": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row08 difference before - 3-corner positive contact, only NE open": {
+      "triangles": 6,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 1,
+      "same_direction_edges": 0
+    },
+    "row08 difference after - 3-corner positive contact, only NE open": {
+      "triangles": 8,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row09 normal before - 1-corner SW positive contact": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row09 normal after - 1-corner SW positive contact": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row09 difference before - 1-corner SW positive contact": {
+      "triangles": 10,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row09 difference after - 1-corner SW positive contact": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row10 normal before - 1-corner SE positive contact": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row10 normal after - 1-corner SE positive contact": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row10 difference before - 1-corner SE positive contact": {
+      "triangles": 10,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row10 difference after - 1-corner SE positive contact": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row11 normal before - 1-corner NE positive contact": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row11 normal after - 1-corner NE positive contact": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row11 difference before - 1-corner NE positive contact": {
+      "triangles": 10,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row11 difference after - 1-corner NE positive contact": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row12 normal before - 1-corner NW positive contact": {
+      "triangles": 12,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row12 normal after - 1-corner NW positive contact": {
+      "triangles": 20,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row12 difference before - 1-corner NW positive contact": {
+      "triangles": 10,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    },
+    "row12 difference after - 1-corner NW positive contact": {
+      "triangles": 16,
+      "zero_area": 0,
+      "boundary_edges": 0,
+      "overused_edges": 0,
+      "same_direction_edges": 0
+    }
+  }
+}

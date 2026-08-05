@@ -1,0 +1,440 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+      {
+          "name":  "TT PA-land",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-land.json"
+      },
+      {
+          "name":  "TT PA-land-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-land-nudge.json"
+      },
+      {
+          "name":  "TT PA-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-pair.json"
+      },
+      {
+          "name":  "TT PA-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-pair-nudge.json"
+      },
+      {
+          "name":  "TT PA-land-clip",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-land-clip.json"
+      },
+      {
+          "name":  "TT PA-land-clip-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-land-clip-nudge.json"
+      },
+      {
+          "name":  "TT PA-clip-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-clip-pair.json"
+      },
+      {
+          "name":  "TT PA-clip-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/PA-clip-pair-nudge.json"
+      },
+      {
+          "name":  "TT IP-land",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "IP-land.json"
+      },
+      {
+          "name":  "TT IP-land-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-land-nudge.json"
+      },
+      {
+          "name":  "TT IP-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-pair.json"
+      },
+      {
+          "name":  "TT IP-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-pair-nudge.json"
+      },
+      {
+          "name":  "TT IP-land-clip",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-land-clip.json"
+      },
+      {
+          "name":  "TT IP-land-clip-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-land-clip-nudge.json"
+      },
+      {
+          "name":  "TT IP-clip-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-clip-pair.json"
+      },
+      {
+          "name":  "TT IP-clip-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/IP-clip-pair-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-land-only",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "DC-new-land-only.json"
+      },
+      {
+          "name":  "TT DC-new-land-only-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-land-only-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-land",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "DC-new-land.json"
+      },
+      {
+          "name":  "TT DC-new-land-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-land-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-pair.json"
+      },
+      {
+          "name":  "TT DC-new-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-pair-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-land-clip",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "DC-new-land-clip.json"
+      },
+      {
+          "name":  "TT DC-new-land-clip-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-land-clip-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-clip-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-clip-pair.json"
+      },
+      {
+          "name":  "TT DC-new-clip-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-clip-pair-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-land-thru",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "DC-new-land-thru.json"
+      },
+      {
+          "name":  "TT DC-new-land-thru-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-land-thru-nudge.json"
+      },
+      {
+          "name":  "TT DC-new-river-thru",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "DC-new-river-thru.json"
+      },
+      {
+          "name":  "TT DC-new-river-thru-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/DC-new-river-thru-nudge.json"
+      },
+      {
+          "name":  "TT WV-new-land-only",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "WV-new-land-only.json"
+      },
+      {
+          "name":  "TT WV-new-land-only-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-land-only-nudge.json"
+      },
+      {
+          "name":  "TT WV-new-land",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "WV-new-land.json"
+      },
+      {
+          "name":  "TT WV-new-land-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-land-nudge.json"
+      },
+      {
+          "name":  "TT WV-new-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-pair.json"
+      },
+      {
+          "name":  "TT WV-new-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-pair-nudge.json"
+      },
+      {
+          "name":  "TT WV-new-land-thru",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "WV-new-land-thru.json"
+      },
+      {
+          "name":  "TT WV-new-land-thru-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-land-thru-nudge.json"
+      },
+      {
+          "name":  "TT WV-new-river-thru",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "WV-new-river-thru.json"
+      },
+      {
+          "name":  "TT WV-new-river-thru-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/WV-new-river-thru-nudge.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-land",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "simplePolygon-new-land.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-land-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-land-nudge.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-pair.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-pair-nudge.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-land-clip",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "simplePolygon-new-land-clip.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-land-clip-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-land-clip-nudge.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-clip-pair",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-clip-pair.json"
+      },
+      {
+          "name":  "TT simplePolygon-new-clip-pair-nudge",
+          "type":  "debugpy",
+          "request":  "launch",
+          "program":  "${workspaceFolder}/TouchTerrain_standalone.py",
+          "console":  "integratedTerminal",
+          "cwd":  "${workspaceFolder}/../touchterrain-dev/",
+          "args":  "${workspaceFolder}/.vscode/launch-configs/simplePolygon-new-clip-pair-nudge.json"
+      }
+  ]
+}

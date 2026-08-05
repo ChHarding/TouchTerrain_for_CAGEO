@@ -51,12 +51,14 @@ terrain
 # white listings
 !.gitignore
 !tmp/.gitkeep
+!.vscode/
 !README.md
 !NEWS.md
 
 # whitelisting
 !test/test_TouchTerrain_standalone.py
 !test/test_TouchTerrainGPX.py
+!test/test_validate_launch_mesh_comparison.py
 !test/bottom_image_test.png
 !test/sheepMtn_outline.kml
 !test/SheepMtn.tif
@@ -207,6 +209,8 @@ dmypy.json
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
+!.vscode/launch-configs/
+!.vscode/launch-configs/*.json
 !.vscode/extensions.json
 *.code-workspace
 

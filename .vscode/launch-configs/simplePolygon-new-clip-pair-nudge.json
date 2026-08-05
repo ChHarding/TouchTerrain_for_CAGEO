@@ -1,0 +1,31 @@
+{
+    "CPU_cores_to_use":  0,
+    "basethick":  0.7,
+    "bllat":  -99052.90558464185,
+    "bllon":  1159962.9526199948,
+    "bottom_elevation":  "simplePolygon-bottom.tif",
+    "clean_diags":  true,
+    "edge_clipping_polygon":  "simplePolygon.gpkg",
+    "fileformat":  "STLb",
+    "fill_holes":  [
+                       -1,
+                       7
+                   ],
+    "ignore_leq":  -100,
+    "importedDEM":  "simplePolygon-top.tif",
+    "interlocking_mesh_pair":  true,
+    "max_cells_for_memory_only":  25000000,
+    "min_elev":  -100,
+    "ntilesx":  1,
+    "ntilesy":  1,
+    "printres":  -1,
+    "smooth_borders":  false,
+    "split_rotation":  1,
+    "tile_centered":  false,
+    "tileScale":  2500000,
+    "trlat":  291697.09441535815,
+    "trlon":  1557212.9526199948,
+    "zip_file_name":  "",
+    "zscale":  5,
+    "nudge_in_overused_edges_vertex":  true
+}

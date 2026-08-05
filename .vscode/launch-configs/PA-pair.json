@@ -1,0 +1,29 @@
+{
+  "basethick": 0.7,
+  "bllat": 570297.9296598651,
+  "bllon": 125655.97797452526,
+  "bottom_elevation": "PA-bottom.tif",
+  "clean_diags": true,
+  "dirty_triangles": true,
+  "fileformat": "STLb",
+  "fill_holes": [
+    -1,
+    7
+  ],
+  "ignore_leq": -450,
+  "importedDEM": "PA-top.tif",
+  "interlocking_mesh_pair": true,
+  "max_cells_for_memory_only": 25000000,
+  "min_elev": -450,
+  "ntilesx": 1,
+  "ntilesy": 1,
+  "printres": -1,
+  "smooth_borders": false,
+  "split_rotation": 1,
+  "tileScale": 2500000,
+  "tile_centered": false,
+  "trlat": 717547.9296598651,
+  "trlon": 254155.97797452525,
+  "zip_file_name": "",
+  "zscale": 5
+}

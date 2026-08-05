@@ -578,7 +578,7 @@ def export():
         # Create zip and write to tmp
         #
         try:
-            totalsize, full_zip_file_name = TouchTerrainEarthEngine.get_zipped_tiles(**args) # all args are in a dict
+            totalsize, full_zip_file_name = TouchTerrainEarthEngine.get_zipped_tiles(args) # all args are in a dict
         except Exception as e:
             print("Error:", e, file=sys.stderr)
             html =  '</body></html>' + "Error: " + str(e)

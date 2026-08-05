@@ -1,0 +1,29 @@
+{
+  "basethick": 0.7,
+  "bllat": 569750.0,
+  "bllon": 125500.0,
+  "clean_diags": false,
+  "edge_clipping_polygon": "IP-test-files/PA.gpkg",
+  "fileformat": "STLb",
+  "fill_holes": [
+    -1,
+    7
+  ],
+  "ignore_leq": -450,
+  "importedDEM": "IP-test-files/bottomNormal_tap/PA.tif",
+  "max_cells_for_memory_only": 25000000,
+  "min_elev": -450,
+  "ntilesx": 1,
+  "ntilesy": 1,
+  "printres": -1,
+  "smooth_borders": false,
+  "split_rotation": 1,
+  "tileScale": 2500000,
+  "tile_centered": false,
+  "top_elevation_hint": "IP-test-files/topNormal_tap/PA.tif",
+  "trlat": 718000.0,
+  "trlon": 254750.0,
+  "zip_file_name": "",
+  "zscale": 5,
+  "nudge_in_overused_edges_vertex": true
+}

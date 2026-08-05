@@ -1,0 +1,10 @@
+name: touchterrain-dev
+channels:
+    - conda-forge
+dependencies:
+    - "python>=3.11,<3.14"
+    - gdal
+    - "tk>=8.6,<9"
+    - pip
+    - pip:
+        - -e .

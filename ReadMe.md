@@ -221,6 +221,17 @@ Note on using GPX files: this will simply extrude those pixels covered by a path
 
 ### Unit tests (new in 3.5)
 
+- Install the development environment from `environment-dev.yml`, then run
+  the complete headless test suite with `python -m pytest -q test`. Headless
+  tests use Matplotlib's non-interactive Agg backend and do not open windows.
+- To inspect polygon-clipping wall detection interactively, run
+  `python -m pytest --show-wall-plots test/test_polygon_clipping.py`. The two
+  wall-visualization tests open TkAgg graphs and continue after each graph is
+  closed. The repository's VS Code Testing configuration enables these graphs
+  by default.
+- The development Conda environment explicitly provides Tcl/Tk for TkAgg.
+  Normal TouchTerrain installations continue to use any Matplotlib backend
+  available in their Python environment.
 - The test folder contains a (somewhat simplistic) setup for running unit tests.
 - Each test is defined by a set of input parameters (see above section) and will create a folder (same name as the test) that will contain the resulting files (log, geotiff, STL, etc.) This should make it possible to test (or re-test) specific combination of parameters in the event of a suspected bug.
 - Note that some of these tests "fail" with their parameters b/c the expected effect is not yet implemented E.g. kml files cannot (yet) be used with a local geotiff DEM. These will be flagged as WAI (working as intended)
